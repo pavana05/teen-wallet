@@ -313,3 +313,85 @@
 }
 .admin-shell .a-mono { font-family: "JetBrains Mono", ui-monospace, monospace; font-variant-numeric: tabular-nums; }
 .admin-shell .a-label { font-size: 12px; color: var(--a-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+
+/* ============ PHONE VERIFIED — premium confirmation screen ============ */
+@keyframes pv-bg-glow { 0%,100%{opacity:.55} 50%{opacity:.85} }
+@keyframes pv-vlines-drift { 0%{background-position:0 0} 100%{background-position:0 -200px} }
+@keyframes pv-badge-in {
+  0%{transform:scale(0);opacity:0}
+  60%{transform:scale(1.12);opacity:1}
+  80%{transform:scale(.96)}
+  100%{transform:scale(1)}
+}
+@keyframes pv-ring { 0%{transform:scale(.6);opacity:.7} 100%{transform:scale(2.2);opacity:0} }
+@keyframes pv-ripple { 0%{transform:scale(.4);opacity:.45} 100%{transform:scale(2.6);opacity:0} }
+@keyframes pv-check { to { stroke-dashoffset: 0 } }
+@keyframes pv-streak { 0%{transform:translateX(-160%) skewX(-20deg);opacity:0} 25%{opacity:.85} 100%{transform:translateX(160%) skewX(-20deg);opacity:0} }
+@keyframes pv-particle { 0%{transform:translateY(0) scale(.8);opacity:0} 20%{opacity:.9} 100%{transform:translateY(-220px) scale(.4);opacity:0} }
+@keyframes pv-spark { 0%{transform:scale(0) rotate(0);opacity:0} 50%{transform:scale(1) rotate(180deg);opacity:1} 100%{transform:scale(0) rotate(360deg);opacity:0} }
+@keyframes pv-fade-up { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:translateY(0)} }
+@keyframes pv-btn-shine { 0%{transform:translateX(-120%)} 100%{transform:translateX(220%)} }
+
+.pv-root {
+  position: relative; flex:1; display:flex; flex-direction:column;
+  background:
+    radial-gradient(120% 60% at 50% -10%, rgba(34,197,94,.42), transparent 60%),
+    radial-gradient(80% 50% at 50% 0%, rgba(74,222,128,.28), transparent 70%),
+    linear-gradient(180deg, #03150c 0%, #050a07 45%, #000 100%);
+  overflow:hidden;
+}
+.pv-root::before{
+  content:""; position:absolute; inset:0; pointer-events:none;
+  background-image: repeating-linear-gradient(90deg, rgba(255,255,255,.035) 0 1px, transparent 1px 28px);
+  mask-image: linear-gradient(180deg, rgba(0,0,0,.6), rgba(0,0,0,.15) 60%, transparent);
+  animation: pv-vlines-drift 9s linear infinite;
+}
+.pv-root::after{
+  content:""; position:absolute; inset:0; pointer-events:none;
+  background: radial-gradient(120% 80% at 50% 110%, rgba(0,0,0,.85), transparent 60%);
+}
+.pv-spotlight{ position:absolute; left:50%; top:-120px; width:520px; height:520px; transform:translateX(-50%);
+  background: radial-gradient(closest-side, rgba(74,222,128,.45), transparent 70%);
+  filter: blur(20px); animation: pv-bg-glow 4s ease-in-out infinite; pointer-events:none; }
+
+.pv-badge-wrap{ position:relative; width:172px; height:172px; display:flex; align-items:center; justify-content:center; }
+.pv-ripple{ position:absolute; inset:0; border-radius:50%; background: radial-gradient(closest-side, rgba(74,222,128,.35), transparent 70%); animation: pv-ripple 2.4s ease-out infinite; }
+.pv-ring{ position:absolute; inset:0; border-radius:50%; border:1.5px solid rgba(74,222,128,.55); animation: pv-ring 2.6s ease-out infinite; }
+.pv-ring.delay{ animation-delay:1.3s }
+.pv-badge{
+  position:relative; width:128px; height:128px; border-radius:50%;
+  background:
+    radial-gradient(circle at 30% 25%, rgba(255,255,255,.35), transparent 45%),
+    linear-gradient(160deg, rgba(34,197,94,.55), rgba(16,90,50,.65));
+  border:1px solid rgba(190,255,210,.55);
+  box-shadow:
+    0 0 0 1px rgba(74,222,128,.25),
+    0 0 40px rgba(74,222,128,.55),
+    0 0 90px rgba(34,197,94,.35),
+    inset 0 0 24px rgba(255,255,255,.15);
+  backdrop-filter: blur(8px);
+  display:flex; align-items:center; justify-content:center; overflow:hidden;
+  animation: pv-badge-in 900ms cubic-bezier(.2,.9,.25,1.2) both;
+}
+.pv-badge svg path{ stroke-dasharray: 60; stroke-dashoffset: 60; animation: pv-check 600ms ease-out 600ms forwards; }
+.pv-streak{ position:absolute; top:0; left:0; width:60%; height:100%; background: linear-gradient(90deg, transparent, rgba(255,255,255,.55), transparent); animation: pv-streak 1.6s ease-out 800ms 1 both; }
+
+.pv-particles{ position:absolute; inset:0; pointer-events:none; }
+.pv-particle{ position:absolute; bottom:30%; width:4px; height:4px; border-radius:50%; background: rgba(190,255,210,.85); box-shadow: 0 0 8px rgba(74,222,128,.8); animation: pv-particle 5s ease-in infinite; }
+.pv-spark{ position:absolute; width:6px; height:6px; background:#d8ffe6; border-radius:1px; box-shadow: 0 0 10px #6ee7a3; animation: pv-spark 2.4s ease-in-out infinite; }
+
+.pv-title{ font-size:28px; font-weight:700; letter-spacing:-.02em; color:rgba(255,255,255,.96); animation: pv-fade-up 600ms ease-out 700ms both; text-align:center; }
+.pv-sub{ font-size:14px; color:rgba(255,255,255,.55); margin-top:8px; animation: pv-fade-up 600ms ease-out 850ms both; text-align:center; }
+
+.pv-btn{
+  position:relative; overflow:hidden; width:100%; padding:18px; border-radius:999px;
+  background: linear-gradient(180deg, rgba(60,60,60,.55), rgba(20,20,20,.65));
+  border:1px solid rgba(255,255,255,.12); color:#fff; font-weight:600; font-size:16px;
+  backdrop-filter: blur(14px);
+  box-shadow: 0 10px 30px -10px rgba(74,222,128,.35), inset 0 1px 0 rgba(255,255,255,.08);
+  transition: transform 160ms ease, box-shadow 200ms ease;
+  animation: pv-fade-up 600ms ease-out 1000ms both;
+}
+.pv-btn:hover{ box-shadow: 0 14px 40px -10px rgba(74,222,128,.55), inset 0 1px 0 rgba(255,255,255,.12); }
+.pv-btn:active{ transform: scale(.97); }
+.pv-btn-shine{ position:absolute; top:0; left:0; width:40%; height:100%; background: linear-gradient(90deg, transparent, rgba(255,255,255,.18), transparent); animation: pv-btn-shine 2.8s ease-in-out 1.4s infinite; }

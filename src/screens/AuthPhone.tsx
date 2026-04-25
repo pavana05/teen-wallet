@@ -1,10 +1,11 @@
 import { useState, useRef, useEffect } from "react";
 import { ArrowLeft } from "lucide-react";
 import { sendOtp, verifyOtp, setStage as persistStage, fetchProfile } from "@/lib/auth";
-import { useApp } from "@/lib/store";
+import { useApp, type Stage } from "@/lib/store";
 import { toast } from "sonner";
+import { PhoneVerified } from "./PhoneVerified";
 
-type Step = "phone" | "otp";
+type Step = "phone" | "otp" | "verified";
 
 export function AuthPhone({ onDone }: { onDone: () => void }) {
   const [step, setStep] = useState<Step>("phone");
@@ -44,9 +45,20 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
     try {
       await verifyOtp(phone, code);
       const p = await fetchProfile();
-      if (p) hydrateFromProfile({ id: p.id, full_name: p.full_name, balance: Number(p.balance), onboarding_stage: "STAGE_3" });
-      await persistStage("STAGE_3");
-      onDone();
+      // Resume from where the user left off. New users start at STAGE_3 (KYC).
+      let resumedStage: Stage = "STAGE_3";
+      if (p) {
+        const profileStage = p.onboarding_stage as Stage;
+        // If profile is still pre-auth, advance to STAGE_3. Otherwise honor saved stage.
+        resumedStage = profileStage === "STAGE_0" || profileStage === "STAGE_1" || profileStage === "STAGE_2"
+          ? "STAGE_3"
+          : profileStage;
+        hydrateFromProfile({ id: p.id, full_name: p.full_name, balance: Number(p.balance), onboarding_stage: resumedStage });
+      }
+      if (!p || p.onboarding_stage !== resumedStage) {
+        await persistStage(resumedStage);
+      }
+      setStep("verified");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Verification failed");
       setOtp(["", "", "", "", "", ""]);
@@ -59,6 +71,10 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
     const next = [...otp]; next[i] = d; setOtp(next);
     if (d && i < 5) inputs.current[i + 1]?.focus();
     if (next.every((x) => x)) handleVerify(next.join(""));
+  }
+
+  if (step === "verified") {
+    return <PhoneVerified onContinue={onDone} />;
   }
 
   return (
