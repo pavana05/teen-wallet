@@ -597,3 +597,91 @@ function DocSlot({
     </div>
   );
 }
+
+function PermissionBanner({ perm, supported }: { perm: SelfiePermState; supported: boolean }) {
+  if (!supported) {
+    return (
+      <div className="mt-4 rounded-xl glass border border-destructive/40 p-3 flex items-start gap-2 text-xs">
+        <AlertTriangle className="w-4 h-4 text-destructive shrink-0 mt-0.5" />
+        <div>
+          <p className="font-medium text-destructive">Camera not available</p>
+          <p className="text-muted-foreground mt-0.5">
+            This browser doesn't support camera access. Try Chrome or Safari on a device with a camera.
+          </p>
+        </div>
+      </div>
+    );
+  }
+  if (perm === "denied") {
+    return (
+      <div className="mt-4 rounded-xl glass border border-destructive/40 p-3 flex items-start gap-2 text-xs">
+        <AlertTriangle className="w-4 h-4 text-destructive shrink-0 mt-0.5" />
+        <div>
+          <p className="font-medium text-destructive">Camera access blocked</p>
+          <p className="text-muted-foreground mt-0.5">
+            Open your browser's site settings and allow camera access for this page, then reload.
+          </p>
+        </div>
+      </div>
+    );
+  }
+  if (perm === "prompt" || perm === "unknown") {
+    return (
+      <div className="mt-4 rounded-xl glass border border-primary/30 p-3 flex items-start gap-2 text-xs">
+        <Camera className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+        <div>
+          <p className="font-medium">Camera permission needed</p>
+          <p className="text-muted-foreground mt-0.5">
+            Tap "Enable camera" below — we only use it for this one selfie. Submit unlocks once permission is granted.
+          </p>
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div className="mt-4 rounded-xl glass border border-primary/30 p-3 flex items-center gap-2 text-xs">
+      <Check className="w-4 h-4 text-primary" />
+      <p className="text-muted-foreground">Camera ready</p>
+    </div>
+  );
+}
+
+function SubmissionTimeline({ last }: { last: LastSubmission | null }) {
+  if (!last) return null;
+  const color =
+    last.status === "approved" ? "text-primary"
+    : last.status === "rejected" ? "text-destructive"
+    : "text-muted-foreground";
+  const dot =
+    last.status === "approved" ? "bg-primary"
+    : last.status === "rejected" ? "bg-destructive"
+    : "bg-white/30";
+  return (
+    <div className="mt-6 rounded-2xl glass p-4">
+      <div className="flex items-center gap-2 mb-3">
+        <Clock className="w-4 h-4 text-muted-foreground" />
+        <h3 className="text-sm font-semibold">Verification timeline</h3>
+      </div>
+      <div className="space-y-2 text-xs">
+        <div className="flex items-start gap-2">
+          <span className={`mt-1 w-2 h-2 rounded-full ${dot}`} />
+          <div className="flex-1 min-w-0">
+            <p className="flex items-center gap-2">
+              <span className={`uppercase tracking-wider ${color}`}>{last.status}</span>
+              <span className="text-muted-foreground">{new Date(last.submittedAt).toLocaleString()}</span>
+            </p>
+            <p className="text-muted-foreground truncate">
+              Submission: <span className="num-mono">{last.submissionId.slice(0, 8)}…</span>
+            </p>
+            {last.providerRef && (
+              <p className="text-muted-foreground truncate">
+                Provider ref: <span className="num-mono">{last.providerRef}</span>
+              </p>
+            )}
+            {last.reason && <p className="text-muted-foreground mt-0.5">{last.reason}</p>}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
