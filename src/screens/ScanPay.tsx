@@ -116,6 +116,7 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
       return;
     }
 
+    const noteToSave = note.trim() || payload.note || null;
     const { data: txn, error } = await supabase
       .from("transactions")
       .insert({
@@ -123,7 +124,7 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
         amount: amt,
         merchant_name: payload.payeeName,
         upi_id: payload.upiId,
-        note: payload.note,
+        note: noteToSave,
         status: "success",
         fraud_flags: finalReport.flags as never,
       })
@@ -147,10 +148,18 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
       title: `₹${amt.toFixed(2)} paid to ${payload.payeeName}`,
       body: payload.upiId,
     });
+    setSavedTxn({
+      id: txn.id,
+      amount: amt,
+      payee: payload.payeeName,
+      upiId: payload.upiId,
+      note: noteToSave,
+      createdAt: txn.created_at ?? new Date().toISOString(),
+    });
     setResultMsg(`₹${amt.toFixed(0)} sent to ${payload.payeeName}`);
     if (navigator.vibrate) navigator.vibrate([30, 60, 30]);
     setPhase("success");
-  }, [userId, payload, amount, balance]);
+  }, [userId, payload, amount, balance, note]);
 
   const reset = useCallback(() => {
     setPayload(null);
