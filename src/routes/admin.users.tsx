@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState, useCallback, useMemo } from "react";
-import { callAdminFn, readAdminSession, can, useAdminSession } from "@/admin/lib/adminAuth";
+import { callAdminFn, readAdminSession, can } from "@/admin/lib/adminAuth";
 import { Search, ChevronLeft, ChevronRight, Loader2, ShieldCheck, ShieldX, CheckSquare, Square } from "lucide-react";
 
 export const Route = createFileRoute("/admin/users")({
