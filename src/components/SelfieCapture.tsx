@@ -10,7 +10,10 @@ const MIN_BYTES = 8 * 1024;
 
 interface Props {
   onCapture: (payload: { dataUrl: string; width: number; height: number; bytes: number } | null) => void;
+  onPermissionChange?: (state: PermState, supported: boolean) => void;
 }
+
+export type SelfiePermState = PermState;
 
 interface Stored {
   dataUrl: string;
