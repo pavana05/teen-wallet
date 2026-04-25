@@ -3,12 +3,15 @@ import {
   ArrowLeft, X, QrCode, Copy, Check, ChevronRight, Pencil, Camera, ShieldCheck,
   ShieldAlert, BadgeCheck, Wallet, CreditCard, Building2, Bell, Lock, Smartphone,
   Eye, EyeOff, Languages, Moon, HelpCircle, FileText, LogOut, Star, Gift, Users,
-  Settings, Sparkles, IndianRupee, Activity, ChevronDown, Mail, MapPin, Cake,
-  TrendingUp, Trash2,
+  Settings, Sparkles, IndianRupee, Activity, Mail, MapPin, Cake,
+  TrendingUp, Trash2, Share2, Download, AlertTriangle,
 } from "lucide-react";
+import { z } from "zod";
+import QRCode from "qrcode";
+import { toast } from "sonner";
 import { useApp } from "@/lib/store";
 import { supabase } from "@/integrations/supabase/client";
-import { logout, updateProfileFields } from "@/lib/auth";
+import { logout } from "@/lib/auth";
 
 interface Props {
   onClose: () => void;
