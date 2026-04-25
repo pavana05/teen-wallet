@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState, useCallback } from "react";
-import { callAdminFn, readAdminSession, can, useAdminSession } from "@/admin/lib/adminAuth";
+import { useEffect, useState, useCallback, useMemo } from "react";
+import { callAdminFn, readAdminSession, can } from "@/admin/lib/adminAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2, ChevronLeft, ChevronRight, RefreshCw, Search, AlertTriangle, RotateCcw } from "lucide-react";
 
