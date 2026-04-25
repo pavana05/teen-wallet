@@ -21,29 +21,56 @@ export async function sendOtp(phone10: string): Promise<{ ok: true; devOtp: stri
 }
 
 export async function verifyOtp(phone10: string, otp: string) {
-  if (otp !== DEV_OTP) throw new Error("Invalid OTP. In dev mode, use 123456.");
+  if (otp !== DEV_OTP) throw new Error("Invalid OTP. Use 123456 in dev mode.");
   const fullPhone = "+91" + phone10;
   const email = emailFor(fullPhone);
   const password = passwordFor(fullPhone);
 
-  // Try sign in, fall back to sign up
+  // 1) Try sign in first — works for any returning user.
   const signIn = await supabase.auth.signInWithPassword({ email, password });
   if (signIn.data.session) return signIn.data.session;
 
-  const signUp = await supabase.auth.signUp({
-    email,
-    password,
-    options: { data: { phone: fullPhone } },
-  });
-  if (signUp.error) throw signUp.error;
-  // Some setups require email confirm — try sign in again
-  const retry = await supabase.auth.signInWithPassword({ email, password });
-  if (retry.error) throw retry.error;
-  // Persist phone on profile
-  if (retry.data.user) {
-    await supabase.from("profiles").update({ phone: fullPhone }).eq("id", retry.data.user.id);
+  const code = (signIn.error as { code?: string } | null)?.code;
+  const msg = signIn.error?.message?.toLowerCase() ?? "";
+
+  // 2) Account exists but credentials no longer match (shouldn't happen with deterministic pw)
+  //    or email not confirmed — surface a clear error instead of looping signUp.
+  if (code === "email_not_confirmed" || msg.includes("not confirmed")) {
+    throw new Error("Account exists but is not verified. Please contact support or try again shortly.");
   }
-  return retry.data.session;
+
+  // 3) No account yet — create one. Auto-confirm is enabled, so sign-in will succeed immediately.
+  if (code === "invalid_credentials" || msg.includes("invalid login")) {
+    const signUp = await supabase.auth.signUp({
+      email,
+      password,
+      options: { data: { phone: fullPhone } },
+    });
+    if (signUp.error) {
+      const sCode = (signUp.error as { code?: string }).code;
+      if (sCode === "over_email_send_rate_limit") {
+        throw new Error("Too many attempts. Please wait a minute before trying again.");
+      }
+      throw signUp.error;
+    }
+    // Auto-confirm: session may be returned directly from signUp.
+    if (signUp.data.session) {
+      if (signUp.data.user) {
+        await supabase.from("profiles").update({ phone: fullPhone }).eq("id", signUp.data.user.id);
+      }
+      return signUp.data.session;
+    }
+    // Otherwise, retry sign-in.
+    const retry = await supabase.auth.signInWithPassword({ email, password });
+    if (retry.error) throw retry.error;
+    if (retry.data.user) {
+      await supabase.from("profiles").update({ phone: fullPhone }).eq("id", retry.data.user.id);
+    }
+    return retry.data.session;
+  }
+
+  // 4) Anything else — bubble up.
+  throw signIn.error ?? new Error("Sign-in failed. Please try again.");
 }
 
 export async function fetchProfile() {
