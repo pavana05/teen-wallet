@@ -267,8 +267,8 @@ function ScannerView({ onBack, onDecoded }: { onBack: () => void; onDecoded: (p:
             aspectRatio: 1,
             videoConstraints: {
               facingMode: { ideal: "environment" },
-              // Continuous autofocus when the device exposes it.
-              advanced: [{ focusMode: "continuous" }],
+              // Continuous autofocus when the device exposes it (non-standard track constraint).
+              advanced: [{ focusMode: "continuous" } as unknown as MediaTrackConstraintSet],
             } as MediaTrackConstraints,
             // Use the browser's native BarcodeDetector when available
             // — millisecond-level decoding on Chromium/Android.
