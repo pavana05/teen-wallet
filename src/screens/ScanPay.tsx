@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 type Phase = "scanning" | "confirm" | "processing" | "success" | "failed";
+type FailKind = "generic" | "balance_changed" | "insufficient" | "blocked";
 
 export function ScanPay({ onBack }: { onBack: () => void }) {
   const { userId, balance } = useApp();
@@ -15,8 +16,13 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
   const [payload, setPayload] = useState<UpiPayload | null>(null);
   const [amount, setAmount] = useState<number>(0);
   const [resultMsg, setResultMsg] = useState("");
+  const [failKind, setFailKind] = useState<FailKind>("generic");
 
+  const navLockRef = useRef(false);
   const handleDecoded = (parsed: UpiPayload) => {
+    // Guardrail: ignore duplicate decodes / double-fires that race the camera stop.
+    if (navLockRef.current) return;
+    navLockRef.current = true;
     if (navigator.vibrate) navigator.vibrate(40);
     setPayload(parsed);
     setAmount(parsed.amount ?? 0);
@@ -32,17 +38,46 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
     if (finalReport.blocked) {
       await logFraudFlags(userId, null, finalReport.flags, "blocked");
       setResultMsg(finalReport.flags.find((f) => f.severity === "block")?.message ?? "Payment blocked");
+      setFailKind("blocked");
       setPhase("failed");
       return;
     }
     if (amt > balance) {
       setResultMsg("Insufficient balance");
+      setFailKind("insufficient");
       setPhase("failed");
       return;
     }
 
     // Minimum visible processing window for premium feel
     await new Promise((r) => setTimeout(r, 1600));
+
+    // Final balance re-check just before insert — guards against concurrent
+    // spend on another device or a refund landing while we were processing.
+    const { data: fresh, error: balErr } = await supabase
+      .from("profiles")
+      .select("balance")
+      .eq("id", userId)
+      .single();
+    if (balErr || !fresh) {
+      setResultMsg("Couldn't verify balance. Please try again.");
+      setFailKind("generic");
+      setPhase("failed");
+      return;
+    }
+    const liveBalance = Number(fresh.balance);
+    if (Math.abs(liveBalance - balance) > 0.001) {
+      // Sync local store so the UI shows the truth.
+      useApp.setState({ balance: liveBalance });
+      if (amt > liveBalance) {
+        setResultMsg(`Your balance changed to ₹${liveBalance.toFixed(2)} and is no longer enough for this payment.`);
+      } else {
+        setResultMsg(`Your wallet balance changed to ₹${liveBalance.toFixed(2)}. Please scan the QR again to confirm.`);
+      }
+      setFailKind("balance_changed");
+      setPhase("failed");
+      return;
+    }
 
     const { data: txn, error } = await supabase
       .from("transactions")
@@ -60,12 +95,13 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
 
     if (error || !txn) {
       setResultMsg(error?.message ?? "Payment failed");
+      setFailKind("generic");
       setPhase("failed");
       return;
     }
 
     await logFraudFlags(userId, txn.id, finalReport.flags, finalReport.flags.length === 0 ? "auto_passed" : "user_confirmed");
-    const newBal = balance - amt;
+    const newBal = liveBalance - amt;
     await supabase.from("profiles").update({ balance: newBal }).eq("id", userId);
     useApp.setState({ balance: newBal });
     await supabase.from("notifications").insert({
@@ -83,12 +119,14 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
     setPayload(null);
     setAmount(0);
     setResultMsg("");
+    setFailKind("generic");
+    navLockRef.current = false;
     setPhase("scanning");
   };
 
   if (phase === "processing") return <ProcessingView amount={amount} />;
   if (phase === "success") return <SuccessView message={resultMsg} amount={amount} payee={payload?.payeeName ?? ""} onDone={onBack} />;
-  if (phase === "failed") return <FailedView message={resultMsg} onRetry={reset} onCancel={onBack} />;
+  if (phase === "failed") return <FailedView kind={failKind} message={resultMsg} onRetry={reset} onCancel={onBack} />;
   if (phase === "confirm" && payload) {
     return (
       <ConfirmView
@@ -113,6 +151,8 @@ function ScannerView({ onBack, onDecoded }: { onBack: () => void; onDecoded: (p:
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const [torch, setTorch] = useState(false);
   const decodedRef = useRef(false);
+  const lastDecodeRef = useRef<{ key: string; at: number } | null>(null);
+  const DECODE_COOLDOWN_MS = 4000;
 
   useEffect(() => {
     let cancelled = false;
@@ -128,13 +168,19 @@ function ScannerView({ onBack, onDecoded }: { onBack: () => void; onDecoded: (p:
           camId,
           { fps: 10, qrbox: { width: 240, height: 240 } },
           (decoded) => {
+            // First-line guard: never act twice on the same scanner instance.
             if (decodedRef.current) return;
+            // Cooldown guard: ignore the same QR (or any) re-firing inside the window.
+            const now = Date.now();
+            const key = decoded.trim();
+            const last = lastDecodeRef.current;
+            if (last && last.key === key && now - last.at < DECODE_COOLDOWN_MS) return;
             const parsed = parseUpiQr(decoded);
-            if (parsed) {
-              decodedRef.current = true;
-              scanner.stop().catch(() => {});
-              onDecoded(parsed);
-            }
+            if (!parsed) return;
+            decodedRef.current = true;
+            lastDecodeRef.current = { key, at: now };
+            scanner.stop().catch(() => {});
+            onDecoded(parsed);
           },
           () => {},
         );
@@ -441,17 +487,27 @@ function SuccessView({ message, amount, payee, onDone }: { message: string; amou
    FAILED
    ============================================================ */
 
-function FailedView({ message, onRetry, onCancel }: { message: string; onRetry: () => void; onCancel: () => void }) {
+function FailedView({
+  kind, message, onRetry, onCancel,
+}: {
+  kind: FailKind;
+  message: string;
+  onRetry: () => void;
+  onCancel: () => void;
+}) {
+  const isBalance = kind === "balance_changed";
+  const heading = isBalance ? "Balance changed" : "Payment failed";
+  const primaryLabel = isBalance ? "Scan a new QR" : "Try again";
   return (
     <div className="flex-1 flex flex-col items-center justify-center px-8 text-center tw-slide-up tw-shake bg-background">
       <div className="w-24 h-24 rounded-full bg-destructive/15 border border-destructive/40 flex items-center justify-center">
         <X className="w-12 h-12 text-destructive" strokeWidth={2} />
       </div>
-      <h2 className="mt-8 text-2xl font-bold">Payment failed</h2>
+      <h2 className="mt-8 text-2xl font-bold">{heading}</h2>
       <p className="mt-2 text-sm text-muted-foreground">{message}</p>
       <div className="mt-10 flex gap-3 w-full max-w-xs">
         <button onClick={onCancel} className="btn-ghost flex-1">Cancel</button>
-        <button onClick={onRetry} className="btn-primary flex-1">Try again</button>
+        <button onClick={onRetry} className="btn-primary flex-1">{primaryLabel}</button>
       </div>
     </div>
   );
