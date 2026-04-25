@@ -244,6 +244,12 @@ Deno.serve(async (req) => {
   if (action === "login_password") {
     const email = String(body.email ?? "").trim().toLowerCase();
     const password = String(body.password ?? "");
+    // Per-IP and per-email rate limit (5/min then 15min block)
+    const rl1 = rateCheck(`login:ip:${ip}`, 10, 60_000, 15 * 60_000);
+    const rl2 = rateCheck(`login:em:${email}`, 5, 60_000, 15 * 60_000);
+    if (!rl1.ok || !rl2.ok) {
+      return json({ error: "rate_limited", retryAfterSec: Math.max(rl1.retryAfterSec ?? 0, rl2.retryAfterSec ?? 0) }, 429);
+    }
     if (!emailAllowed(email)) {
       await audit(null, email, null, "login_failed", { reason: "email_not_allowed" });
       return json({ error: "invalid_credentials" }, 401);
