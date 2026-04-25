@@ -27,25 +27,42 @@ function Index() {
 
   useEffect(() => {
     let mounted = true;
-    // Hydrate from Cloud if we have a session
+    // Hydrate from Cloud if we have a session — this is the cross-device resume path.
+    // The local persisted stage already gave us an instant render; we now reconcile
+    // against the server's authoritative onboarding_stage + kyc_status.
     (async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
           const p = await fetchProfile();
           if (p && mounted) {
-            // Reconcile saved stage with KYC truth — handles cross-device resume.
-            const profileStage = p.onboarding_stage as Stage;
+            const profileStage = (p.onboarding_stage as Stage) ?? "STAGE_0";
             const kyc = (p as { kyc_status?: string | null }).kyc_status ?? null;
+
+            // Reconciliation rules (KYC truth wins over saved stage):
+            //  - approved KYC -> always STAGE_5 (Home)
+            //  - pending KYC  -> at least STAGE_4 (KycPending)
+            //  - rejected KYC -> back to STAGE_3 so user can retry
             let resolvedStage: Stage = profileStage;
             if (kyc === "approved") resolvedStage = "STAGE_5";
-            else if (kyc === "pending" && (profileStage === "STAGE_3" || profileStage === "STAGE_4")) resolvedStage = "STAGE_4";
+            else if (kyc === "pending") {
+              resolvedStage = profileStage === "STAGE_5" ? "STAGE_5" : "STAGE_4";
+            } else if (kyc === "rejected" && profileStage === "STAGE_4") {
+              resolvedStage = "STAGE_3";
+            }
+
             hydrateFromProfile({
               id: p.id,
               full_name: p.full_name,
               balance: Number(p.balance),
               onboarding_stage: resolvedStage,
             });
+
+            // If we corrected the stage, push it back to the server so future boots
+            // on any device see the canonical value.
+            if (resolvedStage !== profileStage) {
+              setStage(resolvedStage);
+            }
           }
         }
       } catch (err) {
@@ -54,11 +71,16 @@ function Index() {
         if (mounted) setBooting(false);
       }
     })();
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, _session) => {
-      // signed out — keep stage as is unless explicit reset
+    const { data: sub } = supabase.auth.onAuthStateChange((event) => {
+      // On explicit sign-out, reset to splash so a different user can start fresh.
+      if (event === "SIGNED_OUT") {
+        useApp.getState().reset();
+      }
     });
     return () => { mounted = false; sub.subscription.unsubscribe(); };
-  }, [hydrateFromProfile]);
+    // setStage/hydrateFromProfile are stable Zustand actions; intentionally empty deps.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   if (booting) {
     return (
