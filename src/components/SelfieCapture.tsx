@@ -40,7 +40,7 @@ function approxBytes(dataUrl: string) {
   return Math.floor((b64.length * 3) / 4);
 }
 
-export function SelfieCapture({ onCapture }: Props) {
+export function SelfieCapture({ onCapture, onPermissionChange }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
