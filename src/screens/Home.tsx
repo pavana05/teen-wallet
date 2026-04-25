@@ -203,10 +203,10 @@ export function Home() {
           <button className="text-white/60">›</button>
         </div>
         <div className="grid grid-cols-4 gap-3">
-          <QuickAction icon={ArrowUpRight} label={"Pay\nfriends"} onClick={() => setView("scan")} />
-          <QuickAction icon={Building2} label={"To bank &\nself a/c"} />
-          <QuickAction icon={Wallet} label={"Check\nbalance"} />
-          <QuickAction icon={History} label={"Transaction\nhistory"} />
+          <QuickAction icon={ArrowUpRight} label={"Pay\nfriends"} onClick={() => setQuickAction("pay-friends")} />
+          <QuickAction icon={Building2} label={"To bank &\nself a/c"} onClick={() => setQuickAction("to-bank")} />
+          <QuickAction icon={Wallet} label={"Check\nbalance"} onClick={() => setQuickAction("balance")} />
+          <QuickAction icon={History} label={"Transaction\nhistory"} onClick={() => setQuickAction("history")} />
         </div>
       </div>
 
