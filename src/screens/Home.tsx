@@ -292,7 +292,7 @@ export function Home() {
           <div className="hp-nav flex-1">
             <NavItem icon={HomeIcon} label="Home" active />
             <NavItem icon={Gift} label="Shop" />
-            <NavItem icon={CreditCard} label="Card" />
+            <NavItem icon={User} label="Profile" onClick={() => setShowProfile(true)} />
           </div>
           <button onClick={() => setView("scan")} className="hp-scan-fab" aria-label="Scan">
             <ScanLine className="w-6 h-6 text-black" strokeWidth={2.4} />
@@ -301,6 +301,7 @@ export function Home() {
       </div>
       {quickAction && <QuickActionsPanel kind={quickAction} onClose={() => setQuickAction(null)} />}
       {showNotifs && <NotificationsPanel onClose={() => setShowNotifs(false)} />}
+      {showProfile && <ProfilePanel onClose={() => setShowProfile(false)} />}
     </div>
   );
 }
