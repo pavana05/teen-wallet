@@ -403,6 +403,7 @@
 .kyc-approved-title { animation: kyc-fade-rise 500ms ease-out 1100ms both; }
 .kyc-approved-sub   { animation: kyc-fade-rise 500ms ease-out 1300ms both; }
 
+/* ============ ADMIN DASHBOARD TOKENS (scoped) ============ */
 .admin-shell {
   --a-bg: #0d0d0d;
   --a-surface: #161616;
