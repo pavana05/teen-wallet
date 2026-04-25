@@ -60,6 +60,11 @@ export function KycFlow({ onDone }: { onDone: () => void }) {
   }
 
   async function submitStep3() {
+    if (!selfie) {
+      setError("Please capture a selfie first");
+      return;
+    }
+    setError("");
     setBusy(true);
     await persistStage("STAGE_4");
     setBusy(false);
