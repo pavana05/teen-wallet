@@ -105,8 +105,7 @@ export function SelfieCapture({ onCapture }: Props) {
         return;
       }
       try {
-        // @ts-expect-error - "camera" not in standard PermissionName lib but supported in Chromium
-        const p = await navigator.permissions?.query?.({ name: "camera" });
+        const p = await navigator.permissions?.query?.({ name: "camera" as PermissionName });
         if (p && mountedRef.current) {
           setPermState(p.state as PermState);
           p.onchange = () => mountedRef.current && setPermState(p.state as PermState);
