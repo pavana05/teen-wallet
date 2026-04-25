@@ -305,7 +305,7 @@ function ApprovedView({ onContinue, onClose }: { onContinue: () => void; onClose
 
 /* ----------------------------- Rejected View ----------------------------- */
 
-function RejectedView({ reason, onRetake }: { reason: string | null; onRetake: () => void }) {
+function RejectedView({ reason, onRetake, onClose }: { reason: string | null; onRetake: () => void; onClose: () => void }) {
   return (
     <div className="kyc-result-root">
       <div className="kyc-result-glow red" />
