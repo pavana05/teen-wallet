@@ -29,22 +29,25 @@ function Index() {
     let mounted = true;
     // Hydrate from Cloud if we have a session
     (async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        const p = await fetchProfile();
-        if (p && mounted) hydrateFromProfile({
-          id: p.id,
-          full_name: p.full_name,
-          balance: Number(p.balance),
-          onboarding_stage: p.onboarding_stage as Stage,
-        });
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          const p = await fetchProfile();
+          if (p && mounted) hydrateFromProfile({
+            id: p.id,
+            full_name: p.full_name,
+            balance: Number(p.balance),
+            onboarding_stage: p.onboarding_stage as Stage,
+          });
+        }
+      } catch (err) {
+        console.error("[boot] hydrate failed", err);
+      } finally {
+        if (mounted) setBooting(false);
       }
-      if (mounted) setBooting(false);
     })();
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => {
-      if (!session) {
-        // signed out — keep stage as is unless explicit reset
-      }
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, _session) => {
+      // signed out — keep stage as is unless explicit reset
     });
     return () => { mounted = false; sub.subscription.unsubscribe(); };
   }, [hydrateFromProfile]);

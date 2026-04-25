@@ -16,11 +16,13 @@ interface LatestSubmission {
 const POLL_INTERVAL_MS = 4000;
 const POLL_BACKOFF_MAX_MS = 15000;
 
-export function KycPending({ onApproved }: { onApproved: () => void }) {
-  const [latest, setLatest] = useState<LatestSubmission | null>(null);
-  const [status, setStatus] = useState<Status>("pending");
+export function KycPending({ onApproved, forceState, forceReason }: { onApproved: () => void; forceState?: Status; forceReason?: string }) {
+  const [latest, setLatest] = useState<LatestSubmission | null>(
+    forceState ? { submissionId: "preview", providerRef: "preview", status: forceState, submittedAt: new Date().toISOString(), reason: forceReason ?? null } : null
+  );
+  const [status, setStatus] = useState<Status>(forceState ?? "pending");
   const [pollMs, setPollMs] = useState(POLL_INTERVAL_MS);
-  const stoppedRef = useRef(false);
+  const stoppedRef = useRef(!!forceState);
 
   // Fetch the latest submission row + reconcile profile.kyc_status.
   const fetchLatest = async () => {
