@@ -184,7 +184,19 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
               />
             ))}
           </div>
-          {error && <p className="text-destructive text-xs mt-3">{error}</p>}
+          {error && (
+            <div className="mt-3 space-y-2">
+              <p className="text-destructive text-xs leading-relaxed">{error}</p>
+              {!busy && otp.every((d) => d) && (
+                <button
+                  onClick={retryVerify}
+                  className="text-primary text-xs font-semibold underline underline-offset-2"
+                >
+                  Try again
+                </button>
+              )}
+            </div>
+          )}
 
           <div className="mt-6 text-sm">
             {resendIn > 0 ? (
