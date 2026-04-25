@@ -19,15 +19,16 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
   const [failKind, setFailKind] = useState<FailKind>("generic");
 
   const navLockRef = useRef(false);
-  const handleDecoded = (parsed: UpiPayload) => {
-    // Guardrail: ignore duplicate decodes / double-fires that race the camera stop.
+  // Stable callback so the scanner effect doesn't re-run every render
+  // (which used to tear down + restart the camera, killing detection).
+  const handleDecoded = useCallback((parsed: UpiPayload) => {
     if (navLockRef.current) return;
     navLockRef.current = true;
     if (navigator.vibrate) navigator.vibrate(40);
     setPayload(parsed);
     setAmount(parsed.amount ?? 0);
     setPhase("confirm");
-  };
+  }, []);
 
   const handlePay = useCallback(async () => {
     if (!userId || !payload) return;
