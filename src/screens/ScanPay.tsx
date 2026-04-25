@@ -1,11 +1,19 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { Html5Qrcode } from "html5-qrcode";
-import { ArrowLeft, ArrowRight, Image as ImageIcon, Zap, ZapOff, X, Share2, Check } from "lucide-react";
-import { parseUpiQr, type UpiPayload } from "@/lib/upi";
+import { ArrowLeft, ArrowRight, Image as ImageIcon, Zap, ZapOff, X, Share2, Check, Bug } from "lucide-react";
+import { parseUpiQr, parseUpiQrWithReason, type UpiPayload, type UpiParseResult } from "@/lib/upi";
 import { scanTransaction, logFraudFlags } from "@/lib/fraud";
 import { useApp } from "@/lib/store";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+
+const SCANPAY_PERSIST_KEY = "tw-scanpay-flow-v1";
+
+interface PersistedFlow {
+  phase: Phase;
+  payload: UpiPayload | null;
+  amount: number;
+}
 
 type Phase = "scanning" | "confirm" | "processing" | "success" | "failed";
 type FailKind = "generic" | "balance_changed" | "insufficient" | "blocked";
