@@ -263,3 +263,12 @@ function TxnRow({ txn }: { txn: Txn }) {
     </div>
   );
 }
+
+function NavItem({ icon: Icon, label, active }: { icon: React.ComponentType<{ className?: string; strokeWidth?: number }>; label: string; active?: boolean }) {
+  return (
+    <button className={`flex-1 flex flex-col items-center py-2 rounded-full ${active ? "hp-nav-active text-white" : "text-white/55"}`}>
+      <Icon className="w-5 h-5" strokeWidth={active ? 2 : 1.6} />
+      <span className={`text-[11px] mt-0.5 ${active ? "font-semibold" : ""}`}>{label}</span>
+    </button>
+  );
+}
