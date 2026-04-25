@@ -67,7 +67,7 @@ function Index() {
       {stage === "STAGE_0" || stage === "STAGE_1" ? (
         <Onboarding onDone={() => setStage("STAGE_2")} />
       ) : stage === "STAGE_2" ? (
-        <AuthPhone onDone={() => setStage("STAGE_3")} />
+        <AuthPhone onDone={() => { /* AuthPhone hydrates the resumed stage itself */ }} />
       ) : stage === "STAGE_3" ? (
         <KycFlow onDone={() => setStage("STAGE_4")} />
       ) : stage === "STAGE_4" ? (
