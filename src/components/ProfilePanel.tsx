@@ -48,6 +48,9 @@ export function ProfilePanel({ onClose }: Props) {
   const [confirmLogout, setConfirmLogout] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [qrOpen, setQrOpen] = useState(false);
+  // Virtual Card is on the roadmap but not shipped yet. Tapping the section
+  // opens a friendly "Under Construction" modal instead of dead-end clicks.
+  const [vcardOpen, setVcardOpen] = useState(false);
 
   // preferences (local)
   const [prefs, setPrefs] = useState(() => {
