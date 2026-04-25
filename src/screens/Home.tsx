@@ -72,6 +72,7 @@ export function Home() {
   const { fullName, userId } = useApp();
   const first = fullName?.split(" ")[0] ?? "Alex";
   const [view, setView] = useState<"home" | "scan">("home");
+  const [quickAction, setQuickAction] = useState<QuickActionKind | null>(null);
   const [txns, setTxns] = useState<Txn[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
