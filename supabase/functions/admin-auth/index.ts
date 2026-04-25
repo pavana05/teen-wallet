@@ -443,6 +443,10 @@ Deno.serve(async (req) => {
     viewUsers: ["super_admin", "operations_manager", "customer_support"],
     manageUsers: ["super_admin", "operations_manager"],
     viewDashboard: ["super_admin", "operations_manager", "compliance_officer", "customer_support", "fraud_analyst", "finance_manager"],
+    viewKyc: ["super_admin", "operations_manager", "compliance_officer"],
+    decideKyc: ["super_admin", "operations_manager"],
+    viewTransactions: ["super_admin", "operations_manager", "finance_manager", "compliance_officer", "fraud_analyst"],
+    manageTransactions: ["super_admin", "operations_manager"],
   };
   function can(role: string, perm: string) {
     return (ROLE_PERMS[perm] || []).includes(role);
