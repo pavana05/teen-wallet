@@ -104,14 +104,23 @@ export function SelfieCapture({ onCapture, onPermissionChange }: Props) {
     // Probe Permissions API (not supported on Safari/Firefox iOS)
     const probe = async () => {
       if (!navigator.mediaDevices?.getUserMedia) {
-        if (mountedRef.current) setStatus("unsupported");
+        if (mountedRef.current) {
+          setStatus("unsupported");
+          onPermissionChange?.("unknown", false);
+        }
         return;
       }
+      onPermissionChange?.("unknown", true);
       try {
         const p = await navigator.permissions?.query?.({ name: "camera" as PermissionName });
         if (p && mountedRef.current) {
           setPermState(p.state as PermState);
-          p.onchange = () => mountedRef.current && setPermState(p.state as PermState);
+          onPermissionChange?.(p.state as PermState, true);
+          p.onchange = () => {
+            if (!mountedRef.current) return;
+            setPermState(p.state as PermState);
+            onPermissionChange?.(p.state as PermState, true);
+          };
         }
       } catch {
         // permissions API unavailable — leave as "unknown"
