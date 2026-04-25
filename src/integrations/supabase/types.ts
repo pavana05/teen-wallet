@@ -49,6 +49,51 @@ export type Database = {
           },
         ]
       }
+      kyc_submissions: {
+        Row: {
+          created_at: string
+          id: string
+          match_score: number | null
+          provider: string
+          provider_ref: string | null
+          reason: string | null
+          selfie_height: number | null
+          selfie_size_bytes: number | null
+          selfie_width: number | null
+          status: Database["public"]["Enums"]["kyc_status"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          match_score?: number | null
+          provider?: string
+          provider_ref?: string | null
+          reason?: string | null
+          selfie_height?: number | null
+          selfie_size_bytes?: number | null
+          selfie_width?: number | null
+          status?: Database["public"]["Enums"]["kyc_status"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          match_score?: number | null
+          provider?: string
+          provider_ref?: string | null
+          reason?: string | null
+          selfie_height?: number | null
+          selfie_size_bytes?: number | null
+          selfie_width?: number | null
+          status?: Database["public"]["Enums"]["kyc_status"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           body: string | null
