@@ -59,8 +59,8 @@ export async function setStage(stage: Stage) {
   await supabase.from("profiles").update({ onboarding_stage: stage }).eq("id", u.user.id);
 }
 
-type ProfileUpdate = Parameters<ReturnType<typeof supabase.from<"profiles">>["update"]>[0];
-export async function updateProfileFields(fields: ProfileUpdate) {
+import type { TablesUpdate } from "@/integrations/supabase/types";
+export async function updateProfileFields(fields: TablesUpdate<"profiles">) {
   const { data: u } = await supabase.auth.getUser();
   if (!u.user) return;
   await supabase.from("profiles").update(fields).eq("id", u.user.id);
