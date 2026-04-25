@@ -1,10 +1,14 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ArrowLeft, ArrowRight, ShieldCheck } from "lucide-react";
 import { updateProfileFields, setStage as persistStage } from "@/lib/auth";
-import { SelfieCapture } from "@/components/SelfieCapture";
+import { SelfieCapture, SELFIE_STORAGE_KEY } from "@/components/SelfieCapture";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 type Step = 1 | 2 | 3;
+type SelfiePayload = { dataUrl: string; width: number; height: number; bytes: number };
+
+const KYC_DRAFT_KEY = "tw_kyc_draft_v1";
 
 export function KycFlow({ onDone }: { onDone: () => void }) {
   const [step, setStep] = useState<Step>(1);
@@ -16,7 +20,7 @@ export function KycFlow({ onDone }: { onDone: () => void }) {
   const [aadhaarOtpSent, setAadhaarOtpSent] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-  const [selfie, setSelfie] = useState<string | null>(null);
+  const [selfie, setSelfie] = useState<SelfiePayload | null>(null);
 
   const formatAadhaar = (v: string) => v.replace(/\D/g, "").slice(0, 12).replace(/(\d{4})(?=\d)/g, "$1 ");
 
