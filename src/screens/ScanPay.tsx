@@ -298,6 +298,11 @@ function ScannerView({ onBack, onDecoded }: { onBack: () => void; onDecoded: (p:
   const [debugOpen, setDebugOpen] = useState(false);
   const [debug, setDebug] = useState<DebugSnapshot | null>(null);
   const [softResetCount, setSoftResetCount] = useState(0);
+  // Real-time camera state for the on-screen feedback strip:
+  //   "starting" → still warming up the camera
+  //   "tracking" → camera is feeding frames + decoder is alive (no QR yet)
+  //   "locked"   → a valid UPI QR was decoded; transitioning to confirm
+  const [scanState, setScanState] = useState<"starting" | "tracking" | "locked">("starting");
   const decodedRef = useRef(false);
   const lastInvalidToastRef = useRef(0);
   const lastDecodeAttemptRef = useRef<number>(Date.now());
