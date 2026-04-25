@@ -134,6 +134,17 @@ export function SelfieCapture({ onCapture, onPermissionChange }: Props) {
     };
   }, [stopStream, onCapture]);
 
+  // Ensure stream stays attached to the <video> element whenever it's mounted
+  useEffect(() => {
+    if (status !== "streaming") return;
+    const v = videoRef.current;
+    const s = streamRef.current;
+    if (v && s && v.srcObject !== s) {
+      v.srcObject = s;
+      v.play().catch(() => {});
+    }
+  }, [status]);
+
   // ----- Start camera -----
   const startCamera = async () => {
     setErrMsg("");
