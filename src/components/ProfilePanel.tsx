@@ -48,6 +48,9 @@ export function ProfilePanel({ onClose }: Props) {
   const [confirmLogout, setConfirmLogout] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [qrOpen, setQrOpen] = useState(false);
+  // Virtual Card is on the roadmap but not shipped yet. Tapping the section
+  // opens a friendly "Under Construction" modal instead of dead-end clicks.
+  const [vcardOpen, setVcardOpen] = useState(false);
 
   // preferences (local)
   const [prefs, setPrefs] = useState(() => {
@@ -313,10 +316,29 @@ export function ProfilePanel({ onClose }: Props) {
             <>
               <Section title="Quick links">
                 <Row icon={Wallet} label="Wallet & balance" hint={`₹${Number(balance).toLocaleString("en-IN")}`} />
-                <Row icon={CreditCard} label="Cards & accounts" hint="Manage" />
+                <Row icon={CreditCard} label="Virtual Card" hint={<span className="text-amber-300">Coming soon</span>} onClick={() => setVcardOpen(true)} />
                 <Row icon={Building2} label="Bank accounts" hint="Linked" />
                 <Row icon={Gift} label="Rewards & cashback" hint={<span className="text-emerald-300">New</span>} />
                 <Row icon={Users} label="Refer & earn" hint="₹100" />
+              </Section>
+
+              {/* Dedicated Virtual Card teaser — taps open the Under Construction modal */}
+              <Section title="Virtual Card">
+                <button
+                  type="button"
+                  onClick={() => setVcardOpen(true)}
+                  aria-label="Open Virtual Card details"
+                  className="w-full text-left px-3.5 py-3.5 flex items-center justify-between hover:bg-white/[0.03] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-2xl transition-colors"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="pp-row-icon"><CreditCard className="w-4 h-4 text-primary" strokeWidth={2} /></div>
+                    <div className="min-w-0">
+                      <p className="text-[13px] text-white">Get your Virtual Card</p>
+                      <p className="text-[11px] text-white/50 truncate">Tap and pay anywhere — under construction</p>
+                    </div>
+                  </div>
+                  <span className="text-[10.5px] font-semibold text-amber-300 px-2 py-0.5 rounded-full bg-amber-400/10 border border-amber-400/25 shrink-0">SOON</span>
+                </button>
               </Section>
               <Section title="Member since">
                 <div className="px-3.5 py-3.5 flex items-center justify-between">
@@ -432,6 +454,73 @@ export function ProfilePanel({ onClose }: Props) {
           onConfirm={async () => { setConfirmDelete(false); await onDeleteAccount(); }}
         />
       )}
+      {vcardOpen && <VirtualCardModal onClose={() => setVcardOpen(false)} />}
+    </div>
+  );
+}
+
+/* ───────── Virtual Card "Under Construction" modal ───────── */
+
+function VirtualCardModal({ onClose }: { onClose: () => void }) {
+  // Lock body scroll + close on ESC for accessibility.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="vcard-title"
+      aria-describedby="vcard-desc"
+      className="absolute inset-0 z-[80] flex items-end sm:items-center justify-center"
+      onClick={onClose}
+    >
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm tw-fade-in" />
+      <div
+        className="relative w-full max-w-[420px] mx-3 mb-3 sm:mb-0 rounded-3xl border border-white/10 bg-gradient-to-b from-zinc-900/95 to-zinc-950/95 p-6 shadow-[0_24px_60px_-12px_rgba(0,0,0,.7)] tw-slide-up"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Mini virtual card preview */}
+        <div className="relative mx-auto mb-5 aspect-[1.6/1] w-full max-w-[300px] rounded-2xl overflow-hidden border border-white/10 bg-gradient-to-br from-primary/30 via-zinc-900 to-zinc-950 vcard-shimmer">
+          <div className="absolute inset-0 opacity-40" style={{ background: "radial-gradient(120% 80% at 0% 0%, rgba(200,241,53,.35), transparent 60%)" }} />
+          <div className="absolute top-3 left-4 text-[10px] font-bold tracking-[.2em] text-white/80">TEEN WALLET</div>
+          <div className="absolute top-3 right-4 text-[10px] font-bold text-amber-300 px-2 py-0.5 rounded-full bg-amber-400/15 border border-amber-400/30">SOON</div>
+          <div className="absolute bottom-12 left-4 right-4 text-[15px] num-mono text-white/90 tracking-[.18em]">•••• •••• •••• ••••</div>
+          <div className="absolute bottom-3 left-4 text-[9px] text-white/55 uppercase tracking-wider">Cardholder<br/><span className="text-white/85 normal-case text-[11px]">Coming Soon</span></div>
+          <div className="absolute bottom-3 right-4 text-[9px] text-white/55 uppercase tracking-wider text-right">Valid<br/><span className="text-white/85 text-[11px]">••/••</span></div>
+        </div>
+
+        <div className="text-center">
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-400/10 border border-amber-400/30 mb-3">
+            <Sparkles className="w-3 h-3 text-amber-300" strokeWidth={2.4} />
+            <span className="text-[10.5px] font-semibold text-amber-300 tracking-wide">UNDER CONSTRUCTION</span>
+          </div>
+          <h3 id="vcard-title" className="text-white text-[18px] font-bold tracking-tight">Virtual Card is on the way</h3>
+          <p id="vcard-desc" className="mt-2 text-[12.5px] text-white/65 leading-relaxed max-w-[300px] mx-auto">
+            We're building a tap-to-pay virtual card you can use anywhere Mastercard is accepted — with instant freeze, custom limits, and rich rewards. We'll notify you the moment it's live.
+          </p>
+        </div>
+
+        <div className="mt-5 flex flex-col gap-2">
+          <button
+            type="button"
+            onClick={() => { toast.success("You're on the waitlist!", { description: "We'll notify you when Virtual Card launches." }); onClose(); }}
+            className="w-full py-3 rounded-2xl bg-primary text-primary-foreground font-semibold text-[14px] hover:opacity-95 transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
+          >
+            Notify me when it's ready
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-full py-2.5 rounded-2xl text-[13px] text-white/60 hover:text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          >
+            Close
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -457,9 +546,9 @@ function StatChip({ icon: Icon, label, value, tint }: { icon: React.ComponentTyp
   );
 }
 
-function Row({ icon: Icon, label, hint }: { icon: React.ComponentType<{ className?: string; strokeWidth?: number }>; label: string; hint?: React.ReactNode }) {
+function Row({ icon: Icon, label, hint, onClick }: { icon: React.ComponentType<{ className?: string; strokeWidth?: number }>; label: string; hint?: React.ReactNode; onClick?: () => void }) {
   return (
-    <button className="w-full px-3.5 py-3.5 flex items-center gap-3 hover:bg-white/[.02] transition-colors">
+    <button onClick={onClick} className="w-full px-3.5 py-3.5 flex items-center gap-3 hover:bg-white/[.02] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-2xl">
       <div className="pp-row-icon"><Icon className="w-4 h-4 text-white/85" strokeWidth={2} /></div>
       <span className="text-[13px] text-white flex-1 text-left">{label}</span>
       {hint && <span className="text-[11.5px] text-white/55">{hint}</span>}
