@@ -73,7 +73,14 @@ export const Route = createFileRoute("/api/kyc/verify")({
 
           // 2) Validate body
           const body = (await request.json().catch(() => null)) as
-            | { selfie?: string; width?: number; height?: number; aadhaarLast4?: string }
+            | {
+                selfie?: string;
+                width?: number;
+                height?: number;
+                aadhaarLast4?: string;
+                docFrontPath?: string | null;
+                docBackPath?: string | null;
+              }
             | null;
           if (!body) return json({ error: "Invalid JSON" }, 400);
           if (!body.selfie) return json({ error: "Missing selfie" }, 400);
@@ -87,6 +94,23 @@ export const Route = createFileRoute("/api/kyc/verify")({
           const v = validateSelfieDataUrl(body.selfie);
           if (!v.ok) return json({ error: v.reason }, 400);
 
+          // 2b) Persist selfie image to private storage so admins can review it.
+          let selfiePath: string | null = null;
+          try {
+            const mimeMatch = body.selfie.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,/);
+            const mime = mimeMatch?.[1] ?? "image/jpeg";
+            const ext = mime.includes("png") ? "png" : mime.includes("webp") ? "webp" : "jpg";
+            const base64 = body.selfie.split(",")[1] ?? "";
+            const bin = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+            const path = `${userId}/selfie-${Date.now()}.${ext}`;
+            const { error: upErr } = await supabaseAdmin.storage
+              .from("kyc-docs")
+              .upload(path, bin, { upsert: true, contentType: mime });
+            if (!upErr) selfiePath = path;
+          } catch {
+            // Non-fatal — keep submission going even if storage upload fails.
+          }
+
           // 3) Insert pending submission row
           const { data: row, error: insErr } = await supabaseAdmin
             .from("kyc_submissions")
@@ -97,6 +121,9 @@ export const Route = createFileRoute("/api/kyc/verify")({
               selfie_size_bytes: v.bytes,
               selfie_width: body.width,
               selfie_height: body.height,
+              selfie_path: selfiePath,
+              doc_front_path: body.docFrontPath ?? null,
+              doc_back_path: body.docBackPath ?? null,
             })
             .select("id")
             .single();
