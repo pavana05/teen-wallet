@@ -184,6 +184,29 @@ type Admin = {
 };
 
 // -----------------------------------------------------------------
+// In-memory rate limiter (per-isolate; pragmatic v1)
+// -----------------------------------------------------------------
+type Bucket = { count: number; resetAt: number; blockedUntil?: number };
+const RATE_BUCKETS = new Map<string, Bucket>();
+function rateCheck(key: string, max: number, windowMs: number, blockMs: number): { ok: boolean; retryAfterSec?: number } {
+  const now = Date.now();
+  const b = RATE_BUCKETS.get(key);
+  if (b?.blockedUntil && b.blockedUntil > now) {
+    return { ok: false, retryAfterSec: Math.ceil((b.blockedUntil - now) / 1000) };
+  }
+  if (!b || b.resetAt < now) {
+    RATE_BUCKETS.set(key, { count: 1, resetAt: now + windowMs });
+    return { ok: true };
+  }
+  b.count += 1;
+  if (b.count > max) {
+    b.blockedUntil = now + blockMs;
+    return { ok: false, retryAfterSec: Math.ceil(blockMs / 1000) };
+  }
+  return { ok: true };
+}
+
+// -----------------------------------------------------------------
 // Main handler
 // -----------------------------------------------------------------
 Deno.serve(async (req) => {
