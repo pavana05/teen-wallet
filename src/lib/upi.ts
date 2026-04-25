@@ -147,6 +147,8 @@ export function parseUpiQrWithReason(raw: string): UpiParseResult {
         upiId: trimmed,
         payeeName: trimmed.split("@")[0],
         amount: null,
+        amountRaw: null,
+        amountSource: "none",
         note: null,
         currency: "INR",
       },
