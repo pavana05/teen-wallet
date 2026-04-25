@@ -30,6 +30,9 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
   const [amount, setAmount] = useState<number>(persisted?.amount ?? 0);
   const [resultMsg, setResultMsg] = useState("");
   const [failKind, setFailKind] = useState<FailKind>("generic");
+  // The actual transaction returned from the API after a successful insert.
+  // Drives the success screen's reference ID + receipt PDF.
+  const [savedTxn, setSavedTxn] = useState<SavedTxn | null>(null);
   // Bump this to force-remount the ScannerView and dispose its camera + Html5Qrcode instance.
   const [scannerKey, setScannerKey] = useState(0);
 
