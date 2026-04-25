@@ -86,15 +86,47 @@ export function KycFlow({ onDone }: { onDone: () => void }) {
   }
 
   async function submitStep3() {
-    if (!selfie) {
-      setError("Please capture a selfie first");
-      return;
-    }
+    if (!selfie) return setError("Please capture a selfie first");
+    if (selfie.width < 240 || selfie.height < 240) return setError("Selfie resolution too low — please retake");
+    if (selfie.bytes < 8 * 1024) return setError("Selfie image is too small — please retake");
+
     setError("");
     setBusy(true);
-    await persistStage("STAGE_4");
-    setBusy(false);
-    onDone();
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Session expired. Please sign in again.");
+
+      const aadhaarLast4 = aadhaar.replace(/\s/g, "").slice(-4);
+      const res = await fetch("/api/kyc/verify", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          selfie: selfie.dataUrl,
+          width: selfie.width,
+          height: selfie.height,
+          aadhaarLast4,
+        }),
+      });
+      const json = (await res.json().catch(() => ({}))) as { error?: string; status?: string; submissionId?: string };
+      if (!res.ok && res.status !== 202) throw new Error(json.error || `Verification failed (${res.status})`);
+
+      // Clear drafts — KYC is now in the provider's hands
+      try {
+        localStorage.removeItem(KYC_DRAFT_KEY);
+        localStorage.removeItem(SELFIE_STORAGE_KEY);
+      } catch { /* ignore */ }
+
+      toast.success("Selfie submitted for verification");
+      await persistStage("STAGE_4");
+      onDone();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not submit verification");
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
