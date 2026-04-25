@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, ArrowRight, ShieldCheck, Upload, Check, X, Loader2 } from "lucide-react";
+import { useEffect, useRef, useState, useCallback } from "react";
+import { ArrowLeft, ArrowRight, ShieldCheck, Upload, Check, X, Loader2, Camera, AlertTriangle, RefreshCw, Clock } from "lucide-react";
 import { updateProfileFields, setStage as persistStage } from "@/lib/auth";
-import { SelfieCapture, SELFIE_STORAGE_KEY } from "@/components/SelfieCapture";
+import { SelfieCapture, SELFIE_STORAGE_KEY, type SelfiePermState } from "@/components/SelfieCapture";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -9,10 +9,31 @@ type Step = 1 | 2 | 3;
 type SelfiePayload = { dataUrl: string; width: number; height: number; bytes: number };
 type DocSide = "front" | "back";
 type DocState = { path: string; name: string; size: number } | null;
+type LastSubmission = {
+  submissionId: string;
+  providerRef: string | null;
+  status: "pending" | "approved" | "rejected";
+  submittedAt: string;
+  reason?: string | null;
+};
 
 const KYC_DRAFT_KEY = "tw_kyc_draft_v1";
 const KYC_DOCS_KEY = "tw_kyc_docs_v1";
+const KYC_LAST_SUBMISSION_KEY = "tw_kyc_last_submission_v1";
 const MAX_DOC_BYTES = 5 * 1024 * 1024; // 5 MB
+
+// Errors that the server treats as transient and worth a "Try again".
+const TRANSIENT_ERROR_PATTERNS = [
+  /provider unreachable/i,
+  /timeout/i,
+  /temporar/i,
+  /try again/i,
+  /503/,
+  /502/,
+  /504/,
+  /network/i,
+];
+const isTransientError = (msg: string) => TRANSIENT_ERROR_PATTERNS.some((re) => re.test(msg));
 
 export function KycFlow({ onDone }: { onDone: () => void }) {
   const [step, setStep] = useState<Step>(1);
