@@ -32,7 +32,7 @@ function fmtINR(n: number): string {
 }
 
 function TransactionsList() {
-  const { admin } = useAdminSession();
+  const admin = useMemo(() => readAdminSession()?.admin, []);
   const [rows, setRows] = useState<TxnRow[]>([]);
   const [total, setTotal] = useState(0);
   const [pageVolume, setPageVolume] = useState(0);
