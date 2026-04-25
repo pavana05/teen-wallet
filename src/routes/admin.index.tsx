@@ -49,9 +49,14 @@ function CommandCenter() {
   const [err, setErr] = useState("");
   const [updatedAt, setUpdatedAt] = useState<string>("");
 
-  async function loadAll() {
+  const lastLoadAt = useRef(0);
+  const inflight = useRef(false);
+
+  const loadAll = useCallback(async () => {
+    if (inflight.current) return;
     const s = readAdminSession();
     if (!s) return;
+    inflight.current = true;
     try {
       const [stats, act] = await Promise.all([
         callAdminFn<DashboardData>({ action: "dashboard_stats", sessionToken: s.sessionToken }),
@@ -61,27 +66,38 @@ function CommandCenter() {
       setActivity(act.items);
       setUpdatedAt(new Date().toLocaleTimeString());
       setErr("");
+      lastLoadAt.current = Date.now();
     } catch (e: any) {
       setErr(e.message || "Failed to load");
+    } finally {
+      inflight.current = false;
     }
-  }
+  }, []);
 
   useEffect(() => {
     void loadAll();
-    const id = setInterval(loadAll, 30000);
+    // Poll less aggressively (60s) and skip when tab is hidden
+    const id = setInterval(() => {
+      if (document.visibilityState === "visible") void loadAll();
+    }, 60000);
     return () => clearInterval(id);
-  }, []);
+  }, [loadAll]);
 
   useEffect(() => {
+    // Throttled realtime — coalesce bursts to at most one reload per 5s
+    const throttled = () => {
+      if (Date.now() - lastLoadAt.current < 5000) return;
+      void loadAll();
+    };
     const ch = supabase
       .channel("admin-cmd-center")
-      .on("postgres_changes", { event: "*", schema: "public", table: "profiles" }, () => loadAll())
-      .on("postgres_changes", { event: "*", schema: "public", table: "transactions" }, () => loadAll())
-      .on("postgres_changes", { event: "*", schema: "public", table: "kyc_submissions" }, () => loadAll())
-      .on("postgres_changes", { event: "*", schema: "public", table: "fraud_logs" }, () => loadAll())
+      .on("postgres_changes", { event: "*", schema: "public", table: "profiles" }, throttled)
+      .on("postgres_changes", { event: "*", schema: "public", table: "transactions" }, throttled)
+      .on("postgres_changes", { event: "*", schema: "public", table: "kyc_submissions" }, throttled)
+      .on("postgres_changes", { event: "*", schema: "public", table: "fraud_logs" }, throttled)
       .subscribe();
     return () => { supabase.removeChannel(ch); };
-  }, []);
+  }, [loadAll]);
 
   const k = data?.kpis;
   const sparkVolume = useMemo(
