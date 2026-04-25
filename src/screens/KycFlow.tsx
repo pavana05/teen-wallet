@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { ArrowLeft, ArrowRight, ShieldCheck } from "lucide-react";
 import { updateProfileFields, setStage as persistStage } from "@/lib/auth";
+import { SelfieCapture } from "@/components/SelfieCapture";
 import { toast } from "sonner";
 
 type Step = 1 | 2 | 3;
