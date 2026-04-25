@@ -248,6 +248,24 @@ function ScannerView({ onBack, onDecoded }: { onBack: () => void; onDecoded: (p:
     }
   };
 
+  if (permissionDenied) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center bg-[#0B0B0B] px-8 text-center">
+        <div className="w-16 h-16 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mb-5">
+          <ZapOff className="w-7 h-7 text-white/70" />
+        </div>
+        <p className="text-[17px] font-semibold text-white">Camera permission needed</p>
+        <p className="mt-2 text-[13px] text-white/60 max-w-xs">
+          Allow camera access in your browser settings, then tap retry to scan a UPI QR.
+        </p>
+        <button onClick={() => location.reload()} className="mt-6 px-5 py-2.5 rounded-full bg-primary text-primary-foreground font-semibold text-[13px]">
+          Retry
+        </button>
+        <button onClick={onBack} className="mt-3 text-[12px] text-white/55">Go back</button>
+      </div>
+    );
+  }
+
   return (
     <div className="flex-1 flex flex-col bg-[#0B0B0B] relative overflow-hidden">
       <div id={containerId} className="absolute inset-0 [&_video]:object-cover [&_video]:w-full [&_video]:h-full" />
