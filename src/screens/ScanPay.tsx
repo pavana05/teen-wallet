@@ -164,16 +164,24 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
   const reset = useCallback(() => {
     setPayload(null);
     setAmount(0);
+    setNote("");
     setResultMsg("");
     setFailKind("generic");
+    setSavedTxn(null);
     navLockRef.current = false;
     clearPersisted();
-    // Force-remount the ScannerView → its cleanup runs (camera stop + clear),
-    // then a fresh Html5Qrcode instance is created. Prevents stale-loop bugs
-    // and camera resource leaks observed when re-entering scan after confirm.
     setScannerKey((k) => k + 1);
     setPhase("scanning");
   }, []);
+
+  // Retry the last attempted payment without re-scanning. Used by the failure
+  // screen when the failure was transient (network/insufficient balance fixed).
+  const retryPay = useCallback(() => {
+    if (!payload) { reset(); return; }
+    setResultMsg("");
+    setFailKind("generic");
+    setPhase("confirm");
+  }, [payload, reset]);
 
   const handleHardBack = useCallback(() => {
     clearPersisted();
@@ -182,14 +190,38 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
 
 
   if (phase === "processing") return <ProcessingView amount={amount} />;
-  if (phase === "success") return <SuccessView message={resultMsg} amount={amount} payee={payload?.payeeName ?? ""} onDone={handleHardBack} />;
-  if (phase === "failed") return <FailedView kind={failKind} message={resultMsg} onRetry={reset} onCancel={handleHardBack} />;
+  if (phase === "success" && savedTxn) {
+    return (
+      <SuccessView
+        txn={savedTxn}
+        payerName={null}
+        payerPhone={null}
+        onDone={handleHardBack}
+        onScanAgain={reset}
+      />
+    );
+  }
+  if (phase === "failed") {
+    return (
+      <FailedView
+        kind={failKind}
+        message={resultMsg}
+        amount={amount}
+        payee={payload?.payeeName ?? ""}
+        onRetry={retryPay}
+        onScanAgain={reset}
+        onCancel={handleHardBack}
+      />
+    );
+  }
   if (phase === "confirm" && payload) {
     return (
       <ConfirmView
         payload={payload}
         amount={amount}
         onAmountChange={setAmount}
+        note={note}
+        onNoteChange={setNote}
         onConfirm={handlePay}
         onBack={reset}
         balance={balance}
