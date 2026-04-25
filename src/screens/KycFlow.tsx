@@ -16,6 +16,7 @@ export function KycFlow({ onDone }: { onDone: () => void }) {
   const [aadhaarOtpSent, setAadhaarOtpSent] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [selfie, setSelfie] = useState<string | null>(null);
 
   const formatAadhaar = (v: string) => v.replace(/\D/g, "").slice(0, 12).replace(/(\d{4})(?=\d)/g, "$1 ");
 
