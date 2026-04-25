@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState, useCallback } from "react";
-import { callAdminFn, readAdminSession, can, useAdminSession } from "@/admin/lib/adminAuth";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
+import { callAdminFn, readAdminSession, can } from "@/admin/lib/adminAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2, ChevronLeft, ChevronRight, RefreshCw, Search, AlertTriangle, RotateCcw } from "lucide-react";
 
@@ -32,7 +32,7 @@ function fmtINR(n: number): string {
 }
 
 function TransactionsList() {
-  const { admin } = useAdminSession();
+  const admin = useMemo(() => readAdminSession()?.admin, []);
   const [rows, setRows] = useState<TxnRow[]>([]);
   const [total, setTotal] = useState(0);
   const [pageVolume, setPageVolume] = useState(0);
@@ -86,13 +86,18 @@ function TransactionsList() {
 
   useEffect(() => { void load(); }, [load]);
 
-  // Realtime
+  // Realtime — throttled
+  const lastTxnLoad = useRef(0);
   useEffect(() => {
+    const throttled = () => {
+      const now = Date.now();
+      if (now - lastTxnLoad.current < 3000) return;
+      lastTxnLoad.current = now;
+      void load();
+    };
     const ch = supabase
       .channel("admin_txns")
-      .on("postgres_changes", { event: "*", schema: "public", table: "transactions" }, () => {
-        void load();
-      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "transactions" }, throttled)
       .subscribe();
     return () => { supabase.removeChannel(ch); };
   }, [load]);

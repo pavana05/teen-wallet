@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState, useCallback } from "react";
-import { callAdminFn, readAdminSession, can, useAdminSession } from "@/admin/lib/adminAuth";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
+import { callAdminFn, readAdminSession, can } from "@/admin/lib/adminAuth";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Loader2, ShieldCheck, ShieldX, ChevronLeft, ChevronRight, RefreshCw, Clock,
@@ -89,7 +89,7 @@ function StatCard({ label, value, accent }: { label: string; value: string | num
 }
 
 function KycQueue() {
-  const { admin } = useAdminSession();
+  const admin = useMemo(() => readAdminSession()?.admin, []);
   const [rows, setRows] = useState<KycRow[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -127,13 +127,18 @@ function KycQueue() {
 
   useEffect(() => { void load(); }, [load]);
 
-  // Realtime: any change to kyc_submissions reloads list
+  // Realtime: any change to kyc_submissions reloads list — throttled
+  const lastKycLoad = useRef(0);
   useEffect(() => {
+    const throttled = () => {
+      const now = Date.now();
+      if (now - lastKycLoad.current < 3000) return;
+      lastKycLoad.current = now;
+      void load();
+    };
     const ch = supabase
       .channel("admin_kyc")
-      .on("postgres_changes", { event: "*", schema: "public", table: "kyc_submissions" }, () => {
-        void load();
-      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "kyc_submissions" }, throttled)
       .subscribe();
     return () => { supabase.removeChannel(ch); };
   }, [load]);

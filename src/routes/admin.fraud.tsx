@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState, useCallback } from "react";
-import { callAdminFn, readAdminSession, useAdminSession, can } from "@/admin/lib/adminAuth";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
+import { callAdminFn, readAdminSession, can } from "@/admin/lib/adminAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2, RefreshCw, ChevronLeft, ChevronRight, ShieldAlert, Check, AlertTriangle } from "lucide-react";
 
@@ -29,7 +29,7 @@ function timeAgo(iso: string): string {
 }
 
 function FraudPage() {
-  const { admin } = useAdminSession();
+  const admin = useMemo(() => readAdminSession()?.admin, []);
   const [rows, setRows] = useState<FraudRow[]>([]);
   const [total, setTotal] = useState(0);
   const [openByRule, setOpenByRule] = useState<Record<string, number>>({});
@@ -59,10 +59,17 @@ function FraudPage() {
   }, [status, rule, page]);
   useEffect(() => { void load(); }, [load]);
 
-  // Realtime
+  // Realtime — throttled so a burst of DB changes triggers at most one reload per 3s
+  const lastLoad = useRef(0);
   useEffect(() => {
+    const throttled = () => {
+      const now = Date.now();
+      if (now - lastLoad.current < 3000) return;
+      lastLoad.current = now;
+      void load();
+    };
     const ch = supabase.channel("admin_fraud")
-      .on("postgres_changes", { event: "*", schema: "public", table: "fraud_logs" }, () => void load())
+      .on("postgres_changes", { event: "*", schema: "public", table: "fraud_logs" }, throttled)
       .subscribe();
     return () => { supabase.removeChannel(ch); };
   }, [load]);

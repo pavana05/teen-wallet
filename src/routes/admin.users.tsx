@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState, useCallback, useMemo } from "react";
-import { callAdminFn, readAdminSession, can, useAdminSession } from "@/admin/lib/adminAuth";
+import { callAdminFn, readAdminSession, can } from "@/admin/lib/adminAuth";
 import { Search, ChevronLeft, ChevronRight, Loader2, ShieldCheck, ShieldX, CheckSquare, Square } from "lucide-react";
 
 export const Route = createFileRoute("/admin/users")({
@@ -39,7 +39,7 @@ function loadPrefs(): Prefs {
 function savePrefs(p: Prefs) { try { localStorage.setItem(LS_KEY, JSON.stringify(p)); } catch {} }
 
 function UsersList() {
-  const { admin } = useAdminSession();
+  const admin = useMemo(() => readAdminSession()?.admin, []);
   const initial = useMemo(() => loadPrefs(), []);
   const [rows, setRows] = useState<UserRow[]>([]);
   const [total, setTotal] = useState(0);
