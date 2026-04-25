@@ -1,10 +1,11 @@
 import { useState, useRef, useEffect } from "react";
 import { ArrowLeft } from "lucide-react";
 import { sendOtp, verifyOtp, setStage as persistStage, fetchProfile } from "@/lib/auth";
-import { useApp } from "@/lib/store";
+import { useApp, type Stage } from "@/lib/store";
 import { toast } from "sonner";
+import { PhoneVerified } from "./PhoneVerified";
 
-type Step = "phone" | "otp";
+type Step = "phone" | "otp" | "verified";
 
 export function AuthPhone({ onDone }: { onDone: () => void }) {
   const [step, setStep] = useState<Step>("phone");
