@@ -443,6 +443,10 @@ Deno.serve(async (req) => {
     viewUsers: ["super_admin", "operations_manager", "customer_support"],
     manageUsers: ["super_admin", "operations_manager"],
     viewDashboard: ["super_admin", "operations_manager", "compliance_officer", "customer_support", "fraud_analyst", "finance_manager"],
+    viewKyc: ["super_admin", "operations_manager", "compliance_officer"],
+    decideKyc: ["super_admin", "operations_manager"],
+    viewTransactions: ["super_admin", "operations_manager", "finance_manager", "compliance_officer", "fraud_analyst"],
+    manageTransactions: ["super_admin", "operations_manager"],
   };
   function can(role: string, perm: string) {
     return (ROLE_PERMS[perm] || []).includes(role);
@@ -661,6 +665,135 @@ Deno.serve(async (req) => {
       admin_id: me.id, admin_email: me.email, admin_role: me.role as any,
       action_type: "user_set_kyc", target_entity: "profiles", target_id: userId,
       old_value: before as any, new_value: { kyc_status: newStatus, reason } as any,
+      ip_address: ip, user_agent: ua,
+    });
+    return json({ ok: true });
+  }
+
+  // ----- KYC list -----
+  if (action === "kyc_list") {
+    if (!can(me.role, "viewKyc")) return json({ error: "forbidden" }, 403);
+    const status = String(body.status ?? "pending");
+    const page = Math.max(1, Number(body.page ?? 1));
+    const pageSize = Math.min(100, Math.max(10, Number(body.pageSize ?? 25)));
+
+    let q = sb.from("kyc_submissions").select("*", { count: "exact" });
+    if (status && status !== "all") q = q.eq("status", status as any);
+    q = q.order("created_at", { ascending: true }).range((page - 1) * pageSize, page * pageSize - 1);
+    const { data, count, error } = await q;
+    if (error) return json({ error: error.message }, 500);
+
+    const userIds = Array.from(new Set((data ?? []).map((r: any) => r.user_id)));
+    let profileMap: Record<string, any> = {};
+    if (userIds.length) {
+      const { data: profs } = await sb.from("profiles").select("id,full_name,phone,dob,kyc_status,aadhaar_last4").in("id", userIds);
+      for (const p of profs ?? []) profileMap[(p as any).id] = p;
+    }
+    const rows = (data ?? []).map((r: any) => ({ ...r, profile: profileMap[r.user_id] || null }));
+    return json({ rows, total: count ?? 0, page, pageSize });
+  }
+
+  // ----- KYC decide (approve / reject / escalate) -----
+  if (action === "kyc_decide") {
+    if (!can(me.role, "decideKyc")) return json({ error: "forbidden" }, 403);
+    const submissionId = String(body.submissionId ?? "");
+    const decision = String(body.decision ?? ""); // approved | rejected
+    const reason = String(body.reason ?? "");
+    if (!submissionId || !["approved", "rejected"].includes(decision)) return json({ error: "invalid" }, 400);
+
+    const { data: sub } = await sb.from("kyc_submissions").select("*").eq("id", submissionId).maybeSingle();
+    if (!sub) return json({ error: "not_found" }, 404);
+
+    const nowIso = new Date().toISOString();
+    const { error: e1 } = await sb.from("kyc_submissions")
+      .update({ status: decision as any, reason: reason || null, updated_at: nowIso })
+      .eq("id", submissionId);
+    if (e1) return json({ error: e1.message }, 500);
+
+    const { data: beforeProfile } = await sb.from("profiles").select("kyc_status,onboarding_stage").eq("id", (sub as any).user_id).maybeSingle();
+    const profileUpdate: Record<string, unknown> = { kyc_status: decision as any, updated_at: nowIso };
+    if (decision === "approved") profileUpdate.onboarding_stage = "STAGE_5";
+    await sb.from("profiles").update(profileUpdate).eq("id", (sub as any).user_id);
+
+    // Notify user
+    await sb.from("notifications").insert({
+      user_id: (sub as any).user_id,
+      type: decision === "approved" ? "kyc_approved" : "kyc_rejected",
+      title: decision === "approved" ? "KYC approved 🎉" : "KYC rejected",
+      body: decision === "approved" ? "Your account is now active." : (reason || "Please retry your KYC submission."),
+    });
+
+    await sb.from("admin_audit_log").insert({
+      admin_id: me.id, admin_email: me.email, admin_role: me.role as any,
+      action_type: "kyc_decide", target_entity: "kyc_submissions", target_id: submissionId,
+      old_value: { sub_status: (sub as any).status, profile: beforeProfile } as any,
+      new_value: { decision, reason } as any,
+      ip_address: ip, user_agent: ua,
+    });
+    return json({ ok: true });
+  }
+
+  // ----- Transactions list -----
+  if (action === "transactions_list") {
+    if (!can(me.role, "viewTransactions")) return json({ error: "forbidden" }, 403);
+    const search = String(body.search ?? "").trim();
+    const status = String(body.status ?? "");
+    const minAmount = Number(body.minAmount ?? 0);
+    const maxAmount = Number(body.maxAmount ?? 0);
+    const flagged = body.flagged === true;
+    const fromDate = String(body.fromDate ?? "");
+    const toDate = String(body.toDate ?? "");
+    const page = Math.max(1, Number(body.page ?? 1));
+    const pageSize = Math.min(100, Math.max(10, Number(body.pageSize ?? 25)));
+
+    let q = sb.from("transactions").select("*", { count: "exact" });
+    if (search) {
+      const safe = search.replace(/[%,]/g, "");
+      q = q.or(`merchant_name.ilike.%${safe}%,upi_id.ilike.%${safe}%,user_id.ilike.%${safe}%,id.ilike.%${safe}%`);
+    }
+    if (status) q = q.eq("status", status as any);
+    if (minAmount > 0) q = q.gte("amount", minAmount);
+    if (maxAmount > 0) q = q.lte("amount", maxAmount);
+    if (fromDate) q = q.gte("created_at", fromDate);
+    if (toDate) q = q.lte("created_at", toDate);
+    if (flagged) q = q.neq("fraud_flags", "[]");
+    q = q.order("created_at", { ascending: false }).range((page - 1) * pageSize, page * pageSize - 1);
+
+    const { data, count, error } = await q;
+    if (error) return json({ error: error.message }, 500);
+
+    const userIds = Array.from(new Set((data ?? []).map((r: any) => r.user_id)));
+    let profileMap: Record<string, any> = {};
+    if (userIds.length) {
+      const { data: profs } = await sb.from("profiles").select("id,full_name,phone").in("id", userIds);
+      for (const p of profs ?? []) profileMap[(p as any).id] = p;
+    }
+    const rows = (data ?? []).map((r: any) => ({ ...r, profile: profileMap[r.user_id] || null }));
+
+    // aggregates over the filtered set (current page only — cheap)
+    const totalAmount = rows.reduce((acc: number, r: any) => acc + Number(r.amount || 0), 0);
+    const successCount = rows.filter((r: any) => r.status === "success").length;
+    return json({ rows, total: count ?? 0, page, pageSize, pageVolume: totalAmount, pageSuccess: successCount });
+  }
+
+  // ----- Transaction reverse / mark investigated -----
+  if (action === "transaction_reverse") {
+    if (!can(me.role, "manageTransactions")) return json({ error: "forbidden" }, 403);
+    const txnId = String(body.txnId ?? "");
+    const reason = String(body.reason ?? "");
+    if (!txnId || !reason) return json({ error: "invalid" }, 400);
+    const { data: tx } = await sb.from("transactions").select("*").eq("id", txnId).maybeSingle();
+    if (!tx) return json({ error: "not_found" }, 404);
+    if ((tx as any).status === "failed") return json({ error: "already_failed" }, 400);
+
+    const { error } = await sb.from("transactions").update({ status: "failed" as any }).eq("id", txnId);
+    if (error) return json({ error: error.message }, 500);
+
+    await sb.from("admin_audit_log").insert({
+      admin_id: me.id, admin_email: me.email, admin_role: me.role as any,
+      action_type: "transaction_reverse", target_entity: "transactions", target_id: txnId,
+      old_value: { status: (tx as any).status } as any,
+      new_value: { status: "failed", reason } as any,
       ip_address: ip, user_agent: ua,
     });
     return json({ ok: true });
