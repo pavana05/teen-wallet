@@ -471,6 +471,11 @@ function ScannerView({ onBack, onDecoded }: { onBack: () => void; onDecoded: (p:
     );
   }
 
+  const stateLabel =
+    scanState === "locked" ? "QR locked · opening payment…" :
+    scanState === "tracking" ? "Camera tracking · point at any UPI QR" :
+    "Starting camera…";
+
   return (
     <div className="flex-1 flex flex-col bg-[#0B0B0B] relative overflow-hidden">
       <div id={containerId} className="absolute inset-0 [&_video]:object-cover [&_video]:w-full [&_video]:h-full" />
@@ -479,9 +484,14 @@ function ScannerView({ onBack, onDecoded }: { onBack: () => void; onDecoded: (p:
         style={{ maskImage: "radial-gradient(circle at 50% 44%, transparent 142px, black 158px)", WebkitMaskImage: "radial-gradient(circle at 50% 44%, transparent 142px, black 158px)" }}
       />
 
+      {/* Torch active glow — warm-yellow pulse around the entire viewport so
+          the user gets immediate "flash is on" feedback even before the camera
+          stream brightens. Pointer-events-none so it never blocks the QR. */}
+      {torch && <div className="sp2-torch-glow" aria-hidden="true" />}
+
       {/* Top brand bar */}
       <div className="sp2-topbar">
-        <button onClick={onBack} aria-label="Back" className="sp2-icon-btn">
+        <button onClick={onBack} aria-label="Back to previous screen" className="sp2-icon-btn focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-black">
           <ArrowLeft className="w-5 h-5" />
         </button>
         <div className="sp2-brand">
@@ -491,31 +501,54 @@ function ScannerView({ onBack, onDecoded }: { onBack: () => void; onDecoded: (p:
         <div className="flex items-center gap-2">
           <button
             onClick={() => setDebugOpen((v) => !v)}
-            aria-label="Debug overlay"
+            aria-label={debugOpen ? "Hide debug overlay" : "Show debug overlay"}
+            aria-pressed={debugOpen}
             className={`sp2-icon-btn ${debugOpen ? "on" : ""}`}
           >
             <Bug className="w-5 h-5" />
           </button>
-          <button onClick={toggleTorch} aria-label="Toggle flash" className={`sp2-icon-btn ${torch ? "on" : ""}`}>
+          <button
+            onClick={toggleTorch}
+            aria-label={torch ? "Turn flash off" : "Turn flash on"}
+            aria-pressed={torch}
+            className={`sp2-icon-btn ${torch ? "on sp2-icon-btn-torch" : ""}`}
+          >
             {torch ? <Zap className="w-5 h-5" /> : <ZapOff className="w-5 h-5" />}
           </button>
         </div>
       </div>
 
+      {/* Live state strip — sits just under the topbar so the user always sees
+          a current-status line: starting / tracking / locked. */}
+      <div className="sp2-state-strip" role="status" aria-live="polite">
+        <span className={`sp2-state-dot sp2-state-${scanState}`} />
+        <span className="sp2-state-text">{stateLabel}</span>
+      </div>
+
       {/* Viewfinder */}
       <div className="sp2-frame-wrap">
-        <div className="sp2-frame">
+        <div className={`sp2-frame ${scanState === "locked" ? "sp2-frame-locked" : ""} ${scanState === "tracking" ? "sp2-frame-tracking" : ""}`}>
           <div className="sp2-frame-halo" />
           <span className="sp2-frame-corner top-0 left-0 border-t-[3px] border-l-[3px] rounded-tl-[22px]" />
           <span className="sp2-frame-corner top-0 right-0 border-t-[3px] border-r-[3px] rounded-tr-[22px]" />
           <span className="sp2-frame-corner bottom-0 left-0 border-b-[3px] border-l-[3px] rounded-bl-[22px]" />
           <span className="sp2-frame-corner bottom-0 right-0 border-b-[3px] border-r-[3px] rounded-br-[22px]" />
           <div className="sp2-beam" />
+          {scanState === "locked" && (
+            <div className="sp2-lock-badge" aria-hidden="true">
+              <ScanLine className="w-4 h-4" />
+              <span>Locked</span>
+            </div>
+          )}
         </div>
         <p className="sp2-frame-hint">
-          {starting ? "Starting camera…" : "Align the QR inside the frame"}
+          {scanState === "locked"
+            ? "Got it! Hold steady…"
+            : starting
+              ? "Starting camera…"
+              : "Align the QR inside the frame"}
         </p>
-        {!starting && (
+        {!starting && scanState !== "locked" && (
           <button onClick={manualSoftReset} className="sp2-retune">
             Camera stuck? Re-tune
           </button>
