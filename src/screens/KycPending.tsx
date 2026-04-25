@@ -1,5 +1,5 @@
-import { useEffect, useState, useRef } from "react";
-import { Check, AlertTriangle, Clock, RefreshCw } from "lucide-react";
+import { useEffect, useState, useRef, useMemo } from "react";
+import { AlertTriangle, Clock, RefreshCw, Sparkles, ShieldCheck, Info } from "lucide-react";
 import { setStage as persistStage, updateProfileFields } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
 
