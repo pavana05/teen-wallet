@@ -271,6 +271,7 @@ export function Home() {
           </button>
         </div>
       </div>
+      {quickAction && <QuickActionsPanel kind={quickAction} onClose={() => setQuickAction(null)} />}
     </div>
   );
 }
