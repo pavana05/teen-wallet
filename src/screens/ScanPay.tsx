@@ -19,6 +19,15 @@ interface PersistedFlow {
 type Phase = "scanning" | "confirm" | "processing" | "success" | "failed";
 type FailKind = "generic" | "balance_changed" | "insufficient" | "blocked";
 
+interface SavedTxn {
+  id: string;
+  amount: number;
+  payee: string;
+  upiId: string;
+  note: string | null;
+  createdAt: string;
+}
+
 export function ScanPay({ onBack }: { onBack: () => void }) {
   const { userId, balance } = useApp();
 
