@@ -498,8 +498,13 @@ export function KycFlow({ onDone }: { onDone: () => void }) {
           <h1 className="text-[28px] font-bold">Quick selfie check</h1>
           <p className="text-[#888] text-sm mt-3">We use face matching to make sure it's really you.</p>
 
-          <div className="mt-6">
-            <SelfieCapture onCapture={(d) => { setSelfie(d); setError(""); }} />
+          <PermissionBanner perm={camPerm} supported={camSupported} />
+
+          <div className="mt-4">
+            <SelfieCapture
+              onCapture={(d) => { setSelfie(d); setError(""); }}
+              onPermissionChange={onCamPerm}
+            />
           </div>
 
           <ul className="mt-4 text-xs text-muted-foreground space-y-1">
@@ -524,10 +529,26 @@ export function KycFlow({ onDone }: { onDone: () => void }) {
             </div>
           )}
 
-          {error && <p className="text-destructive text-xs mt-4 tw-shake">{error}</p>}
+          <SubmissionTimeline last={lastSubmission} />
+
+          {error && (
+            <div className="mt-4">
+              <p className="text-destructive text-xs tw-shake">{error}</p>
+              {lastErrorTransient && (
+                <button onClick={retrySubmit} disabled={busy}
+                  className="mt-2 text-xs text-primary inline-flex items-center gap-1 hover:underline disabled:opacity-50">
+                  <RefreshCw className={`w-3 h-3 ${busy ? "animate-spin" : ""}`} /> Try again
+                </button>
+              )}
+            </div>
+          )}
           <div className="flex-1" />
-          <button onClick={submitStep3} disabled={busy || !selfie} className="btn-primary w-full disabled:opacity-50">
-            Submit for verification
+          <button
+            onClick={submitStep3}
+            disabled={busy || !selfie || (camSupported && camPerm === "denied")}
+            className="btn-primary w-full disabled:opacity-50"
+          >
+            {busy ? <><Loader2 className="w-4 h-4 animate-spin" /> Submitting…</> : "Submit for verification"}
           </button>
         </>
       )}
