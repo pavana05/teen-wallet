@@ -1,28 +1,96 @@
-import { Bell, Home as HomeIcon, ScanLine, ShoppingBag, CreditCard, ArrowUpRight, Building2, Wallet, History, Smartphone, Zap, MoreHorizontal, Gift } from "lucide-react";
+import { Bell, Home as HomeIcon, ScanLine, ShoppingBag, CreditCard, ArrowUpRight, Building2, Wallet, History, Smartphone, Zap, MoreHorizontal, Gift, ArrowDownLeft, RefreshCw } from "lucide-react";
 import { useApp } from "@/lib/store";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { ScanPay } from "@/screens/ScanPay";
 import heroScan from "@/assets/home-hero-scan.jpg";
+
+interface Txn {
+  id: string;
+  amount: number;
+  merchant_name: string;
+  upi_id: string;
+  note: string | null;
+  status: "success" | "pending" | "failed";
+  created_at: string;
+}
 
 export function Home() {
   const { fullName, userId } = useApp();
   const first = fullName?.split(" ")[0] ?? "Alex";
   const [view, setView] = useState<"home" | "scan">("home");
+  const [txns, setTxns] = useState<Txn[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [pullY, setPullY] = useState(0);
+  const touchStartY = useRef<number | null>(null);
+  const scrollerRef = useRef<HTMLDivElement | null>(null);
+
+  const fetchTxns = useCallback(async () => {
+    if (!userId) { setLoading(false); return; }
+    const { data } = await supabase
+      .from("transactions")
+      .select("id,amount,merchant_name,upi_id,note,status,created_at")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(20);
+    setTxns((data ?? []) as Txn[]);
+    setLoading(false);
+  }, [userId]);
+
+  useEffect(() => { void fetchTxns(); }, [fetchTxns]);
 
   useEffect(() => {
     if (!userId) return;
     const ch = supabase
-      .channel("txns")
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "transactions", filter: `user_id=eq.${userId}` }, () => {})
+      .channel("home-txns")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "transactions", filter: `user_id=eq.${userId}` }, () => {
+        void fetchTxns();
+      })
       .subscribe();
     return () => { supabase.removeChannel(ch); };
-  }, [userId]);
+  }, [userId, fetchTxns]);
 
-  if (view === "scan") return <ScanPay onBack={() => setView("home")} />;
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await fetchTxns();
+    setTimeout(() => setRefreshing(false), 400);
+  }, [fetchTxns]);
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    if ((scrollerRef.current?.scrollTop ?? 0) <= 0) {
+      touchStartY.current = e.touches[0].clientY;
+    }
+  };
+  const onTouchMove = (e: React.TouchEvent) => {
+    if (touchStartY.current == null) return;
+    const dy = e.touches[0].clientY - touchStartY.current;
+    if (dy > 0) setPullY(Math.min(dy * 0.5, 80));
+  };
+  const onTouchEnd = () => {
+    if (pullY > 60) void handleRefresh();
+    setPullY(0);
+    touchStartY.current = null;
+  };
+
+  if (view === "scan") return <ScanPay onBack={() => { setView("home"); void fetchTxns(); }} />;
 
   return (
-    <div className="hp-root flex-1 flex flex-col tw-slide-up pb-32 overflow-y-auto">
+    <div
+      ref={scrollerRef}
+      onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
+      onTouchEnd={onTouchEnd}
+      className="hp-root flex-1 flex flex-col tw-slide-up pb-32 overflow-y-auto relative"
+      style={{ transform: pullY ? `translateY(${pullY}px)` : undefined, transition: pullY ? "none" : "transform 220ms ease" }}
+    >
+      {/* Pull-to-refresh indicator */}
+      {(pullY > 0 || refreshing) && (
+        <div className="absolute top-2 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/60 backdrop-blur-md border border-white/10">
+          <RefreshCw className={`w-3.5 h-3.5 text-white ${refreshing ? "animate-spin" : ""}`} style={{ transform: !refreshing ? `rotate(${pullY * 4}deg)` : undefined }} />
+          <span className="text-[11px] text-white/80">{refreshing ? "Refreshing…" : pullY > 60 ? "Release to refresh" : "Pull to refresh"}</span>
+        </div>
+      )}
       {/* ===== HERO (orange grid bg + scan card image) ===== */}
       <div className="hp-hero relative">
         <div className="hp-hero-bg" />
@@ -102,6 +170,32 @@ export function Home() {
         </div>
       </div>
 
+      {/* ===== PAYMENT HISTORY ===== */}
+      <div className="px-5 mt-7">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-white text-[17px] font-semibold tracking-tight">Payment history</h3>
+          <button onClick={handleRefresh} className="text-white/60 inline-flex items-center gap-1 text-[12px]">
+            <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? "animate-spin" : ""}`} /> Refresh
+          </button>
+        </div>
+        {loading ? (
+          <div className="space-y-2">
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="h-16 rounded-2xl bg-white/5 tw-shimmer" />
+            ))}
+          </div>
+        ) : txns.length === 0 ? (
+          <div className="rounded-2xl bg-white/5 border border-white/10 p-6 text-center">
+            <p className="text-[13px] text-white/70">No transactions yet</p>
+            <p className="text-[11px] text-white/40 mt-1">Tap the scan button to make your first payment.</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {txns.map((t) => <TxnRow key={t.id} txn={t} />)}
+          </div>
+        )}
+      </div>
+
       {/* Page dots */}
       <div className="flex items-center justify-center gap-1.5 mt-7">
         <span className="w-1.5 h-1.5 rounded-full bg-white" />
@@ -146,6 +240,27 @@ function RechargeTile({ icon: Icon, label, tint }: { icon: React.ComponentType<{
       </div>
       <span className="text-[11px] text-white/70 leading-tight text-center">{label}</span>
     </button>
+  );
+}
+
+function TxnRow({ txn }: { txn: Txn }) {
+  const date = new Date(txn.created_at);
+  const time = date.toLocaleString("en-IN", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
+  const failed = txn.status === "failed";
+  return (
+    <div className="flex items-center gap-3 rounded-2xl bg-white/5 border border-white/10 px-3 py-3">
+      <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${failed ? "bg-destructive/15" : "bg-primary/15"}`}>
+        <ArrowDownLeft className={`w-5 h-5 ${failed ? "text-destructive" : "text-primary"}`} strokeWidth={2} />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-[13px] font-medium text-white truncate">{txn.merchant_name}</p>
+        <p className="text-[11px] text-white/50 truncate">{txn.note ? txn.note : txn.upi_id} · {time}</p>
+      </div>
+      <div className="text-right shrink-0">
+        <p className={`text-[14px] font-semibold num-mono ${failed ? "text-destructive line-through" : "text-white"}`}>−₹{Number(txn.amount).toFixed(2)}</p>
+        <p className={`text-[10px] uppercase tracking-wider ${txn.status === "success" ? "text-primary/80" : txn.status === "pending" ? "text-yellow-400/80" : "text-destructive/80"}`}>{txn.status}</p>
+      </div>
+    </div>
   );
 }
 
