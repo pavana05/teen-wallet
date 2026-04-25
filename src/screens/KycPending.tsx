@@ -309,7 +309,7 @@ function RejectedView({ reason, onRetake, onClose }: { reason: string | null; on
   return (
     <div className="kyc-result-root">
       <div className="kyc-result-glow red" />
-      <button className="kyc-close-btn" onClick={onRetake} aria-label="Close">
+      <button className="kyc-close-btn" onClick={onClose} aria-label="Close">
         <X className="w-6 h-6" strokeWidth={2.2} />
       </button>
 
