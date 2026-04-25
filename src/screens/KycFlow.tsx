@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, ArrowRight, ShieldCheck, Upload, Check, X, Loader2 } from "lucide-react";
+import { useEffect, useRef, useState, useCallback } from "react";
+import { ArrowLeft, ArrowRight, ShieldCheck, Upload, Check, X, Loader2, Camera, AlertTriangle, RefreshCw, Clock } from "lucide-react";
 import { updateProfileFields, setStage as persistStage } from "@/lib/auth";
-import { SelfieCapture, SELFIE_STORAGE_KEY } from "@/components/SelfieCapture";
+import { SelfieCapture, SELFIE_STORAGE_KEY, type SelfiePermState } from "@/components/SelfieCapture";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -9,10 +9,32 @@ type Step = 1 | 2 | 3;
 type SelfiePayload = { dataUrl: string; width: number; height: number; bytes: number };
 type DocSide = "front" | "back";
 type DocState = { path: string; name: string; size: number } | null;
+type SubStatus = "pending" | "approved" | "rejected" | "not_started";
+type LastSubmission = {
+  submissionId: string;
+  providerRef: string | null;
+  status: SubStatus;
+  submittedAt: string;
+  reason?: string | null;
+};
 
 const KYC_DRAFT_KEY = "tw_kyc_draft_v1";
 const KYC_DOCS_KEY = "tw_kyc_docs_v1";
+const KYC_LAST_SUBMISSION_KEY = "tw_kyc_last_submission_v1";
 const MAX_DOC_BYTES = 5 * 1024 * 1024; // 5 MB
+
+// Errors that the server treats as transient and worth a "Try again".
+const TRANSIENT_ERROR_PATTERNS = [
+  /provider unreachable/i,
+  /timeout/i,
+  /temporar/i,
+  /try again/i,
+  /503/,
+  /502/,
+  /504/,
+  /network/i,
+];
+const isTransientError = (msg: string) => TRANSIENT_ERROR_PATTERNS.some((re) => re.test(msg));
 
 export function KycFlow({ onDone }: { onDone: () => void }) {
   const [step, setStep] = useState<Step>(1);
@@ -29,7 +51,16 @@ export function KycFlow({ onDone }: { onDone: () => void }) {
   const [docBack, setDocBack] = useState<DocState>(null);
   const [uploading, setUploading] = useState<DocSide | null>(null);
   const [autoSaveState, setAutoSaveState] = useState<"idle" | "saving" | "saved">("idle");
+  const [camPerm, setCamPerm] = useState<SelfiePermState>("unknown");
+  const [camSupported, setCamSupported] = useState(true);
+  const [lastSubmission, setLastSubmission] = useState<LastSubmission | null>(null);
+  const [lastErrorTransient, setLastErrorTransient] = useState(false);
   const hydrated = useRef(false);
+
+  const onCamPerm = useCallback((s: SelfiePermState, supported: boolean) => {
+    setCamPerm(s);
+    setCamSupported(supported);
+  }, []);
 
   const formatAadhaar = (v: string) =>
     v.replace(/\D/g, "").slice(0, 12).replace(/(\d{4})(?=\d)/g, "$1 ");
@@ -54,6 +85,8 @@ export function KycFlow({ onDone }: { onDone: () => void }) {
         if (d.front) setDocFront(d.front);
         if (d.back) setDocBack(d.back);
       }
+      const lastRaw = localStorage.getItem(KYC_LAST_SUBMISSION_KEY);
+      if (lastRaw) setLastSubmission(JSON.parse(lastRaw) as LastSubmission);
     } catch { /* ignore */ }
 
     // Also hydrate from server profile (cross-device resume).
@@ -101,6 +134,67 @@ export function KycFlow({ onDone }: { onDone: () => void }) {
       localStorage.setItem(KYC_DOCS_KEY, JSON.stringify({ front: docFront, back: docBack }));
     } catch { /* ignore */ }
   }, [docFront, docBack]);
+
+  // Persist last submission to localStorage so refreshes don't lose context.
+  useEffect(() => {
+    try {
+      if (lastSubmission) localStorage.setItem(KYC_LAST_SUBMISSION_KEY, JSON.stringify(lastSubmission));
+    } catch { /* ignore */ }
+  }, [lastSubmission]);
+
+  // Fetch the latest server-side submission + subscribe to realtime updates.
+  useEffect(() => {
+    let cancelled = false;
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+
+    void (async () => {
+      const { data: u } = await supabase.auth.getUser();
+      if (!u.user || cancelled) return;
+      const userId = u.user.id;
+
+      const { data: rows } = await supabase
+        .from("kyc_submissions")
+        .select("id,provider_ref,status,created_at,reason")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(1);
+      if (!cancelled && rows && rows[0]) {
+        const r = rows[0];
+        setLastSubmission({
+          submissionId: r.id,
+          providerRef: r.provider_ref,
+          status: r.status,
+          submittedAt: r.created_at,
+          reason: r.reason,
+        });
+      }
+
+      channel = supabase
+        .channel(`kyc-sub-${userId}`)
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "kyc_submissions", filter: `user_id=eq.${userId}` },
+          (payload) => {
+            const row = payload.new as {
+              id: string; provider_ref: string | null; status: SubStatus;
+              created_at: string; reason: string | null;
+            } | undefined;
+            if (!row) return;
+            setLastSubmission((cur) =>
+              !cur || cur.submissionId === row.id || new Date(row.created_at) >= new Date(cur.submittedAt)
+                ? { submissionId: row.id, providerRef: row.provider_ref, status: row.status, submittedAt: row.created_at, reason: row.reason }
+                : cur,
+            );
+          },
+        )
+        .subscribe();
+    })();
+
+    return () => {
+      cancelled = true;
+      if (channel) void supabase.removeChannel(channel);
+    };
+  }, []);
 
   // Debounced auto-save of step-1 fields to Supabase profile (cross-device continuity).
   useEffect(() => {
@@ -208,44 +302,96 @@ export function KycFlow({ onDone }: { onDone: () => void }) {
     if (side === "front") setDocFront(null); else setDocBack(null);
   }
 
-  async function submitStep3() {
-    if (!selfie) return setError("Please capture a selfie first");
-    if (selfie.width < 240 || selfie.height < 240) return setError("Selfie resolution too low — please retake");
-    if (selfie.bytes < 8 * 1024) return setError("Selfie image is too small — please retake");
+  // Read the most recent capture from localStorage as a fallback so refresh→retry works
+  // even before the SelfieCapture child has rehydrated state.
+  const readStoredSelfie = (): SelfiePayload | null => {
+    try {
+      const raw = localStorage.getItem(SELFIE_STORAGE_KEY);
+      if (!raw) return null;
+      const p = JSON.parse(raw) as { dataUrl?: string; width?: number; height?: number; bytes?: number };
+      if (!p.dataUrl || !p.width || !p.height || !p.bytes) return null;
+      return { dataUrl: p.dataUrl, width: p.width, height: p.height, bytes: p.bytes };
+    } catch { return null; }
+  };
+
+  async function runVerification(): Promise<void> {
+    const payload = selfie ?? readStoredSelfie();
+    if (!payload) {
+      setError("Please capture a selfie first");
+      return;
+    }
+    if (payload.width < 240 || payload.height < 240) return setError("Selfie resolution too low — please retake");
+    if (payload.bytes < 8 * 1024) return setError("Selfie image is too small — please retake");
 
     setError("");
+    setLastErrorTransient(false);
     setBusy(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error("Session expired. Please sign in again.");
 
       const aadhaarLast4 = aadhaar.replace(/\s/g, "").slice(-4);
-      const res = await fetch("/api/kyc/verify", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({
-          selfie: selfie.dataUrl,
-          width: selfie.width,
-          height: selfie.height,
-          aadhaarLast4,
-          docFrontPath: docFront?.path ?? null,
-          docBackPath: docBack?.path ?? null,
-        }),
-      });
-      const json = (await res.json().catch(() => ({}))) as { error?: string; status?: string; submissionId?: string };
-      if (!res.ok && res.status !== 202) throw new Error(json.error || `Verification failed (${res.status})`);
+      let res: Response;
+      try {
+        res = await fetch("/api/kyc/verify", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({
+            selfie: payload.dataUrl,
+            width: payload.width,
+            height: payload.height,
+            aadhaarLast4,
+            docFrontPath: docFront?.path ?? null,
+            docBackPath: docBack?.path ?? null,
+          }),
+        });
+      } catch (netErr) {
+        // Network failure — treat as transient.
+        setLastErrorTransient(true);
+        throw new Error(netErr instanceof Error ? `Network error: ${netErr.message}` : "Network error");
+      }
 
-      // Clear drafts — KYC is now in the provider's hands
+      const json = (await res.json().catch(() => ({}))) as {
+        error?: string; status?: SubStatus; submissionId?: string; providerRef?: string; reason?: string;
+      };
+      if (!res.ok && res.status !== 202) {
+        const msg = json.error || `Verification failed (${res.status})`;
+        // 5xx and known transient phrases ⇒ allow Try again without recapture.
+        if (res.status >= 500 || isTransientError(msg)) setLastErrorTransient(true);
+        throw new Error(msg);
+      }
+
+      // Record submission for the timeline + future polling
+      if (json.submissionId) {
+        const next: LastSubmission = {
+          submissionId: json.submissionId,
+          providerRef: json.providerRef ?? null,
+          status: json.status ?? "pending",
+          submittedAt: new Date().toISOString(),
+          reason: json.reason ?? (res.status === 202 ? "Provider unreachable — auto-retrying" : null),
+        };
+        setLastSubmission(next);
+      }
+
+      // Keep the selfie in localStorage until we have a non-pending status — lets the
+      // user re-check / resubmit on refresh during Step 3 without recapturing.
+      // Only clear text drafts (KYC is now in the provider's hands).
       try {
         localStorage.removeItem(KYC_DRAFT_KEY);
-        localStorage.removeItem(SELFIE_STORAGE_KEY);
         localStorage.removeItem(KYC_DOCS_KEY);
       } catch { /* ignore */ }
 
-      toast.success("Selfie submitted for verification");
+      if (res.status === 202) {
+        // Provider unreachable — surface "Try again" but still progress to pending screen
+        // so realtime polling can pick up later results.
+        setLastErrorTransient(true);
+        toast.message("Provider is busy — submitted to queue. You can try again.");
+      } else {
+        toast.success("Selfie submitted for verification");
+      }
       await persistStage("STAGE_4");
       onDone();
     } catch (e) {
@@ -254,6 +400,9 @@ export function KycFlow({ onDone }: { onDone: () => void }) {
       setBusy(false);
     }
   }
+
+  const submitStep3 = runVerification;
+  const retrySubmit = runVerification;
 
   return (
     <div className="flex-1 flex flex-col p-6 tw-slide-up">
@@ -349,8 +498,13 @@ export function KycFlow({ onDone }: { onDone: () => void }) {
           <h1 className="text-[28px] font-bold">Quick selfie check</h1>
           <p className="text-[#888] text-sm mt-3">We use face matching to make sure it's really you.</p>
 
-          <div className="mt-6">
-            <SelfieCapture onCapture={(d) => { setSelfie(d); setError(""); }} />
+          <PermissionBanner perm={camPerm} supported={camSupported} />
+
+          <div className="mt-4">
+            <SelfieCapture
+              onCapture={(d) => { setSelfie(d); setError(""); }}
+              onPermissionChange={onCamPerm}
+            />
           </div>
 
           <ul className="mt-4 text-xs text-muted-foreground space-y-1">
@@ -375,10 +529,26 @@ export function KycFlow({ onDone }: { onDone: () => void }) {
             </div>
           )}
 
-          {error && <p className="text-destructive text-xs mt-4 tw-shake">{error}</p>}
+          <SubmissionTimeline last={lastSubmission} />
+
+          {error && (
+            <div className="mt-4">
+              <p className="text-destructive text-xs tw-shake">{error}</p>
+              {lastErrorTransient && (
+                <button onClick={retrySubmit} disabled={busy}
+                  className="mt-2 text-xs text-primary inline-flex items-center gap-1 hover:underline disabled:opacity-50">
+                  <RefreshCw className={`w-3 h-3 ${busy ? "animate-spin" : ""}`} /> Try again
+                </button>
+              )}
+            </div>
+          )}
           <div className="flex-1" />
-          <button onClick={submitStep3} disabled={busy || !selfie} className="btn-primary w-full disabled:opacity-50">
-            Submit for verification
+          <button
+            onClick={submitStep3}
+            disabled={busy || !selfie || (camSupported && camPerm === "denied")}
+            className="btn-primary w-full disabled:opacity-50"
+          >
+            {busy ? <><Loader2 className="w-4 h-4 animate-spin" /> Submitting…</> : "Submit for verification"}
           </button>
         </>
       )}
@@ -424,6 +594,94 @@ function DocSlot({
             onChange={(e) => { const f = e.target.files?.[0]; if (f) onPick(f); e.currentTarget.value = ""; }} />
         </>
       )}
+    </div>
+  );
+}
+
+function PermissionBanner({ perm, supported }: { perm: SelfiePermState; supported: boolean }) {
+  if (!supported) {
+    return (
+      <div className="mt-4 rounded-xl glass border border-destructive/40 p-3 flex items-start gap-2 text-xs">
+        <AlertTriangle className="w-4 h-4 text-destructive shrink-0 mt-0.5" />
+        <div>
+          <p className="font-medium text-destructive">Camera not available</p>
+          <p className="text-muted-foreground mt-0.5">
+            This browser doesn't support camera access. Try Chrome or Safari on a device with a camera.
+          </p>
+        </div>
+      </div>
+    );
+  }
+  if (perm === "denied") {
+    return (
+      <div className="mt-4 rounded-xl glass border border-destructive/40 p-3 flex items-start gap-2 text-xs">
+        <AlertTriangle className="w-4 h-4 text-destructive shrink-0 mt-0.5" />
+        <div>
+          <p className="font-medium text-destructive">Camera access blocked</p>
+          <p className="text-muted-foreground mt-0.5">
+            Open your browser's site settings and allow camera access for this page, then reload.
+          </p>
+        </div>
+      </div>
+    );
+  }
+  if (perm === "prompt" || perm === "unknown") {
+    return (
+      <div className="mt-4 rounded-xl glass border border-primary/30 p-3 flex items-start gap-2 text-xs">
+        <Camera className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+        <div>
+          <p className="font-medium">Camera permission needed</p>
+          <p className="text-muted-foreground mt-0.5">
+            Tap "Enable camera" below — we only use it for this one selfie. Submit unlocks once permission is granted.
+          </p>
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div className="mt-4 rounded-xl glass border border-primary/30 p-3 flex items-center gap-2 text-xs">
+      <Check className="w-4 h-4 text-primary" />
+      <p className="text-muted-foreground">Camera ready</p>
+    </div>
+  );
+}
+
+function SubmissionTimeline({ last }: { last: LastSubmission | null }) {
+  if (!last) return null;
+  const color =
+    last.status === "approved" ? "text-primary"
+    : last.status === "rejected" ? "text-destructive"
+    : "text-muted-foreground";
+  const dot =
+    last.status === "approved" ? "bg-primary"
+    : last.status === "rejected" ? "bg-destructive"
+    : "bg-white/30";
+  return (
+    <div className="mt-6 rounded-2xl glass p-4">
+      <div className="flex items-center gap-2 mb-3">
+        <Clock className="w-4 h-4 text-muted-foreground" />
+        <h3 className="text-sm font-semibold">Verification timeline</h3>
+      </div>
+      <div className="space-y-2 text-xs">
+        <div className="flex items-start gap-2">
+          <span className={`mt-1 w-2 h-2 rounded-full ${dot}`} />
+          <div className="flex-1 min-w-0">
+            <p className="flex items-center gap-2">
+              <span className={`uppercase tracking-wider ${color}`}>{last.status}</span>
+              <span className="text-muted-foreground">{new Date(last.submittedAt).toLocaleString()}</span>
+            </p>
+            <p className="text-muted-foreground truncate">
+              Submission: <span className="num-mono">{last.submissionId.slice(0, 8)}…</span>
+            </p>
+            {last.providerRef && (
+              <p className="text-muted-foreground truncate">
+                Provider ref: <span className="num-mono">{last.providerRef}</span>
+              </p>
+            )}
+            {last.reason && <p className="text-muted-foreground mt-0.5">{last.reason}</p>}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

@@ -10,7 +10,10 @@ const MIN_BYTES = 8 * 1024;
 
 interface Props {
   onCapture: (payload: { dataUrl: string; width: number; height: number; bytes: number } | null) => void;
+  onPermissionChange?: (state: PermState, supported: boolean) => void;
 }
+
+export type SelfiePermState = PermState;
 
 interface Stored {
   dataUrl: string;
@@ -37,7 +40,7 @@ function approxBytes(dataUrl: string) {
   return Math.floor((b64.length * 3) / 4);
 }
 
-export function SelfieCapture({ onCapture }: Props) {
+export function SelfieCapture({ onCapture, onPermissionChange }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -101,14 +104,23 @@ export function SelfieCapture({ onCapture }: Props) {
     // Probe Permissions API (not supported on Safari/Firefox iOS)
     const probe = async () => {
       if (!navigator.mediaDevices?.getUserMedia) {
-        if (mountedRef.current) setStatus("unsupported");
+        if (mountedRef.current) {
+          setStatus("unsupported");
+          onPermissionChange?.("unknown", false);
+        }
         return;
       }
+      onPermissionChange?.("unknown", true);
       try {
         const p = await navigator.permissions?.query?.({ name: "camera" as PermissionName });
         if (p && mountedRef.current) {
           setPermState(p.state as PermState);
-          p.onchange = () => mountedRef.current && setPermState(p.state as PermState);
+          onPermissionChange?.(p.state as PermState, true);
+          p.onchange = () => {
+            if (!mountedRef.current) return;
+            setPermState(p.state as PermState);
+            onPermissionChange?.(p.state as PermState, true);
+          };
         }
       } catch {
         // permissions API unavailable — leave as "unknown"
@@ -146,11 +158,13 @@ export function SelfieCapture({ onCapture }: Props) {
         await videoRef.current.play().catch(() => {});
       }
       setPermState("granted");
+      onPermissionChange?.("granted", true);
       setStatus("streaming");
     } catch (e) {
       const err = e as DOMException;
       if (err.name === "NotAllowedError" || err.name === "SecurityError") {
         setPermState("denied");
+        onPermissionChange?.("denied", true);
         setStatus("denied");
         setErrMsg("Camera permission denied. Enable it in your browser settings and try again.");
       } else if (err.name === "NotFoundError" || err.name === "OverconstrainedError") {
