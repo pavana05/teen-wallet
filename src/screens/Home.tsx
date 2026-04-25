@@ -181,9 +181,11 @@ export function Home() {
             <p className="text-[17px] font-semibold text-white leading-tight">Hey, {first} <span className="inline-block">👋</span></p>
             <p className="text-[12px] text-white/70 mt-0.5">Good to see you back!</p>
           </div>
-          <button aria-label="Notifications" className="hp-bell">
+          <button onClick={() => setShowNotifs(true)} aria-label="Notifications" className="hp-bell">
             <Bell className="w-5 h-5 text-white" strokeWidth={1.8} />
-            <span className="hp-bell-dot" />
+            {unreadCount > 0 && (
+              <span className="hp-bell-badge">{unreadCount > 9 ? "9+" : unreadCount}</span>
+            )}
           </button>
         </div>
 
