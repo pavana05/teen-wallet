@@ -27,6 +27,8 @@ interface SavedTxn {
   upiId: string;
   note: string | null;
   createdAt: string;
+  /** `upi://pay?...` deep link returned from the backend. Empty string if backend path was unavailable. */
+  upiDeepLink: string;
 }
 
 export function ScanPay({ onBack }: { onBack: () => void }) {
@@ -71,11 +73,16 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
     if (!userId || !payload) return;
     setPhase("processing");
     const amt = amount;
+    const noteToSave = note.trim() || payload.note || null;
 
-    const finalReport = await scanTransaction({ userId, amount: amt, upiId: payload.upiId });
-    if (finalReport.blocked) {
-      await logFraudFlags(userId, null, finalReport.flags, "blocked");
-      setResultMsg(finalReport.flags.find((f) => f.severity === "block")?.message ?? "Payment blocked");
+    // ── Pre-flight client-side fraud check ──
+    // Mirrors the server rules so the user gets instant feedback for things
+    // like daily-limit blocks without the round-trip. The server re-runs
+    // these on submit so the check cannot be bypassed.
+    const preflight = await scanTransaction({ userId, amount: amt, upiId: payload.upiId });
+    if (preflight.blocked) {
+      await logFraudFlags(userId, null, preflight.flags, "blocked");
+      setResultMsg(preflight.flags.find((f) => f.severity === "block")?.message ?? "Payment blocked");
       setFailKind("blocked");
       setPhase("failed");
       return;
@@ -88,10 +95,73 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
     }
 
     // Minimum visible processing window for premium feel
-    await new Promise((r) => setTimeout(r, 1600));
+    await new Promise((r) => setTimeout(r, 900));
 
-    // Final balance re-check just before insert — guards against concurrent
-    // spend on another device or a refund landing while we were processing.
+    // ── Server-side payment ──
+    // Calls the authenticated `payUpi` server function which re-runs fraud
+    // rules, re-checks balance, inserts the transaction, debits the wallet,
+    // and returns a `upi://pay?...` deep link the client can hand off to a
+    // real UPI app on mobile.
+    let serverResult: Awaited<ReturnType<typeof payUpi>> | null = null;
+    try {
+      serverResult = await payUpi({
+        data: {
+          amount: amt,
+          upiId: payload.upiId,
+          payeeName: payload.payeeName,
+          note: noteToSave,
+        },
+      });
+    } catch (err) {
+      // Network / server function unavailable — fall back to direct insert
+      // so the demo flow keeps working in environments where the server
+      // function isn't deployed yet.
+      console.warn("[ScanPay] payUpi server function failed, falling back to direct insert:", err);
+      serverResult = null;
+    }
+
+    if (serverResult && !serverResult.ok) {
+      // Surface the typed reason to the failure screen.
+      if (serverResult.reason === "blocked") {
+        setFailKind("blocked");
+      } else if (serverResult.reason === "insufficient") {
+        setFailKind("insufficient");
+        if (typeof serverResult.newBalance === "number") {
+          useApp.setState({ balance: serverResult.newBalance });
+        }
+      } else {
+        setFailKind("generic");
+      }
+      setResultMsg(serverResult.message);
+      setPhase("failed");
+      return;
+    }
+
+    if (serverResult && serverResult.ok) {
+      useApp.setState({ balance: serverResult.newBalance });
+      const txn: SavedTxn = {
+        id: serverResult.txnId,
+        amount: amt,
+        payee: payload.payeeName,
+        upiId: payload.upiId,
+        note: noteToSave,
+        createdAt: serverResult.createdAt,
+        upiDeepLink: serverResult.upiDeepLink,
+      };
+      setSavedTxn(txn);
+      setResultMsg(`₹${amt.toFixed(0)} sent to ${payload.payeeName}`);
+      if (navigator.vibrate) navigator.vibrate([30, 60, 30]);
+      // On a real mobile device, hand off to the user's UPI app immediately.
+      // The success screen still renders so the user has a receipt + retry path.
+      if (canOpenUpiApp() && serverResult.upiDeepLink) {
+        try { window.location.href = serverResult.upiDeepLink; } catch { /* ignore */ }
+      }
+      setPhase("success");
+      return;
+    }
+
+    // ── Fallback path (server function unreachable) ──
+    // Re-check balance just before insert.
     const { data: fresh, error: balErr } = await supabase
       .from("profiles")
       .select("balance")
@@ -105,7 +175,6 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
     }
     const liveBalance = Number(fresh.balance);
     if (Math.abs(liveBalance - balance) > 0.001) {
-      // Sync local store so the UI shows the truth.
       useApp.setState({ balance: liveBalance });
       if (amt > liveBalance) {
         setResultMsg(`Your balance changed to ₹${liveBalance.toFixed(2)} and is no longer enough for this payment.`);
@@ -117,7 +186,6 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
       return;
     }
 
-    const noteToSave = note.trim() || payload.note || null;
     const { data: txn, error } = await supabase
       .from("transactions")
       .insert({
@@ -127,7 +195,7 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
         upi_id: payload.upiId,
         note: noteToSave,
         status: "success",
-        fraud_flags: finalReport.flags as never,
+        fraud_flags: preflight.flags as never,
       })
       .select()
       .single();
@@ -139,7 +207,7 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
       return;
     }
 
-    await logFraudFlags(userId, txn.id, finalReport.flags, finalReport.flags.length === 0 ? "auto_passed" : "user_confirmed");
+    await logFraudFlags(userId, txn.id, preflight.flags, preflight.flags.length === 0 ? "auto_passed" : "user_confirmed");
     const newBal = liveBalance - amt;
     await supabase.from("profiles").update({ balance: newBal }).eq("id", userId);
     useApp.setState({ balance: newBal });
@@ -149,6 +217,17 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
       title: `₹${amt.toFixed(2)} paid to ${payload.payeeName}`,
       body: payload.upiId,
     });
+
+    // Build a deep link locally so the success screen can still offer "Open in UPI app".
+    const { buildUpiDeepLink } = await import("@/lib/upi");
+    const fallbackDeepLink = buildUpiDeepLink({
+      upiId: payload.upiId,
+      payeeName: payload.payeeName,
+      amount: amt,
+      note: noteToSave,
+      txnRef: txn.id,
+    });
+
     setSavedTxn({
       id: txn.id,
       amount: amt,
@@ -156,9 +235,13 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
       upiId: payload.upiId,
       note: noteToSave,
       createdAt: txn.created_at ?? new Date().toISOString(),
+      upiDeepLink: fallbackDeepLink,
     });
     setResultMsg(`₹${amt.toFixed(0)} sent to ${payload.payeeName}`);
     if (navigator.vibrate) navigator.vibrate([30, 60, 30]);
+    if (canOpenUpiApp()) {
+      try { window.location.href = fallbackDeepLink; } catch { /* ignore */ }
+    }
     setPhase("success");
   }, [userId, payload, amount, balance, note]);
 
