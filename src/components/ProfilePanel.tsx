@@ -3,12 +3,15 @@ import {
   ArrowLeft, X, QrCode, Copy, Check, ChevronRight, Pencil, Camera, ShieldCheck,
   ShieldAlert, BadgeCheck, Wallet, CreditCard, Building2, Bell, Lock, Smartphone,
   Eye, EyeOff, Languages, Moon, HelpCircle, FileText, LogOut, Star, Gift, Users,
-  Settings, Sparkles, IndianRupee, Activity, ChevronDown, Mail, MapPin, Cake,
-  TrendingUp, Trash2,
+  Settings, Sparkles, IndianRupee, Activity, Mail, MapPin, Cake,
+  TrendingUp, Trash2, Share2, Download, AlertTriangle,
 } from "lucide-react";
+import { z } from "zod";
+import QRCode from "qrcode";
+import { toast } from "sonner";
 import { useApp } from "@/lib/store";
 import { supabase } from "@/integrations/supabase/client";
-import { logout, updateProfileFields } from "@/lib/auth";
+import { logout } from "@/lib/auth";
 
 interface Props {
   onClose: () => void;
@@ -36,10 +39,15 @@ export function ProfilePanel({ onClose }: Props) {
     created_at: string;
   } | null>(null);
   const [stats, setStats] = useState<Stats>({ totalSpent: 0, txnCount: 0, monthSpent: 0, successRate: 100 });
+  const [profileLoading, setProfileLoading] = useState(true);
+  const [statsLoading, setStatsLoading] = useState(true);
+  const [profileError, setProfileError] = useState(false);
   const [hideBalance, setHideBalance] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
   const [editOpen, setEditOpen] = useState(false);
   const [confirmLogout, setConfirmLogout] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [qrOpen, setQrOpen] = useState(false);
 
   // preferences (local)
   const [prefs, setPrefs] = useState(() => {
@@ -51,36 +59,48 @@ export function ProfilePanel({ onClose }: Props) {
   });
   useEffect(() => { try { localStorage.setItem("tw-profile-prefs", JSON.stringify(prefs)); } catch {} }, [prefs]);
 
-  useEffect(() => {
+  const refetch = async () => {
     if (!userId) return;
-    void (async () => {
-      const { data: p } = await supabase
+    setProfileLoading(true); setStatsLoading(true); setProfileError(false);
+    const [{ data: p, error: pErr }, { data: txns, error: tErr }] = await Promise.all([
+      supabase
         .from("profiles")
         .select("full_name,phone,dob,gender,aadhaar_last4,kyc_status,created_at")
         .eq("id", userId)
-        .maybeSingle();
-      if (p) setProfile(p as typeof profile);
-
-      const { data: txns } = await supabase
+        .maybeSingle(),
+      supabase
         .from("transactions")
         .select("amount,status,created_at")
-        .eq("user_id", userId);
-      if (txns) {
-        const total = txns.reduce((s, t) => s + Number(t.amount || 0), 0);
-        const monthStart = new Date(); monthStart.setDate(1); monthStart.setHours(0, 0, 0, 0);
-        const monthSpent = txns
-          .filter((t) => new Date(t.created_at) >= monthStart && t.status === "success")
-          .reduce((s, t) => s + Number(t.amount || 0), 0);
-        const succ = txns.filter((t) => t.status === "success").length;
-        setStats({
-          totalSpent: total,
-          txnCount: txns.length,
-          monthSpent,
-          successRate: txns.length ? Math.round((succ / txns.length) * 100) : 100,
-        });
-      }
-    })();
-  }, [userId]);
+        .eq("user_id", userId),
+    ]);
+    if (pErr) {
+      setProfileError(true);
+      toast.error("Couldn't load your profile", { description: pErr.message });
+    } else if (p) {
+      setProfile(p as typeof profile);
+    }
+    setProfileLoading(false);
+
+    if (tErr) {
+      toast.error("Couldn't load your transaction stats", { description: tErr.message });
+    } else if (txns) {
+      const total = txns.reduce((s, t) => s + Number(t.amount || 0), 0);
+      const monthStart = new Date(); monthStart.setDate(1); monthStart.setHours(0, 0, 0, 0);
+      const monthSpent = txns
+        .filter((t) => new Date(t.created_at) >= monthStart && t.status === "success")
+        .reduce((s, t) => s + Number(t.amount || 0), 0);
+      const succ = txns.filter((t) => t.status === "success").length;
+      setStats({
+        totalSpent: total,
+        txnCount: txns.length,
+        monthSpent,
+        successRate: txns.length ? Math.round((succ / txns.length) * 100) : 100,
+      });
+    }
+    setStatsLoading(false);
+  };
+
+  useEffect(() => { void refetch(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [userId]);
 
   const phone = profile?.phone ?? "+91 ••••• •••••";
   const upiId = useMemo(() => {
@@ -104,10 +124,51 @@ export function ProfilePanel({ onClose }: Props) {
     try { await navigator.clipboard.writeText(val); setCopied(key); setTimeout(() => setCopied(null), 1400); } catch {}
   };
 
+  const clearLocalState = () => {
+    try {
+      // Wipe everything we own without nuking the whole storage (other apps may share origin in dev).
+      const keysToClear: string[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && (k.startsWith("tw-") || k === "teenwallet-app")) keysToClear.push(k);
+      }
+      keysToClear.forEach((k) => localStorage.removeItem(k));
+      sessionStorage.clear();
+    } catch { /* ignore quota / privacy mode */ }
+  };
+
   const onLogout = async () => {
-    await logout();
-    reset();
-    onClose();
+    try {
+      await logout();
+      clearLocalState();
+      reset();
+      toast.success("Signed out");
+      onClose();
+    } catch (e) {
+      toast.error("Couldn't sign out", { description: (e as Error).message });
+    }
+  };
+
+  const onDeleteAccount = async () => {
+    if (!userId) return;
+    const t = toast.loading("Deleting your account…");
+    try {
+      const { data: sess } = await supabase.auth.getSession();
+      const accessToken = sess.session?.access_token;
+      if (!accessToken) throw new Error("Your session expired. Please sign in again.");
+      const { error } = await supabase.functions.invoke("delete-account", {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      if (error) throw error;
+      // Sign out locally + nuke caches
+      await supabase.auth.signOut().catch(() => {});
+      clearLocalState();
+      reset();
+      toast.success("Account deleted", { id: t });
+      onClose();
+    } catch (e) {
+      toast.error("Couldn't delete account", { id: t, description: (e as Error).message });
+    }
   };
 
   const kyc = profile?.kyc_status ?? "not_started";
@@ -136,8 +197,20 @@ export function ProfilePanel({ onClose }: Props) {
       </div>
 
       <div className="relative z-10 flex-1 overflow-y-auto pb-32 qa-enter">
+        {/* error banner */}
+        {profileError && (
+          <div className="px-5 mt-3">
+            <div className="rounded-2xl border border-red-400/25 bg-red-400/10 px-3.5 py-3 flex items-center gap-3">
+              <AlertTriangle className="w-4 h-4 text-red-300 shrink-0" strokeWidth={2.2} />
+              <p className="text-[12.5px] text-red-100/90 flex-1">Couldn't load your profile. Check your connection and try again.</p>
+              <button onClick={() => void refetch()} className="text-[11.5px] font-semibold text-red-100 px-2.5 py-1 rounded-full bg-red-400/15 border border-red-400/30">Retry</button>
+            </div>
+          </div>
+        )}
+
         {/* ── HERO CARD ── */}
         <div className="px-5 mt-3">
+          {profileLoading ? <HeroSkeleton /> : (
           <div className="pp-hero">
             <div className="pp-hero-shine" />
             <div className="flex items-start gap-4">
@@ -183,22 +256,44 @@ export function ProfilePanel({ onClose }: Props) {
             </div>
 
             <div className="mt-3 flex items-center gap-2">
-              <button className="pp-pill flex-1">
+              <button onClick={() => setQrOpen(true)} disabled={upiId === "—"} className="pp-pill flex-1 disabled:opacity-50">
                 <QrCode className="w-4 h-4" strokeWidth={2} /> My QR
               </button>
-              <button onClick={() => copy(phone, "phone")} className="pp-pill flex-1">
-                {copied === "phone" ? <Check className="w-4 h-4 text-emerald-300" /> : <Copy className="w-4 h-4" />}
-                Share number
+              <button
+                onClick={async () => {
+                  if (upiId === "—") { toast.error("Add your phone number first"); return; }
+                  const link = `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(profile?.full_name ?? "TeenWallet user")}&cu=INR`;
+                  if (navigator.share) {
+                    try { await navigator.share({ title: "Pay me on TeenWallet", text: `Pay ${profile?.full_name ?? ""} via UPI`, url: link }); return; } catch { /* user cancelled */ return; }
+                  }
+                  await copy(link, "upi-link");
+                  toast.success("Payment link copied");
+                }}
+                className="pp-pill flex-1"
+              >
+                {copied === "upi-link" ? <Check className="w-4 h-4 text-emerald-300" /> : <Share2 className="w-4 h-4" />}
+                Share QR link
               </button>
             </div>
           </div>
+          )}
         </div>
 
         {/* ── STATS STRIP ── */}
         <div className="px-5 mt-4 grid grid-cols-3 gap-2.5">
-          <StatChip icon={IndianRupee} label="This month" value={`₹${stats.monthSpent.toLocaleString("en-IN")}`} tint="from-orange-500/30 to-amber-500/10" />
-          <StatChip icon={Activity} label="Transactions" value={String(stats.txnCount)} tint="from-violet-500/30 to-fuchsia-500/10" />
-          <StatChip icon={TrendingUp} label="Success" value={`${stats.successRate}%`} tint="from-emerald-500/30 to-teal-500/10" />
+          {statsLoading ? (
+            <>
+              <div className="pp-statchip pp-skel" />
+              <div className="pp-statchip pp-skel" />
+              <div className="pp-statchip pp-skel" />
+            </>
+          ) : (
+            <>
+              <StatChip icon={IndianRupee} label="This month" value={`₹${stats.monthSpent.toLocaleString("en-IN")}`} tint="from-orange-500/30 to-amber-500/10" />
+              <StatChip icon={Activity} label="Transactions" value={String(stats.txnCount)} tint="from-violet-500/30 to-fuchsia-500/10" />
+              <StatChip icon={TrendingUp} label="Success" value={`${stats.successRate}%`} tint="from-emerald-500/30 to-teal-500/10" />
+            </>
+          )}
         </div>
 
         {/* ── TABS ── */}
@@ -294,7 +389,7 @@ export function ProfilePanel({ onClose }: Props) {
                   <span className="text-[13px] text-red-300 flex-1 text-left">Log out</span>
                   <ChevronRight className="w-4 h-4 text-white/30" />
                 </button>
-                <button className="w-full px-3.5 py-3.5 flex items-center gap-3 hover:bg-white/[.02] transition-colors border-t border-white/5">
+                <button onClick={() => setConfirmDelete(true)} className="w-full px-3.5 py-3.5 flex items-center gap-3 hover:bg-white/[.02] transition-colors border-t border-white/5">
                   <div className="pp-row-icon bg-red-400/10"><Trash2 className="w-4 h-4 text-red-300" strokeWidth={2} /></div>
                   <span className="text-[13px] text-red-300 flex-1 text-left">Delete account</span>
                   <ChevronRight className="w-4 h-4 text-white/30" />
@@ -307,10 +402,19 @@ export function ProfilePanel({ onClose }: Props) {
 
       {editOpen && profile && (
         <EditProfileSheet
-          initial={profile}
+          initial={{
+            full_name: profile.full_name,
+            phone: profile.phone,
+            dob: profile.dob,
+            gender: profile.gender,
+          }}
+          userId={userId}
           onClose={() => setEditOpen(false)}
           onSaved={(p) => { setProfile((prev) => prev ? { ...prev, ...p } : prev); setEditOpen(false); }}
         />
+      )}
+      {qrOpen && (
+        <MyQrSheet upiId={upiId} payeeName={profile?.full_name ?? fullName ?? "TeenWallet user"} onClose={() => setQrOpen(false)} />
       )}
       {confirmLogout && (
         <ConfirmSheet
@@ -320,6 +424,12 @@ export function ProfilePanel({ onClose }: Props) {
           danger
           onCancel={() => setConfirmLogout(false)}
           onConfirm={onLogout}
+        />
+      )}
+      {confirmDelete && (
+        <DeleteAccountSheet
+          onCancel={() => setConfirmDelete(false)}
+          onConfirm={async () => { setConfirmDelete(false); await onDeleteAccount(); }}
         />
       )}
     </div>
@@ -388,32 +498,102 @@ function ToggleRow({ icon: Icon, label, desc, value, onChange }: { icon: React.C
   );
 }
 
-/* ───────── edit sheet ───────── */
+/* ───────── edit sheet (validated + upserted to Supabase) ───────── */
+
+const profileSchema = z.object({
+  full_name: z
+    .string()
+    .trim()
+    .min(2, "Name must be at least 2 characters")
+    .max(80, "Name must be 80 characters or fewer")
+    .regex(/^[\p{L}\p{M}.''\- ]+$/u, "Name can only contain letters, spaces, . - '"),
+  phone: z
+    .string()
+    .trim()
+    .regex(/^\+?[0-9 ()-]{10,18}$/, "Enter a valid phone number")
+    .transform((s) => {
+      const digits = s.replace(/\D/g, "");
+      // Normalise to +91XXXXXXXXXX when user types a 10-digit Indian number.
+      return digits.length === 10 ? `+91${digits}` : `+${digits}`;
+    }),
+  dob: z
+    .string()
+    .trim()
+    .refine((v) => !v || /^\d{4}-\d{2}-\d{2}$/.test(v), "Invalid date")
+    .refine((v) => {
+      if (!v) return true;
+      const d = new Date(v);
+      if (Number.isNaN(d.getTime())) return false;
+      const today = new Date();
+      const age = (today.getTime() - d.getTime()) / (365.25 * 24 * 3600 * 1000);
+      return age >= 13 && age <= 120;
+    }, "You must be 13 years or older"),
+  gender: z.enum(["male", "female", "other", ""]).optional(),
+});
+
+type ProfileFormErrors = Partial<Record<"full_name" | "phone" | "dob" | "gender" | "_form", string>>;
+
 function EditProfileSheet({
   initial,
+  userId,
   onClose,
   onSaved,
 }: {
-  initial: { full_name: string | null; dob: string | null; gender: string | null };
+  initial: { full_name: string | null; phone: string | null; dob: string | null; gender: string | null };
+  userId: string | null;
   onClose: () => void;
-  onSaved: (p: { full_name: string | null; dob: string | null; gender: string | null }) => void;
+  onSaved: (p: { full_name: string | null; phone: string | null; dob: string | null; gender: string | null }) => void;
 }) {
   const [name, setName] = useState(initial.full_name ?? "");
+  const [phone, setPhone] = useState(initial.phone ?? "");
   const [dob, setDob] = useState(initial.dob ?? "");
   const [gender, setGender] = useState(initial.gender ?? "");
   const [saving, setSaving] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
+  const [errors, setErrors] = useState<ProfileFormErrors>({});
 
   const save = async () => {
-    setSaving(true); setErr(null);
-    try {
-      await updateProfileFields({ full_name: name.trim() || null, dob: dob || null, gender: gender || null });
-      // also reflect in zustand display
-      useApp.setState({ fullName: name.trim() || null });
-      onSaved({ full_name: name.trim() || null, dob: dob || null, gender: gender || null });
-    } catch (e) {
-      setErr((e as Error).message ?? "Could not save.");
-    } finally { setSaving(false); }
+    setErrors({});
+    const parsed = profileSchema.safeParse({ full_name: name, phone, dob, gender });
+    if (!parsed.success) {
+      const next: ProfileFormErrors = {};
+      for (const issue of parsed.error.issues) {
+        const k = issue.path[0] as keyof ProfileFormErrors;
+        if (k && !next[k]) next[k] = issue.message;
+      }
+      setErrors(next);
+      return;
+    }
+    if (!userId) {
+      setErrors({ _form: "You're not signed in. Please sign in again." });
+      return;
+    }
+
+    setSaving(true);
+    const fields = {
+      full_name: parsed.data.full_name,
+      phone: parsed.data.phone,
+      dob: parsed.data.dob || null,
+      gender: parsed.data.gender || null,
+    };
+    // Upsert so we always create a row if one is missing.
+    const { error } = await supabase
+      .from("profiles")
+      .upsert({ id: userId, ...fields }, { onConflict: "id" });
+    setSaving(false);
+    if (error) {
+      // Try to map Postgres errors to specific fields.
+      const msg = error.message.toLowerCase();
+      const fieldErr: ProfileFormErrors = {};
+      if (msg.includes("phone")) fieldErr.phone = error.message;
+      else if (msg.includes("name")) fieldErr.full_name = error.message;
+      else fieldErr._form = error.message;
+      setErrors(fieldErr);
+      toast.error("Couldn't save changes", { description: error.message });
+      return;
+    }
+    useApp.setState({ fullName: fields.full_name });
+    toast.success("Profile updated");
+    onSaved(fields);
   };
 
   return (
@@ -425,11 +605,18 @@ function EditProfileSheet({
 
         <label className="pp-field">
           <span>Full name</span>
-          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Your name" />
+          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Your name" maxLength={80} autoComplete="name" />
+          {errors.full_name && <p className="pp-field-err">{errors.full_name}</p>}
+        </label>
+        <label className="pp-field">
+          <span>Phone</span>
+          <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+91 90000 00000" inputMode="tel" autoComplete="tel" maxLength={18} />
+          {errors.phone && <p className="pp-field-err">{errors.phone}</p>}
         </label>
         <label className="pp-field">
           <span>Date of birth</span>
-          <input type="date" value={dob} onChange={(e) => setDob(e.target.value)} />
+          <input type="date" value={dob} onChange={(e) => setDob(e.target.value)} max={new Date().toISOString().slice(0, 10)} />
+          {errors.dob && <p className="pp-field-err">{errors.dob}</p>}
         </label>
         <label className="pp-field">
           <span>Gender</span>
@@ -440,14 +627,131 @@ function EditProfileSheet({
               </button>
             ))}
           </div>
+          {errors.gender && <p className="pp-field-err">{errors.gender}</p>}
         </label>
 
-        {err && <p className="text-[12px] text-red-300 mt-2">{err}</p>}
+        {errors._form && <p className="pp-field-err mt-3">{errors._form}</p>}
 
         <div className="flex gap-2 mt-5">
           <button onClick={onClose} className="pp-btn-ghost flex-1">Cancel</button>
           <button onClick={save} disabled={saving} className="pp-btn-primary flex-1 disabled:opacity-60">
             {saving ? "Saving…" : "Save changes"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ───────── My QR sheet ───────── */
+function MyQrSheet({ upiId, payeeName, onClose }: { upiId: string; payeeName: string; onClose: () => void }) {
+  const upiLink = useMemo(
+    () => `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(payeeName)}&cu=INR`,
+    [upiId, payeeName],
+  );
+  const [dataUrl, setDataUrl] = useState<string | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    QRCode.toDataURL(upiLink, {
+      errorCorrectionLevel: "M",
+      margin: 2,
+      width: 320,
+      color: { dark: "#0a0a0a", light: "#ffffff" },
+    })
+      .then((url) => { if (active) setDataUrl(url); })
+      .catch((e: unknown) => { if (active) setErr(e instanceof Error ? e.message : "Couldn't generate QR"); });
+    return () => { active = false; };
+  }, [upiLink]);
+
+  const download = () => {
+    if (!dataUrl) return;
+    const a = document.createElement("a");
+    a.href = dataUrl;
+    a.download = `teenwallet-${upiId.replace(/[^a-z0-9]/gi, "_")}.png`;
+    document.body.appendChild(a); a.click(); a.remove();
+    toast.success("QR saved to downloads");
+  };
+
+  const share = async () => {
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: "Pay me on TeenWallet", text: `Pay ${payeeName} via UPI`, url: upiLink });
+        return;
+      }
+      await navigator.clipboard.writeText(upiLink);
+      toast.success("Payment link copied");
+    } catch { /* user cancelled */ }
+  };
+
+  return (
+    <div className="absolute inset-0 z-[80] flex items-end pp-sheet-backdrop" onClick={onClose}>
+      <div className="pp-sheet" onClick={(e) => e.stopPropagation()}>
+        <div className="pp-sheet-grab" />
+        <div className="flex items-center justify-between px-1 mb-3">
+          <p className="text-[15px] font-semibold text-white">My UPI QR</p>
+          <button onClick={onClose} aria-label="Close" className="qa-icon-btn"><X className="w-4 h-4 text-white/80" /></button>
+        </div>
+
+        <div className="flex flex-col items-center">
+          <div className="rounded-2xl bg-white p-3 shadow-2xl">
+            {dataUrl ? (
+              <img src={dataUrl} alt="UPI QR code" width={240} height={240} className="block rounded-md" />
+            ) : (
+              <div className="w-[240px] h-[240px] rounded-md bg-neutral-200 animate-pulse" />
+            )}
+          </div>
+          <p className="mt-4 text-[13px] text-white font-medium">{payeeName}</p>
+          <p className="text-[12px] text-white/60 num-mono">{upiId}</p>
+          {err && <p className="text-[12px] text-red-300 mt-2">{err}</p>}
+        </div>
+
+        <div className="flex gap-2 mt-5">
+          <button onClick={download} disabled={!dataUrl} className="pp-btn-ghost flex-1 disabled:opacity-50">
+            <Download className="w-4 h-4 inline -mt-0.5 mr-1.5" /> Save
+          </button>
+          <button onClick={share} className="pp-btn-primary flex-1">
+            <Share2 className="w-4 h-4 inline -mt-0.5 mr-1.5" /> Share
+          </button>
+        </div>
+        <p className="text-[11px] text-white/45 text-center mt-3">Scan this QR in any UPI app to pay you instantly.</p>
+      </div>
+    </div>
+  );
+}
+
+/* ───────── Delete account sheet (typed-confirmation) ───────── */
+function DeleteAccountSheet({ onCancel, onConfirm }: { onCancel: () => void; onConfirm: () => void | Promise<void> }) {
+  const [text, setText] = useState("");
+  const [busy, setBusy] = useState(false);
+  const ok = text.trim().toUpperCase() === "DELETE";
+  return (
+    <div className="absolute inset-0 z-[80] flex items-end pp-sheet-backdrop" onClick={onCancel}>
+      <div className="pp-sheet" onClick={(e) => e.stopPropagation()}>
+        <div className="pp-sheet-grab" />
+        <div className="flex items-center gap-2.5 px-1">
+          <div className="w-9 h-9 rounded-full bg-red-400/15 border border-red-400/30 flex items-center justify-center">
+            <AlertTriangle className="w-4.5 h-4.5 text-red-300" strokeWidth={2.2} />
+          </div>
+          <p className="text-[16px] font-semibold text-white">Delete your account?</p>
+        </div>
+        <p className="text-[12.5px] text-white/65 mt-2 px-1">
+          This permanently removes your profile, transactions, notifications and KYC records.
+          Your wallet balance will be lost. This action cannot be undone.
+        </p>
+        <label className="pp-field">
+          <span>Type DELETE to confirm</span>
+          <input value={text} onChange={(e) => setText(e.target.value)} placeholder="DELETE" autoCapitalize="characters" />
+        </label>
+        <div className="flex gap-2 mt-5">
+          <button onClick={onCancel} className="pp-btn-ghost flex-1">Cancel</button>
+          <button
+            onClick={async () => { setBusy(true); await onConfirm(); setBusy(false); }}
+            disabled={!ok || busy}
+            className="pp-btn-danger flex-1 disabled:opacity-50"
+          >
+            {busy ? "Deleting…" : "Delete account"}
           </button>
         </div>
       </div>
@@ -468,6 +772,30 @@ function ConfirmSheet({ title, desc, confirmLabel, danger, onCancel, onConfirm }
           <button onClick={onCancel} className="pp-btn-ghost flex-1">Cancel</button>
           <button onClick={onConfirm} className={`flex-1 ${danger ? "pp-btn-danger" : "pp-btn-primary"}`}>{confirmLabel}</button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+/* ───────── skeletons ───────── */
+function HeroSkeleton() {
+  return (
+    <div className="pp-hero">
+      <div className="flex items-start gap-4">
+        <div className="w-16 h-16 rounded-2xl pp-skel" />
+        <div className="flex-1 space-y-2">
+          <div className="h-4 w-1/2 rounded pp-skel" />
+          <div className="h-3 w-1/3 rounded pp-skel" />
+          <div className="h-5 w-24 rounded-full pp-skel mt-2" />
+        </div>
+      </div>
+      <div className="mt-4 grid grid-cols-2 gap-2.5">
+        <div className="h-16 rounded-2xl pp-skel" />
+        <div className="h-16 rounded-2xl pp-skel" />
+      </div>
+      <div className="mt-3 grid grid-cols-2 gap-2">
+        <div className="h-10 rounded-2xl pp-skel" />
+        <div className="h-10 rounded-2xl pp-skel" />
       </div>
     </div>
   );
