@@ -513,33 +513,52 @@ function ConfirmView({
   balance: number;
 }) {
   const initial = (payload.payeeName || payload.upiId).trim().charAt(0).toUpperCase();
-  const canPay = amount > 0;
+  const [note, setNote] = useState<string>(payload.note ?? "");
+  const canPay = amount > 0 && amount <= balance;
+  const insufficient = amount > 0 && amount > balance;
+
+  // Smart quick-amount chips: show the QR amount if present, otherwise common values.
+  const quickAmounts = payload.amount && payload.amount > 0
+    ? Array.from(new Set([payload.amount, 100, 200, 500])).slice(0, 4)
+    : [100, 200, 500, 1000];
+
+  const addAmount = (delta: number) => onAmountChange(Number((amount + delta).toFixed(2)));
 
   return (
-    <div className="sp-confirm-root tw-slide-up">
-      <div className="sp-confirm-grid" />
-      <div className="sp-confirm-spot" />
-
-      <div className="relative z-10 flex items-center justify-between px-5 pt-6">
-        <button onClick={onBack} aria-label="Back" className="w-10 h-10 rounded-full glass flex items-center justify-center">
+    <div className="sp2-confirm tw-slide-up">
+      {/* Header */}
+      <div className="sp2-confirm-head">
+        <button onClick={onBack} aria-label="Back" className="sp2-icon-btn">
           <ArrowLeft className="w-5 h-5" />
         </button>
-        <span className="text-[12px] uppercase tracking-[0.18em] text-white/55">Pay to</span>
-        <button onClick={onBack} aria-label="Close" className="w-10 h-10 rounded-full glass flex items-center justify-center">
+        <span className="sp2-confirm-title">Pay to merchant</span>
+        <button onClick={onBack} aria-label="Close" className="sp2-icon-btn">
           <X className="w-5 h-5" />
         </button>
       </div>
 
-      <div className="relative z-10 flex flex-col items-center px-6 mt-6">
-        <div className="sp-avatar">{initial || "?"}</div>
-        <p className="mt-4 text-[18px] font-semibold text-white">{payload.payeeName}</p>
-        <p className="text-[12px] text-white/50 num-mono">{payload.upiId}</p>
+      {/* Merchant verified card */}
+      <div className="sp2-merchant-card">
+        <div className="sp2-merchant-avatar">
+          {initial || "?"}
+          <span className="sp2-merchant-verified" title="Verified merchant">
+            <ShieldCheck className="w-3 h-3" strokeWidth={3} />
+          </span>
+        </div>
+        <div className="sp2-merchant-info">
+          <div className="sp2-merchant-name">
+            {payload.payeeName || "Unknown payee"}
+            <span className="sp2-merchant-tag">UPI</span>
+          </div>
+          <div className="sp2-merchant-upi">{payload.upiId}</div>
+        </div>
       </div>
 
-      <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-6">
-        <p className="text-[11px] uppercase tracking-[0.2em] text-white/40 mb-3">Amount</p>
-        <div className="flex items-baseline gap-1">
-          <span className="text-3xl text-white/55 num-mono">₹</span>
+      {/* Amount */}
+      <div className="sp2-amount-wrap">
+        <div className="sp2-amount-label">Enter amount</div>
+        <div className="sp2-amount-row">
+          <span className="sp2-amount-symbol">₹</span>
           <input
             autoFocus={!payload.amount}
             inputMode="decimal"
@@ -549,12 +568,13 @@ function ConfirmView({
               onAmountChange(v === "" ? 0 : Number(v));
             }}
             placeholder="0"
-            className="sp-amount bg-transparent outline-none text-center w-[200px]"
+            className="sp2-amount-input bg-transparent"
           />
         </div>
-        {/* Show how the QR's amount was normalised so users can spot weird merchant QRs */}
+
+        {/* QR origin pill */}
         {payload.amount != null && payload.amountRaw != null && (
-          <div className="mt-3 inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-[11px] text-white/70">
+          <div className="sp2-from-qr">
             <span>From QR: <span className="num-mono text-white/90">{payload.amountRaw}</span></span>
             {payload.amountSource === "paise" && (
               <span className="px-1.5 py-0.5 rounded-full bg-amber-400/15 text-amber-300 text-[10px] font-medium">paise → ₹{payload.amount.toFixed(2)}</span>
@@ -564,16 +584,58 @@ function ConfirmView({
             )}
           </div>
         )}
-        {payload.note && <p className="mt-3 text-[12px] text-white/55 italic">"{payload.note}"</p>}
-        <p className="mt-6 text-[11px] text-white/35">Wallet balance · ₹{balance.toFixed(2)}</p>
+
+        {/* Quick amount chips */}
+        <div className="sp2-chips">
+          {quickAmounts.map((v) => (
+            <button key={v} className="sp2-chip" onClick={() => onAmountChange(v)}>
+              ₹{v}
+            </button>
+          ))}
+          <button className="sp2-chip sp2-chip-add" onClick={() => addAmount(100)}>+ ₹100</button>
+        </div>
+
+        {insufficient && (
+          <p className="mt-3 text-[12px] text-red-400 font-medium">
+            Insufficient balance · ₹{balance.toFixed(2)} available
+          </p>
+        )}
       </div>
 
-      <div className="relative z-10 px-5 pb-8">
+      {/* Note input */}
+      <div className="sp2-note-wrap">
+        <input
+          type="text"
+          maxLength={50}
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          placeholder="Add a note (optional)"
+          className="sp2-note-input"
+        />
+      </div>
+
+      {/* Pay-from method selector */}
+      <div className="sp2-method">
+        <div className="sp2-method-icon"><Wallet className="w-[18px] h-[18px]" /></div>
+        <div className="sp2-method-info">
+          <div className="sp2-method-label">Paying from</div>
+          <div className="sp2-method-name">Teen Wallet</div>
+        </div>
+        <div className="sp2-method-bal">₹{balance.toFixed(2)}</div>
+      </div>
+
+      {/* Slide to pay */}
+      <div className="relative z-10 px-4 pt-4 pb-6 safe-bottom">
         <SlideToPay disabled={!canPay} onComplete={onConfirm} />
+        <p className="text-center text-[10px] text-white/35 mt-3 tracking-wider">
+          <UserIcon className="w-3 h-3 inline-block mr-1 align-[-2px]" />
+          Secured by Teen Wallet · UPI
+        </p>
       </div>
     </div>
   );
 }
+
 
 function SlideToPay({ disabled, onComplete }: { disabled: boolean; onComplete: () => void }) {
   const trackRef = useRef<HTMLDivElement | null>(null);
