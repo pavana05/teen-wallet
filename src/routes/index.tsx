@@ -33,12 +33,20 @@ function Index() {
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
           const p = await fetchProfile();
-          if (p && mounted) hydrateFromProfile({
-            id: p.id,
-            full_name: p.full_name,
-            balance: Number(p.balance),
-            onboarding_stage: p.onboarding_stage as Stage,
-          });
+          if (p && mounted) {
+            // Reconcile saved stage with KYC truth — handles cross-device resume.
+            const profileStage = p.onboarding_stage as Stage;
+            const kyc = (p as { kyc_status?: string | null }).kyc_status ?? null;
+            let resolvedStage: Stage = profileStage;
+            if (kyc === "approved") resolvedStage = "STAGE_5";
+            else if (kyc === "pending" && (profileStage === "STAGE_3" || profileStage === "STAGE_4")) resolvedStage = "STAGE_4";
+            hydrateFromProfile({
+              id: p.id,
+              full_name: p.full_name,
+              balance: Number(p.balance),
+              onboarding_stage: resolvedStage,
+            });
+          }
         }
       } catch (err) {
         console.error("[boot] hydrate failed", err);
