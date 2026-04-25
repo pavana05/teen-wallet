@@ -498,22 +498,6 @@ function ToggleRow({ icon: Icon, label, desc, value, onChange }: { icon: React.C
   );
 }
 
-/* ───────── edit sheet ───────── */
-function EditProfileSheet({
-  initial,
-  onClose,
-  onSaved,
-}: {
-  initial: { full_name: string | null; dob: string | null; gender: string | null };
-  onClose: () => void;
-  onSaved: (p: { full_name: string | null; dob: string | null; gender: string | null }) => void;
-}) {
-  const [name, setName] = useState(initial.full_name ?? "");
-  const [dob, setDob] = useState(initial.dob ?? "");
-  const [gender, setGender] = useState(initial.gender ?? "");
-  const [saving, setSaving] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
-
 /* ───────── edit sheet (validated + upserted to Supabase) ───────── */
 
 const profileSchema = z.object({
