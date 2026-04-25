@@ -29,7 +29,7 @@ function timeAgo(iso: string): string {
 }
 
 function FraudPage() {
-  const { admin } = useAdminSession();
+  const admin = useMemo(() => readAdminSession()?.admin, []);
   const [rows, setRows] = useState<FraudRow[]>([]);
   const [total, setTotal] = useState(0);
   const [openByRule, setOpenByRule] = useState<Record<string, number>>({});
