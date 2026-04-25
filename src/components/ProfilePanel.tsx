@@ -197,8 +197,20 @@ export function ProfilePanel({ onClose }: Props) {
       </div>
 
       <div className="relative z-10 flex-1 overflow-y-auto pb-32 qa-enter">
+        {/* error banner */}
+        {profileError && (
+          <div className="px-5 mt-3">
+            <div className="rounded-2xl border border-red-400/25 bg-red-400/10 px-3.5 py-3 flex items-center gap-3">
+              <AlertTriangle className="w-4 h-4 text-red-300 shrink-0" strokeWidth={2.2} />
+              <p className="text-[12.5px] text-red-100/90 flex-1">Couldn't load your profile. Check your connection and try again.</p>
+              <button onClick={() => void refetch()} className="text-[11.5px] font-semibold text-red-100 px-2.5 py-1 rounded-full bg-red-400/15 border border-red-400/30">Retry</button>
+            </div>
+          </div>
+        )}
+
         {/* ── HERO CARD ── */}
         <div className="px-5 mt-3">
+          {profileLoading ? <HeroSkeleton /> : (
           <div className="pp-hero">
             <div className="pp-hero-shine" />
             <div className="flex items-start gap-4">
@@ -244,22 +256,44 @@ export function ProfilePanel({ onClose }: Props) {
             </div>
 
             <div className="mt-3 flex items-center gap-2">
-              <button className="pp-pill flex-1">
+              <button onClick={() => setQrOpen(true)} disabled={upiId === "—"} className="pp-pill flex-1 disabled:opacity-50">
                 <QrCode className="w-4 h-4" strokeWidth={2} /> My QR
               </button>
-              <button onClick={() => copy(phone, "phone")} className="pp-pill flex-1">
-                {copied === "phone" ? <Check className="w-4 h-4 text-emerald-300" /> : <Copy className="w-4 h-4" />}
-                Share number
+              <button
+                onClick={async () => {
+                  if (upiId === "—") { toast.error("Add your phone number first"); return; }
+                  const link = `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(profile?.full_name ?? "TeenWallet user")}&cu=INR`;
+                  if (navigator.share) {
+                    try { await navigator.share({ title: "Pay me on TeenWallet", text: `Pay ${profile?.full_name ?? ""} via UPI`, url: link }); return; } catch { /* user cancelled */ return; }
+                  }
+                  await copy(link, "upi-link");
+                  toast.success("Payment link copied");
+                }}
+                className="pp-pill flex-1"
+              >
+                {copied === "upi-link" ? <Check className="w-4 h-4 text-emerald-300" /> : <Share2 className="w-4 h-4" />}
+                Share QR link
               </button>
             </div>
           </div>
+          )}
         </div>
 
         {/* ── STATS STRIP ── */}
         <div className="px-5 mt-4 grid grid-cols-3 gap-2.5">
-          <StatChip icon={IndianRupee} label="This month" value={`₹${stats.monthSpent.toLocaleString("en-IN")}`} tint="from-orange-500/30 to-amber-500/10" />
-          <StatChip icon={Activity} label="Transactions" value={String(stats.txnCount)} tint="from-violet-500/30 to-fuchsia-500/10" />
-          <StatChip icon={TrendingUp} label="Success" value={`${stats.successRate}%`} tint="from-emerald-500/30 to-teal-500/10" />
+          {statsLoading ? (
+            <>
+              <div className="pp-statchip pp-skel" />
+              <div className="pp-statchip pp-skel" />
+              <div className="pp-statchip pp-skel" />
+            </>
+          ) : (
+            <>
+              <StatChip icon={IndianRupee} label="This month" value={`₹${stats.monthSpent.toLocaleString("en-IN")}`} tint="from-orange-500/30 to-amber-500/10" />
+              <StatChip icon={Activity} label="Transactions" value={String(stats.txnCount)} tint="from-violet-500/30 to-fuchsia-500/10" />
+              <StatChip icon={TrendingUp} label="Success" value={`${stats.successRate}%`} tint="from-emerald-500/30 to-teal-500/10" />
+            </>
+          )}
         </div>
 
         {/* ── TABS ── */}
