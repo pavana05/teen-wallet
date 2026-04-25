@@ -137,14 +137,25 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
     setPhase("success");
   }, [userId, payload, amount, balance]);
 
-  const reset = () => {
+  const reset = useCallback(() => {
     setPayload(null);
     setAmount(0);
     setResultMsg("");
     setFailKind("generic");
     navLockRef.current = false;
+    clearPersisted();
+    // Force-remount the ScannerView → its cleanup runs (camera stop + clear),
+    // then a fresh Html5Qrcode instance is created. Prevents stale-loop bugs
+    // and camera resource leaks observed when re-entering scan after confirm.
+    setScannerKey((k) => k + 1);
     setPhase("scanning");
-  };
+  }, []);
+
+  const handleHardBack = useCallback(() => {
+    clearPersisted();
+    onBack();
+  }, [onBack]);
+
 
   if (phase === "processing") return <ProcessingView amount={amount} />;
   if (phase === "success") return <SuccessView message={resultMsg} amount={amount} payee={payload?.payeeName ?? ""} onDone={onBack} />;
