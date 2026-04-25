@@ -787,6 +787,7 @@ function ConfirmView({
 
 function SlideToPay({ disabled, onComplete }: { disabled: boolean; onComplete: () => void }) {
   const trackRef = useRef<HTMLDivElement | null>(null);
+  const knobRef = useRef<HTMLDivElement | null>(null);
   const [dragX, setDragX] = useState(0);
   const [dragging, setDragging] = useState(false);
   const [completed, setCompleted] = useState(false);
@@ -799,6 +800,13 @@ function SlideToPay({ disabled, onComplete }: { disabled: boolean; onComplete: (
     const w = trackRef.current?.offsetWidth ?? 320;
     return w - knobSize - padding * 2;
   };
+
+  const finish = useCallback(() => {
+    setDragX(getMaxX());
+    setCompleted(true);
+    if (navigator.vibrate) navigator.vibrate(50);
+    setTimeout(onComplete, 220);
+  }, [onComplete]);
 
   const handlePointerDown = (e: React.PointerEvent) => {
     if (disabled || completed) return;
@@ -817,16 +825,38 @@ function SlideToPay({ disabled, onComplete }: { disabled: boolean; onComplete: (
     setDragging(false);
     const max = getMaxX();
     if (dragX >= max - 6) {
-      setDragX(max);
-      setCompleted(true);
-      if (navigator.vibrate) navigator.vibrate(50);
-      setTimeout(onComplete, 220);
+      finish();
     } else {
       setDragX(0);
     }
   };
 
+  // Keyboard accessibility — arrow keys nudge the knob, Enter/Space confirms.
+  // This matches WAI-ARIA slider pattern and lets keyboard-only users pay.
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (disabled || completed) return;
+    const max = getMaxX();
+    const step = Math.max(20, Math.round(max / 8));
+    if (e.key === "ArrowRight" || e.key === "ArrowUp") {
+      e.preventDefault();
+      setDragX((x) => Math.min(max, x + step));
+    } else if (e.key === "ArrowLeft" || e.key === "ArrowDown") {
+      e.preventDefault();
+      setDragX((x) => Math.max(0, x - step));
+    } else if (e.key === "End") {
+      e.preventDefault();
+      setDragX(max);
+    } else if (e.key === "Home") {
+      e.preventDefault();
+      setDragX(0);
+    } else if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      finish();
+    }
+  };
+
   const fillWidth = `${Math.min(100, ((dragX + knobSize + padding * 2) / (trackRef.current?.offsetWidth || 1)) * 100)}%`;
+  const valueNow = Math.round((dragX / (getMaxX() || 1)) * 100);
 
   return (
     <div
@@ -835,19 +865,26 @@ function SlideToPay({ disabled, onComplete }: { disabled: boolean; onComplete: (
       style={{ opacity: disabled ? 0.45 : 1 }}
     >
       <div className="sp-slide-fill" style={{ width: completed ? "100%" : fillWidth, opacity: dragX > 4 ? 1 : 0 }} />
-      <div className="sp-slide-label" style={{ opacity: dragX > 60 ? 0 : 1 }}>SLIDE TO PAY</div>
+      <div className="sp-slide-label" style={{ opacity: dragX > 60 ? 0 : 1 }} aria-hidden="true">
+        {disabled ? "ENTER A VALID AMOUNT" : "SLIDE TO PAY"}
+      </div>
       <div
-        className="sp-slide-knob"
+        ref={knobRef}
+        className="sp-slide-knob focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-black"
         style={{ transform: `translateX(${dragX}px)`, transition: dragging ? "none" : "transform 220ms cubic-bezier(.2,.8,.2,1)" }}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerUp}
+        onKeyDown={handleKeyDown}
         role="slider"
-        aria-label="Slide to pay"
+        tabIndex={disabled ? -1 : 0}
+        aria-label="Slide to pay. Use arrow keys or press Enter to confirm payment."
         aria-valuemin={0}
         aria-valuemax={100}
-        aria-valuenow={Math.round((dragX / (getMaxX() || 1)) * 100)}
+        aria-valuenow={completed ? 100 : valueNow}
+        aria-valuetext={completed ? "Payment confirmed" : disabled ? "Disabled — enter a valid amount" : `${valueNow} percent`}
+        aria-disabled={disabled || undefined}
       >
         {completed ? <Check className="w-6 h-6" /> : <ArrowRight className="w-6 h-6" />}
         {!dragging && !completed && <span className="sp-knob-shine" />}
