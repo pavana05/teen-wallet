@@ -108,6 +108,27 @@ export function Home() {
     return () => { supabase.removeChannel(ch); };
   }, [userId, fetchTxns]);
 
+  // Unread notifications badge — count + realtime
+  useEffect(() => {
+    if (!userId) return;
+    const fetchUnread = async () => {
+      const { count } = await supabase
+        .from("notifications")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", userId)
+        .eq("read", false);
+      setUnreadCount(count ?? 0);
+    };
+    void fetchUnread();
+    const ch = supabase
+      .channel("home-notifs")
+      .on("postgres_changes", { event: "*", schema: "public", table: "notifications", filter: `user_id=eq.${userId}` }, () => {
+        void fetchUnread();
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [userId, showNotifs]);
+
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
     await fetchTxns();
