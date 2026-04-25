@@ -14,7 +14,182 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      fraud_logs: {
+        Row: {
+          created_at: string
+          id: string
+          resolution: string | null
+          rule_triggered: string
+          transaction_id: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          resolution?: string | null
+          rule_triggered: string
+          transaction_id?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          resolution?: string | null
+          rule_triggered?: string
+          transaction_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fraud_logs_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notifications: {
+        Row: {
+          body: string | null
+          created_at: string
+          id: string
+          read: boolean
+          title: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          body?: string | null
+          created_at?: string
+          id?: string
+          read?: boolean
+          title: string
+          type: string
+          user_id: string
+        }
+        Update: {
+          body?: string | null
+          created_at?: string
+          id?: string
+          read?: boolean
+          title?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      parental_links: {
+        Row: {
+          created_at: string
+          id: string
+          parent_phone: string
+          parent_verified: boolean
+          spend_limit_daily: number | null
+          spend_limit_monthly: number | null
+          spend_limit_weekly: number | null
+          teen_user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          parent_phone: string
+          parent_verified?: boolean
+          spend_limit_daily?: number | null
+          spend_limit_monthly?: number | null
+          spend_limit_weekly?: number | null
+          teen_user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          parent_phone?: string
+          parent_verified?: boolean
+          spend_limit_daily?: number | null
+          spend_limit_monthly?: number | null
+          spend_limit_weekly?: number | null
+          teen_user_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          aadhaar_last4: string | null
+          balance: number
+          created_at: string
+          dob: string | null
+          full_name: string | null
+          gender: string | null
+          id: string
+          kyc_status: Database["public"]["Enums"]["kyc_status"]
+          onboarding_stage: Database["public"]["Enums"]["onboarding_stage"]
+          phone: string | null
+          updated_at: string
+        }
+        Insert: {
+          aadhaar_last4?: string | null
+          balance?: number
+          created_at?: string
+          dob?: string | null
+          full_name?: string | null
+          gender?: string | null
+          id: string
+          kyc_status?: Database["public"]["Enums"]["kyc_status"]
+          onboarding_stage?: Database["public"]["Enums"]["onboarding_stage"]
+          phone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          aadhaar_last4?: string | null
+          balance?: number
+          created_at?: string
+          dob?: string | null
+          full_name?: string | null
+          gender?: string | null
+          id?: string
+          kyc_status?: Database["public"]["Enums"]["kyc_status"]
+          onboarding_stage?: Database["public"]["Enums"]["onboarding_stage"]
+          phone?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      transactions: {
+        Row: {
+          amount: number
+          created_at: string
+          fraud_flags: Json
+          id: string
+          merchant_name: string
+          note: string | null
+          status: Database["public"]["Enums"]["txn_status"]
+          upi_id: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          fraud_flags?: Json
+          id?: string
+          merchant_name: string
+          note?: string | null
+          status?: Database["public"]["Enums"]["txn_status"]
+          upi_id: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          fraud_flags?: Json
+          id?: string
+          merchant_name?: string
+          note?: string | null
+          status?: Database["public"]["Enums"]["txn_status"]
+          upi_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -23,7 +198,15 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      kyc_status: "not_started" | "pending" | "approved" | "rejected"
+      onboarding_stage:
+        | "STAGE_0"
+        | "STAGE_1"
+        | "STAGE_2"
+        | "STAGE_3"
+        | "STAGE_4"
+        | "STAGE_5"
+      txn_status: "success" | "pending" | "failed"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +333,17 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      kyc_status: ["not_started", "pending", "approved", "rejected"],
+      onboarding_stage: [
+        "STAGE_0",
+        "STAGE_1",
+        "STAGE_2",
+        "STAGE_3",
+        "STAGE_4",
+        "STAGE_5",
+      ],
+      txn_status: ["success", "pending", "failed"],
+    },
   },
 } as const
