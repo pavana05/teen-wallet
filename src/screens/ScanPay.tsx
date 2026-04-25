@@ -20,15 +20,28 @@ type FailKind = "generic" | "balance_changed" | "insufficient" | "blocked";
 
 export function ScanPay({ onBack }: { onBack: () => void }) {
   const { userId, balance } = useApp();
-  const [phase, setPhase] = useState<Phase>("scanning");
-  const [payload, setPayload] = useState<UpiPayload | null>(null);
-  const [amount, setAmount] = useState<number>(0);
+
+  // Hydrate persisted flow (scan phase + parsed payload + amount) so a
+  // refresh / accidental nav doesn't drop the user back into a broken loop.
+  const persisted = readPersisted();
+  const [phase, setPhase] = useState<Phase>(persisted?.phase ?? "scanning");
+  const [payload, setPayload] = useState<UpiPayload | null>(persisted?.payload ?? null);
+  const [amount, setAmount] = useState<number>(persisted?.amount ?? 0);
   const [resultMsg, setResultMsg] = useState("");
   const [failKind, setFailKind] = useState<FailKind>("generic");
+  // Bump this to force-remount the ScannerView and dispose its camera + Html5Qrcode instance.
+  const [scannerKey, setScannerKey] = useState(0);
+
+  // Keep persistence in sync; clear on terminal states.
+  useEffect(() => {
+    if (phase === "scanning" || phase === "confirm") {
+      writePersisted({ phase, payload, amount });
+    } else {
+      clearPersisted();
+    }
+  }, [phase, payload, amount]);
 
   const navLockRef = useRef(false);
-  // Stable callback so the scanner effect doesn't re-run every render
-  // (which used to tear down + restart the camera, killing detection).
   const handleDecoded = useCallback((parsed: UpiPayload) => {
     if (navLockRef.current) return;
     navLockRef.current = true;
