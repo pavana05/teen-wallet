@@ -56,7 +56,17 @@ function AdminLogin() {
       });
       writeAdminSession(r);
       nav({ to: "/admin" });
-    } catch (e: any) { setErr(e.message || "Invalid code"); }
+    } catch (e: any) {
+      const raw = (e?.message || "").toLowerCase();
+      let friendly = e?.message || "Invalid code";
+      if (raw.includes("invalid_code")) friendly = "Invalid or expired code. Codes refresh every 30 seconds — please enter the current code from your authenticator app.";
+      else if (raw.includes("challenge")) friendly = "Your login session expired. Please re-enter your password.";
+      else if (raw.includes("locked")) friendly = "Account temporarily locked due to too many attempts. Try again later.";
+      else if (raw.includes("failed to fetch")) friendly = "Couldn't reach the server. Check your connection and try again.";
+      setErr(friendly);
+      setCode("");
+      if (raw.includes("challenge")) setStage("email");
+    }
     finally { setBusy(false); }
   }
 
