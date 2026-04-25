@@ -15,17 +15,39 @@ interface LatestSubmission {
 
 const POLL_INTERVAL_MS = 4000;
 const POLL_BACKOFF_MAX_MS = 15000;
+const REJECTION_REASON_KEY = "tw-kyc-rejection-reason";
+const APPROVED_ANIMATION_MS = 2400;
 
 export function KycPending({ onApproved, forceState, forceReason }: { onApproved: () => void; forceState?: Status; forceReason?: string }) {
+  // Hydrate persisted rejection reason synchronously so the rejected screen
+  // shows the same explanation across reloads even before the network round-trip.
+  const persistedReason =
+    typeof window !== "undefined" ? localStorage.getItem(REJECTION_REASON_KEY) : null;
+
   const [latest, setLatest] = useState<LatestSubmission | null>(
-    forceState ? { submissionId: "preview", providerRef: "preview", status: forceState, submittedAt: new Date().toISOString(), reason: forceReason ?? null } : null
+    forceState
+      ? { submissionId: "preview", providerRef: "preview", status: forceState, submittedAt: new Date().toISOString(), reason: forceReason ?? persistedReason ?? null }
+      : null
   );
   const [status, setStatus] = useState<Status>(forceState ?? "pending");
   const [pollMs, setPollMs] = useState(POLL_INTERVAL_MS);
   const stoppedRef = useRef(!!forceState);
+  const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const redirectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Hard stop: tear down realtime + polling immediately when we reach a terminal state.
+  // Prevents redirect loops and lingering subscriptions.
+  const stopAllListeners = () => {
+    stoppedRef.current = true;
+    if (channelRef.current) {
+      void supabase.removeChannel(channelRef.current);
+      channelRef.current = null;
+    }
+  };
 
   // Fetch the latest submission row + reconcile profile.kyc_status.
   const fetchLatest = async () => {
+    if (stoppedRef.current) return;
     const { data: u } = await supabase.auth.getUser();
     if (!u.user) return;
     const { data: rows, error } = await supabase
@@ -48,13 +70,20 @@ export function KycPending({ onApproved, forceState, forceReason }: { onApproved
     setStatus(next.status);
 
     if (next.status === "approved") {
-      stoppedRef.current = true;
+      stopAllListeners();
+      // Clear any stale rejection reason now that the user is approved.
+      try { localStorage.removeItem(REJECTION_REASON_KEY); } catch { /* ignore */ }
       await updateProfileFields({ kyc_status: "approved" });
       await persistStage("STAGE_5");
-      // Brief delay so user sees the success state before transitioning.
-      setTimeout(() => onApproved(), 800);
+      // Wait for the seal bounce + shimmer sweep to finish before transitioning.
+      if (redirectTimerRef.current) clearTimeout(redirectTimerRef.current);
+      redirectTimerRef.current = setTimeout(() => onApproved(), APPROVED_ANIMATION_MS);
     } else if (next.status === "rejected") {
-      stoppedRef.current = true;
+      stopAllListeners();
+      // Persist the reason so a reload still shows it.
+      if (next.reason) {
+        try { localStorage.setItem(REJECTION_REASON_KEY, next.reason); } catch { /* ignore */ }
+      }
       await updateProfileFields({ kyc_status: "rejected" });
     }
   };
@@ -66,6 +95,7 @@ export function KycPending({ onApproved, forceState, forceReason }: { onApproved
     const loop = () => {
       if (stoppedRef.current) return;
       timeout = setTimeout(async () => {
+        if (stoppedRef.current) return;
         await fetchLatest();
         if (!stoppedRef.current) {
           setPollMs((cur) => Math.min(POLL_BACKOFF_MAX_MS, Math.round(cur * 1.25)));
@@ -77,27 +107,31 @@ export function KycPending({ onApproved, forceState, forceReason }: { onApproved
     return () => {
       stoppedRef.current = true;
       if (timeout) clearTimeout(timeout);
+      if (redirectTimerRef.current) clearTimeout(redirectTimerRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Realtime subscription — instant updates when the provider webhook lands.
   useEffect(() => {
-    let channel: ReturnType<typeof supabase.channel> | null = null;
     void (async () => {
+      if (stoppedRef.current) return;
       const { data: u } = await supabase.auth.getUser();
-      if (!u.user) return;
-      channel = supabase
+      if (!u.user || stoppedRef.current) return;
+      channelRef.current = supabase
         .channel(`kyc-pending-${u.user.id}`)
         .on(
           "postgres_changes",
           { event: "*", schema: "public", table: "kyc_submissions", filter: `user_id=eq.${u.user.id}` },
-          () => { void fetchLatest(); },
+          () => { if (!stoppedRef.current) void fetchLatest(); },
         )
         .subscribe();
     })();
     return () => {
-      if (channel) void supabase.removeChannel(channel);
+      if (channelRef.current) {
+        void supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
+      }
     };
   }, []);
 
@@ -108,17 +142,21 @@ export function KycPending({ onApproved, forceState, forceReason }: { onApproved
 
   // ---------- Visuals ----------
 
-  const handleRetake = async () => {
+  // Close X / Continue on rejected → return to Aadhaar KYC step.
+  const goBackToAadhaarKyc = async () => {
+    stopAllListeners();
     await persistStage("STAGE_3");
     window.location.reload();
   };
 
   if (status === "approved") {
-    return <ApprovedView onContinue={onApproved} />;
+    return <ApprovedView onContinue={onApproved} onClose={onApproved} />;
   }
 
   if (status === "rejected") {
-    return <RejectedView reason={latest?.reason ?? null} onRetake={handleRetake} />;
+    // Prefer fresh reason; fall back to persisted reason from a previous session.
+    const shownReason = latest?.reason ?? persistedReason ?? null;
+    return <RejectedView reason={shownReason} onRetake={goBackToAadhaarKyc} onClose={goBackToAadhaarKyc} />;
   }
 
   // Pending / unknown
@@ -233,20 +271,31 @@ function SealBadge({ variant }: { variant: "green" | "red" }) {
 
 /* ----------------------------- Approved View ----------------------------- */
 
-function ApprovedView({ onContinue }: { onContinue: () => void }) {
+function ApprovedView({ onContinue, onClose }: { onContinue: () => void; onClose: () => void }) {
   return (
-    <div className="kyc-result-root">
+    <div className="kyc-result-root kyc-approved-stage">
       <div className="kyc-result-glow green" />
-      <button className="kyc-close-btn" onClick={onContinue} aria-label="Close">
+      {/* Full-screen shimmer sweep that plays once after the seal lands */}
+      <div className="kyc-approved-shimmer" aria-hidden="true" />
+
+      <button className="kyc-close-btn" onClick={onClose} aria-label="Close">
         <X className="w-6 h-6" strokeWidth={2.2} />
       </button>
 
       <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-6 -mt-16">
-        <SealBadge variant="green" />
+        <div className="kyc-seal-bounce">
+          <SealBadge variant="green" />
+        </div>
+        <h2 className="kyc-approved-title mt-8 text-white text-[24px] font-semibold tracking-tight">
+          KYC Approved
+        </h2>
+        <p className="kyc-approved-sub mt-2 text-white/60 text-sm">
+          Taking you to your wallet…
+        </p>
       </div>
 
       <div className="relative z-10 px-6 pb-8 safe-bottom">
-        <button className="kyc-continue-btn" onClick={onContinue}>
+        <button className="kyc-continue-btn primary" onClick={onContinue}>
           Continue
         </button>
       </div>
@@ -256,11 +305,11 @@ function ApprovedView({ onContinue }: { onContinue: () => void }) {
 
 /* ----------------------------- Rejected View ----------------------------- */
 
-function RejectedView({ reason, onRetake }: { reason: string | null; onRetake: () => void }) {
+function RejectedView({ reason, onRetake, onClose }: { reason: string | null; onRetake: () => void; onClose: () => void }) {
   return (
     <div className="kyc-result-root">
       <div className="kyc-result-glow red" />
-      <button className="kyc-close-btn" onClick={onRetake} aria-label="Close">
+      <button className="kyc-close-btn" onClick={onClose} aria-label="Close">
         <X className="w-6 h-6" strokeWidth={2.2} />
       </button>
 
