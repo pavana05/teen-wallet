@@ -184,6 +184,29 @@ type Admin = {
 };
 
 // -----------------------------------------------------------------
+// In-memory rate limiter (per-isolate; pragmatic v1)
+// -----------------------------------------------------------------
+type Bucket = { count: number; resetAt: number; blockedUntil?: number };
+const RATE_BUCKETS = new Map<string, Bucket>();
+function rateCheck(key: string, max: number, windowMs: number, blockMs: number): { ok: boolean; retryAfterSec?: number } {
+  const now = Date.now();
+  const b = RATE_BUCKETS.get(key);
+  if (b?.blockedUntil && b.blockedUntil > now) {
+    return { ok: false, retryAfterSec: Math.ceil((b.blockedUntil - now) / 1000) };
+  }
+  if (!b || b.resetAt < now) {
+    RATE_BUCKETS.set(key, { count: 1, resetAt: now + windowMs });
+    return { ok: true };
+  }
+  b.count += 1;
+  if (b.count > max) {
+    b.blockedUntil = now + blockMs;
+    return { ok: false, retryAfterSec: Math.ceil(blockMs / 1000) };
+  }
+  return { ok: true };
+}
+
+// -----------------------------------------------------------------
 // Main handler
 // -----------------------------------------------------------------
 Deno.serve(async (req) => {
@@ -221,6 +244,12 @@ Deno.serve(async (req) => {
   if (action === "login_password") {
     const email = String(body.email ?? "").trim().toLowerCase();
     const password = String(body.password ?? "");
+    // Per-IP and per-email rate limit (5/min then 15min block)
+    const rl1 = rateCheck(`login:ip:${ip}`, 10, 60_000, 15 * 60_000);
+    const rl2 = rateCheck(`login:em:${email}`, 5, 60_000, 15 * 60_000);
+    if (!rl1.ok || !rl2.ok) {
+      return json({ error: "rate_limited", retryAfterSec: Math.max(rl1.retryAfterSec ?? 0, rl2.retryAfterSec ?? 0) }, 429);
+    }
     if (!emailAllowed(email)) {
       await audit(null, email, null, "login_failed", { reason: "email_not_allowed" });
       return json({ error: "invalid_credentials" }, 401);
@@ -331,6 +360,39 @@ Deno.serve(async (req) => {
     const otpauthUrl = `otpauth://totp/${issuer}:${label}?secret=${secret}&issuer=${issuer}&digits=6&period=30`;
 
     await audit(admin.id, email, admin.role, "password_set");
+    return json({ stage: "enroll_totp", challengeToken, otpauthUrl, secret });
+  }
+
+  // ---------------------------------------------------------------
+  // totp_reset_login — admin lost authenticator. Verify password, reset secret, return fresh enroll QR.
+  // ---------------------------------------------------------------
+  if (action === "totp_reset_login") {
+    const email = String(body.email ?? "").trim().toLowerCase();
+    const password = String(body.password ?? "");
+    const rl = rateCheck(`totpreset:${email}:${ip}`, 3, 60 * 60_000, 60 * 60_000);
+    if (!rl.ok) return json({ error: "rate_limited", retryAfterSec: rl.retryAfterSec }, 429);
+    if (!emailAllowed(email) || !password) return json({ error: "invalid" }, 400);
+    const { data: admin } = await sb.from("admin_users").select("*").eq("email", email).maybeSingle<Admin>();
+    if (!admin || !admin.password_hash) return json({ error: "invalid_credentials" }, 401);
+    if (admin.status === "disabled") return json({ error: "account_disabled" }, 403);
+    const ok = await verifyPassword(password, admin.password_hash);
+    if (!ok) {
+      await audit(admin.id, email, admin.role, "totp_reset_failed", { reason: "bad_password" });
+      return json({ error: "invalid_credentials" }, 401);
+    }
+    const secret = base32Encode(randomBytes(20));
+    await sb.from("admin_users").update({ totp_secret: secret, totp_enrolled: false }).eq("id", admin.id);
+    const challengeToken = bytesToHex(randomBytes(32));
+    const challengeHash = await sha256Hex("challenge:" + challengeToken);
+    await sb.from("admin_sessions").insert({
+      admin_id: admin.id, session_token_hash: challengeHash,
+      ip_address: ip, user_agent: ua,
+      expires_at: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
+    });
+    const issuer = encodeURIComponent("Teen Wallet Admin");
+    const label = encodeURIComponent(admin.email);
+    const otpauthUrl = `otpauth://totp/${issuer}:${label}?secret=${secret}&issuer=${issuer}&digits=6&period=30`;
+    await audit(admin.id, email, admin.role, "totp_reset_login");
     return json({ stage: "enroll_totp", challengeToken, otpauthUrl, secret });
   }
 
@@ -447,6 +509,10 @@ Deno.serve(async (req) => {
     decideKyc: ["super_admin", "operations_manager"],
     viewTransactions: ["super_admin", "operations_manager", "finance_manager", "compliance_officer", "fraud_analyst"],
     manageTransactions: ["super_admin", "operations_manager"],
+    viewFraud: ["super_admin", "fraud_analyst", "compliance_officer"],
+    manageFraud: ["super_admin", "fraud_analyst"],
+    viewAuditLog: ["super_admin", "compliance_officer"],
+    manageAdmins: ["super_admin"],
   };
   function can(role: string, perm: string) {
     return (ROLE_PERMS[perm] || []).includes(role);
@@ -794,6 +860,225 @@ Deno.serve(async (req) => {
       action_type: "transaction_reverse", target_entity: "transactions", target_id: txnId,
       old_value: { status: (tx as any).status } as any,
       new_value: { status: "failed", reason } as any,
+      ip_address: ip, user_agent: ua,
+    });
+    return json({ ok: true });
+  }
+
+
+  // ----- Bulk KYC decide -----
+  if (action === "kyc_decide_bulk") {
+    if (!can(me.role, "decideKyc")) return json({ error: "forbidden" }, 403);
+    const userIds: string[] = Array.isArray(body.userIds) ? body.userIds.filter((x: unknown) => typeof x === "string") : [];
+    const decision = String(body.decision ?? "");
+    const reason = String(body.reason ?? "");
+    if (!userIds.length || !["approved", "rejected"].includes(decision)) return json({ error: "invalid" }, 400);
+    if (userIds.length > 200) return json({ error: "too_many" }, 400);
+
+    const nowIso = new Date().toISOString();
+    let ok = 0; let fail = 0;
+    for (const uid of userIds) {
+      try {
+        // Find latest pending submission, if any
+        const { data: sub } = await sb.from("kyc_submissions")
+          .select("id,status").eq("user_id", uid).order("created_at", { ascending: false }).limit(1).maybeSingle();
+        if (sub) {
+          await sb.from("kyc_submissions")
+            .update({ status: decision as any, reason: reason || null, updated_at: nowIso })
+            .eq("id", (sub as any).id);
+        }
+        const profileUpdate: Record<string, unknown> = { kyc_status: decision as any, updated_at: nowIso };
+        if (decision === "approved") profileUpdate.onboarding_stage = "STAGE_5";
+        await sb.from("profiles").update(profileUpdate).eq("id", uid);
+        await sb.from("notifications").insert({
+          user_id: uid,
+          type: decision === "approved" ? "kyc_approved" : "kyc_rejected",
+          title: decision === "approved" ? "KYC approved 🎉" : "KYC rejected",
+          body: decision === "approved" ? "Your account is now active." : (reason || "Please retry your KYC submission."),
+        });
+        await sb.from("admin_audit_log").insert({
+          admin_id: me.id, admin_email: me.email, admin_role: me.role as any,
+          action_type: "kyc_decide_bulk", target_entity: "profiles", target_id: uid,
+          new_value: { decision, reason } as any,
+          ip_address: ip, user_agent: ua,
+        });
+        ok += 1;
+      } catch { fail += 1; }
+    }
+    return json({ ok: true, success: ok, failed: fail });
+  }
+
+  // ----- Fraud list -----
+  if (action === "fraud_list") {
+    if (!can(me.role, "viewFraud")) return json({ error: "forbidden" }, 403);
+    const status = String(body.status ?? "open"); // open | resolved | all
+    const rule = String(body.rule ?? "");
+    const page = Math.max(1, Number(body.page ?? 1));
+    const pageSize = Math.min(100, Math.max(10, Number(body.pageSize ?? 25)));
+
+    let q = sb.from("fraud_logs").select("*", { count: "exact" });
+    if (status === "open") q = q.is("resolution", null);
+    else if (status === "resolved") q = q.not("resolution", "is", null);
+    if (rule) q = q.eq("rule_triggered", rule);
+    q = q.order("created_at", { ascending: false }).range((page - 1) * pageSize, page * pageSize - 1);
+
+    const { data, count, error } = await q;
+    if (error) return json({ error: error.message }, 500);
+
+    const userIds = Array.from(new Set((data ?? []).map((r: any) => r.user_id)));
+    const txnIds = Array.from(new Set((data ?? []).map((r: any) => r.transaction_id).filter(Boolean)));
+    const profMap: Record<string, any> = {};
+    const txnMap: Record<string, any> = {};
+    if (userIds.length) {
+      const { data: profs } = await sb.from("profiles").select("id,full_name,phone").in("id", userIds);
+      for (const p of profs ?? []) profMap[(p as any).id] = p;
+    }
+    if (txnIds.length) {
+      const { data: txs } = await sb.from("transactions").select("id,amount,merchant_name,upi_id,status").in("id", txnIds);
+      for (const t of txs ?? []) txnMap[(t as any).id] = t;
+    }
+    const rows = (data ?? []).map((r: any) => ({ ...r, profile: profMap[r.user_id] || null, transaction: r.transaction_id ? txnMap[r.transaction_id] || null : null }));
+
+    // Summary aggregates
+    const { data: allOpen } = await sb.from("fraud_logs").select("rule_triggered").is("resolution", null);
+    const byRule: Record<string, number> = {};
+    for (const r of allOpen ?? []) {
+      const k = (r as any).rule_triggered || "unknown";
+      byRule[k] = (byRule[k] || 0) + 1;
+    }
+    return json({ rows, total: count ?? 0, page, pageSize, openByRule: byRule, openTotal: (allOpen ?? []).length });
+  }
+
+  // ----- Fraud resolve -----
+  if (action === "fraud_resolve") {
+    if (!can(me.role, "manageFraud")) return json({ error: "forbidden" }, 403);
+    const id = String(body.id ?? "");
+    const resolution = String(body.resolution ?? "");
+    if (!id || !resolution) return json({ error: "invalid" }, 400);
+    const { data: before } = await sb.from("fraud_logs").select("*").eq("id", id).maybeSingle();
+    if (!before) return json({ error: "not_found" }, 404);
+    const { error } = await sb.from("fraud_logs").update({ resolution }).eq("id", id);
+    if (error) return json({ error: error.message }, 500);
+    await sb.from("admin_audit_log").insert({
+      admin_id: me.id, admin_email: me.email, admin_role: me.role as any,
+      action_type: "fraud_resolve", target_entity: "fraud_logs", target_id: id,
+      old_value: before as any, new_value: { resolution } as any,
+      ip_address: ip, user_agent: ua,
+    });
+    return json({ ok: true });
+  }
+
+  // ----- Audit log list -----
+  if (action === "audit_log_list") {
+    if (!can(me.role, "viewAuditLog")) return json({ error: "forbidden" }, 403);
+    const adminEmail = String(body.adminEmail ?? "");
+    const actionType = String(body.actionType ?? "");
+    const page = Math.max(1, Number(body.page ?? 1));
+    const pageSize = Math.min(100, Math.max(10, Number(body.pageSize ?? 50)));
+    let q = sb.from("admin_audit_log").select("*", { count: "exact" });
+    if (adminEmail) q = q.ilike("admin_email", `%${adminEmail}%`);
+    if (actionType) q = q.eq("action_type", actionType);
+    q = q.order("created_at", { ascending: false }).range((page - 1) * pageSize, page * pageSize - 1);
+    const { data, count, error } = await q;
+    if (error) return json({ error: error.message }, 500);
+    return json({ rows: data ?? [], total: count ?? 0, page, pageSize });
+  }
+
+  // ----- Settings: list admins -----
+  if (action === "admins_list") {
+    if (!can(me.role, "manageAdmins")) return json({ error: "forbidden" }, 403);
+    const { data } = await sb.from("admin_users")
+      .select("id,email,name,role,status,totp_enrolled,last_login_at,last_login_ip,failed_attempts,locked_until,created_at")
+      .order("created_at", { ascending: false });
+    return json({ rows: data ?? [] });
+  }
+
+  // ----- Settings: invite admin (creates pending row) -----
+  if (action === "admin_invite") {
+    if (!can(me.role, "manageAdmins")) return json({ error: "forbidden" }, 403);
+    const email = String(body.email ?? "").trim().toLowerCase();
+    const name = String(body.name ?? "").trim();
+    const role = String(body.role ?? "");
+    const validRoles = ["super_admin", "operations_manager", "compliance_officer", "customer_support", "fraud_analyst", "finance_manager"];
+    if (!email || !name || !validRoles.includes(role)) return json({ error: "invalid" }, 400);
+    if (!emailAllowed(email)) return json({ error: "email_not_allowed" }, 400);
+    const { data: exists } = await sb.from("admin_users").select("id").eq("email", email).maybeSingle();
+    if (exists) return json({ error: "already_exists" }, 409);
+    const { data: created, error } = await sb.from("admin_users").insert({
+      email, name, role: role as any, status: "pending",
+    }).select("id,email,name,role,status").maybeSingle();
+    if (error) return json({ error: error.message }, 500);
+    await sb.from("admin_audit_log").insert({
+      admin_id: me.id, admin_email: me.email, admin_role: me.role as any,
+      action_type: "admin_invite", target_entity: "admin_users", target_id: (created as any)?.id,
+      new_value: { email, name, role } as any, ip_address: ip, user_agent: ua,
+    });
+    return json({ ok: true, admin: created });
+  }
+
+  // ----- Settings: update admin (role / status) -----
+  if (action === "admin_update") {
+    if (!can(me.role, "manageAdmins")) return json({ error: "forbidden" }, 403);
+    const id = String(body.id ?? "");
+    const role = body.role ? String(body.role) : null;
+    const status = body.status ? String(body.status) : null;
+    if (!id) return json({ error: "invalid" }, 400);
+    if (id === me.id && (status === "disabled" || status === "locked")) return json({ error: "cannot_disable_self" }, 400);
+    const update: Record<string, unknown> = { updated_at: new Date().toISOString() };
+    if (role) update.role = role;
+    if (status) {
+      update.status = status;
+      if (status === "active") { update.failed_attempts = 0; update.locked_until = null; }
+    }
+    const { data: before } = await sb.from("admin_users").select("role,status").eq("id", id).maybeSingle();
+    const { error } = await sb.from("admin_users").update(update).eq("id", id);
+    if (error) return json({ error: error.message }, 500);
+    await sb.from("admin_audit_log").insert({
+      admin_id: me.id, admin_email: me.email, admin_role: me.role as any,
+      action_type: "admin_update", target_entity: "admin_users", target_id: id,
+      old_value: before as any, new_value: update as any, ip_address: ip, user_agent: ua,
+    });
+    return json({ ok: true });
+  }
+
+  // ----- Settings: reset MY TOTP (re-enroll). Requires fresh password confirmation. -----
+  if (action === "totp_reset_self") {
+    const password = String(body.password ?? "");
+    if (!password) return json({ error: "password_required" }, 400);
+    const { data: meRow } = await sb.from("admin_users").select("*").eq("id", me.id).maybeSingle<Admin>();
+    if (!meRow || !meRow.password_hash) return json({ error: "invalid" }, 400);
+    const ok = await verifyPassword(password, meRow.password_hash);
+    if (!ok) return json({ error: "invalid_password" }, 401);
+    const secret = base32Encode(randomBytes(20));
+    await sb.from("admin_users").update({ totp_secret: secret, totp_enrolled: false }).eq("id", me.id);
+    // Issue an enroll challenge
+    const challengeToken = bytesToHex(randomBytes(32));
+    const challengeHash = await sha256Hex("challenge:" + challengeToken);
+    await sb.from("admin_sessions").insert({
+      admin_id: me.id, session_token_hash: challengeHash,
+      ip_address: ip, user_agent: ua,
+      expires_at: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
+    });
+    const issuer = encodeURIComponent("Teen Wallet Admin");
+    const label = encodeURIComponent(meRow.email);
+    const otpauthUrl = `otpauth://totp/${issuer}:${label}?secret=${secret}&issuer=${issuer}&digits=6&period=30`;
+    await sb.from("admin_audit_log").insert({
+      admin_id: me.id, admin_email: me.email, admin_role: me.role as any,
+      action_type: "totp_reset_self", target_entity: "admin_users", target_id: me.id,
+      ip_address: ip, user_agent: ua,
+    });
+    return json({ ok: true, challengeToken, otpauthUrl, secret });
+  }
+
+  // ----- Settings: super_admin force-resets another admin's TOTP -----
+  if (action === "totp_reset_admin") {
+    if (!can(me.role, "manageAdmins")) return json({ error: "forbidden" }, 403);
+    const id = String(body.id ?? "");
+    if (!id) return json({ error: "invalid" }, 400);
+    await sb.from("admin_users").update({ totp_secret: null, totp_enrolled: false, failed_attempts: 0, locked_until: null }).eq("id", id);
+    await sb.from("admin_audit_log").insert({
+      admin_id: me.id, admin_email: me.email, admin_role: me.role as any,
+      action_type: "totp_reset_admin", target_entity: "admin_users", target_id: id,
       ip_address: ip, user_agent: ua,
     });
     return json({ ok: true });
