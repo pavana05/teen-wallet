@@ -170,6 +170,32 @@ export function Home() {
         </div>
       </div>
 
+      {/* ===== PAYMENT HISTORY ===== */}
+      <div className="px-5 mt-7">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-white text-[17px] font-semibold tracking-tight">Payment history</h3>
+          <button onClick={handleRefresh} className="text-white/60 inline-flex items-center gap-1 text-[12px]">
+            <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? "animate-spin" : ""}`} /> Refresh
+          </button>
+        </div>
+        {loading ? (
+          <div className="space-y-2">
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="h-16 rounded-2xl bg-white/5 tw-shimmer" />
+            ))}
+          </div>
+        ) : txns.length === 0 ? (
+          <div className="rounded-2xl bg-white/5 border border-white/10 p-6 text-center">
+            <p className="text-[13px] text-white/70">No transactions yet</p>
+            <p className="text-[11px] text-white/40 mt-1">Tap the scan button to make your first payment.</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {txns.map((t) => <TxnRow key={t.id} txn={t} />)}
+          </div>
+        )}
+      </div>
+
       {/* Page dots */}
       <div className="flex items-center justify-center gap-1.5 mt-7">
         <span className="w-1.5 h-1.5 rounded-full bg-white" />
