@@ -176,7 +176,7 @@ export function KycFlow({ onDone }: { onDone: () => void }) {
           { event: "*", schema: "public", table: "kyc_submissions", filter: `user_id=eq.${userId}` },
           (payload) => {
             const row = payload.new as {
-              id: string; provider_ref: string | null; status: "pending" | "approved" | "rejected";
+              id: string; provider_ref: string | null; status: SubStatus;
               created_at: string; reason: string | null;
             } | undefined;
             if (!row) return;
