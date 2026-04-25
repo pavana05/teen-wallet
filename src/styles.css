@@ -2147,3 +2147,162 @@
 }
 .str-submit:active { transform: scale(.98); }
 .str-submit:disabled { opacity: .55; cursor: not-allowed; }
+
+/* ============================================================
+   ScanPay v3 — torch glow, scan-state strip, receipt + fail card
+   ============================================================ */
+
+/* Torch active glow — subtle warm pulse around the viewport so users
+   immediately see the flash is on, even before the scene brightens. */
+@keyframes sp2-torch-pulse {
+  0%, 100% { opacity: .55; }
+  50% { opacity: .9; }
+}
+.sp2-torch-glow {
+  position: absolute; inset: 0; z-index: 11; pointer-events: none;
+  background: radial-gradient(circle at 50% 50%, transparent 30%, rgba(255,193,7,.18) 75%, rgba(255,193,7,.32) 100%);
+  box-shadow: inset 0 0 120px 24px rgba(255,193,7,.32);
+  animation: sp2-torch-pulse 1.6s ease-in-out infinite;
+  mix-blend-mode: screen;
+}
+.sp2-icon-btn-torch {
+  background: linear-gradient(135deg, rgba(255,193,7,.28), rgba(245,158,11,.18)) !important;
+  border-color: rgba(255,193,7,.55) !important;
+  color: #fde68a !important;
+  box-shadow: 0 0 22px rgba(255,193,7,.45);
+}
+
+/* Live scan-state strip under topbar */
+.sp2-state-strip {
+  position: absolute; top: 70px; left: 50%; transform: translateX(-50%);
+  z-index: 25;
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: rgba(0,0,0,.55);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255,255,255,.08);
+  font-size: 11px; font-weight: 600;
+  color: rgba(255,255,255,.85);
+  letter-spacing: .02em;
+}
+.sp2-state-text { white-space: nowrap; }
+.sp2-state-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  display: inline-block; flex-shrink: 0;
+}
+@keyframes sp2-dot-pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.35); opacity: .55; }
+}
+.sp2-state-starting { background: #fbbf24; box-shadow: 0 0 10px rgba(251,191,36,.7); animation: sp2-dot-pulse 1s ease-in-out infinite; }
+.sp2-state-tracking { background: #C8F135; box-shadow: 0 0 12px rgba(200,241,53,.85); animation: sp2-dot-pulse 1.4s ease-in-out infinite; }
+.sp2-state-locked   { background: #6ee7a3; box-shadow: 0 0 14px rgba(110,231,163,1); }
+
+/* Frame state variants */
+.sp2-frame-tracking .sp2-frame-corner { border-color: rgba(200,241,53,.95); box-shadow: 0 0 8px rgba(200,241,53,.5); }
+@keyframes sp2-lock-flash {
+  0% { transform: scale(.95); box-shadow: 0 0 0 0 rgba(110,231,163,.7); }
+  60% { transform: scale(1); box-shadow: 0 0 0 28px rgba(110,231,163,0); }
+  100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(110,231,163,0); }
+}
+.sp2-frame-locked .sp2-frame-corner {
+  border-color: #6ee7a3 !important;
+  box-shadow: 0 0 14px rgba(110,231,163,.85);
+}
+.sp2-frame-locked { animation: sp2-lock-flash .6s ease-out 1; }
+.sp2-lock-badge {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 12px; border-radius: 999px;
+  background: rgba(110,231,163,.18);
+  border: 1px solid rgba(110,231,163,.55);
+  color: #d2ffe2;
+  font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase;
+  backdrop-filter: blur(6px);
+  animation: sp2-lock-flash .5s ease-out 1;
+  z-index: 5;
+}
+
+/* Receipt card on success */
+.sp-receipt-card {
+  width: 100%; max-width: 360px;
+  margin-top: 18px;
+  padding: 16px 18px;
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(255,255,255,.04) 0%, rgba(255,255,255,.02) 100%);
+  border: 1px solid rgba(255,255,255,.08);
+  box-shadow: 0 12px 36px -12px rgba(0,0,0,.55);
+  text-align: left;
+}
+.sp-receipt-amount {
+  display: flex; align-items: baseline; justify-content: space-between;
+  flex-wrap: wrap; gap: 6px;
+}
+.sp-receipt-divider {
+  height: 1px;
+  margin: 12px 0;
+  background: repeating-linear-gradient(to right, rgba(255,255,255,.18) 0 6px, transparent 6px 12px);
+}
+.sp-receipt-grid {
+  display: grid; grid-template-columns: 110px 1fr; gap: 8px 12px;
+  font-size: 12px; line-height: 1.4;
+}
+.sp-receipt-grid dt { color: rgba(255,255,255,.5); font-weight: 500; }
+.sp-receipt-grid dd { color: rgba(255,255,255,.92); font-weight: 600; text-align: right; min-width: 0; }
+.sp-receipt-status-ok {
+  display: inline-block; padding: 2px 8px;
+  background: rgba(34,197,94,.18);
+  border: 1px solid rgba(34,197,94,.45);
+  color: #86efac;
+  border-radius: 999px;
+  font-size: 10px; letter-spacing: .12em;
+}
+
+.sp-receipt-action {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 12px;
+  border-radius: 14px;
+  background: rgba(255,255,255,.06);
+  border: 1px solid rgba(255,255,255,.10);
+  color: #fff;
+  font-size: 13px; font-weight: 600;
+  transition: background 160ms ease, transform 120ms ease;
+}
+.sp-receipt-action:hover { background: rgba(255,255,255,.10); }
+.sp-receipt-action:active { transform: scale(.98); }
+.sp-receipt-secondary {
+  padding: 12px;
+  border-radius: 14px;
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(255,255,255,.08);
+  color: rgba(255,255,255,.85);
+  font-size: 13px; font-weight: 600;
+  transition: background 160ms ease;
+}
+.sp-receipt-secondary:hover { background: rgba(255,255,255,.08); color: #fff; }
+
+/* Failure summary card */
+.sp-fail-summary {
+  width: 100%; max-width: 320px;
+  margin-top: 20px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: rgba(239,68,68,.06);
+  border: 1px solid rgba(239,68,68,.22);
+  text-align: left;
+}
+.sp-fail-status {
+  display: inline-block; padding: 2px 8px;
+  background: rgba(239,68,68,.18);
+  border: 1px solid rgba(239,68,68,.45);
+  color: #fca5a5;
+  border-radius: 999px;
+  font-size: 10px; letter-spacing: .12em; font-weight: 700;
+}
+
+/* Screen-reader only utility (in case Tailwind variant misses) */
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+}

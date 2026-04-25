@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { Html5Qrcode } from "html5-qrcode";
-import { ArrowLeft, ArrowRight, Image as ImageIcon, Zap, ZapOff, X, Share2, Check, Bug, ShieldCheck, Wallet, Users, User as UserIcon, QrCode } from "lucide-react";
+import { ArrowLeft, ArrowRight, Image as ImageIcon, Zap, ZapOff, X, Share2, Check, Bug, ShieldCheck, Wallet, Users, User as UserIcon, QrCode, Download, RotateCcw, Copy, ScanLine } from "lucide-react";
 import { parseUpiQr, parseUpiQrWithReason, type UpiPayload, type UpiParseResult } from "@/lib/upi";
 import { scanTransaction, logFraudFlags } from "@/lib/fraud";
 import { useApp } from "@/lib/store";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { downloadReceiptPdf, shareReceiptPdf, type ReceiptData } from "@/lib/receipt";
 
 const SCANPAY_PERSIST_KEY = "tw-scanpay-flow-v1";
 
@@ -18,6 +19,15 @@ interface PersistedFlow {
 type Phase = "scanning" | "confirm" | "processing" | "success" | "failed";
 type FailKind = "generic" | "balance_changed" | "insufficient" | "blocked";
 
+interface SavedTxn {
+  id: string;
+  amount: number;
+  payee: string;
+  upiId: string;
+  note: string | null;
+  createdAt: string;
+}
+
 export function ScanPay({ onBack }: { onBack: () => void }) {
   const { userId, balance } = useApp();
 
@@ -29,6 +39,10 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
   const [amount, setAmount] = useState<number>(persisted?.amount ?? 0);
   const [resultMsg, setResultMsg] = useState("");
   const [failKind, setFailKind] = useState<FailKind>("generic");
+  // The actual transaction returned from the API after a successful insert.
+  // Drives the success screen's reference ID + receipt PDF.
+  const [savedTxn, setSavedTxn] = useState<SavedTxn | null>(null);
+  const [note, setNote] = useState<string>("");
   // Bump this to force-remount the ScannerView and dispose its camera + Html5Qrcode instance.
   const [scannerKey, setScannerKey] = useState(0);
 
@@ -48,6 +62,7 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
     if (navigator.vibrate) navigator.vibrate(40);
     setPayload(parsed);
     setAmount(parsed.amount ?? 0);
+    setNote(parsed.note ?? "");
     setPhase("confirm");
   }, []);
 
@@ -101,6 +116,7 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
       return;
     }
 
+    const noteToSave = note.trim() || payload.note || null;
     const { data: txn, error } = await supabase
       .from("transactions")
       .insert({
@@ -108,7 +124,7 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
         amount: amt,
         merchant_name: payload.payeeName,
         upi_id: payload.upiId,
-        note: payload.note,
+        note: noteToSave,
         status: "success",
         fraud_flags: finalReport.flags as never,
       })
@@ -132,24 +148,40 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
       title: `₹${amt.toFixed(2)} paid to ${payload.payeeName}`,
       body: payload.upiId,
     });
+    setSavedTxn({
+      id: txn.id,
+      amount: amt,
+      payee: payload.payeeName,
+      upiId: payload.upiId,
+      note: noteToSave,
+      createdAt: txn.created_at ?? new Date().toISOString(),
+    });
     setResultMsg(`₹${amt.toFixed(0)} sent to ${payload.payeeName}`);
     if (navigator.vibrate) navigator.vibrate([30, 60, 30]);
     setPhase("success");
-  }, [userId, payload, amount, balance]);
+  }, [userId, payload, amount, balance, note]);
 
   const reset = useCallback(() => {
     setPayload(null);
     setAmount(0);
+    setNote("");
     setResultMsg("");
     setFailKind("generic");
+    setSavedTxn(null);
     navLockRef.current = false;
     clearPersisted();
-    // Force-remount the ScannerView → its cleanup runs (camera stop + clear),
-    // then a fresh Html5Qrcode instance is created. Prevents stale-loop bugs
-    // and camera resource leaks observed when re-entering scan after confirm.
     setScannerKey((k) => k + 1);
     setPhase("scanning");
   }, []);
+
+  // Retry the last attempted payment without re-scanning. Used by the failure
+  // screen when the failure was transient (network/insufficient balance fixed).
+  const retryPay = useCallback(() => {
+    if (!payload) { reset(); return; }
+    setResultMsg("");
+    setFailKind("generic");
+    setPhase("confirm");
+  }, [payload, reset]);
 
   const handleHardBack = useCallback(() => {
     clearPersisted();
@@ -158,14 +190,38 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
 
 
   if (phase === "processing") return <ProcessingView amount={amount} />;
-  if (phase === "success") return <SuccessView message={resultMsg} amount={amount} payee={payload?.payeeName ?? ""} onDone={handleHardBack} />;
-  if (phase === "failed") return <FailedView kind={failKind} message={resultMsg} onRetry={reset} onCancel={handleHardBack} />;
+  if (phase === "success" && savedTxn) {
+    return (
+      <SuccessView
+        txn={savedTxn}
+        payerName={null}
+        payerPhone={null}
+        onDone={handleHardBack}
+        onScanAgain={reset}
+      />
+    );
+  }
+  if (phase === "failed") {
+    return (
+      <FailedView
+        kind={failKind}
+        message={resultMsg}
+        amount={amount}
+        payee={payload?.payeeName ?? ""}
+        onRetry={retryPay}
+        onScanAgain={reset}
+        onCancel={handleHardBack}
+      />
+    );
+  }
   if (phase === "confirm" && payload) {
     return (
       <ConfirmView
         payload={payload}
         amount={amount}
         onAmountChange={setAmount}
+        note={note}
+        onNoteChange={setNote}
         onConfirm={handlePay}
         onBack={reset}
         balance={balance}
@@ -242,6 +298,11 @@ function ScannerView({ onBack, onDecoded }: { onBack: () => void; onDecoded: (p:
   const [debugOpen, setDebugOpen] = useState(false);
   const [debug, setDebug] = useState<DebugSnapshot | null>(null);
   const [softResetCount, setSoftResetCount] = useState(0);
+  // Real-time camera state for the on-screen feedback strip:
+  //   "starting" → still warming up the camera
+  //   "tracking" → camera is feeding frames + decoder is alive (no QR yet)
+  //   "locked"   → a valid UPI QR was decoded; transitioning to confirm
+  const [scanState, setScanState] = useState<"starting" | "tracking" | "locked">("starting");
   const decodedRef = useRef(false);
   const lastInvalidToastRef = useRef(0);
   const lastDecodeAttemptRef = useRef<number>(Date.now());
@@ -293,6 +354,7 @@ function ScannerView({ onBack, onDecoded }: { onBack: () => void; onDecoded: (p:
             // Stop scanner first (fire-and-forget) and hand off synchronously
             // — onDecoded sets phase="confirm" immediately, no extra taps.
             decodedRef.current = true;
+            setScanState("locked");
             if (watchdogRef.current) { window.clearInterval(watchdogRef.current); watchdogRef.current = null; }
             scanner.stop().catch(() => {});
             onDecoded(result.payload);
@@ -301,10 +363,14 @@ function ScannerView({ onBack, onDecoded }: { onBack: () => void; onDecoded: (p:
             // html5-qrcode fires the failure callback on every frame that didn't decode.
             // We piggy-back on it as a heartbeat → if it stops firing, the camera/decoder is stuck.
             lastDecodeAttemptRef.current = Date.now();
+            // Flip to "tracking" the moment the decoder is alive — gives the user
+            // immediate feedback that the camera is actively looking for a QR.
+            setScanState((s) => (s === "starting" ? "tracking" : s));
           },
         );
         if (!cancelled) {
           setStarting(false);
+          setScanState((s) => (s === "starting" ? "tracking" : s));
           lastDecodeAttemptRef.current = Date.now();
 
           // ── Stuck-scanner watchdog ──
@@ -405,6 +471,11 @@ function ScannerView({ onBack, onDecoded }: { onBack: () => void; onDecoded: (p:
     );
   }
 
+  const stateLabel =
+    scanState === "locked" ? "QR locked · opening payment…" :
+    scanState === "tracking" ? "Camera tracking · point at any UPI QR" :
+    "Starting camera…";
+
   return (
     <div className="flex-1 flex flex-col bg-[#0B0B0B] relative overflow-hidden">
       <div id={containerId} className="absolute inset-0 [&_video]:object-cover [&_video]:w-full [&_video]:h-full" />
@@ -413,9 +484,14 @@ function ScannerView({ onBack, onDecoded }: { onBack: () => void; onDecoded: (p:
         style={{ maskImage: "radial-gradient(circle at 50% 44%, transparent 142px, black 158px)", WebkitMaskImage: "radial-gradient(circle at 50% 44%, transparent 142px, black 158px)" }}
       />
 
+      {/* Torch active glow — warm-yellow pulse around the entire viewport so
+          the user gets immediate "flash is on" feedback even before the camera
+          stream brightens. Pointer-events-none so it never blocks the QR. */}
+      {torch && <div className="sp2-torch-glow" aria-hidden="true" />}
+
       {/* Top brand bar */}
       <div className="sp2-topbar">
-        <button onClick={onBack} aria-label="Back" className="sp2-icon-btn">
+        <button onClick={onBack} aria-label="Back to previous screen" className="sp2-icon-btn focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-black">
           <ArrowLeft className="w-5 h-5" />
         </button>
         <div className="sp2-brand">
@@ -425,31 +501,54 @@ function ScannerView({ onBack, onDecoded }: { onBack: () => void; onDecoded: (p:
         <div className="flex items-center gap-2">
           <button
             onClick={() => setDebugOpen((v) => !v)}
-            aria-label="Debug overlay"
+            aria-label={debugOpen ? "Hide debug overlay" : "Show debug overlay"}
+            aria-pressed={debugOpen}
             className={`sp2-icon-btn ${debugOpen ? "on" : ""}`}
           >
             <Bug className="w-5 h-5" />
           </button>
-          <button onClick={toggleTorch} aria-label="Toggle flash" className={`sp2-icon-btn ${torch ? "on" : ""}`}>
+          <button
+            onClick={toggleTorch}
+            aria-label={torch ? "Turn flash off" : "Turn flash on"}
+            aria-pressed={torch}
+            className={`sp2-icon-btn ${torch ? "on sp2-icon-btn-torch" : ""}`}
+          >
             {torch ? <Zap className="w-5 h-5" /> : <ZapOff className="w-5 h-5" />}
           </button>
         </div>
       </div>
 
+      {/* Live state strip — sits just under the topbar so the user always sees
+          a current-status line: starting / tracking / locked. */}
+      <div className="sp2-state-strip" role="status" aria-live="polite">
+        <span className={`sp2-state-dot sp2-state-${scanState}`} />
+        <span className="sp2-state-text">{stateLabel}</span>
+      </div>
+
       {/* Viewfinder */}
       <div className="sp2-frame-wrap">
-        <div className="sp2-frame">
+        <div className={`sp2-frame ${scanState === "locked" ? "sp2-frame-locked" : ""} ${scanState === "tracking" ? "sp2-frame-tracking" : ""}`}>
           <div className="sp2-frame-halo" />
           <span className="sp2-frame-corner top-0 left-0 border-t-[3px] border-l-[3px] rounded-tl-[22px]" />
           <span className="sp2-frame-corner top-0 right-0 border-t-[3px] border-r-[3px] rounded-tr-[22px]" />
           <span className="sp2-frame-corner bottom-0 left-0 border-b-[3px] border-l-[3px] rounded-bl-[22px]" />
           <span className="sp2-frame-corner bottom-0 right-0 border-b-[3px] border-r-[3px] rounded-br-[22px]" />
           <div className="sp2-beam" />
+          {scanState === "locked" && (
+            <div className="sp2-lock-badge" aria-hidden="true">
+              <ScanLine className="w-4 h-4" />
+              <span>Locked</span>
+            </div>
+          )}
         </div>
         <p className="sp2-frame-hint">
-          {starting ? "Starting camera…" : "Align the QR inside the frame"}
+          {scanState === "locked"
+            ? "Got it! Hold steady…"
+            : starting
+              ? "Starting camera…"
+              : "Align the QR inside the frame"}
         </p>
-        {!starting && (
+        {!starting && scanState !== "locked" && (
           <button onClick={manualSoftReset} className="sp2-retune">
             Camera stuck? Re-tune
           </button>
@@ -503,17 +602,18 @@ function ScannerView({ onBack, onDecoded }: { onBack: () => void; onDecoded: (p:
    ============================================================ */
 
 function ConfirmView({
-  payload, amount, onAmountChange, onConfirm, onBack, balance,
+  payload, amount, onAmountChange, note, onNoteChange, onConfirm, onBack, balance,
 }: {
   payload: UpiPayload;
   amount: number;
   onAmountChange: (n: number) => void;
+  note: string;
+  onNoteChange: (s: string) => void;
   onConfirm: () => void;
   onBack: () => void;
   balance: number;
 }) {
   const initial = (payload.payeeName || payload.upiId).trim().charAt(0).toUpperCase();
-  const [note, setNote] = useState<string>(payload.note ?? "");
   const canPay = amount > 0 && amount <= balance;
   const insufficient = amount > 0 && amount > balance;
 
@@ -524,22 +624,30 @@ function ConfirmView({
 
   const addAmount = (delta: number) => onAmountChange(Number((amount + delta).toFixed(2)));
 
+  // Allow Enter to submit when focused inside the form (note/amount), if it's payable.
+  const onFormKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && canPay) {
+      e.preventDefault();
+      onConfirm();
+    }
+  };
+
   return (
-    <div className="sp2-confirm tw-slide-up">
+    <div className="sp2-confirm tw-slide-up" onKeyDown={onFormKeyDown}>
       {/* Header */}
       <div className="sp2-confirm-head">
-        <button onClick={onBack} aria-label="Back" className="sp2-icon-btn">
+        <button onClick={onBack} aria-label="Back to scanner" className="sp2-icon-btn focus-visible:ring-2 focus-visible:ring-primary">
           <ArrowLeft className="w-5 h-5" />
         </button>
         <span className="sp2-confirm-title">Pay to merchant</span>
-        <button onClick={onBack} aria-label="Close" className="sp2-icon-btn">
+        <button onClick={onBack} aria-label="Close payment" className="sp2-icon-btn focus-visible:ring-2 focus-visible:ring-primary">
           <X className="w-5 h-5" />
         </button>
       </div>
 
       {/* Merchant verified card */}
-      <div className="sp2-merchant-card">
-        <div className="sp2-merchant-avatar">
+      <div className="sp2-merchant-card" role="group" aria-label={`Paying ${payload.payeeName || payload.upiId}`}>
+        <div className="sp2-merchant-avatar" aria-hidden="true">
           {initial || "?"}
           <span className="sp2-merchant-verified" title="Verified merchant">
             <ShieldCheck className="w-3 h-3" strokeWidth={3} />
@@ -556,19 +664,23 @@ function ConfirmView({
 
       {/* Amount */}
       <div className="sp2-amount-wrap">
-        <div className="sp2-amount-label">Enter amount</div>
+        <label htmlFor="sp2-amount-input" className="sp2-amount-label">Enter amount</label>
         <div className="sp2-amount-row">
-          <span className="sp2-amount-symbol">₹</span>
+          <span className="sp2-amount-symbol" aria-hidden="true">₹</span>
           <input
+            id="sp2-amount-input"
             autoFocus={!payload.amount}
             inputMode="decimal"
+            aria-label="Amount in rupees"
+            aria-invalid={insufficient || undefined}
+            aria-describedby={insufficient ? "sp2-amount-error" : undefined}
             value={amount === 0 ? "" : amount}
             onChange={(e) => {
               const v = e.target.value.replace(/[^0-9.]/g, "");
               onAmountChange(v === "" ? 0 : Number(v));
             }}
             placeholder="0"
-            className="sp2-amount-input bg-transparent"
+            className="sp2-amount-input bg-transparent focus-visible:outline-none"
           />
         </div>
 
@@ -585,18 +697,48 @@ function ConfirmView({
           </div>
         )}
 
-        {/* Quick amount chips */}
-        <div className="sp2-chips">
-          {quickAmounts.map((v) => (
-            <button key={v} className="sp2-chip" onClick={() => onAmountChange(v)}>
+        {/* Quick amount chips — keyboard navigable group with arrow-key support */}
+        <div
+          className="sp2-chips"
+          role="group"
+          aria-label="Quick amount selection"
+        >
+          {quickAmounts.map((v, i) => (
+            <button
+              key={v}
+              type="button"
+              className="sp2-chip focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+              onClick={() => onAmountChange(v)}
+              aria-label={`Set amount to ${v} rupees`}
+              aria-pressed={amount === v}
+              data-chip-index={i}
+              onKeyDown={(e) => {
+                if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
+                  e.preventDefault();
+                  const dir = e.key === "ArrowRight" ? 1 : -1;
+                  const next = e.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>("button.sp2-chip");
+                  if (!next) return;
+                  const arr = Array.from(next);
+                  const idx = arr.indexOf(e.currentTarget);
+                  arr[(idx + dir + arr.length) % arr.length]?.focus();
+                }
+              }}
+            >
               ₹{v}
             </button>
           ))}
-          <button className="sp2-chip sp2-chip-add" onClick={() => addAmount(100)}>+ ₹100</button>
+          <button
+            type="button"
+            className="sp2-chip sp2-chip-add focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            onClick={() => addAmount(100)}
+            aria-label="Add 100 rupees to amount"
+          >
+            + ₹100
+          </button>
         </div>
 
         {insufficient && (
-          <p className="mt-3 text-[12px] text-red-400 font-medium">
+          <p id="sp2-amount-error" role="alert" className="mt-3 text-[12px] text-red-400 font-medium">
             Insufficient balance · ₹{balance.toFixed(2)} available
           </p>
         )}
@@ -604,14 +746,20 @@ function ConfirmView({
 
       {/* Note input */}
       <div className="sp2-note-wrap">
+        <label htmlFor="sp2-note-input" className="sr-only">Add a note for this payment (optional)</label>
         <input
+          id="sp2-note-input"
           type="text"
           maxLength={50}
           value={note}
-          onChange={(e) => setNote(e.target.value)}
+          onChange={(e) => onNoteChange(e.target.value)}
           placeholder="Add a note (optional)"
-          className="sp2-note-input"
+          aria-describedby="sp2-note-counter"
+          className="sp2-note-input focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
         />
+        <span id="sp2-note-counter" className="sr-only">
+          {note.length} of 50 characters used
+        </span>
       </div>
 
       {/* Pay-from method selector */}
@@ -639,6 +787,7 @@ function ConfirmView({
 
 function SlideToPay({ disabled, onComplete }: { disabled: boolean; onComplete: () => void }) {
   const trackRef = useRef<HTMLDivElement | null>(null);
+  const knobRef = useRef<HTMLDivElement | null>(null);
   const [dragX, setDragX] = useState(0);
   const [dragging, setDragging] = useState(false);
   const [completed, setCompleted] = useState(false);
@@ -651,6 +800,13 @@ function SlideToPay({ disabled, onComplete }: { disabled: boolean; onComplete: (
     const w = trackRef.current?.offsetWidth ?? 320;
     return w - knobSize - padding * 2;
   };
+
+  const finish = useCallback(() => {
+    setDragX(getMaxX());
+    setCompleted(true);
+    if (navigator.vibrate) navigator.vibrate(50);
+    setTimeout(onComplete, 220);
+  }, [onComplete]);
 
   const handlePointerDown = (e: React.PointerEvent) => {
     if (disabled || completed) return;
@@ -669,16 +825,38 @@ function SlideToPay({ disabled, onComplete }: { disabled: boolean; onComplete: (
     setDragging(false);
     const max = getMaxX();
     if (dragX >= max - 6) {
-      setDragX(max);
-      setCompleted(true);
-      if (navigator.vibrate) navigator.vibrate(50);
-      setTimeout(onComplete, 220);
+      finish();
     } else {
       setDragX(0);
     }
   };
 
+  // Keyboard accessibility — arrow keys nudge the knob, Enter/Space confirms.
+  // This matches WAI-ARIA slider pattern and lets keyboard-only users pay.
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (disabled || completed) return;
+    const max = getMaxX();
+    const step = Math.max(20, Math.round(max / 8));
+    if (e.key === "ArrowRight" || e.key === "ArrowUp") {
+      e.preventDefault();
+      setDragX((x) => Math.min(max, x + step));
+    } else if (e.key === "ArrowLeft" || e.key === "ArrowDown") {
+      e.preventDefault();
+      setDragX((x) => Math.max(0, x - step));
+    } else if (e.key === "End") {
+      e.preventDefault();
+      setDragX(max);
+    } else if (e.key === "Home") {
+      e.preventDefault();
+      setDragX(0);
+    } else if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      finish();
+    }
+  };
+
   const fillWidth = `${Math.min(100, ((dragX + knobSize + padding * 2) / (trackRef.current?.offsetWidth || 1)) * 100)}%`;
+  const valueNow = Math.round((dragX / (getMaxX() || 1)) * 100);
 
   return (
     <div
@@ -687,19 +865,26 @@ function SlideToPay({ disabled, onComplete }: { disabled: boolean; onComplete: (
       style={{ opacity: disabled ? 0.45 : 1 }}
     >
       <div className="sp-slide-fill" style={{ width: completed ? "100%" : fillWidth, opacity: dragX > 4 ? 1 : 0 }} />
-      <div className="sp-slide-label" style={{ opacity: dragX > 60 ? 0 : 1 }}>SLIDE TO PAY</div>
+      <div className="sp-slide-label" style={{ opacity: dragX > 60 ? 0 : 1 }} aria-hidden="true">
+        {disabled ? "ENTER A VALID AMOUNT" : "SLIDE TO PAY"}
+      </div>
       <div
-        className="sp-slide-knob"
+        ref={knobRef}
+        className="sp-slide-knob focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-black"
         style={{ transform: `translateX(${dragX}px)`, transition: dragging ? "none" : "transform 220ms cubic-bezier(.2,.8,.2,1)" }}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerUp}
+        onKeyDown={handleKeyDown}
         role="slider"
-        aria-label="Slide to pay"
+        tabIndex={disabled ? -1 : 0}
+        aria-label="Slide to pay. Use arrow keys or press Enter to confirm payment."
         aria-valuemin={0}
         aria-valuemax={100}
-        aria-valuenow={Math.round((dragX / (getMaxX() || 1)) * 100)}
+        aria-valuenow={completed ? 100 : valueNow}
+        aria-valuetext={completed ? "Payment confirmed" : disabled ? "Disabled — enter a valid amount" : `${valueNow} percent`}
+        aria-disabled={disabled || undefined}
       >
         {completed ? <Check className="w-6 h-6" /> : <ArrowRight className="w-6 h-6" />}
         {!dragging && !completed && <span className="sp-knob-shine" />}
@@ -737,21 +922,73 @@ function ProcessingView({ amount }: { amount: number }) {
    5. SUCCESS
    ============================================================ */
 
-function SuccessView({ message, amount, payee, onDone }: { message: string; amount: number; payee: string; onDone: () => void }) {
+function SuccessView({
+  txn, payerName, payerPhone, onDone, onScanAgain,
+}: {
+  txn: SavedTxn;
+  payerName?: string | null;
+  payerPhone?: string | null;
+  onDone: () => void;
+  onScanAgain: () => void;
+}) {
+  const refId = txn.id.replace(/-/g, "").slice(0, 12).toUpperCase();
+  const dateStr = new Date(txn.createdAt).toLocaleString("en-IN", {
+    day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit",
+  });
+
+  const receipt = useCallback((): ReceiptData => ({
+    txnId: txn.id,
+    amount: txn.amount,
+    payee: txn.payee,
+    upiId: txn.upiId,
+    note: txn.note,
+    status: "success",
+    createdAt: txn.createdAt,
+    payerName,
+    payerPhone,
+  }), [txn, payerName, payerPhone]);
+
+  const handleDownload = () => {
+    try {
+      downloadReceiptPdf(receipt());
+      toast.success("Receipt downloaded");
+    } catch (e) {
+      toast.error("Couldn't generate receipt");
+    }
+  };
+
+  const handleShare = async () => {
+    try {
+      const shared = await shareReceiptPdf(receipt());
+      if (!shared) toast.success("Receipt downloaded");
+    } catch {
+      toast.error("Share failed");
+    }
+  };
+
+  const copyRef = () => {
+    try {
+      navigator.clipboard?.writeText(refId);
+      toast.success("Reference ID copied");
+    } catch {
+      // ignore
+    }
+  };
+
   return (
-    <div className="sp-success-root sp-success-vlines">
-      <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-6 text-center">
-        <div className="relative w-[160px] h-[160px] flex items-center justify-center">
+    <div className="sp-success-root sp-success-vlines" role="region" aria-label="Payment successful">
+      <div className="relative z-10 flex-1 flex flex-col items-center justify-start pt-10 px-6 text-center overflow-y-auto">
+        <div className="relative w-[140px] h-[140px] flex items-center justify-center">
           <span className="sp-success-ring" />
           <span className="sp-success-ring delay" />
           <div className="sp-success-badge">
-            <svg viewBox="0 0 64 64" width="56" height="56" fill="none" stroke="#eafff1" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round">
+            <svg viewBox="0 0 64 64" width="48" height="48" fill="none" stroke="#eafff1" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d="M16 33 L28 45 L48 22" className="sp-success-check" />
             </svg>
           </div>
           {Array.from({ length: 14 }).map((_, i) => {
             const angle = (i / 14) * Math.PI * 2;
-            const dist = 90 + (i % 3) * 10;
+            const dist = 80 + (i % 3) * 10;
             return (
               <span
                 key={i}
@@ -766,58 +1003,159 @@ function SuccessView({ message, amount, payee, onDone }: { message: string; amou
           })}
         </div>
 
-        <h2 className="mt-10 text-[26px] font-bold text-white tracking-tight kyc-fade-up">Payment successful</h2>
-        <p className="mt-2 text-[14px] text-white/65 kyc-fade-up" style={{ animationDelay: "120ms" }}>
-          ₹{amount.toFixed(0)} sent to <span className="text-white/90 font-medium">{payee || "recipient"}</span>
+        <h2 className="mt-6 text-[22px] font-bold text-white tracking-tight kyc-fade-up">Payment successful</h2>
+        <p className="mt-1 text-[13px] text-white/65 kyc-fade-up" style={{ animationDelay: "120ms" }}>
+          to <span className="text-white/90 font-medium">{txn.payee || "recipient"}</span>
         </p>
-        {message && <p className="mt-1 text-[11px] text-white/35">{message}</p>}
+
+        {/* Receipt card */}
+        <div className="sp-receipt-card kyc-fade-up" style={{ animationDelay: "180ms" }}>
+          <div className="sp-receipt-amount">
+            <span className="text-white/55 text-[12px] mr-2">Amount paid</span>
+            <span className="num-mono text-[28px] font-bold text-white">₹{txn.amount.toFixed(2)}</span>
+          </div>
+          <div className="sp-receipt-divider" />
+          <dl className="sp-receipt-grid">
+            <dt>Reference ID</dt>
+            <dd>
+              <button
+                type="button"
+                onClick={copyRef}
+                className="num-mono inline-flex items-center gap-1.5 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded px-1"
+                aria-label={`Reference ID ${refId}. Click to copy.`}
+              >
+                {refId}
+                <Copy className="w-3 h-3 opacity-60" />
+              </button>
+            </dd>
+            <dt>UPI ID</dt>
+            <dd className="truncate">{txn.upiId}</dd>
+            <dt>Date</dt>
+            <dd>{dateStr}</dd>
+            {txn.note && (<><dt>Note</dt><dd className="truncate">{txn.note}</dd></>)}
+            <dt>Status</dt>
+            <dd><span className="sp-receipt-status-ok">SUCCESS</span></dd>
+          </dl>
+        </div>
       </div>
 
-      <div className="relative z-10 px-5 pb-8 flex flex-col gap-3">
-        <button onClick={onDone} className="pv-btn">
-          <span className="pv-btn-shine" />
-          Done
-        </button>
-        <button
-          onClick={() => {
-            const text = `Payment of ₹${amount.toFixed(0)} to ${payee} via Teen Wallet`;
-            if (navigator.share) navigator.share({ title: "Payment receipt", text }).catch(() => {});
-            else { navigator.clipboard?.writeText(text); toast.success("Receipt copied"); }
-          }}
-          className="text-[13px] text-white/65 hover:text-white inline-flex items-center justify-center gap-2 py-2"
-        >
-          <Share2 className="w-4 h-4" /> Share receipt
-        </button>
+      <div className="relative z-10 px-5 pt-3 pb-6 flex flex-col gap-2 safe-bottom">
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            onClick={handleDownload}
+            className="sp-receipt-action focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            aria-label="Download receipt as PDF"
+          >
+            <Download className="w-4 h-4" />
+            Download PDF
+          </button>
+          <button
+            onClick={handleShare}
+            className="sp-receipt-action focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            aria-label="Share receipt"
+          >
+            <Share2 className="w-4 h-4" />
+            Share
+          </button>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            onClick={onScanAgain}
+            className="sp-receipt-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          >
+            Scan again
+          </button>
+          <button onClick={onDone} className="pv-btn">
+            <span className="pv-btn-shine" />
+            Done
+          </button>
+        </div>
       </div>
     </div>
   );
 }
 
 /* ============================================================
-   FAILED
+   FAILED — shows the real result + reference (when present) +
+   a retry that re-attempts the same payment without re-scanning.
    ============================================================ */
 
 function FailedView({
-  kind, message, onRetry, onCancel,
+  kind, message, amount, payee, onRetry, onScanAgain, onCancel,
 }: {
   kind: FailKind;
   message: string;
+  amount: number;
+  payee: string;
   onRetry: () => void;
+  onScanAgain: () => void;
   onCancel: () => void;
 }) {
   const isBalance = kind === "balance_changed";
-  const heading = isBalance ? "Balance changed" : "Payment failed";
-  const primaryLabel = isBalance ? "Scan a new QR" : "Try again";
+  const isBlocked = kind === "blocked";
+  const isInsufficient = kind === "insufficient";
+  const heading =
+    isBalance ? "Balance changed" :
+    isBlocked ? "Payment blocked" :
+    isInsufficient ? "Insufficient balance" :
+    "Payment failed";
+
+  // For balance/blocked failures, retrying the same charge doesn't help —
+  // user needs to re-scan or top up. Hide the inline retry in those cases.
+  const canInlineRetry = !isBalance && !isBlocked;
+
   return (
-    <div className="flex-1 flex flex-col items-center justify-center px-8 text-center tw-slide-up tw-shake bg-background">
-      <div className="w-24 h-24 rounded-full bg-destructive/15 border border-destructive/40 flex items-center justify-center">
-        <X className="w-12 h-12 text-destructive" strokeWidth={2} />
+    <div
+      className="flex-1 flex flex-col items-center justify-center px-6 text-center tw-slide-up bg-background"
+      role="alert"
+      aria-live="assertive"
+    >
+      <div className="w-20 h-20 rounded-full bg-destructive/15 border border-destructive/40 flex items-center justify-center tw-shake">
+        <X className="w-10 h-10 text-destructive" strokeWidth={2} />
       </div>
-      <h2 className="mt-8 text-2xl font-bold">{heading}</h2>
-      <p className="mt-2 text-sm text-muted-foreground">{message}</p>
-      <div className="mt-10 flex gap-3 w-full max-w-xs">
-        <button onClick={onCancel} className="btn-ghost flex-1">Cancel</button>
-        <button onClick={onRetry} className="btn-primary flex-1">{primaryLabel}</button>
+      <h2 className="mt-6 text-2xl font-bold">{heading}</h2>
+      {message && <p className="mt-2 text-sm text-muted-foreground max-w-xs">{message}</p>}
+
+      {/* Real result summary */}
+      {(amount > 0 || payee) && (
+        <div className="sp-fail-summary">
+          <div className="flex items-center justify-between">
+            <span className="text-white/55 text-[12px]">Attempted</span>
+            <span className="num-mono text-white text-[15px] font-semibold">₹{amount.toFixed(2)}</span>
+          </div>
+          {payee && (
+            <div className="flex items-center justify-between mt-1">
+              <span className="text-white/55 text-[12px]">To</span>
+              <span className="text-white/90 text-[13px] truncate max-w-[60%]">{payee}</span>
+            </div>
+          )}
+          <div className="flex items-center justify-between mt-1">
+            <span className="text-white/55 text-[12px]">Status</span>
+            <span className="sp-fail-status">FAILED</span>
+          </div>
+        </div>
+      )}
+
+      <div className="mt-8 flex flex-col gap-2 w-full max-w-xs">
+        {canInlineRetry && (
+          <button
+            onClick={onRetry}
+            className="btn-primary inline-flex items-center justify-center gap-2 focus-visible:ring-2 focus-visible:ring-primary"
+            aria-label="Retry the same payment"
+          >
+            <RotateCcw className="w-4 h-4" />
+            Retry payment
+          </button>
+        )}
+        <button
+          onClick={onScanAgain}
+          className={`${canInlineRetry ? "btn-ghost" : "btn-primary"} focus-visible:ring-2 focus-visible:ring-primary`}
+        >
+          Scan a new QR
+        </button>
+        <button onClick={onCancel} className="text-[12px] text-white/55 hover:text-white py-2">
+          Back to home
+        </button>
       </div>
     </div>
   );
