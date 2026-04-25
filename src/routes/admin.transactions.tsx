@@ -86,13 +86,18 @@ function TransactionsList() {
 
   useEffect(() => { void load(); }, [load]);
 
-  // Realtime
+  // Realtime — throttled
+  const lastTxnLoad = useRef(0);
   useEffect(() => {
+    const throttled = () => {
+      const now = Date.now();
+      if (now - lastTxnLoad.current < 3000) return;
+      lastTxnLoad.current = now;
+      void load();
+    };
     const ch = supabase
       .channel("admin_txns")
-      .on("postgres_changes", { event: "*", schema: "public", table: "transactions" }, () => {
-        void load();
-      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "transactions" }, throttled)
       .subscribe();
     return () => { supabase.removeChannel(ch); };
   }, [load]);
