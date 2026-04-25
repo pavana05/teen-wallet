@@ -40,6 +40,31 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
     } finally { setBusy(false); }
   }
 
+  function classifyError(e: unknown): { message: string; isNetwork: boolean } {
+    const raw = e instanceof Error ? e.message : String(e ?? "");
+    const lower = raw.toLowerCase();
+    const isNetwork =
+      lower.includes("failed to fetch") ||
+      lower.includes("networkerror") ||
+      lower.includes("load failed") ||
+      lower.includes("network request failed") ||
+      (e instanceof TypeError && lower.includes("fetch"));
+    if (isNetwork) {
+      return {
+        message:
+          "Couldn't reach our servers. This often happens in the in-app preview — please check your connection or open the published app and try again.",
+        isNetwork: true,
+      };
+    }
+    if (lower.includes("invalid") && lower.includes("otp")) {
+      return { message: "That code didn't match. Please re-enter the OTP.", isNetwork: false };
+    }
+    if (lower.includes("expired")) {
+      return { message: "Your OTP expired. Tap Resend to get a new code.", isNetwork: false };
+    }
+    return { message: raw || "Verification failed. Please try again.", isNetwork: false };
+  }
+
   async function handleVerify(code: string) {
     setBusy(true); setError("");
     try {
@@ -71,10 +96,21 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
       }
       setStep("verified");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Verification failed");
-      setOtp(["", "", "", "", "", ""]);
-      inputs.current[0]?.focus();
+      const { message, isNetwork } = classifyError(e);
+      setError(message);
+      toast.error(isNetwork ? "Network error" : "Verification failed", { description: message });
+      // Keep the entered code on network errors so the user can simply tap Try again.
+      if (!isNetwork) {
+        setOtp(["", "", "", "", "", ""]);
+        setTimeout(() => inputs.current[0]?.focus(), 0);
+      }
     } finally { setBusy(false); }
+  }
+
+  function retryVerify() {
+    const code = otp.join("");
+    if (code.length === 6) void handleVerify(code);
+    else inputs.current[otp.findIndex((d) => !d)]?.focus();
   }
 
   function onOtpChange(i: number, v: string) {
@@ -148,7 +184,19 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
               />
             ))}
           </div>
-          {error && <p className="text-destructive text-xs mt-3">{error}</p>}
+          {error && (
+            <div className="mt-3 space-y-2">
+              <p className="text-destructive text-xs leading-relaxed">{error}</p>
+              {!busy && otp.every((d) => d) && (
+                <button
+                  onClick={retryVerify}
+                  className="text-primary text-xs font-semibold underline underline-offset-2"
+                >
+                  Try again
+                </button>
+              )}
+            </div>
+          )}
 
           <div className="mt-6 text-sm">
             {resendIn > 0 ? (
