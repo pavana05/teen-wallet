@@ -74,6 +74,8 @@ export function Home() {
   const first = fullName?.split(" ")[0] ?? "Alex";
   const [view, setView] = useState<"home" | "scan">("home");
   const [quickAction, setQuickAction] = useState<QuickActionKind | null>(null);
+  const [showNotifs, setShowNotifs] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
   const [txns, setTxns] = useState<Txn[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
