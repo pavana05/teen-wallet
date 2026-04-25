@@ -2,6 +2,7 @@ import { createFileRoute, Outlet, useNavigate, Link, useRouterState } from "@tan
 import { useEffect, useState } from "react";
 import { useAdminSession, ROLE_LABELS, ROLE_BADGE } from "@/admin/lib/adminAuth";
 import { LayoutDashboard, Users, ShieldAlert, FileCheck2, Wallet, Settings, LogOut, Bell, Activity } from "lucide-react";
+import { PerfOverlay } from "@/admin/components/PerfOverlay";
 
 export const Route = createFileRoute("/admin")({
   component: AdminLayout,
