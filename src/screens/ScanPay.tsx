@@ -1124,6 +1124,23 @@ function SuccessView({
       </div>
 
       <div className="relative z-10 px-5 pt-3 pb-6 flex flex-col gap-2 safe-bottom">
+        {txn.upiDeepLink && (
+          <a
+            href={txn.upiDeepLink}
+            className="sp-receipt-action focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary justify-center"
+            aria-label="Open this payment in your UPI app"
+            onClick={() => {
+              if (!canOpenUpiApp()) {
+                toast.message("UPI apps work on phones", {
+                  description: "Open this page on your phone to hand off to GPay/PhonePe/Paytm.",
+                });
+              }
+            }}
+          >
+            <ExternalLink className="w-4 h-4" />
+            Open in UPI app
+          </a>
+        )}
         <div className="grid grid-cols-2 gap-2">
           <button
             onClick={handleDownload}
