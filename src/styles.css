@@ -1708,3 +1708,315 @@
   padding: 6px;
   font-style: italic;
 }
+
+/* ============================================================
+   ScanPay v2 — Premium GPay/PhonePe-grade UI
+   ============================================================ */
+
+/* ---- Top brand chip (scanner) ---- */
+.sp2-topbar {
+  position: absolute; top: 0; left: 0; right: 0; z-index: 30;
+  padding: 18px 16px 14px;
+  display: flex; align-items: center; justify-content: space-between;
+  background: linear-gradient(180deg, rgba(0,0,0,.55), transparent);
+}
+.sp2-brand {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 14px 8px 10px;
+  border-radius: 999px;
+  background: rgba(255,255,255,.08);
+  border: 1px solid rgba(255,255,255,.12);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+.sp2-brand-dot {
+  width: 24px; height: 24px; border-radius: 50%;
+  background:
+    radial-gradient(circle at 30% 25%, rgba(255,255,255,.6), transparent 50%),
+    linear-gradient(135deg, #6ee7a3, #22c55e);
+  box-shadow: 0 0 12px rgba(110,231,163,.6), inset 0 1px 0 rgba(255,255,255,.4);
+  display: flex; align-items: center; justify-content: center;
+  color: #04140a; font-weight: 800; font-size: 11px;
+}
+.sp2-brand-text {
+  font-size: 12px; font-weight: 600; letter-spacing: .04em;
+  color: rgba(255,255,255,.92);
+}
+.sp2-icon-btn {
+  width: 38px; height: 38px; border-radius: 50%;
+  background: rgba(255,255,255,.08);
+  border: 1px solid rgba(255,255,255,.12);
+  backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+  display: flex; align-items: center; justify-content: center;
+  color: rgba(255,255,255,.92);
+  transition: transform 140ms ease, background 180ms ease;
+}
+.sp2-icon-btn:active { transform: scale(.92); }
+.sp2-icon-btn.on {
+  background: linear-gradient(135deg, #fde68a, #f59e0b);
+  color: #1a1300; border-color: rgba(245,158,11,.6);
+  box-shadow: 0 0 18px rgba(245,158,11,.5);
+}
+
+/* ---- Frame v2: refined corners + dual beam + soft halo ---- */
+.sp2-frame-wrap {
+  position: absolute; inset: 0; z-index: 20;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  pointer-events: none;
+}
+.sp2-frame {
+  position: relative; width: 264px; height: 264px;
+  border-radius: 28px;
+}
+.sp2-frame-corner {
+  position: absolute; width: 34px; height: 34px;
+  border-color: #6ee7a3;
+  filter: drop-shadow(0 0 8px rgba(110,231,163,.55));
+}
+@keyframes sp2-beam {
+  0%   { transform: translateY(0); opacity: 0; }
+  10%  { opacity: 1; }
+  90%  { opacity: 1; }
+  100% { transform: translateY(248px); opacity: 0; }
+}
+.sp2-beam {
+  position: absolute; left: 12px; right: 12px; top: 6px; height: 2px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, transparent, #6ee7a3 30%, #ffffff 50%, #6ee7a3 70%, transparent);
+  box-shadow: 0 0 14px #6ee7a3, 0 0 32px rgba(110,231,163,.6);
+  animation: sp2-beam 2.4s cubic-bezier(.4,0,.2,1) infinite;
+}
+.sp2-frame-halo {
+  position: absolute; inset: -50px; border-radius: 40px;
+  background: radial-gradient(closest-side, rgba(110,231,163,.18), transparent 70%);
+  filter: blur(22px);
+}
+.sp2-frame-hint {
+  margin-top: 26px;
+  font-size: 13px; color: rgba(255,255,255,.85);
+  letter-spacing: .02em; font-weight: 500;
+  text-shadow: 0 1px 8px rgba(0,0,0,.6);
+}
+.sp2-retune {
+  pointer-events: auto; margin-top: 8px;
+  font-size: 11px; color: rgba(255,255,255,.6);
+  text-decoration: underline; text-underline-offset: 4px;
+}
+
+/* ---- Bottom action dock ---- */
+.sp2-dock {
+  position: absolute; left: 12px; right: 12px; bottom: 18px; z-index: 30;
+  padding: 14px 14px;
+  border-radius: 24px;
+  background: rgba(14,14,18,.72);
+  border: 1px solid rgba(255,255,255,.08);
+  backdrop-filter: blur(20px) saturate(1.2);
+  -webkit-backdrop-filter: blur(20px) saturate(1.2);
+  box-shadow: 0 12px 36px -12px rgba(0,0,0,.6);
+}
+.sp2-dock-row {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+}
+.sp2-dock-btn {
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  padding: 10px 6px;
+  border-radius: 16px;
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(255,255,255,.06);
+  color: rgba(255,255,255,.92);
+  cursor: pointer;
+  transition: transform 140ms ease, background 180ms ease, border-color 180ms ease;
+}
+.sp2-dock-btn:active { transform: scale(.97); }
+.sp2-dock-btn:hover { background: rgba(255,255,255,.07); border-color: rgba(255,255,255,.12); }
+.sp2-dock-icon {
+  width: 38px; height: 38px; border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(160deg, rgba(110,231,163,.18), rgba(34,197,94,.08));
+  border: 1px solid rgba(110,231,163,.22);
+  color: #6ee7a3;
+}
+.sp2-dock-label {
+  font-size: 11px; font-weight: 500; letter-spacing: .01em;
+  color: rgba(255,255,255,.78);
+}
+
+/* ---- Confirm v2: merchant card, chips, dock ---- */
+.sp2-confirm {
+  position: relative; flex: 1; display: flex; flex-direction: column;
+  background:
+    radial-gradient(140% 60% at 50% -10%, rgba(110,231,163,.18), transparent 60%),
+    radial-gradient(80% 60% at 50% 100%, rgba(76,99,255,.10), transparent 60%),
+    linear-gradient(180deg, #0a0c10 0%, #06070b 100%);
+  overflow: hidden;
+}
+.sp2-confirm::before {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background-image:
+    linear-gradient(rgba(255,255,255,.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.025) 1px, transparent 1px);
+  background-size: 32px 32px;
+  mask-image: radial-gradient(80% 60% at 50% 30%, #000, transparent 75%);
+  -webkit-mask-image: radial-gradient(80% 60% at 50% 30%, #000, transparent 75%);
+}
+.sp2-confirm-head {
+  position: relative; z-index: 10;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 16px 4px;
+}
+.sp2-confirm-title {
+  font-size: 11px; letter-spacing: .22em; text-transform: uppercase;
+  color: rgba(255,255,255,.45); font-weight: 600;
+}
+.sp2-merchant-card {
+  position: relative; z-index: 10;
+  margin: 14px 16px 0;
+  padding: 18px 18px 16px;
+  border-radius: 22px;
+  background: linear-gradient(180deg, rgba(255,255,255,.045), rgba(255,255,255,.015));
+  border: 1px solid rgba(255,255,255,.08);
+  backdrop-filter: blur(14px);
+  display: flex; align-items: center; gap: 14px;
+  box-shadow: 0 14px 30px -16px rgba(0,0,0,.5);
+}
+.sp2-merchant-avatar {
+  position: relative;
+  width: 56px; height: 56px; border-radius: 18px; flex-shrink: 0;
+  background:
+    radial-gradient(circle at 30% 25%, rgba(255,255,255,.4), transparent 50%),
+    linear-gradient(160deg, #6366f1, #8b5cf6 70%, #4338ca);
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; font-weight: 700; font-size: 22px;
+  box-shadow: 0 8px 20px -8px rgba(99,102,241,.6), inset 0 1px 0 rgba(255,255,255,.25);
+}
+.sp2-merchant-verified {
+  position: absolute; right: -4px; bottom: -4px;
+  width: 20px; height: 20px; border-radius: 50%;
+  background: linear-gradient(135deg, #6ee7a3, #22c55e);
+  border: 2px solid #0a0c10;
+  display: flex; align-items: center; justify-content: center;
+  color: #04140a;
+}
+.sp2-merchant-info { flex: 1; min-width: 0; }
+.sp2-merchant-name {
+  font-size: 16px; font-weight: 700; color: #fff;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  display: flex; align-items: center; gap: 6px;
+}
+.sp2-merchant-upi {
+  font-size: 12px; color: rgba(255,255,255,.5);
+  font-family: var(--font-mono); margin-top: 3px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.sp2-merchant-tag {
+  font-size: 10px; font-weight: 600; letter-spacing: .04em;
+  color: #6ee7a3; background: rgba(110,231,163,.12);
+  border: 1px solid rgba(110,231,163,.25);
+  padding: 2px 6px; border-radius: 6px;
+}
+
+/* Amount block */
+.sp2-amount-wrap {
+  position: relative; z-index: 10;
+  flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 0 24px;
+}
+.sp2-amount-label {
+  font-size: 10px; letter-spacing: .24em; text-transform: uppercase;
+  color: rgba(255,255,255,.4); font-weight: 600; margin-bottom: 14px;
+}
+.sp2-amount-row {
+  display: flex; align-items: baseline; gap: 4px;
+  min-height: 88px;
+}
+.sp2-amount-symbol {
+  font-size: 32px; font-weight: 600; color: rgba(255,255,255,.55);
+  font-family: var(--font-mono);
+}
+.sp2-amount-input {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 72px; font-weight: 700; letter-spacing: -0.04em;
+  background: linear-gradient(180deg, #fff, #d6e4ff 90%);
+  -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-align: center; max-width: 240px; outline: none;
+  caret-color: #6ee7a3;
+}
+.sp2-amount-input::placeholder { -webkit-text-fill-color: rgba(255,255,255,.18); }
+
+.sp2-from-qr {
+  margin-top: 8px;
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 4px 10px; border-radius: 999px;
+  background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.08);
+  font-size: 11px; color: rgba(255,255,255,.7);
+}
+
+/* Quick amount chips */
+.sp2-chips {
+  margin-top: 18px; display: flex; gap: 8px; flex-wrap: wrap;
+  justify-content: center;
+}
+.sp2-chip {
+  padding: 8px 14px; border-radius: 999px;
+  background: rgba(255,255,255,.05);
+  border: 1px solid rgba(255,255,255,.10);
+  font-size: 13px; font-weight: 600; color: rgba(255,255,255,.85);
+  font-family: var(--font-mono);
+  cursor: pointer;
+  transition: transform 140ms ease, background 180ms ease, border-color 180ms ease;
+}
+.sp2-chip:hover { background: rgba(110,231,163,.10); border-color: rgba(110,231,163,.28); color: #d2ffe2; }
+.sp2-chip:active { transform: scale(.95); }
+.sp2-chip-add {
+  background: rgba(110,231,163,.10);
+  color: #6ee7a3;
+  border-color: rgba(110,231,163,.22);
+}
+
+/* Note input */
+.sp2-note-wrap {
+  margin: 16px 16px 0; position: relative; z-index: 10;
+}
+.sp2-note-input {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(255,255,255,.08);
+  color: #fff; font-size: 13px;
+  outline: none;
+  transition: border-color 180ms ease, background 180ms ease;
+}
+.sp2-note-input::placeholder { color: rgba(255,255,255,.35); }
+.sp2-note-input:focus { border-color: rgba(110,231,163,.4); background: rgba(255,255,255,.06); }
+
+/* Pay-from card (method selector) */
+.sp2-method {
+  margin: 12px 16px 0; position: relative; z-index: 10;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(255,255,255,.08);
+  display: flex; align-items: center; gap: 12px;
+}
+.sp2-method-icon {
+  width: 36px; height: 36px; border-radius: 10px;
+  background: linear-gradient(135deg, #1e293b, #0f172a);
+  border: 1px solid rgba(255,255,255,.10);
+  display: flex; align-items: center; justify-content: center;
+  color: #6ee7a3;
+}
+.sp2-method-info { flex: 1; min-width: 0; }
+.sp2-method-label {
+  font-size: 10px; letter-spacing: .14em; text-transform: uppercase;
+  color: rgba(255,255,255,.45); font-weight: 600;
+}
+.sp2-method-name {
+  font-size: 13px; color: #fff; font-weight: 600; margin-top: 1px;
+}
+.sp2-method-bal {
+  font-family: var(--font-mono); font-size: 13px; color: #6ee7a3; font-weight: 600;
+}
+
