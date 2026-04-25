@@ -39,10 +39,15 @@ export function ProfilePanel({ onClose }: Props) {
     created_at: string;
   } | null>(null);
   const [stats, setStats] = useState<Stats>({ totalSpent: 0, txnCount: 0, monthSpent: 0, successRate: 100 });
+  const [profileLoading, setProfileLoading] = useState(true);
+  const [statsLoading, setStatsLoading] = useState(true);
+  const [profileError, setProfileError] = useState(false);
   const [hideBalance, setHideBalance] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
   const [editOpen, setEditOpen] = useState(false);
   const [confirmLogout, setConfirmLogout] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [qrOpen, setQrOpen] = useState(false);
 
   // preferences (local)
   const [prefs, setPrefs] = useState(() => {
