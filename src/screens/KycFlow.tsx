@@ -84,6 +84,8 @@ export function KycFlow({ onDone }: { onDone: () => void }) {
         if (d.front) setDocFront(d.front);
         if (d.back) setDocBack(d.back);
       }
+      const lastRaw = localStorage.getItem(KYC_LAST_SUBMISSION_KEY);
+      if (lastRaw) setLastSubmission(JSON.parse(lastRaw) as LastSubmission);
     } catch { /* ignore */ }
 
     // Also hydrate from server profile (cross-device resume).
