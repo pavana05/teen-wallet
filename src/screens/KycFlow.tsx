@@ -9,10 +9,11 @@ type Step = 1 | 2 | 3;
 type SelfiePayload = { dataUrl: string; width: number; height: number; bytes: number };
 type DocSide = "front" | "back";
 type DocState = { path: string; name: string; size: number } | null;
+type SubStatus = "pending" | "approved" | "rejected" | "not_started";
 type LastSubmission = {
   submissionId: string;
   providerRef: string | null;
-  status: "pending" | "approved" | "rejected";
+  status: SubStatus;
   submittedAt: string;
   reason?: string | null;
 };
