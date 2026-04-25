@@ -922,21 +922,73 @@ function ProcessingView({ amount }: { amount: number }) {
    5. SUCCESS
    ============================================================ */
 
-function SuccessView({ message, amount, payee, onDone }: { message: string; amount: number; payee: string; onDone: () => void }) {
+function SuccessView({
+  txn, payerName, payerPhone, onDone, onScanAgain,
+}: {
+  txn: SavedTxn;
+  payerName?: string | null;
+  payerPhone?: string | null;
+  onDone: () => void;
+  onScanAgain: () => void;
+}) {
+  const refId = txn.id.replace(/-/g, "").slice(0, 12).toUpperCase();
+  const dateStr = new Date(txn.createdAt).toLocaleString("en-IN", {
+    day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit",
+  });
+
+  const receipt = useCallback((): ReceiptData => ({
+    txnId: txn.id,
+    amount: txn.amount,
+    payee: txn.payee,
+    upiId: txn.upiId,
+    note: txn.note,
+    status: "success",
+    createdAt: txn.createdAt,
+    payerName,
+    payerPhone,
+  }), [txn, payerName, payerPhone]);
+
+  const handleDownload = () => {
+    try {
+      downloadReceiptPdf(receipt());
+      toast.success("Receipt downloaded");
+    } catch (e) {
+      toast.error("Couldn't generate receipt");
+    }
+  };
+
+  const handleShare = async () => {
+    try {
+      const shared = await shareReceiptPdf(receipt());
+      if (!shared) toast.success("Receipt downloaded");
+    } catch {
+      toast.error("Share failed");
+    }
+  };
+
+  const copyRef = () => {
+    try {
+      navigator.clipboard?.writeText(refId);
+      toast.success("Reference ID copied");
+    } catch {
+      // ignore
+    }
+  };
+
   return (
-    <div className="sp-success-root sp-success-vlines">
-      <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-6 text-center">
-        <div className="relative w-[160px] h-[160px] flex items-center justify-center">
+    <div className="sp-success-root sp-success-vlines" role="region" aria-label="Payment successful">
+      <div className="relative z-10 flex-1 flex flex-col items-center justify-start pt-10 px-6 text-center overflow-y-auto">
+        <div className="relative w-[140px] h-[140px] flex items-center justify-center">
           <span className="sp-success-ring" />
           <span className="sp-success-ring delay" />
           <div className="sp-success-badge">
-            <svg viewBox="0 0 64 64" width="56" height="56" fill="none" stroke="#eafff1" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round">
+            <svg viewBox="0 0 64 64" width="48" height="48" fill="none" stroke="#eafff1" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d="M16 33 L28 45 L48 22" className="sp-success-check" />
             </svg>
           </div>
           {Array.from({ length: 14 }).map((_, i) => {
             const angle = (i / 14) * Math.PI * 2;
-            const dist = 90 + (i % 3) * 10;
+            const dist = 80 + (i % 3) * 10;
             return (
               <span
                 key={i}
@@ -951,58 +1003,159 @@ function SuccessView({ message, amount, payee, onDone }: { message: string; amou
           })}
         </div>
 
-        <h2 className="mt-10 text-[26px] font-bold text-white tracking-tight kyc-fade-up">Payment successful</h2>
-        <p className="mt-2 text-[14px] text-white/65 kyc-fade-up" style={{ animationDelay: "120ms" }}>
-          ₹{amount.toFixed(0)} sent to <span className="text-white/90 font-medium">{payee || "recipient"}</span>
+        <h2 className="mt-6 text-[22px] font-bold text-white tracking-tight kyc-fade-up">Payment successful</h2>
+        <p className="mt-1 text-[13px] text-white/65 kyc-fade-up" style={{ animationDelay: "120ms" }}>
+          to <span className="text-white/90 font-medium">{txn.payee || "recipient"}</span>
         </p>
-        {message && <p className="mt-1 text-[11px] text-white/35">{message}</p>}
+
+        {/* Receipt card */}
+        <div className="sp-receipt-card kyc-fade-up" style={{ animationDelay: "180ms" }}>
+          <div className="sp-receipt-amount">
+            <span className="text-white/55 text-[12px] mr-2">Amount paid</span>
+            <span className="num-mono text-[28px] font-bold text-white">₹{txn.amount.toFixed(2)}</span>
+          </div>
+          <div className="sp-receipt-divider" />
+          <dl className="sp-receipt-grid">
+            <dt>Reference ID</dt>
+            <dd>
+              <button
+                type="button"
+                onClick={copyRef}
+                className="num-mono inline-flex items-center gap-1.5 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded px-1"
+                aria-label={`Reference ID ${refId}. Click to copy.`}
+              >
+                {refId}
+                <Copy className="w-3 h-3 opacity-60" />
+              </button>
+            </dd>
+            <dt>UPI ID</dt>
+            <dd className="truncate">{txn.upiId}</dd>
+            <dt>Date</dt>
+            <dd>{dateStr}</dd>
+            {txn.note && (<><dt>Note</dt><dd className="truncate">{txn.note}</dd></>)}
+            <dt>Status</dt>
+            <dd><span className="sp-receipt-status-ok">SUCCESS</span></dd>
+          </dl>
+        </div>
       </div>
 
-      <div className="relative z-10 px-5 pb-8 flex flex-col gap-3">
-        <button onClick={onDone} className="pv-btn">
-          <span className="pv-btn-shine" />
-          Done
-        </button>
-        <button
-          onClick={() => {
-            const text = `Payment of ₹${amount.toFixed(0)} to ${payee} via Teen Wallet`;
-            if (navigator.share) navigator.share({ title: "Payment receipt", text }).catch(() => {});
-            else { navigator.clipboard?.writeText(text); toast.success("Receipt copied"); }
-          }}
-          className="text-[13px] text-white/65 hover:text-white inline-flex items-center justify-center gap-2 py-2"
-        >
-          <Share2 className="w-4 h-4" /> Share receipt
-        </button>
+      <div className="relative z-10 px-5 pt-3 pb-6 flex flex-col gap-2 safe-bottom">
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            onClick={handleDownload}
+            className="sp-receipt-action focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            aria-label="Download receipt as PDF"
+          >
+            <Download className="w-4 h-4" />
+            Download PDF
+          </button>
+          <button
+            onClick={handleShare}
+            className="sp-receipt-action focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            aria-label="Share receipt"
+          >
+            <Share2 className="w-4 h-4" />
+            Share
+          </button>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            onClick={onScanAgain}
+            className="sp-receipt-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          >
+            Scan again
+          </button>
+          <button onClick={onDone} className="pv-btn">
+            <span className="pv-btn-shine" />
+            Done
+          </button>
+        </div>
       </div>
     </div>
   );
 }
 
 /* ============================================================
-   FAILED
+   FAILED — shows the real result + reference (when present) +
+   a retry that re-attempts the same payment without re-scanning.
    ============================================================ */
 
 function FailedView({
-  kind, message, onRetry, onCancel,
+  kind, message, amount, payee, onRetry, onScanAgain, onCancel,
 }: {
   kind: FailKind;
   message: string;
+  amount: number;
+  payee: string;
   onRetry: () => void;
+  onScanAgain: () => void;
   onCancel: () => void;
 }) {
   const isBalance = kind === "balance_changed";
-  const heading = isBalance ? "Balance changed" : "Payment failed";
-  const primaryLabel = isBalance ? "Scan a new QR" : "Try again";
+  const isBlocked = kind === "blocked";
+  const isInsufficient = kind === "insufficient";
+  const heading =
+    isBalance ? "Balance changed" :
+    isBlocked ? "Payment blocked" :
+    isInsufficient ? "Insufficient balance" :
+    "Payment failed";
+
+  // For balance/blocked failures, retrying the same charge doesn't help —
+  // user needs to re-scan or top up. Hide the inline retry in those cases.
+  const canInlineRetry = !isBalance && !isBlocked;
+
   return (
-    <div className="flex-1 flex flex-col items-center justify-center px-8 text-center tw-slide-up tw-shake bg-background">
-      <div className="w-24 h-24 rounded-full bg-destructive/15 border border-destructive/40 flex items-center justify-center">
-        <X className="w-12 h-12 text-destructive" strokeWidth={2} />
+    <div
+      className="flex-1 flex flex-col items-center justify-center px-6 text-center tw-slide-up bg-background"
+      role="alert"
+      aria-live="assertive"
+    >
+      <div className="w-20 h-20 rounded-full bg-destructive/15 border border-destructive/40 flex items-center justify-center tw-shake">
+        <X className="w-10 h-10 text-destructive" strokeWidth={2} />
       </div>
-      <h2 className="mt-8 text-2xl font-bold">{heading}</h2>
-      <p className="mt-2 text-sm text-muted-foreground">{message}</p>
-      <div className="mt-10 flex gap-3 w-full max-w-xs">
-        <button onClick={onCancel} className="btn-ghost flex-1">Cancel</button>
-        <button onClick={onRetry} className="btn-primary flex-1">{primaryLabel}</button>
+      <h2 className="mt-6 text-2xl font-bold">{heading}</h2>
+      {message && <p className="mt-2 text-sm text-muted-foreground max-w-xs">{message}</p>}
+
+      {/* Real result summary */}
+      {(amount > 0 || payee) && (
+        <div className="sp-fail-summary">
+          <div className="flex items-center justify-between">
+            <span className="text-white/55 text-[12px]">Attempted</span>
+            <span className="num-mono text-white text-[15px] font-semibold">₹{amount.toFixed(2)}</span>
+          </div>
+          {payee && (
+            <div className="flex items-center justify-between mt-1">
+              <span className="text-white/55 text-[12px]">To</span>
+              <span className="text-white/90 text-[13px] truncate max-w-[60%]">{payee}</span>
+            </div>
+          )}
+          <div className="flex items-center justify-between mt-1">
+            <span className="text-white/55 text-[12px]">Status</span>
+            <span className="sp-fail-status">FAILED</span>
+          </div>
+        </div>
+      )}
+
+      <div className="mt-8 flex flex-col gap-2 w-full max-w-xs">
+        {canInlineRetry && (
+          <button
+            onClick={onRetry}
+            className="btn-primary inline-flex items-center justify-center gap-2 focus-visible:ring-2 focus-visible:ring-primary"
+            aria-label="Retry the same payment"
+          >
+            <RotateCcw className="w-4 h-4" />
+            Retry payment
+          </button>
+        )}
+        <button
+          onClick={onScanAgain}
+          className={`${canInlineRetry ? "btn-ghost" : "btn-primary"} focus-visible:ring-2 focus-visible:ring-primary`}
+        >
+          Scan a new QR
+        </button>
+        <button onClick={onCancel} className="text-[12px] text-white/55 hover:text-white py-2">
+          Back to home
+        </button>
       </div>
     </div>
   );
