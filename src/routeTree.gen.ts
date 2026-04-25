@@ -19,6 +19,7 @@ import { Route as AdminLoginRouteImport } from './routes/admin.login'
 import { Route as AdminKycRouteImport } from './routes/admin.kyc'
 import { Route as AdminFraudRouteImport } from './routes/admin.fraud'
 import { Route as ApiKycVerifyRouteImport } from './routes/api/kyc.verify'
+import { Route as AdminUsersIdRouteImport } from './routes/admin.users.$id'
 
 const AdminRoute = AdminRouteImport.update({
   id: '/admin',
@@ -70,6 +71,11 @@ const ApiKycVerifyRoute = ApiKycVerifyRouteImport.update({
   path: '/api/kyc/verify',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminUsersIdRoute = AdminUsersIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => AdminUsersRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -79,8 +85,9 @@ export interface FileRoutesByFullPath {
   '/admin/login': typeof AdminLoginRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/transactions': typeof AdminTransactionsRoute
-  '/admin/users': typeof AdminUsersRoute
+  '/admin/users': typeof AdminUsersRouteWithChildren
   '/admin/': typeof AdminIndexRoute
+  '/admin/users/$id': typeof AdminUsersIdRoute
   '/api/kyc/verify': typeof ApiKycVerifyRoute
 }
 export interface FileRoutesByTo {
@@ -90,8 +97,9 @@ export interface FileRoutesByTo {
   '/admin/login': typeof AdminLoginRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/transactions': typeof AdminTransactionsRoute
-  '/admin/users': typeof AdminUsersRoute
+  '/admin/users': typeof AdminUsersRouteWithChildren
   '/admin': typeof AdminIndexRoute
+  '/admin/users/$id': typeof AdminUsersIdRoute
   '/api/kyc/verify': typeof ApiKycVerifyRoute
 }
 export interface FileRoutesById {
@@ -103,8 +111,9 @@ export interface FileRoutesById {
   '/admin/login': typeof AdminLoginRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/transactions': typeof AdminTransactionsRoute
-  '/admin/users': typeof AdminUsersRoute
+  '/admin/users': typeof AdminUsersRouteWithChildren
   '/admin/': typeof AdminIndexRoute
+  '/admin/users/$id': typeof AdminUsersIdRoute
   '/api/kyc/verify': typeof ApiKycVerifyRoute
 }
 export interface FileRouteTypes {
@@ -119,6 +128,7 @@ export interface FileRouteTypes {
     | '/admin/transactions'
     | '/admin/users'
     | '/admin/'
+    | '/admin/users/$id'
     | '/api/kyc/verify'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -130,6 +140,7 @@ export interface FileRouteTypes {
     | '/admin/transactions'
     | '/admin/users'
     | '/admin'
+    | '/admin/users/$id'
     | '/api/kyc/verify'
   id:
     | '__root__'
@@ -142,6 +153,7 @@ export interface FileRouteTypes {
     | '/admin/transactions'
     | '/admin/users'
     | '/admin/'
+    | '/admin/users/$id'
     | '/api/kyc/verify'
   fileRoutesById: FileRoutesById
 }
@@ -223,8 +235,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiKycVerifyRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/users/$id': {
+      id: '/admin/users/$id'
+      path: '/$id'
+      fullPath: '/admin/users/$id'
+      preLoaderRoute: typeof AdminUsersIdRouteImport
+      parentRoute: typeof AdminUsersRoute
+    }
   }
 }
+
+interface AdminUsersRouteChildren {
+  AdminUsersIdRoute: typeof AdminUsersIdRoute
+}
+
+const AdminUsersRouteChildren: AdminUsersRouteChildren = {
+  AdminUsersIdRoute: AdminUsersIdRoute,
+}
+
+const AdminUsersRouteWithChildren = AdminUsersRoute._addFileChildren(
+  AdminUsersRouteChildren,
+)
 
 interface AdminRouteChildren {
   AdminFraudRoute: typeof AdminFraudRoute
@@ -232,7 +263,7 @@ interface AdminRouteChildren {
   AdminLoginRoute: typeof AdminLoginRoute
   AdminSettingsRoute: typeof AdminSettingsRoute
   AdminTransactionsRoute: typeof AdminTransactionsRoute
-  AdminUsersRoute: typeof AdminUsersRoute
+  AdminUsersRoute: typeof AdminUsersRouteWithChildren
   AdminIndexRoute: typeof AdminIndexRoute
 }
 
@@ -242,7 +273,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminLoginRoute: AdminLoginRoute,
   AdminSettingsRoute: AdminSettingsRoute,
   AdminTransactionsRoute: AdminTransactionsRoute,
-  AdminUsersRoute: AdminUsersRoute,
+  AdminUsersRoute: AdminUsersRouteWithChildren,
   AdminIndexRoute: AdminIndexRoute,
 }
 

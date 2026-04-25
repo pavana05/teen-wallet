@@ -424,5 +424,247 @@ Deno.serve(async (req) => {
     return json({ ok: true });
   }
 
+  // ---------------------------------------------------------------
+  // Authenticated data RPCs (require valid sessionToken)
+  // ---------------------------------------------------------------
+  async function authenticate(): Promise<{ id: string; email: string; role: string; name: string } | null> {
+    const sessionToken = String(body.sessionToken ?? "");
+    if (!sessionToken) return null;
+    const sessionHash = await sha256Hex("session:" + sessionToken);
+    const { data: s } = await sb.from("admin_sessions").select("*").eq("session_token_hash", sessionHash).maybeSingle();
+    if (!s || s.invalidated_at || new Date(s.expires_at) < new Date()) return null;
+    const { data: a } = await sb.from("admin_users").select("id,email,name,role,status").eq("id", s.admin_id).maybeSingle();
+    if (!a || a.status !== "active") return null;
+    await sb.from("admin_sessions").update({ last_seen_at: new Date().toISOString() }).eq("id", s.id);
+    return a as any;
+  }
+
+  const ROLE_PERMS: Record<string, string[]> = {
+    viewUsers: ["super_admin", "operations_manager", "customer_support"],
+    manageUsers: ["super_admin", "operations_manager"],
+    viewDashboard: ["super_admin", "operations_manager", "compliance_officer", "customer_support", "fraud_analyst", "finance_manager"],
+  };
+  function can(role: string, perm: string) {
+    return (ROLE_PERMS[perm] || []).includes(role);
+  }
+
+  const me = await authenticate();
+  if (!me) return json({ error: "unauthorized" }, 401);
+
+  // ----- Dashboard stats -----
+  if (action === "dashboard_stats") {
+    if (!can(me.role, "viewDashboard")) return json({ error: "forbidden" }, 403);
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+    const sevenDaysAgo = new Date(now.getTime() - 7 * 86400000).toISOString();
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 86400000).toISOString();
+    const yesterday = new Date(now.getTime() - 86400000).toISOString();
+
+    const [users, usersWeek, kycPending, txnsToday, txnsAll, fraudOpen] = await Promise.all([
+      sb.from("profiles").select("id", { count: "exact", head: true }),
+      sb.from("profiles").select("id", { count: "exact", head: true }).gte("created_at", sevenDaysAgo),
+      sb.from("profiles").select("id", { count: "exact", head: true }).eq("kyc_status", "pending"),
+      sb.from("transactions").select("amount,status,created_at").gte("created_at", startOfToday),
+      sb.from("transactions").select("amount,created_at,status").gte("created_at", thirtyDaysAgo),
+      sb.from("fraud_logs").select("id,rule_triggered,created_at").is("resolution", null),
+    ]);
+
+    const totalUsers = users.count ?? 0;
+    const newUsers7d = usersWeek.count ?? 0;
+    const txnsTodayList = txnsToday.data ?? [];
+    const totalTxnsToday = txnsTodayList.length;
+    const totalVolumeToday = txnsTodayList.reduce((acc: number, t: any) => acc + Number(t.amount || 0), 0);
+    const successToday = txnsTodayList.filter((t: any) => t.status === "success").length;
+    const successRate = totalTxnsToday ? Math.round((successToday / totalTxnsToday) * 1000) / 10 : 100;
+
+    // Active today: distinct users with txn in last 24h
+    const { data: activeRows } = await sb
+      .from("transactions")
+      .select("user_id")
+      .gte("created_at", yesterday);
+    const activeToday = new Set((activeRows ?? []).map((r: any) => r.user_id)).size;
+
+    // Daily series (30d)
+    const txnsAllList = txnsAll.data ?? [];
+    const dayBuckets: Record<string, { volume: number; count: number; success: number }> = {};
+    for (let i = 29; i >= 0; i--) {
+      const d = new Date(now.getTime() - i * 86400000);
+      const k = d.toISOString().slice(0, 10);
+      dayBuckets[k] = { volume: 0, count: 0, success: 0 };
+    }
+    for (const t of txnsAllList) {
+      const k = String(t.created_at).slice(0, 10);
+      if (!dayBuckets[k]) continue;
+      dayBuckets[k].volume += Number(t.amount || 0);
+      dayBuckets[k].count += 1;
+      if (t.status === "success") dayBuckets[k].success += 1;
+    }
+    const txnSeries = Object.entries(dayBuckets).map(([date, v]) => ({ date, ...v }));
+
+    // Signups series (30d) split by KYC status
+    const { data: signups } = await sb
+      .from("profiles")
+      .select("created_at,kyc_status")
+      .gte("created_at", thirtyDaysAgo);
+    const signupBuckets: Record<string, { approved: number; pending: number; other: number }> = {};
+    for (let i = 29; i >= 0; i--) {
+      const d = new Date(now.getTime() - i * 86400000);
+      const k = d.toISOString().slice(0, 10);
+      signupBuckets[k] = { approved: 0, pending: 0, other: 0 };
+    }
+    for (const u of signups ?? []) {
+      const k = String((u as any).created_at).slice(0, 10);
+      if (!signupBuckets[k]) continue;
+      const s = (u as any).kyc_status;
+      if (s === "approved") signupBuckets[k].approved += 1;
+      else if (s === "pending") signupBuckets[k].pending += 1;
+      else signupBuckets[k].other += 1;
+    }
+    const signupSeries = Object.entries(signupBuckets).map(([date, v]) => ({ date, ...v }));
+
+    // Fraud breakdown
+    const fraudList = fraudOpen.data ?? [];
+    const fraudByRule: Record<string, number> = {};
+    for (const f of fraudList) {
+      const r = (f as any).rule_triggered || "unknown";
+      fraudByRule[r] = (fraudByRule[r] || 0) + 1;
+    }
+    const fraudBreakdown = Object.entries(fraudByRule).map(([rule, count]) => ({ rule, count }));
+
+    return json({
+      kpis: {
+        totalUsers,
+        newUsers7d,
+        activeToday,
+        kycPending: kycPending.count ?? 0,
+        totalTxnsToday,
+        totalVolumeToday,
+        fraudOpen: fraudList.length,
+        successRate,
+      },
+      txnSeries,
+      signupSeries,
+      fraudBreakdown,
+    });
+  }
+
+  // ----- Recent activity feed -----
+  if (action === "recent_activity") {
+    if (!can(me.role, "viewDashboard")) return json({ error: "forbidden" }, 403);
+    const limit = Math.min(Number(body.limit ?? 30), 100);
+    const [profiles, txns, kyc, fraud] = await Promise.all([
+      sb.from("profiles").select("id,full_name,phone,created_at,kyc_status,onboarding_stage").order("created_at", { ascending: false }).limit(limit),
+      sb.from("transactions").select("id,user_id,amount,merchant_name,status,created_at").order("created_at", { ascending: false }).limit(limit),
+      sb.from("kyc_submissions").select("id,user_id,status,created_at,updated_at").order("updated_at", { ascending: false }).limit(limit),
+      sb.from("fraud_logs").select("id,user_id,rule_triggered,created_at").order("created_at", { ascending: false }).limit(limit),
+    ]);
+    const items: Array<{ kind: string; ts: string; title: string; subtitle?: string; refId?: string }> = [];
+    for (const p of profiles.data ?? []) {
+      items.push({ kind: "user_new", ts: (p as any).created_at, title: "New user registered", subtitle: (p as any).full_name || (p as any).phone || (p as any).id, refId: (p as any).id });
+    }
+    for (const t of txns.data ?? []) {
+      items.push({ kind: t.status === "failed" ? "txn_failed" : "txn_done", ts: (t as any).created_at, title: `${t.status === "failed" ? "Transaction failed" : "Transaction"} ₹${Number(t.amount).toFixed(2)}`, subtitle: t.merchant_name, refId: (t as any).id });
+    }
+    for (const k of kyc.data ?? []) {
+      items.push({ kind: `kyc_${(k as any).status}`, ts: (k as any).updated_at || (k as any).created_at, title: `KYC ${(k as any).status}`, subtitle: (k as any).user_id, refId: (k as any).id });
+    }
+    for (const f of fraud.data ?? []) {
+      items.push({ kind: "fraud", ts: (f as any).created_at, title: `Fraud rule: ${(f as any).rule_triggered}`, subtitle: (f as any).user_id, refId: (f as any).id });
+    }
+    items.sort((a, b) => (a.ts < b.ts ? 1 : -1));
+    return json({ items: items.slice(0, limit) });
+  }
+
+  // ----- Users list -----
+  if (action === "users_list") {
+    if (!can(me.role, "viewUsers")) return json({ error: "forbidden" }, 403);
+    const search = String(body.search ?? "").trim();
+    const kyc = String(body.kyc ?? "");
+    const stage = String(body.stage ?? "");
+    const page = Math.max(1, Number(body.page ?? 1));
+    const pageSize = Math.min(100, Math.max(10, Number(body.pageSize ?? 25)));
+    const sortKey = String(body.sortKey ?? "created_at");
+    const sortDir = String(body.sortDir ?? "desc") === "asc";
+
+    let q = sb.from("profiles").select("id,full_name,phone,dob,kyc_status,onboarding_stage,balance,created_at,aadhaar_last4", { count: "exact" });
+    if (search) {
+      const safe = search.replace(/[%,]/g, "");
+      q = q.or(`full_name.ilike.%${safe}%,phone.ilike.%${safe}%,id.ilike.%${safe}%`);
+    }
+    if (kyc) q = q.eq("kyc_status", kyc as any);
+    if (stage) q = q.eq("onboarding_stage", stage as any);
+    const allowedSort = ["created_at", "full_name", "balance", "kyc_status"];
+    const sk = allowedSort.includes(sortKey) ? sortKey : "created_at";
+    q = q.order(sk, { ascending: sortDir });
+    q = q.range((page - 1) * pageSize, page * pageSize - 1);
+    const { data, count, error } = await q;
+    if (error) return json({ error: error.message }, 500);
+
+    // get txn counts per user (best-effort, single query)
+    const ids = (data ?? []).map((r: any) => r.id);
+    let txnCounts: Record<string, number> = {};
+    if (ids.length) {
+      const { data: tx } = await sb.from("transactions").select("user_id").in("user_id", ids);
+      for (const r of tx ?? []) {
+        const uid = (r as any).user_id;
+        txnCounts[uid] = (txnCounts[uid] || 0) + 1;
+      }
+    }
+    const rows = (data ?? []).map((r: any) => ({ ...r, txn_count: txnCounts[r.id] || 0 }));
+    return json({ rows, total: count ?? 0, page, pageSize });
+  }
+
+  // ----- User detail -----
+  if (action === "user_get") {
+    if (!can(me.role, "viewUsers")) return json({ error: "forbidden" }, 403);
+    const userId = String(body.userId ?? "");
+    if (!userId) return json({ error: "missing_userId" }, 400);
+    const [profile, txns, kyc, fraud, parental] = await Promise.all([
+      sb.from("profiles").select("*").eq("id", userId).maybeSingle(),
+      sb.from("transactions").select("*").eq("user_id", userId).order("created_at", { ascending: false }).limit(100),
+      sb.from("kyc_submissions").select("*").eq("user_id", userId).order("created_at", { ascending: false }),
+      sb.from("fraud_logs").select("*").eq("user_id", userId).order("created_at", { ascending: false }),
+      sb.from("parental_links").select("*").eq("teen_user_id", userId).maybeSingle(),
+    ]);
+    if (!profile.data) return json({ error: "not_found" }, 404);
+
+    // audit trail for this user
+    const { data: auditRows } = await sb
+      .from("admin_audit_log")
+      .select("id,admin_email,admin_role,action_type,created_at,new_value")
+      .eq("target_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(50);
+
+    await audit(me.id, me.email, me.role, "user_view", { target_id: userId });
+    return json({
+      profile: profile.data,
+      transactions: txns.data ?? [],
+      kyc: kyc.data ?? [],
+      fraud: fraud.data ?? [],
+      parental: parental.data ?? null,
+      audit: auditRows ?? [],
+    });
+  }
+
+  // ----- User status mutation (suspend / restore) -----
+  if (action === "user_set_kyc") {
+    if (!can(me.role, "manageUsers")) return json({ error: "forbidden" }, 403);
+    const userId = String(body.userId ?? "");
+    const newStatus = String(body.status ?? "");
+    const reason = String(body.reason ?? "");
+    if (!userId || !["not_started", "pending", "approved", "rejected"].includes(newStatus)) return json({ error: "invalid" }, 400);
+    const { data: before } = await sb.from("profiles").select("kyc_status").eq("id", userId).maybeSingle();
+    const { error } = await sb.from("profiles").update({ kyc_status: newStatus as any, updated_at: new Date().toISOString() }).eq("id", userId);
+    if (error) return json({ error: error.message }, 500);
+    await sb.from("admin_audit_log").insert({
+      admin_id: me.id, admin_email: me.email, admin_role: me.role as any,
+      action_type: "user_set_kyc", target_entity: "profiles", target_id: userId,
+      old_value: before as any, new_value: { kyc_status: newStatus, reason } as any,
+      ip_address: ip, user_agent: ua,
+    });
+    return json({ ok: true });
+  }
+
   return json({ error: "unknown_action" }, 400);
 });
