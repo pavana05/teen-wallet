@@ -1,10 +1,11 @@
-import { Bell, Home as HomeIcon, ScanLine, ShoppingBag, CreditCard, ArrowUpRight, Building2, Wallet, History, Smartphone, Zap, MoreHorizontal, Gift, ArrowDownLeft, RefreshCw } from "lucide-react";
+import { Bell, Home as HomeIcon, ScanLine, ShoppingBag, CreditCard, ArrowUpRight, Building2, Wallet, History, Smartphone, Zap, MoreHorizontal, Gift, ArrowDownLeft, RefreshCw, User } from "lucide-react";
 import { useApp } from "@/lib/store";
 import { useEffect, useState, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { ScanPay } from "@/screens/ScanPay";
 import { QuickActionsPanel, type QuickActionKind } from "@/components/QuickActionsPanel";
 import { NotificationsPanel } from "@/components/NotificationsPanel";
+import { ProfilePanel } from "@/components/ProfilePanel";
 import heroScan from "@/assets/home-hero-scan.jpg";
 
 interface Txn {
@@ -60,9 +61,9 @@ function TxnRow({ txn }: { txn: Txn }) {
   );
 }
 
-function NavItem({ icon: Icon, label, active }: { icon: React.ComponentType<{ className?: string; strokeWidth?: number }>; label: string; active?: boolean }) {
+function NavItem({ icon: Icon, label, active, onClick }: { icon: React.ComponentType<{ className?: string; strokeWidth?: number }>; label: string; active?: boolean; onClick?: () => void }) {
   return (
-    <button className={`flex-1 flex flex-col items-center py-2 rounded-full ${active ? "hp-nav-active text-white" : "text-white/55"}`}>
+    <button onClick={onClick} className={`flex-1 flex flex-col items-center py-2 rounded-full transition-colors ${active ? "hp-nav-active text-white" : "text-white/55 hover:text-white/80"}`}>
       <Icon className="w-5 h-5" strokeWidth={active ? 2 : 1.6} />
       <span className={`text-[11px] mt-0.5 ${active ? "font-semibold" : ""}`}>{label}</span>
     </button>
@@ -75,6 +76,7 @@ export function Home() {
   const [view, setView] = useState<"home" | "scan">("home");
   const [quickAction, setQuickAction] = useState<QuickActionKind | null>(null);
   const [showNotifs, setShowNotifs] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [txns, setTxns] = useState<Txn[]>([]);
   const [loading, setLoading] = useState(true);
@@ -290,7 +292,7 @@ export function Home() {
           <div className="hp-nav flex-1">
             <NavItem icon={HomeIcon} label="Home" active />
             <NavItem icon={Gift} label="Shop" />
-            <NavItem icon={CreditCard} label="Card" />
+            <NavItem icon={User} label="Profile" onClick={() => setShowProfile(true)} />
           </div>
           <button onClick={() => setView("scan")} className="hp-scan-fab" aria-label="Scan">
             <ScanLine className="w-6 h-6 text-black" strokeWidth={2.4} />
@@ -299,6 +301,7 @@ export function Home() {
       </div>
       {quickAction && <QuickActionsPanel kind={quickAction} onClose={() => setQuickAction(null)} />}
       {showNotifs && <NotificationsPanel onClose={() => setShowNotifs(false)} />}
+      {showProfile && <ProfilePanel onClose={() => setShowProfile(false)} />}
     </div>
   );
 }
