@@ -274,6 +274,90 @@
   backdrop-filter: blur(20px);
 }
 
+/* ===== KYC Result — minimal seal screens (matches reference mocks) ===== */
+.kyc-result-root {
+  position: relative;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: #000;
+  overflow: hidden;
+}
+/* Top vertical-stripe glow that fades into black */
+.kyc-result-glow {
+  position: absolute; inset: 0 0 auto 0; height: 55%;
+  pointer-events: none;
+  background:
+    repeating-linear-gradient(
+      to right,
+      rgba(255,255,255,0.045) 0 1px,
+      transparent 1px 6px
+    );
+  -webkit-mask-image: linear-gradient(to bottom, black 0%, black 25%, transparent 100%);
+          mask-image: linear-gradient(to bottom, black 0%, black 25%, transparent 100%);
+}
+.kyc-result-glow::after {
+  content: ""; position: absolute; inset: 0;
+  background: radial-gradient(ellipse 90% 80% at 50% 0%, var(--kyc-tint, rgba(34,197,94,0.55)) 0%, transparent 65%);
+  -webkit-mask-image: linear-gradient(to bottom, black 0%, black 40%, transparent 100%);
+          mask-image: linear-gradient(to bottom, black 0%, black 40%, transparent 100%);
+}
+.kyc-result-glow.green { --kyc-tint: rgba(34,197,94,0.55); }
+.kyc-result-glow.red { --kyc-tint: rgba(220,38,38,0.55); }
+
+/* Top-left close button */
+.kyc-close-btn {
+  position: absolute; top: 18px; left: 18px;
+  width: 36px; height: 36px;
+  display: inline-flex; align-items: center; justify-content: center;
+  color: #fff; opacity: 0.95;
+  background: transparent; border: none; cursor: pointer;
+  z-index: 10;
+}
+.kyc-close-btn:hover { opacity: 1; }
+
+/* Scalloped/wavy seal badge */
+.kyc-seal {
+  width: 132px; height: 132px;
+  filter: drop-shadow(0 12px 30px var(--kyc-seal-shadow, rgba(34,197,94,0.55)));
+  animation: kyc-badge-pop 700ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+.kyc-seal.green { --kyc-seal-shadow: rgba(34,197,94,0.55); }
+.kyc-seal.red { --kyc-seal-shadow: rgba(220,38,38,0.55); }
+
+/* Bottom continue pill (matches mock) */
+.kyc-continue-btn {
+  width: 100%;
+  height: 56px;
+  border-radius: 999px;
+  background: #2a2a2a;
+  color: #fff;
+  font-size: 17px;
+  font-weight: 500;
+  border: 1px solid rgba(255,255,255,0.06);
+  display: inline-flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  transition: background 160ms ease, transform 120ms ease;
+}
+.kyc-continue-btn:hover { background: #333; }
+.kyc-continue-btn:active { transform: scale(0.985); }
+.kyc-continue-btn.primary {
+  background: oklch(0.78 0.22 145);
+  color: #0a1f0a;
+  border-color: transparent;
+  box-shadow: 0 10px 30px -10px oklch(0.78 0.22 145 / 0.6);
+}
+.kyc-continue-btn.primary:hover { background: oklch(0.82 0.22 145); }
+
+/* Reason chip on rejected screen */
+.kyc-reason-card {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 16px;
+  padding: 14px 16px;
+  text-align: left;
+}
+
 /* ============ ADMIN DASHBOARD TOKENS (scoped) ============ */
 .admin-shell {
   --a-bg: #0d0d0d;
