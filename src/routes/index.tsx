@@ -70,7 +70,12 @@ function Index() {
       {stage === "STAGE_0" || stage === "STAGE_1" ? (
         <Onboarding onDone={() => setStage("STAGE_2")} />
       ) : stage === "STAGE_2" ? (
-        <AuthPhone onDone={() => { /* AuthPhone hydrates the resumed stage itself */ }} />
+        <AuthPhone onDone={() => {
+          // After OTP + PhoneVerified continue: jump to whatever stage the store now holds
+          // (AuthPhone hydrated it from the profile). Falls back to KYC for new users.
+          const s = useApp.getState().stage;
+          if (s === "STAGE_2") setStage("STAGE_3");
+        }} />
       ) : stage === "STAGE_3" ? (
         <KycFlow onDone={() => setStage("STAGE_4")} />
       ) : stage === "STAGE_4" ? (
