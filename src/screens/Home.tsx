@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { ScanPay } from "@/screens/ScanPay";
 import { QuickActionsPanel, type QuickActionKind } from "@/components/QuickActionsPanel";
+import { NotificationsPanel } from "@/components/NotificationsPanel";
 import heroScan from "@/assets/home-hero-scan.jpg";
 
 interface Txn {
