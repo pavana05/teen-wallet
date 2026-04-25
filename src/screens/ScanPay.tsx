@@ -213,8 +213,9 @@ interface DebugSnapshot {
 function pickAdaptiveTuning() {
   // Heuristic: low-end devices → smaller fps + smaller scan area to keep
   // each decode pass fast. Detection still triggers within 1–2 frames.
-  const cores = (typeof navigator !== "undefined" && (navigator.hardwareConcurrency ?? 4)) || 4;
-  const mem = (typeof navigator !== "undefined" && (navigator as Navigator & { deviceMemory?: number }).deviceMemory) ?? 4;
+  const cores = (typeof navigator !== "undefined" && Number(navigator.hardwareConcurrency)) || 4;
+  const memRaw = typeof navigator !== "undefined" ? (navigator as Navigator & { deviceMemory?: number }).deviceMemory : undefined;
+  const mem = typeof memRaw === "number" ? memRaw : 4;
   const isLowEnd = cores <= 4 || mem <= 2;
 
   // qrbox must be a fixed object for html5-qrcode to honour it reliably.
