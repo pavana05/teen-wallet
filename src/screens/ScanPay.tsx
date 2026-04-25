@@ -354,6 +354,7 @@ function ScannerView({ onBack, onDecoded }: { onBack: () => void; onDecoded: (p:
             // Stop scanner first (fire-and-forget) and hand off synchronously
             // — onDecoded sets phase="confirm" immediately, no extra taps.
             decodedRef.current = true;
+            setScanState("locked");
             if (watchdogRef.current) { window.clearInterval(watchdogRef.current); watchdogRef.current = null; }
             scanner.stop().catch(() => {});
             onDecoded(result.payload);
@@ -362,10 +363,14 @@ function ScannerView({ onBack, onDecoded }: { onBack: () => void; onDecoded: (p:
             // html5-qrcode fires the failure callback on every frame that didn't decode.
             // We piggy-back on it as a heartbeat → if it stops firing, the camera/decoder is stuck.
             lastDecodeAttemptRef.current = Date.now();
+            // Flip to "tracking" the moment the decoder is alive — gives the user
+            // immediate feedback that the camera is actively looking for a QR.
+            setScanState((s) => (s === "starting" ? "tracking" : s));
           },
         );
         if (!cancelled) {
           setStarting(false);
+          setScanState((s) => (s === "starting" ? "tracking" : s));
           lastDecodeAttemptRef.current = Date.now();
 
           // ── Stuck-scanner watchdog ──
