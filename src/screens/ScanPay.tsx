@@ -442,11 +442,16 @@ function ScannerView({ onBack, onDecoded }: { onBack: () => void; onDecoded: (p:
         <p className="mt-8 text-[13px] text-white/75 tracking-wide">
           {starting ? "Starting camera…" : "Scan any QR to pay instantly"}
         </p>
+        {!starting && (
+          <button onClick={manualSoftReset} className="pointer-events-auto mt-3 text-[11px] text-white/55 underline underline-offset-4">
+            Camera stuck? Re-tune
+          </button>
+        )}
       </div>
 
       {debugOpen && (
         <div className="absolute bottom-24 left-4 right-4 z-30 rounded-2xl bg-black/85 border border-white/10 backdrop-blur-md p-3 text-[11px] font-mono text-white/85 max-h-[40%] overflow-auto">
-          <p className="text-primary mb-1">⚙ {tuningRef.current.profile} · fps {tuningRef.current.fps} · qrbox {tuningRef.current.qrbox.width}px · cores {tuningRef.current.cores} · mem {tuningRef.current.mem}GB</p>
+          <p className="text-primary mb-1">⚙ {tuningRef.current.profile} · fps {tuningRef.current.fps} · qrbox {tuningRef.current.qrbox.width}px · cores {tuningRef.current.cores} · mem {tuningRef.current.mem}GB · soft-resets {softResetCount}</p>
           {debug ? (
             <>
               <p className="text-white/55">raw:</p>
