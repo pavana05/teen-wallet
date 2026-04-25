@@ -3,10 +3,13 @@ import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { callAdminFn, readAdminSession, can } from "@/admin/lib/adminAuth";
 import { supabase } from "@/integrations/supabase/client";
 import {
-  Loader2, ShieldCheck, ShieldX, ChevronLeft, ChevronRight, RefreshCw, Clock,
+  Loader2, ShieldCheck, ShieldX, RefreshCw, Clock,
   Copy, Check, ExternalLink, ImageOff, FileImage, User as UserIcon,
 } from "lucide-react";
 import { toast } from "sonner";
+import { VirtualTable, type Column } from "@/admin/components/VirtualTable";
+import { usePersistedState } from "@/admin/lib/usePersistedState";
+import { recordPanelLoad, recordRealtime } from "@/admin/lib/perfBus";
 
 export const Route = createFileRoute("/admin/kyc")({
   component: KycQueue,
@@ -43,6 +46,12 @@ const STATUS_BADGE: Record<string, string> = {
   rejected: "kyc-pill kyc-pill-rejected",
   not_started: "kyc-pill kyc-pill-muted",
 };
+
+const PAGE_SIZE = 50;
+
+interface Filters {
+  status: "pending" | "approved" | "rejected" | "all";
+}
 
 function timeAgo(iso: string): string {
   const ms = Date.now() - new Date(iso).getTime();
@@ -90,12 +99,16 @@ function StatCard({ label, value, accent }: { label: string; value: string | num
 
 function KycQueue() {
   const admin = useMemo(() => readAdminSession()?.admin, []);
+  const [filters, setFilters] = usePersistedState<Filters>("tw_admin_kyc_v2", {
+    status: "pending",
+  });
+
   const [rows, setRows] = useState<KycRow[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
-  const [pageSize] = useState(25);
-  const [status, setStatus] = useState<"pending" | "approved" | "rejected" | "all">("pending");
-  const [loading, setLoading] = useState(true);
+  const [hasMore, setHasMore] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [reviewing, setReviewing] = useState<KycRow | null>(null);
   const [rejectReason, setRejectReason] = useState("");
@@ -107,41 +120,68 @@ function KycQueue() {
 
   const canDecide = can(admin?.role, "decideKyc");
 
-  const load = useCallback(async () => {
+  const reqId = useRef(0);
+  const fetchPage = useCallback(async (pageNum: number) => {
     const s = readAdminSession();
     if (!s) return;
-    setLoading(true);
-    setErr("");
+    const myReq = ++reqId.current;
+    if (pageNum === 1) setInitialLoading(true);
+    else setLoadingMore(true);
+    const t0 = performance.now();
     try {
       const r = await callAdminFn<{ rows: KycRow[]; total: number }>({
-        action: "kyc_list", sessionToken: s.sessionToken, status, page, pageSize,
+        action: "kyc_list",
+        sessionToken: s.sessionToken,
+        status: filters.status,
+        page: pageNum,
+        pageSize: PAGE_SIZE,
       });
-      setRows(r.rows);
+      if (myReq !== reqId.current) return;
       setTotal(r.total);
+      setHasMore(pageNum * PAGE_SIZE < r.total);
+      setRows((prev) => (pageNum === 1 ? r.rows : [...prev, ...r.rows]));
+      setErr("");
+      recordPanelLoad("KYC · queue", performance.now() - t0);
     } catch (e: any) {
-      setErr(e.message || "Failed to load");
+      if (myReq === reqId.current) setErr(e.message || "Failed to load");
     } finally {
-      setLoading(false);
+      if (myReq === reqId.current) {
+        setInitialLoading(false);
+        setLoadingMore(false);
+      }
     }
-  }, [status, page, pageSize]);
+  }, [filters.status]);
 
-  useEffect(() => { void load(); }, [load]);
+  // Reset & reload on filter change
+  useEffect(() => {
+    setPage(1);
+    void fetchPage(1);
+  }, [fetchPage]);
 
-  // Realtime: any change to kyc_submissions reloads list — throttled
+  const loadMore = useCallback(() => {
+    if (loadingMore || initialLoading || !hasMore) return;
+    const next = page + 1;
+    setPage(next);
+    void fetchPage(next);
+  }, [page, hasMore, loadingMore, initialLoading, fetchPage]);
+
+  // Realtime — throttled refresh of page 1
   const lastKycLoad = useRef(0);
   useEffect(() => {
     const throttled = () => {
+      recordRealtime();
       const now = Date.now();
       if (now - lastKycLoad.current < 3000) return;
       lastKycLoad.current = now;
-      void load();
+      setPage(1);
+      void fetchPage(1);
     };
     const ch = supabase
       .channel("admin_kyc")
       .on("postgres_changes", { event: "*", schema: "public", table: "kyc_submissions" }, throttled)
       .subscribe();
     return () => { supabase.removeChannel(ch); };
-  }, [load]);
+  }, [fetchPage]);
 
   // Fetch signed URLs whenever opening a review
   useEffect(() => {
@@ -150,10 +190,14 @@ function KycQueue() {
     if (!s) return;
     setUrlsLoading(true);
     setUrls(null);
+    const t0 = performance.now();
     callAdminFn<{ selfieUrl: string | null; docFrontUrl: string | null; docBackUrl: string | null }>({
       action: "kyc_signed_urls", sessionToken: s.sessionToken, submissionId: reviewing.id,
     })
-      .then((r) => setUrls(r))
+      .then((r) => {
+        setUrls(r);
+        recordPanelLoad("KYC · media", performance.now() - t0);
+      })
       .catch(() => setUrls({ selfieUrl: null, docFrontUrl: null, docBackUrl: null }))
       .finally(() => setUrlsLoading(false));
   }, [reviewing]);
@@ -169,7 +213,8 @@ function KycQueue() {
       setReviewing(null);
       setShowReject(false);
       setRejectReason("");
-      await load();
+      setPage(1);
+      await fetchPage(1);
     } catch (e: any) {
       setErr(e.message || "Action failed");
       toast.error(e?.message || "Action failed");
@@ -185,8 +230,67 @@ function KycQueue() {
     });
   }
 
-  const totalPages = Math.max(1, Math.ceil(total / pageSize));
-  const pendingCount = status === "pending" ? total : rows.filter((r) => r.status === "pending").length;
+  const pendingCount = filters.status === "pending" ? total : rows.filter((r) => r.status === "pending").length;
+
+  // Build columns for VirtualTable
+  const columns: Column<KycRow>[] = useMemo(() => [
+    {
+      key: "user", header: "User", width: "minmax(220px, 1.5fr)",
+      cell: (r) => {
+        const age = ageFromDob(r.profile?.dob);
+        return (
+          <Link to="/admin/users/$id" params={{ id: r.user_id }} style={{ color: "var(--a-text)", textDecoration: "none", display: "flex", alignItems: "center", gap: 10 }}>
+            <div className="kyc-avatar"><UserIcon size={14} /></div>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                {r.profile?.full_name || "—"}
+                {age ? <span style={{ color: "var(--a-muted)", fontWeight: 400, marginLeft: 6, fontSize: 12 }}>· {age}y</span> : null}
+              </div>
+              <div className="a-mono" style={{ fontSize: 11, color: "var(--a-muted)" }}>{r.user_id.slice(0, 8)}…</div>
+            </div>
+          </Link>
+        );
+      },
+    },
+    {
+      key: "phone", header: "Phone", width: "140px",
+      cell: (r) => <span className="a-mono">{r.profile?.phone || "—"}</span>,
+    },
+    {
+      key: "aadhaar", header: "Aadhaar", width: "160px",
+      cell: (r) => <span className="a-mono">{r.profile?.aadhaar_last4 ? `XXXX-XXXX-${r.profile.aadhaar_last4}` : "—"}</span>,
+    },
+    {
+      key: "submitted", header: "Submitted", width: "180px",
+      cell: (r) => <span style={{ color: "var(--a-muted)" }}>{new Date(r.created_at).toLocaleString()}</span>,
+    },
+    {
+      key: "wait", header: "Wait", width: "120px",
+      cell: (r) => {
+        const overdue = Date.now() - new Date(r.created_at).getTime() > 60 * 60 * 1000 && r.status === "pending";
+        return (
+          <span style={{ color: overdue ? "var(--a-danger)" : "var(--a-muted)" }}>
+            <Clock size={12} style={{ display: "inline-block", marginRight: 4, verticalAlign: "-2px" }} />
+            {timeAgo(r.created_at)}
+          </span>
+        );
+      },
+    },
+    {
+      key: "match", header: "Match", width: "160px",
+      cell: (r) => <MatchGauge score={r.match_score} />,
+    },
+    {
+      key: "status", header: "Status", width: "120px",
+      cell: (r) => <span className={STATUS_BADGE[r.status]}>{r.status}</span>,
+    },
+    {
+      key: "actions", header: "", width: "110px", align: "right",
+      cell: (r) => (
+        <button className="a-btn-ghost" onClick={() => setReviewing(r)} style={{ padding: "6px 12px", fontSize: 12 }}>Review →</button>
+      ),
+    },
+  ], []);
 
   return (
     <div>
@@ -199,24 +303,24 @@ function KycQueue() {
             Review and decide identity verifications submitted by users.
           </p>
         </div>
-        <button onClick={() => void load()} className="a-btn-ghost" disabled={loading}>
-          <RefreshCw size={14} className={loading ? "animate-spin" : ""} /> Refresh
+        <button onClick={() => { setPage(1); void fetchPage(1); }} className="a-btn-ghost" disabled={initialLoading}>
+          <RefreshCw size={14} className={initialLoading ? "animate-spin" : ""} /> Refresh
         </button>
       </div>
 
       {/* Stat row */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, margin: "20px 0" }}>
-        <StatCard label="In queue" value={status === "pending" ? total : pendingCount} accent="var(--a-warn)" />
-        <StatCard label={`${status} total`} value={total} />
-        <StatCard label="Page" value={`${page}/${totalPages}`} />
+        <StatCard label="In queue" value={filters.status === "pending" ? total : pendingCount} accent="var(--a-warn)" />
+        <StatCard label={`${filters.status} total`} value={total} />
+        <StatCard label="Loaded" value={rows.length} />
         <StatCard label="Provider" value="Digio" />
       </div>
 
       {/* Filter chips */}
       <div className="kyc-filters">
         {(["pending", "approved", "rejected", "all"] as const).map((k) => (
-          <button key={k} onClick={() => { setStatus(k); setPage(1); }}
-            className={`kyc-chip ${status === k ? "kyc-chip-on" : ""}`}>
+          <button key={k} onClick={() => setFilters((f) => ({ ...f, status: k }))}
+            className={`kyc-chip ${filters.status === k ? "kyc-chip-on" : ""}`}>
             {k}
           </button>
         ))}
@@ -224,74 +328,29 @@ function KycQueue() {
 
       {err && <div className="kyc-err">{err}</div>}
 
-      <div className="a-surface" style={{ overflow: "hidden", marginTop: 12 }}>
-        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-          <thead>
-            <tr className="kyc-thead">
-              <th style={{ padding: "12px 14px" }}>User</th>
-              <th style={{ padding: "12px 14px" }}>Phone</th>
-              <th style={{ padding: "12px 14px" }}>Aadhaar</th>
-              <th style={{ padding: "12px 14px" }}>Submitted</th>
-              <th style={{ padding: "12px 14px" }}>Wait</th>
-              <th style={{ padding: "12px 14px" }}>Match</th>
-              <th style={{ padding: "12px 14px" }}>Status</th>
-              <th style={{ padding: "12px 14px", textAlign: "right" }}>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading && (
-              <tr><td colSpan={8} style={{ padding: 32, textAlign: "center", color: "var(--a-muted)" }}>
-                <Loader2 size={16} className="animate-spin" style={{ display: "inline-block", marginRight: 8 }} />Loading…
-              </td></tr>
-            )}
-            {!loading && rows.length === 0 && (
-              <tr><td colSpan={8} style={{ padding: 48, textAlign: "center", color: "var(--a-muted)" }}>
-                <ShieldCheck size={28} style={{ opacity: 0.4, display: "block", margin: "0 auto 8px" }} />
-                Nothing here. The queue is clear.
-              </td></tr>
-            )}
-            {!loading && rows.map((r) => {
-              const waitMs = Date.now() - new Date(r.created_at).getTime();
-              const overdue = waitMs > 60 * 60 * 1000 && r.status === "pending";
-              const age = ageFromDob(r.profile?.dob);
-              return (
-                <tr key={r.id} className="kyc-row">
-                  <td style={{ padding: "12px 14px" }}>
-                    <Link to="/admin/users/$id" params={{ id: r.user_id }} style={{ color: "var(--a-text)", textDecoration: "none", display: "flex", alignItems: "center", gap: 10 }}>
-                      <div className="kyc-avatar"><UserIcon size={14} /></div>
-                      <div>
-                        <div style={{ fontWeight: 600 }}>{r.profile?.full_name || "—"}{age ? <span style={{ color: "var(--a-muted)", fontWeight: 400, marginLeft: 6, fontSize: 12 }}>· {age}y</span> : null}</div>
-                        <div className="a-mono" style={{ fontSize: 11, color: "var(--a-muted)" }}>{r.user_id.slice(0, 8)}…</div>
-                      </div>
-                    </Link>
-                  </td>
-                  <td style={{ padding: "12px 14px" }} className="a-mono">{r.profile?.phone || "—"}</td>
-                  <td style={{ padding: "12px 14px" }} className="a-mono">{r.profile?.aadhaar_last4 ? `XXXX-XXXX-${r.profile.aadhaar_last4}` : "—"}</td>
-                  <td style={{ padding: "12px 14px", color: "var(--a-muted)" }}>{new Date(r.created_at).toLocaleString()}</td>
-                  <td style={{ padding: "12px 14px", color: overdue ? "var(--a-danger)" : "var(--a-muted)" }}>
-                    <Clock size={12} style={{ display: "inline-block", marginRight: 4, verticalAlign: "-2px" }} />
-                    {timeAgo(r.created_at)}
-                  </td>
-                  <td style={{ padding: "12px 14px" }}><MatchGauge score={r.match_score} /></td>
-                  <td style={{ padding: "12px 14px" }}>
-                    <span className={STATUS_BADGE[r.status]}>{r.status}</span>
-                  </td>
-                  <td style={{ padding: "12px 14px", textAlign: "right" }}>
-                    <button className="a-btn-ghost" onClick={() => setReviewing(r)} style={{ padding: "6px 12px", fontSize: 12 }}>Review →</button>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+      <div style={{ marginTop: 12 }}>
+        <VirtualTable<KycRow>
+          rows={rows}
+          columns={columns}
+          rowId={(r) => r.id}
+          height={620}
+          rowHeight={64}
+          initialLoading={initialLoading}
+          loadingMore={loadingMore}
+          hasMore={hasMore}
+          onLoadMore={loadMore}
+          empty={
+            <div style={{ padding: 48, textAlign: "center", color: "var(--a-muted)" }}>
+              <ShieldCheck size={28} style={{ opacity: 0.4, display: "block", margin: "0 auto 8px" }} />
+              Nothing here. The queue is clear.
+            </div>
+          }
+        />
       </div>
 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 12, fontSize: 13, color: "var(--a-muted)" }}>
-        <div>Page {page} of {totalPages} · {total} total</div>
-        <div style={{ display: "flex", gap: 8 }}>
-          <button className="a-btn-ghost" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}><ChevronLeft size={14} /></button>
-          <button className="a-btn-ghost" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}><ChevronRight size={14} /></button>
-        </div>
+        <div>{rows.length} of {total} loaded {hasMore ? "· scroll to load more" : ""}</div>
+        {loadingMore && <div><Loader2 size={12} className="animate-spin" style={{ display: "inline-block", marginRight: 6 }} />Loading…</div>}
       </div>
 
       {/* Review modal */}
@@ -417,7 +476,6 @@ function MediaTile({ label, url, loading, meta }: { label: string; url: string |
         {loading ? (
           <Loader2 size={20} className="animate-spin" style={{ color: "var(--a-muted)" }} />
         ) : url ? (
-          // eslint-disable-next-line @next/next/no-img-element
           <img src={url} alt={label} loading="lazy" />
         ) : (
           <div className="kyc-media-empty">
