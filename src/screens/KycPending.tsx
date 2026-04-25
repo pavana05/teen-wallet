@@ -1,5 +1,5 @@
-import { useEffect, useState, useRef } from "react";
-import { Check, AlertTriangle, Clock, RefreshCw } from "lucide-react";
+import { useEffect, useState, useRef, useMemo } from "react";
+import { AlertTriangle, Clock, RefreshCw, Sparkles, ShieldCheck, Info } from "lucide-react";
 import { setStage as persistStage, updateProfileFields } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -107,44 +107,11 @@ export function KycPending({ onApproved }: { onApproved: () => void }) {
   // ---------- Visuals ----------
 
   if (status === "approved") {
-    return (
-      <div className="flex-1 flex flex-col items-center justify-center p-8 text-center tw-slide-up">
-        <div className="relative mb-8">
-          <div className="absolute inset-0 rounded-full blur-3xl opacity-60" style={{ background: "radial-gradient(circle, oklch(0.92 0.21 122 / 0.6), transparent 70%)" }} />
-          <div className="relative w-24 h-24 rounded-full bg-primary flex items-center justify-center lime-glow">
-            <Check className="w-12 h-12 text-primary-foreground" strokeWidth={3} />
-          </div>
-        </div>
-        <h1 className="text-[28px] font-bold">You're verified!</h1>
-        <p className="text-[#888] text-sm mt-3 max-w-[280px]">Your wallet is ready. Taking you home…</p>
-      </div>
-    );
+    return <ApprovedView />;
   }
 
   if (status === "rejected") {
-    return (
-      <div className="flex-1 flex flex-col items-center justify-center p-8 text-center tw-slide-up">
-        <div className="w-24 h-24 rounded-full bg-destructive/15 flex items-center justify-center mb-8">
-          <AlertTriangle className="w-12 h-12 text-destructive" />
-        </div>
-        <h1 className="text-[28px] font-bold">Verification failed</h1>
-        <p className="text-[#888] text-sm mt-3 max-w-[280px]">
-          {latest?.reason ?? "Your KYC was rejected by the provider. Please retake the selfie and try again."}
-        </p>
-        <button
-          onClick={async () => { await persistStage("STAGE_3"); window.location.reload(); }}
-          className="btn-primary mt-8"
-        >
-          <RefreshCw className="w-4 h-4" /> Retake KYC
-        </button>
-        {latest && (
-          <div className="mt-8 text-[10px] text-muted-foreground space-y-1">
-            <p>Submission: <span className="num-mono">{latest.submissionId.slice(0, 8)}…</span></p>
-            {latest.providerRef && <p>Provider ref: <span className="num-mono">{latest.providerRef}</span></p>}
-          </div>
-        )}
-      </div>
-    );
+    return <RejectedView reason={latest?.reason ?? null} submissionId={latest?.submissionId ?? null} />;
   }
 
   // Pending / unknown
@@ -188,6 +155,246 @@ export function KycPending({ onApproved }: { onApproved: () => void }) {
       <button onClick={retryNow} className="mt-4 text-xs text-primary inline-flex items-center gap-1 hover:underline">
         <RefreshCw className="w-3 h-3" /> Refresh now
       </button>
+    </div>
+  );
+}
+
+/* ----------------------------- Approved View ----------------------------- */
+
+function ApprovedView() {
+  // Pre-compute confetti pieces once.
+  const confetti = useMemo(() => {
+    const colors = ["#C8F135", "#7CFF6B", "#22c55e", "#A8FF60", "#ffffff"];
+    return Array.from({ length: 28 }).map((_, i) => ({
+      left: Math.random() * 100,
+      delay: Math.random() * 1.2,
+      duration: 3 + Math.random() * 2.5,
+      color: colors[i % colors.length],
+      size: 6 + Math.random() * 6,
+    }));
+  }, []);
+
+  return (
+    <div className="flex-1 relative flex flex-col items-center justify-center p-8 text-center overflow-hidden">
+      {/* Animated green aura background */}
+      <div className="kyc-aura-green" />
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          background:
+            "radial-gradient(ellipse 80% 60% at 50% 30%, oklch(0.78 0.22 145 / 0.18), transparent 70%)",
+        }}
+      />
+
+      {/* Confetti */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        {confetti.map((c, i) => (
+          <span
+            key={i}
+            className="kyc-confetti"
+            style={{
+              left: `${c.left}%`,
+              background: c.color,
+              width: c.size,
+              height: c.size * 1.6,
+              animationDelay: `${c.delay}s`,
+              animationDuration: `${c.duration}s`,
+            }}
+          />
+        ))}
+      </div>
+
+      {/* Badge with pulsing rings */}
+      <div className="relative mb-8">
+        <div
+          className="kyc-ring absolute inset-0 rounded-full"
+          style={{ boxShadow: "0 0 0 3px oklch(0.78 0.22 145 / 0.5)" }}
+        />
+        <div
+          className="kyc-ring-2 absolute inset-0 rounded-full"
+          style={{ boxShadow: "0 0 0 3px oklch(0.78 0.22 145 / 0.4)" }}
+        />
+        <div
+          className="kyc-badge-pop relative w-28 h-28 rounded-full flex items-center justify-center"
+          style={{
+            background: "linear-gradient(135deg, oklch(0.85 0.22 145), oklch(0.7 0.24 142))",
+            boxShadow:
+              "0 0 60px -5px oklch(0.78 0.22 145 / 0.8), 0 0 120px -20px oklch(0.78 0.22 145 / 0.6), inset 0 -8px 20px oklch(0.5 0.2 145 / 0.4)",
+          }}
+        >
+          <svg width="56" height="56" viewBox="0 0 52 52" fill="none">
+            <path
+              className="kyc-check-path"
+              d="M14 27 L23 36 L39 18"
+              stroke="#0a1f0a"
+              strokeWidth="5.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              fill="none"
+            />
+          </svg>
+        </div>
+      </div>
+
+      <div className="kyc-fade-up" style={{ animationDelay: "650ms" }}>
+        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full mb-3"
+             style={{ background: "oklch(0.78 0.22 145 / 0.15)", border: "1px solid oklch(0.78 0.22 145 / 0.35)" }}>
+          <ShieldCheck className="w-3.5 h-3.5" style={{ color: "oklch(0.85 0.22 145)" }} />
+          <span className="text-[10px] font-semibold tracking-wider uppercase" style={{ color: "oklch(0.9 0.18 145)" }}>
+            KYC Verified
+          </span>
+        </div>
+        <h1 className="text-[30px] font-bold leading-tight">
+          Congratulations! <span className="inline-block">🎉</span>
+        </h1>
+        <p className="text-base font-medium mt-2" style={{ color: "oklch(0.85 0.18 145)" }}>
+          Welcome to Teen Wallet
+        </p>
+        <p className="text-[#aaa] text-sm mt-3 max-w-[300px] mx-auto leading-relaxed">
+          Your account has been successfully created and verified. You're all set to start using your wallet.
+        </p>
+      </div>
+
+      {/* Limit info card */}
+      <div className="kyc-fade-up kyc-card-glass-green mt-6 w-full max-w-[320px] rounded-2xl p-4 text-left"
+           style={{ animationDelay: "850ms" }}>
+        <div className="flex items-start gap-3">
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+               style={{ background: "oklch(0.78 0.22 145 / 0.2)" }}>
+            <Sparkles className="w-4 h-4" style={{ color: "oklch(0.88 0.2 145)" }} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-[11px] uppercase tracking-wider font-semibold" style={{ color: "oklch(0.85 0.18 145)" }}>
+              Wallet Limit
+            </p>
+            <p className="text-lg font-bold mt-0.5">
+              <span className="num-mono">₹10,000</span>
+              <span className="text-xs font-normal text-[#888] ml-1">/ overall</span>
+            </p>
+            <p className="text-[11px] text-[#888] mt-1.5 leading-relaxed">
+              You can transact up to ₹10,000 right now. Higher limits & premium features unlock soon.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <p className="kyc-fade-up text-[11px] text-muted-foreground mt-6 inline-flex items-center gap-1.5"
+         style={{ animationDelay: "1050ms" }}>
+        <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: "oklch(0.85 0.22 145)" }} />
+        Taking you to your wallet…
+      </p>
+    </div>
+  );
+}
+
+/* ----------------------------- Rejected View ----------------------------- */
+
+function RejectedView({ reason, submissionId }: { reason: string | null; submissionId: string | null }) {
+  const handleRetake = async () => {
+    const { setStage: persistStage } = await import("@/lib/auth");
+    await persistStage("STAGE_3");
+    window.location.reload();
+  };
+
+  return (
+    <div className="flex-1 relative flex flex-col items-center justify-center p-8 text-center overflow-hidden">
+      {/* Animated red blurred aura */}
+      <div className="kyc-aura-red" />
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          background:
+            "radial-gradient(ellipse 80% 60% at 50% 30%, oklch(0.62 0.26 27 / 0.15), transparent 70%)",
+        }}
+      />
+
+      {/* Badge with rings */}
+      <div className="relative mb-8 kyc-shake-soft">
+        <div
+          className="kyc-ring absolute inset-0 rounded-full"
+          style={{ boxShadow: "0 0 0 3px oklch(0.62 0.26 27 / 0.5)" }}
+        />
+        <div
+          className="kyc-ring-2 absolute inset-0 rounded-full"
+          style={{ boxShadow: "0 0 0 3px oklch(0.62 0.26 27 / 0.4)" }}
+        />
+        <div
+          className="kyc-badge-pop relative w-28 h-28 rounded-full flex items-center justify-center"
+          style={{
+            background: "linear-gradient(135deg, oklch(0.7 0.26 27), oklch(0.55 0.24 25))",
+            boxShadow:
+              "0 0 60px -5px oklch(0.62 0.26 27 / 0.8), 0 0 120px -20px oklch(0.62 0.26 27 / 0.6), inset 0 -8px 20px oklch(0.4 0.2 25 / 0.5)",
+          }}
+        >
+          <svg width="52" height="52" viewBox="0 0 52 52" fill="none">
+            <path
+              className="kyc-check-path"
+              d="M16 16 L36 36"
+              stroke="#1f0808"
+              strokeWidth="5.5"
+              strokeLinecap="round"
+              fill="none"
+            />
+            <path
+              className="kyc-check-path kyc-cross-path-2"
+              d="M36 16 L16 36"
+              stroke="#1f0808"
+              strokeWidth="5.5"
+              strokeLinecap="round"
+              fill="none"
+              style={{ animationDelay: "700ms" }}
+            />
+          </svg>
+        </div>
+      </div>
+
+      <div className="kyc-fade-up" style={{ animationDelay: "650ms" }}>
+        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full mb-3"
+             style={{ background: "oklch(0.62 0.26 27 / 0.15)", border: "1px solid oklch(0.62 0.26 27 / 0.35)" }}>
+          <AlertTriangle className="w-3.5 h-3.5" style={{ color: "oklch(0.75 0.22 27)" }} />
+          <span className="text-[10px] font-semibold tracking-wider uppercase" style={{ color: "oklch(0.8 0.2 27)" }}>
+            Verification Failed
+          </span>
+        </div>
+        <h1 className="text-[30px] font-bold leading-tight">We couldn't verify you</h1>
+        <p className="text-[#aaa] text-sm mt-3 max-w-[300px] mx-auto leading-relaxed">
+          Don't worry — this happens sometimes. Review the reason below and try again.
+        </p>
+      </div>
+
+      {/* Reason card */}
+      <div className="kyc-fade-up kyc-card-glass-red mt-6 w-full max-w-[320px] rounded-2xl p-4 text-left"
+           style={{ animationDelay: "850ms" }}>
+        <div className="flex items-start gap-3">
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+               style={{ background: "oklch(0.62 0.26 27 / 0.2)" }}>
+            <Info className="w-4 h-4" style={{ color: "oklch(0.78 0.22 27)" }} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-[11px] uppercase tracking-wider font-semibold" style={{ color: "oklch(0.8 0.2 27)" }}>
+              Reason for Rejection
+            </p>
+            <p className="text-sm mt-1 leading-relaxed text-foreground/90">
+              {reason ?? "Your selfie didn't match the Aadhaar photo clearly. Please retake in good lighting with a neutral expression."}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <button
+        onClick={handleRetake}
+        className="kyc-fade-up btn-primary mt-7"
+        style={{ animationDelay: "1000ms" }}
+      >
+        <RefreshCw className="w-4 h-4" /> Retake KYC
+      </button>
+
+      {submissionId && (
+        <p className="kyc-fade-up mt-5 text-[10px] text-muted-foreground"
+           style={{ animationDelay: "1150ms" }}>
+          Submission: <span className="num-mono">{submissionId.slice(0, 8)}…</span>
+        </p>
+      )}
     </div>
   );
 }
