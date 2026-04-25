@@ -487,17 +487,27 @@ function SuccessView({ message, amount, payee, onDone }: { message: string; amou
    FAILED
    ============================================================ */
 
-function FailedView({ message, onRetry, onCancel }: { message: string; onRetry: () => void; onCancel: () => void }) {
+function FailedView({
+  kind, message, onRetry, onCancel,
+}: {
+  kind: FailKind;
+  message: string;
+  onRetry: () => void;
+  onCancel: () => void;
+}) {
+  const isBalance = kind === "balance_changed";
+  const heading = isBalance ? "Balance changed" : "Payment failed";
+  const primaryLabel = isBalance ? "Scan a new QR" : "Try again";
   return (
     <div className="flex-1 flex flex-col items-center justify-center px-8 text-center tw-slide-up tw-shake bg-background">
       <div className="w-24 h-24 rounded-full bg-destructive/15 border border-destructive/40 flex items-center justify-center">
         <X className="w-12 h-12 text-destructive" strokeWidth={2} />
       </div>
-      <h2 className="mt-8 text-2xl font-bold">Payment failed</h2>
+      <h2 className="mt-8 text-2xl font-bold">{heading}</h2>
       <p className="mt-2 text-sm text-muted-foreground">{message}</p>
       <div className="mt-10 flex gap-3 w-full max-w-xs">
         <button onClick={onCancel} className="btn-ghost flex-1">Cancel</button>
-        <button onClick={onRetry} className="btn-primary flex-1">Try again</button>
+        <button onClick={onRetry} className="btn-primary flex-1">{primaryLabel}</button>
       </div>
     </div>
   );
