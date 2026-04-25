@@ -402,10 +402,19 @@ export function ProfilePanel({ onClose }: Props) {
 
       {editOpen && profile && (
         <EditProfileSheet
-          initial={profile}
+          initial={{
+            full_name: profile.full_name,
+            phone: profile.phone,
+            dob: profile.dob,
+            gender: profile.gender,
+          }}
+          userId={userId}
           onClose={() => setEditOpen(false)}
           onSaved={(p) => { setProfile((prev) => prev ? { ...prev, ...p } : prev); setEditOpen(false); }}
         />
+      )}
+      {qrOpen && (
+        <MyQrSheet upiId={upiId} payeeName={profile?.full_name ?? fullName ?? "TeenWallet user"} onClose={() => setQrOpen(false)} />
       )}
       {confirmLogout && (
         <ConfirmSheet
@@ -415,6 +424,12 @@ export function ProfilePanel({ onClose }: Props) {
           danger
           onCancel={() => setConfirmLogout(false)}
           onConfirm={onLogout}
+        />
+      )}
+      {confirmDelete && (
+        <DeleteAccountSheet
+          onCancel={() => setConfirmDelete(false)}
+          onConfirm={async () => { setConfirmDelete(false); await onDeleteAccount(); }}
         />
       )}
     </div>
