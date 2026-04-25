@@ -241,9 +241,16 @@ function ScannerView({ onBack, onDecoded }: { onBack: () => void; onDecoded: (p:
   const [starting, setStarting] = useState(true);
   const [debugOpen, setDebugOpen] = useState(false);
   const [debug, setDebug] = useState<DebugSnapshot | null>(null);
+  const [softResetCount, setSoftResetCount] = useState(0);
   const decodedRef = useRef(false);
   const lastInvalidToastRef = useRef(0);
+  const lastDecodeAttemptRef = useRef<number>(Date.now());
+  const watchdogRef = useRef<number | null>(null);
   const tuningRef = useRef(pickAdaptiveTuning());
+
+  // Bumping this value forces the scanner-init effect to re-run, which is our
+  // "soft reset": dispose the current Html5Qrcode + camera, then start fresh.
+  const [restartTick, setRestartTick] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -261,24 +268,18 @@ function ScannerView({ onBack, onDecoded }: { onBack: () => void; onDecoded: (p:
           camId,
           {
             fps: tuning.fps,
-            // Fixed object — html5-qrcode honours this on every device,
-            // unlike the function form which silently fails on some browsers.
             qrbox: tuning.qrbox,
             aspectRatio: 1,
             videoConstraints: {
               facingMode: { ideal: "environment" },
-              // Continuous autofocus when the device exposes it (non-standard track constraint).
               advanced: [{ focusMode: "continuous" } as unknown as MediaTrackConstraintSet],
             } as MediaTrackConstraints,
-            // Use the browser's native BarcodeDetector when available
-            // — millisecond-level decoding on Chromium/Android.
             useBarCodeDetectorIfSupported: true,
           } as Parameters<Html5Qrcode["start"]>[1],
           (decoded) => {
             // Hard lock: act exactly once per scanner lifecycle.
             if (decodedRef.current) return;
             const result = parseUpiQrWithReason(decoded);
-            // Always update the debug snapshot — useful even when invalid.
             setDebug({ raw: decoded, result, at: Date.now() });
             if (!result.payload) {
               const now = Date.now();
@@ -288,13 +289,39 @@ function ScannerView({ onBack, onDecoded }: { onBack: () => void; onDecoded: (p:
               }
               return;
             }
+            // ✅ Valid UPI QR detected → INSTANT redirect to confirm page.
+            // Stop scanner first (fire-and-forget) and hand off synchronously
+            // — onDecoded sets phase="confirm" immediately, no extra taps.
             decodedRef.current = true;
+            if (watchdogRef.current) { window.clearInterval(watchdogRef.current); watchdogRef.current = null; }
             scanner.stop().catch(() => {});
             onDecoded(result.payload);
           },
-          () => {},
+          () => {
+            // html5-qrcode fires the failure callback on every frame that didn't decode.
+            // We piggy-back on it as a heartbeat → if it stops firing, the camera/decoder is stuck.
+            lastDecodeAttemptRef.current = Date.now();
+          },
         );
-        if (!cancelled) setStarting(false);
+        if (!cancelled) {
+          setStarting(false);
+          lastDecodeAttemptRef.current = Date.now();
+
+          // ── Stuck-scanner watchdog ──
+          // If the per-frame decode callback stops firing for >6s, the camera
+          // pipeline is wedged (common after backgrounding the tab on iOS or
+          // when a long autofocus stalls). Soft-reset by remounting init.
+          watchdogRef.current = window.setInterval(() => {
+            if (decodedRef.current) return;
+            const idleMs = Date.now() - lastDecodeAttemptRef.current;
+            if (idleMs > 6000) {
+              if (watchdogRef.current) { window.clearInterval(watchdogRef.current); watchdogRef.current = null; }
+              setSoftResetCount((c) => c + 1);
+              toast.message("Re-tuning camera…", { duration: 1200 });
+              setRestartTick((t) => t + 1);
+            }
+          }, 1500);
+        }
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Camera unavailable";
         if (/permission|denied|NotAllowed/i.test(msg)) {
@@ -308,9 +335,8 @@ function ScannerView({ onBack, onDecoded }: { onBack: () => void; onDecoded: (p:
     void start();
     return () => {
       cancelled = true;
+      if (watchdogRef.current) { window.clearInterval(watchdogRef.current); watchdogRef.current = null; }
       const s = scannerRef.current;
-      // Always tear the camera down on unmount → no resource leaks when
-      // navigating to confirm or back to home.
       if (s) {
         const cleanup = async () => {
           try {
@@ -322,7 +348,15 @@ function ScannerView({ onBack, onDecoded }: { onBack: () => void; onDecoded: (p:
       }
       scannerRef.current = null;
     };
-  }, [onDecoded]);
+    // restartTick triggers the soft-reset: re-running this effect tears down
+    // the existing camera and starts a fresh Html5Qrcode instance.
+  }, [onDecoded, restartTick]);
+
+  const manualSoftReset = () => {
+    setSoftResetCount((c) => c + 1);
+    setStarting(true);
+    setRestartTick((t) => t + 1);
+  };
 
   const toggleTorch = async () => {
     const s = scannerRef.current;
