@@ -1,26 +1,47 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { Html5Qrcode } from "html5-qrcode";
-import { ArrowLeft, ArrowRight, Image as ImageIcon, Zap, ZapOff, X, Share2, Check } from "lucide-react";
-import { parseUpiQr, type UpiPayload } from "@/lib/upi";
+import { ArrowLeft, ArrowRight, Image as ImageIcon, Zap, ZapOff, X, Share2, Check, Bug } from "lucide-react";
+import { parseUpiQr, parseUpiQrWithReason, type UpiPayload, type UpiParseResult } from "@/lib/upi";
 import { scanTransaction, logFraudFlags } from "@/lib/fraud";
 import { useApp } from "@/lib/store";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+
+const SCANPAY_PERSIST_KEY = "tw-scanpay-flow-v1";
+
+interface PersistedFlow {
+  phase: Phase;
+  payload: UpiPayload | null;
+  amount: number;
+}
 
 type Phase = "scanning" | "confirm" | "processing" | "success" | "failed";
 type FailKind = "generic" | "balance_changed" | "insufficient" | "blocked";
 
 export function ScanPay({ onBack }: { onBack: () => void }) {
   const { userId, balance } = useApp();
-  const [phase, setPhase] = useState<Phase>("scanning");
-  const [payload, setPayload] = useState<UpiPayload | null>(null);
-  const [amount, setAmount] = useState<number>(0);
+
+  // Hydrate persisted flow (scan phase + parsed payload + amount) so a
+  // refresh / accidental nav doesn't drop the user back into a broken loop.
+  const persisted = readPersisted();
+  const [phase, setPhase] = useState<Phase>(persisted?.phase ?? "scanning");
+  const [payload, setPayload] = useState<UpiPayload | null>(persisted?.payload ?? null);
+  const [amount, setAmount] = useState<number>(persisted?.amount ?? 0);
   const [resultMsg, setResultMsg] = useState("");
   const [failKind, setFailKind] = useState<FailKind>("generic");
+  // Bump this to force-remount the ScannerView and dispose its camera + Html5Qrcode instance.
+  const [scannerKey, setScannerKey] = useState(0);
+
+  // Keep persistence in sync; clear on terminal states.
+  useEffect(() => {
+    if (phase === "scanning" || phase === "confirm") {
+      writePersisted({ phase, payload, amount });
+    } else {
+      clearPersisted();
+    }
+  }, [phase, payload, amount]);
 
   const navLockRef = useRef(false);
-  // Stable callback so the scanner effect doesn't re-run every render
-  // (which used to tear down + restart the camera, killing detection).
   const handleDecoded = useCallback((parsed: UpiPayload) => {
     if (navLockRef.current) return;
     navLockRef.current = true;
@@ -116,18 +137,29 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
     setPhase("success");
   }, [userId, payload, amount, balance]);
 
-  const reset = () => {
+  const reset = useCallback(() => {
     setPayload(null);
     setAmount(0);
     setResultMsg("");
     setFailKind("generic");
     navLockRef.current = false;
+    clearPersisted();
+    // Force-remount the ScannerView → its cleanup runs (camera stop + clear),
+    // then a fresh Html5Qrcode instance is created. Prevents stale-loop bugs
+    // and camera resource leaks observed when re-entering scan after confirm.
+    setScannerKey((k) => k + 1);
     setPhase("scanning");
-  };
+  }, []);
+
+  const handleHardBack = useCallback(() => {
+    clearPersisted();
+    onBack();
+  }, [onBack]);
+
 
   if (phase === "processing") return <ProcessingView amount={amount} />;
-  if (phase === "success") return <SuccessView message={resultMsg} amount={amount} payee={payload?.payeeName ?? ""} onDone={onBack} />;
-  if (phase === "failed") return <FailedView kind={failKind} message={resultMsg} onRetry={reset} onCancel={onBack} />;
+  if (phase === "success") return <SuccessView message={resultMsg} amount={amount} payee={payload?.payeeName ?? ""} onDone={handleHardBack} />;
+  if (phase === "failed") return <FailedView kind={failKind} message={resultMsg} onRetry={reset} onCancel={handleHardBack} />;
   if (phase === "confirm" && payload) {
     return (
       <ConfirmView
@@ -140,20 +172,78 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
       />
     );
   }
-  return <ScannerView onBack={onBack} onDecoded={handleDecoded} />;
+  return <ScannerView key={scannerKey} onBack={handleHardBack} onDecoded={handleDecoded} />;
+}
+
+/* ============================================================
+   Persistence helpers
+   ============================================================ */
+function readPersisted(): PersistedFlow | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.sessionStorage.getItem(SCANPAY_PERSIST_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as PersistedFlow;
+    // Only resume into safe phases — never resume into processing/success/failed.
+    if (parsed.phase !== "scanning" && parsed.phase !== "confirm") return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+function writePersisted(p: PersistedFlow) {
+  if (typeof window === "undefined") return;
+  try { window.sessionStorage.setItem(SCANPAY_PERSIST_KEY, JSON.stringify(p)); } catch { /* quota — ignore */ }
+}
+function clearPersisted() {
+  if (typeof window === "undefined") return;
+  try { window.sessionStorage.removeItem(SCANPAY_PERSIST_KEY); } catch { /* ignore */ }
 }
 
 /* ============================================================
    1. SCANNER
    ============================================================ */
 
+interface DebugSnapshot {
+  raw: string;
+  result: UpiParseResult;
+  at: number;
+}
+
+function pickAdaptiveTuning() {
+  // Heuristic: low-end devices → smaller fps + smaller scan area to keep
+  // each decode pass fast. Detection still triggers within 1–2 frames.
+  const cores = (typeof navigator !== "undefined" && Number(navigator.hardwareConcurrency)) || 4;
+  const memRaw = typeof navigator !== "undefined" ? (navigator as Navigator & { deviceMemory?: number }).deviceMemory : undefined;
+  const mem = typeof memRaw === "number" ? memRaw : 4;
+  const isLowEnd = cores <= 4 || mem <= 2;
+
+  // qrbox must be a fixed object for html5-qrcode to honour it reliably.
+  const vw = typeof window !== "undefined" ? window.innerWidth : 360;
+  const vh = typeof window !== "undefined" ? window.innerHeight : 640;
+  const base = Math.min(vw, vh);
+  const edge = Math.min(360, Math.floor(base * (isLowEnd ? 0.62 : 0.74)));
+
+  return {
+    fps: isLowEnd ? 12 : 24,
+    qrbox: { width: edge, height: edge },
+    profile: isLowEnd ? "low-end" : "high-end",
+    cores,
+    mem,
+  };
+}
+
 function ScannerView({ onBack, onDecoded }: { onBack: () => void; onDecoded: (p: UpiPayload) => void }) {
   const containerId = "tw-qr-region";
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const [torch, setTorch] = useState(false);
   const [permissionDenied, setPermissionDenied] = useState(false);
+  const [starting, setStarting] = useState(true);
+  const [debugOpen, setDebugOpen] = useState(false);
+  const [debug, setDebug] = useState<DebugSnapshot | null>(null);
   const decodedRef = useRef(false);
   const lastInvalidToastRef = useRef(0);
+  const tuningRef = useRef(pickAdaptiveTuning());
 
   useEffect(() => {
     let cancelled = false;
@@ -165,44 +255,46 @@ function ScannerView({ onBack, onDecoded }: { onBack: () => void; onDecoded: (p:
         if (!cameras.length) throw new Error("No camera available");
         const camId = cameras.find((c) => /back|rear|environment/i.test(c.label))?.id ?? cameras[0].id;
         if (cancelled) return;
+
+        const tuning = tuningRef.current;
         await scanner.start(
           camId,
           {
-            fps: 25,
-            // Larger scan area + responsive sizing → reliable detection
-            // even when the QR isn't perfectly centred.
-            qrbox: (vw: number, vh: number) => {
-              const edge = Math.floor(Math.min(vw, vh) * 0.72);
-              return { width: edge, height: edge };
-            },
+            fps: tuning.fps,
+            // Fixed object — html5-qrcode honours this on every device,
+            // unlike the function form which silently fails on some browsers.
+            qrbox: tuning.qrbox,
             aspectRatio: 1,
             videoConstraints: {
               facingMode: { ideal: "environment" },
-              // Continuous autofocus dramatically improves detection speed.
-              advanced: [{ focusMode: "continuous" }],
-            },
-            // Use the BarcodeDetector / native decoder when available.
+              // Continuous autofocus when the device exposes it (non-standard track constraint).
+              advanced: [{ focusMode: "continuous" } as unknown as MediaTrackConstraintSet],
+            } as MediaTrackConstraints,
+            // Use the browser's native BarcodeDetector when available
+            // — millisecond-level decoding on Chromium/Android.
             useBarCodeDetectorIfSupported: true,
-          } as never,
+          } as Parameters<Html5Qrcode["start"]>[1],
           (decoded) => {
             // Hard lock: act exactly once per scanner lifecycle.
             if (decodedRef.current) return;
-            const parsed = parseUpiQr(decoded);
-            if (!parsed) {
-              // Surface invalid-QR feedback at most once every 2s, keep scanning.
+            const result = parseUpiQrWithReason(decoded);
+            // Always update the debug snapshot — useful even when invalid.
+            setDebug({ raw: decoded, result, at: Date.now() });
+            if (!result.payload) {
               const now = Date.now();
               if (now - lastInvalidToastRef.current > 2000) {
                 lastInvalidToastRef.current = now;
-                toast.error("Invalid QR code");
+                toast.error(result.reason ?? "Invalid QR code");
               }
               return;
             }
             decodedRef.current = true;
             scanner.stop().catch(() => {});
-            onDecoded(parsed);
+            onDecoded(result.payload);
           },
           () => {},
         );
+        if (!cancelled) setStarting(false);
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Camera unavailable";
         if (/permission|denied|NotAllowed/i.test(msg)) {
@@ -210,13 +302,24 @@ function ScannerView({ onBack, onDecoded }: { onBack: () => void; onDecoded: (p:
         } else {
           toast.error(msg);
         }
+        setStarting(false);
       }
     };
     void start();
     return () => {
       cancelled = true;
       const s = scannerRef.current;
-      if (s && s.isScanning) s.stop().then(() => s.clear()).catch(() => {});
+      // Always tear the camera down on unmount → no resource leaks when
+      // navigating to confirm or back to home.
+      if (s) {
+        const cleanup = async () => {
+          try {
+            if (s.isScanning) await s.stop();
+            await s.clear();
+          } catch { /* swallow — element may already be gone */ }
+        };
+        void cleanup();
+      }
       scannerRef.current = null;
     };
   }, [onDecoded]);
@@ -225,8 +328,9 @@ function ScannerView({ onBack, onDecoded }: { onBack: () => void; onDecoded: (p:
     const s = scannerRef.current;
     if (!s) return;
     try {
-      // @ts-expect-error torch is a non-standard track constraint
-      await s.applyVideoConstraints({ advanced: [{ torch: !torch }] });
+      await s.applyVideoConstraints({
+        advanced: [{ torch: !torch } as MediaTrackConstraintSet],
+      });
       setTorch((t) => !t);
     } catch {
       toast.error("Torch not supported on this device");
@@ -240,9 +344,10 @@ function ScannerView({ onBack, onDecoded }: { onBack: () => void; onDecoded: (p:
       const scanner = scannerRef.current ?? new Html5Qrcode(containerId, { verbose: false });
       if (scanner.isScanning) await scanner.stop().catch(() => {});
       const decoded = await scanner.scanFile(file, false);
-      const parsed = parseUpiQr(decoded);
-      if (parsed) onDecoded(parsed);
-      else toast.error("Not a valid UPI QR code");
+      const result = parseUpiQrWithReason(decoded);
+      setDebug({ raw: decoded, result, at: Date.now() });
+      if (result.payload) onDecoded(result.payload);
+      else toast.error(result.reason ?? "Not a valid UPI QR code");
     } catch {
       toast.error("Could not read QR from image");
     }
@@ -277,9 +382,18 @@ function ScannerView({ onBack, onDecoded }: { onBack: () => void; onDecoded: (p:
           <ArrowLeft className="w-5 h-5" />
         </button>
         <span className="text-[13px] font-medium tracking-wide text-white/80">Scan to Pay</span>
-        <button onClick={toggleTorch} aria-label="Toggle flash" className="w-10 h-10 rounded-full glass flex items-center justify-center">
-          {torch ? <Zap className="w-5 h-5 text-[#6ee7a3]" /> : <ZapOff className="w-5 h-5" />}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setDebugOpen((v) => !v)}
+            aria-label="Debug overlay"
+            className={`w-10 h-10 rounded-full flex items-center justify-center ${debugOpen ? "bg-primary text-primary-foreground" : "glass"}`}
+          >
+            <Bug className="w-5 h-5" />
+          </button>
+          <button onClick={toggleTorch} aria-label="Toggle flash" className="w-10 h-10 rounded-full glass flex items-center justify-center">
+            {torch ? <Zap className="w-5 h-5 text-[#6ee7a3]" /> : <ZapOff className="w-5 h-5" />}
+          </button>
+        </div>
       </div>
 
       <div className="absolute inset-0 z-20 flex flex-col items-center justify-center pointer-events-none">
@@ -291,8 +405,30 @@ function ScannerView({ onBack, onDecoded }: { onBack: () => void; onDecoded: (p:
           <span className="sp-scan-corner bottom-0 right-0 border-b-2 border-r-2 rounded-br-2xl" />
           <div className="sp-scan-beam" />
         </div>
-        <p className="mt-8 text-[13px] text-white/75 tracking-wide">Scan any QR to pay instantly</p>
+        <p className="mt-8 text-[13px] text-white/75 tracking-wide">
+          {starting ? "Starting camera…" : "Scan any QR to pay instantly"}
+        </p>
       </div>
+
+      {debugOpen && (
+        <div className="absolute bottom-24 left-4 right-4 z-30 rounded-2xl bg-black/85 border border-white/10 backdrop-blur-md p-3 text-[11px] font-mono text-white/85 max-h-[40%] overflow-auto">
+          <p className="text-primary mb-1">⚙ {tuningRef.current.profile} · fps {tuningRef.current.fps} · qrbox {tuningRef.current.qrbox.width}px · cores {tuningRef.current.cores} · mem {tuningRef.current.mem}GB</p>
+          {debug ? (
+            <>
+              <p className="text-white/55">raw:</p>
+              <p className="break-all text-white/95">{debug.raw}</p>
+              <p className="text-white/55 mt-2">matched: <span className="text-white/95">{debug.result.matched ?? "—"}</span></p>
+              <p className="text-white/55">parsed: <span className={debug.result.payload ? "text-[#6ee7a3]" : "text-[#ff8585]"}>{debug.result.payload ? "valid" : "invalid"}</span></p>
+              {debug.result.reason && <p className="text-[#ff8585]">reason: {debug.result.reason}</p>}
+              {debug.result.payload && (
+                <pre className="text-white/85 whitespace-pre-wrap mt-1">{JSON.stringify(debug.result.payload, null, 2)}</pre>
+              )}
+            </>
+          ) : (
+            <p className="text-white/55">Waiting for first decode…</p>
+          )}
+        </div>
+      )}
 
       <div className="absolute bottom-8 left-0 right-0 z-30 flex justify-center">
         <label className="btn-ghost cursor-pointer">
