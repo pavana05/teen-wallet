@@ -1,10 +1,14 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ArrowLeft, ArrowRight, ShieldCheck } from "lucide-react";
 import { updateProfileFields, setStage as persistStage } from "@/lib/auth";
-import { SelfieCapture } from "@/components/SelfieCapture";
+import { SelfieCapture, SELFIE_STORAGE_KEY } from "@/components/SelfieCapture";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 type Step = 1 | 2 | 3;
+type SelfiePayload = { dataUrl: string; width: number; height: number; bytes: number };
+
+const KYC_DRAFT_KEY = "tw_kyc_draft_v1";
 
 export function KycFlow({ onDone }: { onDone: () => void }) {
   const [step, setStep] = useState<Step>(1);
@@ -16,9 +20,31 @@ export function KycFlow({ onDone }: { onDone: () => void }) {
   const [aadhaarOtpSent, setAadhaarOtpSent] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-  const [selfie, setSelfie] = useState<string | null>(null);
+  const [selfie, setSelfie] = useState<SelfiePayload | null>(null);
 
   const formatAadhaar = (v: string) => v.replace(/\D/g, "").slice(0, 12).replace(/(\d{4})(?=\d)/g, "$1 ");
+
+  // Hydrate draft (text fields) from localStorage so the user can resume after refresh.
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(KYC_DRAFT_KEY);
+      if (raw) {
+        const d = JSON.parse(raw) as Partial<{ name: string; dob: string; gender: typeof gender; aadhaar: string; step: Step }>;
+        if (d.name) setName(d.name);
+        if (d.dob) setDob(d.dob);
+        if (d.gender) setGender(d.gender);
+        if (d.aadhaar) setAadhaar(d.aadhaar);
+        if (d.step) setStep(d.step);
+      }
+    } catch { /* ignore */ }
+  }, []);
+
+  // Persist draft on every change.
+  useEffect(() => {
+    try {
+      localStorage.setItem(KYC_DRAFT_KEY, JSON.stringify({ name, dob, gender, aadhaar, step }));
+    } catch { /* ignore */ }
+  }, [name, dob, gender, aadhaar, step]);
 
   function ageFromDob(s: string) {
     const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(s);
@@ -60,15 +86,47 @@ export function KycFlow({ onDone }: { onDone: () => void }) {
   }
 
   async function submitStep3() {
-    if (!selfie) {
-      setError("Please capture a selfie first");
-      return;
-    }
+    if (!selfie) return setError("Please capture a selfie first");
+    if (selfie.width < 240 || selfie.height < 240) return setError("Selfie resolution too low — please retake");
+    if (selfie.bytes < 8 * 1024) return setError("Selfie image is too small — please retake");
+
     setError("");
     setBusy(true);
-    await persistStage("STAGE_4");
-    setBusy(false);
-    onDone();
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Session expired. Please sign in again.");
+
+      const aadhaarLast4 = aadhaar.replace(/\s/g, "").slice(-4);
+      const res = await fetch("/api/kyc/verify", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          selfie: selfie.dataUrl,
+          width: selfie.width,
+          height: selfie.height,
+          aadhaarLast4,
+        }),
+      });
+      const json = (await res.json().catch(() => ({}))) as { error?: string; status?: string; submissionId?: string };
+      if (!res.ok && res.status !== 202) throw new Error(json.error || `Verification failed (${res.status})`);
+
+      // Clear drafts — KYC is now in the provider's hands
+      try {
+        localStorage.removeItem(KYC_DRAFT_KEY);
+        localStorage.removeItem(SELFIE_STORAGE_KEY);
+      } catch { /* ignore */ }
+
+      toast.success("Selfie submitted for verification");
+      await persistStage("STAGE_4");
+      onDone();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not submit verification");
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
