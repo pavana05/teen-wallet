@@ -15,6 +15,10 @@ export interface UpiPayload {
   upiId: string;
   payeeName: string;
   amount: number | null;
+  /** Original raw amount string from the QR (e.g. "100", "100.00", "10000p", "₹1,234.50"). */
+  amountRaw: string | null;
+  /** Why we normalised the way we did — handy for debugging weird merchant QRs. */
+  amountSource: "rupees" | "paise" | "none";
   note: string | null;
   currency: string;
 }
@@ -28,6 +32,79 @@ export interface UpiParseResult {
 const VPA_RE = /^[a-z0-9._-]{2,256}@[a-z][a-z0-9.-]{1,64}$/i;
 const SUPPORTED_SCHEMES = ["upi", "paytmmp", "paytm", "bharatpe", "phonepe", "gpay", "tez"];
 
+/**
+ * Normalise the `am` field from a UPI QR into rupees.
+ *
+ * Real-world QRs encode amounts inconsistently:
+ *   - "100"        → ₹100
+ *   - "100.00"     → ₹100
+ *   - "100,50"     → ₹100.50  (EU-style comma decimal seen in some merchant exports)
+ *   - "1,234.50"   → ₹1234.50
+ *   - "₹100"       → ₹100
+ *   - "INR 100"    → ₹100
+ *   - "10000p"     → ₹100      (paise suffix)
+ *   - "10000 paise"→ ₹100
+ *
+ * UPI spec says `am` is rupees, but a non-trivial number of merchant QRs leak
+ * paise. We treat any explicit paise marker (suffix `p`, `ps`, `paise`) as
+ * paise and divide by 100. Otherwise we always treat the value as rupees and
+ * round to 2 decimals.
+ */
+export function normaliseUpiAmount(raw: string | null | undefined): {
+  amount: number | null;
+  amountRaw: string | null;
+  amountSource: "rupees" | "paise" | "none";
+  reason: string | null;
+} {
+  if (raw == null || String(raw).trim() === "") {
+    return { amount: null, amountRaw: null, amountSource: "none", reason: null };
+  }
+  const original = String(raw);
+  let s = original.trim().toLowerCase();
+
+  // Strip currency prefixes/symbols.
+  s = s.replace(/^(inr|rs\.?|₹)\s*/i, "").trim();
+
+  // Detect paise suffix BEFORE we strip non-numerics.
+  const paiseSuffix = /(p|ps|paise|paisa)\s*$/i.test(s);
+  if (paiseSuffix) s = s.replace(/(p|ps|paise|paisa)\s*$/i, "").trim();
+
+  // Comma handling:
+  //  - If the string has both "," and ".", treat "," as thousands sep → drop them.
+  //  - If only "," is present and it looks like a decimal sep (1-2 digits after), convert to ".".
+  //  - Otherwise drop "," (thousands sep).
+  if (s.includes(",") && s.includes(".")) {
+    s = s.replace(/,/g, "");
+  } else if (s.includes(",")) {
+    const tail = s.split(",").pop() ?? "";
+    if (/^\d{1,2}$/.test(tail) && s.split(",").length === 2) {
+      s = s.replace(",", ".");
+    } else {
+      s = s.replace(/,/g, "");
+    }
+  }
+
+  // Strip any remaining whitespace/non-numeric/non-dot chars.
+  s = s.replace(/[^\d.]/g, "");
+  if (!s || s === ".") {
+    return { amount: null, amountRaw: original, amountSource: "none", reason: `Invalid amount: "${original}"` };
+  }
+
+  const n = Number(s);
+  if (!Number.isFinite(n) || n < 0) {
+    return { amount: null, amountRaw: original, amountSource: "none", reason: `Invalid amount: "${original}"` };
+  }
+
+  if (paiseSuffix) {
+    return { amount: round2(n / 100), amountRaw: original, amountSource: "paise", reason: null };
+  }
+  return { amount: round2(n), amountRaw: original, amountSource: "rupees", reason: null };
+}
+
+function round2(n: number) {
+  return Math.round(n * 100) / 100;
+}
+
 function buildPayload(params: URLSearchParams, matched: string): UpiParseResult {
   // Accept either `pa` (UPI standard) or `vpa`/`payeeVpa` (some merchants)
   const pa = params.get("pa") ?? params.get("vpa") ?? params.get("payeeVpa");
@@ -39,20 +116,18 @@ function buildPayload(params: URLSearchParams, matched: string): UpiParseResult 
     return { payload: null, reason: `Invalid UPI ID format: "${cleanPa}"`, matched };
   }
   const amRaw = params.get("am") ?? params.get("amount");
-  let amount: number | null = null;
-  if (amRaw != null && amRaw !== "") {
-    const n = Number(amRaw);
-    if (!Number.isFinite(n) || n < 0) {
-      return { payload: null, reason: `Invalid amount: "${amRaw}"`, matched };
-    }
-    amount = n;
+  const norm = normaliseUpiAmount(amRaw);
+  if (norm.reason) {
+    return { payload: null, reason: norm.reason, matched };
   }
   const pn = params.get("pn") ?? params.get("payeeName");
   return {
     payload: {
       upiId: cleanPa,
       payeeName: (pn ?? cleanPa.split("@")[0]).trim(),
-      amount,
+      amount: norm.amount,
+      amountRaw: norm.amountRaw,
+      amountSource: norm.amountSource,
       note: params.get("tn") ?? params.get("note") ?? null,
       currency: params.get("cu") ?? "INR",
     },
@@ -72,6 +147,8 @@ export function parseUpiQrWithReason(raw: string): UpiParseResult {
         upiId: trimmed,
         payeeName: trimmed.split("@")[0],
         amount: null,
+        amountRaw: null,
+        amountSource: "none",
         note: null,
         currency: "INR",
       },

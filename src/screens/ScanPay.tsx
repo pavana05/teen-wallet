@@ -241,9 +241,16 @@ function ScannerView({ onBack, onDecoded }: { onBack: () => void; onDecoded: (p:
   const [starting, setStarting] = useState(true);
   const [debugOpen, setDebugOpen] = useState(false);
   const [debug, setDebug] = useState<DebugSnapshot | null>(null);
+  const [softResetCount, setSoftResetCount] = useState(0);
   const decodedRef = useRef(false);
   const lastInvalidToastRef = useRef(0);
+  const lastDecodeAttemptRef = useRef<number>(Date.now());
+  const watchdogRef = useRef<number | null>(null);
   const tuningRef = useRef(pickAdaptiveTuning());
+
+  // Bumping this value forces the scanner-init effect to re-run, which is our
+  // "soft reset": dispose the current Html5Qrcode + camera, then start fresh.
+  const [restartTick, setRestartTick] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -261,24 +268,18 @@ function ScannerView({ onBack, onDecoded }: { onBack: () => void; onDecoded: (p:
           camId,
           {
             fps: tuning.fps,
-            // Fixed object — html5-qrcode honours this on every device,
-            // unlike the function form which silently fails on some browsers.
             qrbox: tuning.qrbox,
             aspectRatio: 1,
             videoConstraints: {
               facingMode: { ideal: "environment" },
-              // Continuous autofocus when the device exposes it (non-standard track constraint).
               advanced: [{ focusMode: "continuous" } as unknown as MediaTrackConstraintSet],
             } as MediaTrackConstraints,
-            // Use the browser's native BarcodeDetector when available
-            // — millisecond-level decoding on Chromium/Android.
             useBarCodeDetectorIfSupported: true,
           } as Parameters<Html5Qrcode["start"]>[1],
           (decoded) => {
             // Hard lock: act exactly once per scanner lifecycle.
             if (decodedRef.current) return;
             const result = parseUpiQrWithReason(decoded);
-            // Always update the debug snapshot — useful even when invalid.
             setDebug({ raw: decoded, result, at: Date.now() });
             if (!result.payload) {
               const now = Date.now();
@@ -288,13 +289,39 @@ function ScannerView({ onBack, onDecoded }: { onBack: () => void; onDecoded: (p:
               }
               return;
             }
+            // ✅ Valid UPI QR detected → INSTANT redirect to confirm page.
+            // Stop scanner first (fire-and-forget) and hand off synchronously
+            // — onDecoded sets phase="confirm" immediately, no extra taps.
             decodedRef.current = true;
+            if (watchdogRef.current) { window.clearInterval(watchdogRef.current); watchdogRef.current = null; }
             scanner.stop().catch(() => {});
             onDecoded(result.payload);
           },
-          () => {},
+          () => {
+            // html5-qrcode fires the failure callback on every frame that didn't decode.
+            // We piggy-back on it as a heartbeat → if it stops firing, the camera/decoder is stuck.
+            lastDecodeAttemptRef.current = Date.now();
+          },
         );
-        if (!cancelled) setStarting(false);
+        if (!cancelled) {
+          setStarting(false);
+          lastDecodeAttemptRef.current = Date.now();
+
+          // ── Stuck-scanner watchdog ──
+          // If the per-frame decode callback stops firing for >6s, the camera
+          // pipeline is wedged (common after backgrounding the tab on iOS or
+          // when a long autofocus stalls). Soft-reset by remounting init.
+          watchdogRef.current = window.setInterval(() => {
+            if (decodedRef.current) return;
+            const idleMs = Date.now() - lastDecodeAttemptRef.current;
+            if (idleMs > 6000) {
+              if (watchdogRef.current) { window.clearInterval(watchdogRef.current); watchdogRef.current = null; }
+              setSoftResetCount((c) => c + 1);
+              toast.message("Re-tuning camera…", { duration: 1200 });
+              setRestartTick((t) => t + 1);
+            }
+          }, 1500);
+        }
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Camera unavailable";
         if (/permission|denied|NotAllowed/i.test(msg)) {
@@ -308,9 +335,8 @@ function ScannerView({ onBack, onDecoded }: { onBack: () => void; onDecoded: (p:
     void start();
     return () => {
       cancelled = true;
+      if (watchdogRef.current) { window.clearInterval(watchdogRef.current); watchdogRef.current = null; }
       const s = scannerRef.current;
-      // Always tear the camera down on unmount → no resource leaks when
-      // navigating to confirm or back to home.
       if (s) {
         const cleanup = async () => {
           try {
@@ -322,7 +348,15 @@ function ScannerView({ onBack, onDecoded }: { onBack: () => void; onDecoded: (p:
       }
       scannerRef.current = null;
     };
-  }, [onDecoded]);
+    // restartTick triggers the soft-reset: re-running this effect tears down
+    // the existing camera and starts a fresh Html5Qrcode instance.
+  }, [onDecoded, restartTick]);
+
+  const manualSoftReset = () => {
+    setSoftResetCount((c) => c + 1);
+    setStarting(true);
+    setRestartTick((t) => t + 1);
+  };
 
   const toggleTorch = async () => {
     const s = scannerRef.current;
@@ -408,11 +442,16 @@ function ScannerView({ onBack, onDecoded }: { onBack: () => void; onDecoded: (p:
         <p className="mt-8 text-[13px] text-white/75 tracking-wide">
           {starting ? "Starting camera…" : "Scan any QR to pay instantly"}
         </p>
+        {!starting && (
+          <button onClick={manualSoftReset} className="pointer-events-auto mt-3 text-[11px] text-white/55 underline underline-offset-4">
+            Camera stuck? Re-tune
+          </button>
+        )}
       </div>
 
       {debugOpen && (
         <div className="absolute bottom-24 left-4 right-4 z-30 rounded-2xl bg-black/85 border border-white/10 backdrop-blur-md p-3 text-[11px] font-mono text-white/85 max-h-[40%] overflow-auto">
-          <p className="text-primary mb-1">⚙ {tuningRef.current.profile} · fps {tuningRef.current.fps} · qrbox {tuningRef.current.qrbox.width}px · cores {tuningRef.current.cores} · mem {tuningRef.current.mem}GB</p>
+          <p className="text-primary mb-1">⚙ {tuningRef.current.profile} · fps {tuningRef.current.fps} · qrbox {tuningRef.current.qrbox.width}px · cores {tuningRef.current.cores} · mem {tuningRef.current.mem}GB · soft-resets {softResetCount}</p>
           {debug ? (
             <>
               <p className="text-white/55">raw:</p>
@@ -494,6 +533,18 @@ function ConfirmView({
             className="sp-amount bg-transparent outline-none text-center w-[200px]"
           />
         </div>
+        {/* Show how the QR's amount was normalised so users can spot weird merchant QRs */}
+        {payload.amount != null && payload.amountRaw != null && (
+          <div className="mt-3 inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-[11px] text-white/70">
+            <span>From QR: <span className="num-mono text-white/90">{payload.amountRaw}</span></span>
+            {payload.amountSource === "paise" && (
+              <span className="px-1.5 py-0.5 rounded-full bg-amber-400/15 text-amber-300 text-[10px] font-medium">paise → ₹{payload.amount.toFixed(2)}</span>
+            )}
+            {payload.amountSource === "rupees" && payload.amountRaw.trim() !== payload.amount.toString() && (
+              <span className="px-1.5 py-0.5 rounded-full bg-emerald-400/15 text-emerald-300 text-[10px] font-medium">= ₹{payload.amount.toFixed(2)}</span>
+            )}
+          </div>
+        )}
         {payload.note && <p className="mt-3 text-[12px] text-white/55 italic">"{payload.note}"</p>}
         <p className="mt-6 text-[11px] text-white/35">Wallet balance · ₹{balance.toFixed(2)}</p>
       </div>
