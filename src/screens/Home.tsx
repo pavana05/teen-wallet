@@ -1,25 +1,79 @@
-import { Bell, Home as HomeIcon, ScanLine, ShoppingBag, CreditCard, ArrowUpRight, Building2, Wallet, History, Smartphone, Zap, MoreHorizontal, Gift } from "lucide-react";
+import { Bell, Home as HomeIcon, ScanLine, ShoppingBag, CreditCard, ArrowUpRight, Building2, Wallet, History, Smartphone, Zap, MoreHorizontal, Gift, ArrowDownLeft, RefreshCw } from "lucide-react";
 import { useApp } from "@/lib/store";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { ScanPay } from "@/screens/ScanPay";
 import heroScan from "@/assets/home-hero-scan.jpg";
+
+interface Txn {
+  id: string;
+  amount: number;
+  merchant_name: string;
+  upi_id: string;
+  note: string | null;
+  status: "success" | "pending" | "failed";
+  created_at: string;
+}
 
 export function Home() {
   const { fullName, userId } = useApp();
   const first = fullName?.split(" ")[0] ?? "Alex";
   const [view, setView] = useState<"home" | "scan">("home");
+  const [txns, setTxns] = useState<Txn[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [pullY, setPullY] = useState(0);
+  const touchStartY = useRef<number | null>(null);
+  const scrollerRef = useRef<HTMLDivElement | null>(null);
+
+  const fetchTxns = useCallback(async () => {
+    if (!userId) { setLoading(false); return; }
+    const { data } = await supabase
+      .from("transactions")
+      .select("id,amount,merchant_name,upi_id,note,status,created_at")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(20);
+    setTxns((data ?? []) as Txn[]);
+    setLoading(false);
+  }, [userId]);
+
+  useEffect(() => { void fetchTxns(); }, [fetchTxns]);
 
   useEffect(() => {
     if (!userId) return;
     const ch = supabase
-      .channel("txns")
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "transactions", filter: `user_id=eq.${userId}` }, () => {})
+      .channel("home-txns")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "transactions", filter: `user_id=eq.${userId}` }, () => {
+        void fetchTxns();
+      })
       .subscribe();
     return () => { supabase.removeChannel(ch); };
-  }, [userId]);
+  }, [userId, fetchTxns]);
 
-  if (view === "scan") return <ScanPay onBack={() => setView("home")} />;
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await fetchTxns();
+    setTimeout(() => setRefreshing(false), 400);
+  }, [fetchTxns]);
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    if ((scrollerRef.current?.scrollTop ?? 0) <= 0) {
+      touchStartY.current = e.touches[0].clientY;
+    }
+  };
+  const onTouchMove = (e: React.TouchEvent) => {
+    if (touchStartY.current == null) return;
+    const dy = e.touches[0].clientY - touchStartY.current;
+    if (dy > 0) setPullY(Math.min(dy * 0.5, 80));
+  };
+  const onTouchEnd = () => {
+    if (pullY > 60) void handleRefresh();
+    setPullY(0);
+    touchStartY.current = null;
+  };
+
+  if (view === "scan") return <ScanPay onBack={() => { setView("home"); void fetchTxns(); }} />;
 
   return (
     <div className="hp-root flex-1 flex flex-col tw-slide-up pb-32 overflow-y-auto">
