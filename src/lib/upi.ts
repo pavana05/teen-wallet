@@ -203,3 +203,45 @@ export function parseUpiQrWithReason(raw: string): UpiParseResult {
 export function parseUpiQr(raw: string): UpiPayload | null {
   return parseUpiQrWithReason(raw).payload;
 }
+
+/**
+ * Build a `upi://pay?...` deep link that any installed UPI app
+ * (GPay, PhonePe, Paytm, BHIM, etc.) will handle on Android/iOS.
+ *
+ * On mobile, navigating to this URL opens the system's UPI app picker
+ * pre-filled with the merchant + amount + note + a unique txn ref.
+ *
+ * On desktop, the browser will fail to handle the scheme — call sites
+ * should fall back to showing the reference ID instead.
+ */
+export interface UpiDeepLinkInput {
+  upiId: string;
+  payeeName: string;
+  amount: number;
+  note?: string | null;
+  /** Merchant transaction reference. Use the DB transaction id. */
+  txnRef: string;
+  /** Optional — UPI merchant category code (4 digits). */
+  mcc?: string;
+  currency?: string;
+}
+
+export function buildUpiDeepLink(input: UpiDeepLinkInput): string {
+  const params = new URLSearchParams();
+  params.set("pa", input.upiId);
+  params.set("pn", input.payeeName || input.upiId.split("@")[0]);
+  params.set("am", input.amount.toFixed(2));
+  params.set("cu", input.currency ?? "INR");
+  // tr = merchant txn reference (idempotency key on the UPI side)
+  params.set("tr", input.txnRef.replace(/-/g, "").slice(0, 35));
+  if (input.note) params.set("tn", String(input.note).slice(0, 80));
+  if (input.mcc) params.set("mc", input.mcc);
+  return `upi://pay?${params.toString()}`;
+}
+
+/** Best-effort detection of a device that can actually handle `upi://`. */
+export function canOpenUpiApp(): boolean {
+  if (typeof navigator === "undefined") return false;
+  const ua = navigator.userAgent || "";
+  return /Android|iPhone|iPad|iPod/i.test(ua);
+}
