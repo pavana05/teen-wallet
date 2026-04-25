@@ -18,7 +18,11 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
   const [resultMsg, setResultMsg] = useState("");
   const [failKind, setFailKind] = useState<FailKind>("generic");
 
+  const navLockRef = useRef(false);
   const handleDecoded = (parsed: UpiPayload) => {
+    // Guardrail: ignore duplicate decodes / double-fires that race the camera stop.
+    if (navLockRef.current) return;
+    navLockRef.current = true;
     if (navigator.vibrate) navigator.vibrate(40);
     setPayload(parsed);
     setAmount(parsed.amount ?? 0);
