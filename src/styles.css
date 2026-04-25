@@ -1038,3 +1038,16 @@
   background: rgba(255,255,255,.04);
   border: 1px solid rgba(255,255,255,.06);
 }
+
+.hp-bell-badge {
+  position: absolute; top: 4px; right: 4px;
+  min-width: 16px; height: 16px; padding: 0 4px;
+  border-radius: 999px;
+  background: #ff5a3d;
+  color: #fff;
+  font-size: 9.5px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  border: 2px solid #0a0a0a;
+  box-shadow: 0 0 10px rgba(255,90,61,.6);
+  line-height: 1;
+}
