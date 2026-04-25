@@ -107,44 +107,11 @@ export function KycPending({ onApproved }: { onApproved: () => void }) {
   // ---------- Visuals ----------
 
   if (status === "approved") {
-    return (
-      <div className="flex-1 flex flex-col items-center justify-center p-8 text-center tw-slide-up">
-        <div className="relative mb-8">
-          <div className="absolute inset-0 rounded-full blur-3xl opacity-60" style={{ background: "radial-gradient(circle, oklch(0.92 0.21 122 / 0.6), transparent 70%)" }} />
-          <div className="relative w-24 h-24 rounded-full bg-primary flex items-center justify-center lime-glow">
-            <Check className="w-12 h-12 text-primary-foreground" strokeWidth={3} />
-          </div>
-        </div>
-        <h1 className="text-[28px] font-bold">You're verified!</h1>
-        <p className="text-[#888] text-sm mt-3 max-w-[280px]">Your wallet is ready. Taking you home…</p>
-      </div>
-    );
+    return <ApprovedView />;
   }
 
   if (status === "rejected") {
-    return (
-      <div className="flex-1 flex flex-col items-center justify-center p-8 text-center tw-slide-up">
-        <div className="w-24 h-24 rounded-full bg-destructive/15 flex items-center justify-center mb-8">
-          <AlertTriangle className="w-12 h-12 text-destructive" />
-        </div>
-        <h1 className="text-[28px] font-bold">Verification failed</h1>
-        <p className="text-[#888] text-sm mt-3 max-w-[280px]">
-          {latest?.reason ?? "Your KYC was rejected by the provider. Please retake the selfie and try again."}
-        </p>
-        <button
-          onClick={async () => { await persistStage("STAGE_3"); window.location.reload(); }}
-          className="btn-primary mt-8"
-        >
-          <RefreshCw className="w-4 h-4" /> Retake KYC
-        </button>
-        {latest && (
-          <div className="mt-8 text-[10px] text-muted-foreground space-y-1">
-            <p>Submission: <span className="num-mono">{latest.submissionId.slice(0, 8)}…</span></p>
-            {latest.providerRef && <p>Provider ref: <span className="num-mono">{latest.providerRef}</span></p>}
-          </div>
-        )}
-      </div>
-    );
+    return <RejectedView reason={latest?.reason ?? null} submissionId={latest?.submissionId ?? null} />;
   }
 
   // Pending / unknown
