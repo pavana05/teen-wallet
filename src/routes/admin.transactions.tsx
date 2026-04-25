@@ -210,7 +210,7 @@ function TransactionsList() {
                     {r.merchant_name}
                     {hasFlags && <AlertTriangle size={12} style={{ display: "inline-block", marginLeft: 6, color: "#f59e0b", verticalAlign: "-2px" }} />}
                   </td>
-                  <td style={{ padding: 12 }} className="a-mono" style={{ fontSize: 11, color: "var(--a-muted)" }}>{r.upi_id}</td>
+                  <td style={{ padding: 12, fontSize: 11, color: "var(--a-muted)" }} className="a-mono">{r.upi_id}</td>
                   <td style={{ padding: 12 }}>
                     <span className={STATUS_BADGE[r.status]} style={{ padding: "2px 8px", borderRadius: 4, border: "1px solid", fontSize: 11, textTransform: "uppercase" }}>{r.status}</span>
                   </td>
