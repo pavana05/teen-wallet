@@ -75,6 +75,7 @@ function RootComponent() {
     <>
       <Outlet />
       <Toaster />
+      <ShakeToReport />
     </>
   );
 }
