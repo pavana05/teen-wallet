@@ -127,13 +127,18 @@ function KycQueue() {
 
   useEffect(() => { void load(); }, [load]);
 
-  // Realtime: any change to kyc_submissions reloads list
+  // Realtime: any change to kyc_submissions reloads list — throttled
+  const lastKycLoad = useRef(0);
   useEffect(() => {
+    const throttled = () => {
+      const now = Date.now();
+      if (now - lastKycLoad.current < 3000) return;
+      lastKycLoad.current = now;
+      void load();
+    };
     const ch = supabase
       .channel("admin_kyc")
-      .on("postgres_changes", { event: "*", schema: "public", table: "kyc_submissions" }, () => {
-        void load();
-      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "kyc_submissions" }, throttled)
       .subscribe();
     return () => { supabase.removeChannel(ch); };
   }, [load]);
