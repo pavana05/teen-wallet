@@ -89,7 +89,7 @@ function StatCard({ label, value, accent }: { label: string; value: string | num
 }
 
 function KycQueue() {
-  const { admin } = useAdminSession();
+  const admin = useMemo(() => readAdminSession()?.admin, []);
   const [rows, setRows] = useState<KycRow[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
