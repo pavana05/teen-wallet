@@ -1,0 +1,153 @@
+import { createFileRoute } from "@tanstack/react-router";
+import { createClient } from "@supabase/supabase-js";
+import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import type { Database } from "@/integrations/supabase/types";
+
+const CORS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization",
+};
+
+const json = (body: unknown, status = 200) =>
+  new Response(JSON.stringify(body), {
+    status,
+    headers: { "Content-Type": "application/json", ...CORS },
+  });
+
+// Server-side selfie validation
+function validateSelfieDataUrl(dataUrl: string): { ok: true; bytes: number } | { ok: false; reason: string } {
+  if (!dataUrl.startsWith("data:image/")) return { ok: false, reason: "Invalid image format" };
+  const base64 = dataUrl.split(",")[1];
+  if (!base64) return { ok: false, reason: "Empty image payload" };
+  const bytes = Math.floor((base64.length * 3) / 4);
+  if (bytes < 8 * 1024) return { ok: false, reason: "Selfie too small — please retake in better light" };
+  if (bytes > 5 * 1024 * 1024) return { ok: false, reason: "Selfie too large (>5MB)" };
+  return { ok: true, bytes };
+}
+
+/**
+ * Real Aadhaar/KYC verification endpoint.
+ * In production this would POST to a KYC provider (Digio / IDfy / Karza).
+ * For dev we simulate the provider call deterministically and write the
+ * status to `kyc_submissions` so the client can poll.
+ */
+async function callKycProvider(payload: {
+  userId: string;
+  aadhaarLast4: string;
+  selfieBytes: number;
+}): Promise<{ providerRef: string; status: "pending" | "approved" | "rejected"; matchScore: number; reason: string | null }> {
+  // TODO: Replace with real Digio/IDfy fetch when secrets are configured.
+  // const r = await fetch(`${process.env.DIGIO_BASE_URL}/v3/client/kyc/aadhaar`, { ... })
+  await new Promise((r) => setTimeout(r, 600));
+  const matchScore = 0.78 + Math.random() * 0.2;
+  return {
+    providerRef: `dgo_${crypto.randomUUID().slice(0, 12)}`,
+    status: "pending",
+    matchScore: Number(matchScore.toFixed(3)),
+    reason: null,
+  };
+}
+
+export const Route = createFileRoute("/api/kyc/verify")({
+  server: {
+    handlers: {
+      OPTIONS: async () => new Response(null, { status: 204, headers: CORS }),
+
+      POST: async ({ request }) => {
+        try {
+          // 1) Authenticate the caller via their Supabase JWT
+          const auth = request.headers.get("authorization") ?? "";
+          const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
+          if (!token) return json({ error: "Missing auth token" }, 401);
+
+          const SUPABASE_URL = process.env.SUPABASE_URL!;
+          const SUPABASE_PUBLISHABLE_KEY = process.env.SUPABASE_PUBLISHABLE_KEY!;
+          const userClient = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+            global: { headers: { Authorization: `Bearer ${token}` } },
+            auth: { persistSession: false, autoRefreshToken: false },
+          });
+          const { data: userData, error: userErr } = await userClient.auth.getUser();
+          if (userErr || !userData.user) return json({ error: "Unauthorized" }, 401);
+          const userId = userData.user.id;
+
+          // 2) Validate body
+          const body = (await request.json().catch(() => null)) as
+            | { selfie?: string; width?: number; height?: number; aadhaarLast4?: string }
+            | null;
+          if (!body) return json({ error: "Invalid JSON" }, 400);
+          if (!body.selfie) return json({ error: "Missing selfie" }, 400);
+          if (typeof body.width !== "number" || typeof body.height !== "number")
+            return json({ error: "Missing canvas dimensions" }, 400);
+          if (body.width < 240 || body.height < 240)
+            return json({ error: "Selfie resolution too low" }, 400);
+          if (!body.aadhaarLast4 || !/^\d{4}$/.test(body.aadhaarLast4))
+            return json({ error: "Missing Aadhaar reference" }, 400);
+
+          const v = validateSelfieDataUrl(body.selfie);
+          if (!v.ok) return json({ error: v.reason }, 400);
+
+          // 3) Insert pending submission row
+          const { data: row, error: insErr } = await supabaseAdmin
+            .from("kyc_submissions")
+            .insert({
+              user_id: userId,
+              status: "pending",
+              provider: "digio",
+              selfie_size_bytes: v.bytes,
+              selfie_width: body.width,
+              selfie_height: body.height,
+            })
+            .select("id")
+            .single();
+          if (insErr || !row) return json({ error: "Failed to record submission" }, 500);
+
+          // 4) Call provider (simulated). On error keep status=pending and surface message.
+          let provider;
+          try {
+            provider = await callKycProvider({
+              userId,
+              aadhaarLast4: body.aadhaarLast4,
+              selfieBytes: v.bytes,
+            });
+          } catch (e) {
+            await supabaseAdmin
+              .from("kyc_submissions")
+              .update({
+                status: "pending",
+                reason: e instanceof Error ? e.message : "Provider unreachable",
+                updated_at: new Date().toISOString(),
+              })
+              .eq("id", row.id);
+            return json({ submissionId: row.id, status: "pending", reason: "Provider unreachable" }, 202);
+          }
+
+          await supabaseAdmin
+            .from("kyc_submissions")
+            .update({
+              status: provider.status,
+              provider_ref: provider.providerRef,
+              match_score: provider.matchScore,
+              reason: provider.reason,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", row.id);
+
+          await supabaseAdmin
+            .from("profiles")
+            .update({ kyc_status: provider.status })
+            .eq("id", userId);
+
+          return json({
+            submissionId: row.id,
+            providerRef: provider.providerRef,
+            status: provider.status,
+            matchScore: provider.matchScore,
+          });
+        } catch (e) {
+          return json({ error: e instanceof Error ? e.message : "Server error" }, 500);
+        }
+      },
+    },
+  },
+});
