@@ -302,44 +302,96 @@ export function KycFlow({ onDone }: { onDone: () => void }) {
     if (side === "front") setDocFront(null); else setDocBack(null);
   }
 
-  async function submitStep3() {
-    if (!selfie) return setError("Please capture a selfie first");
-    if (selfie.width < 240 || selfie.height < 240) return setError("Selfie resolution too low — please retake");
-    if (selfie.bytes < 8 * 1024) return setError("Selfie image is too small — please retake");
+  // Read the most recent capture from localStorage as a fallback so refresh→retry works
+  // even before the SelfieCapture child has rehydrated state.
+  const readStoredSelfie = (): SelfiePayload | null => {
+    try {
+      const raw = localStorage.getItem(SELFIE_STORAGE_KEY);
+      if (!raw) return null;
+      const p = JSON.parse(raw) as { dataUrl?: string; width?: number; height?: number; bytes?: number };
+      if (!p.dataUrl || !p.width || !p.height || !p.bytes) return null;
+      return { dataUrl: p.dataUrl, width: p.width, height: p.height, bytes: p.bytes };
+    } catch { return null; }
+  };
+
+  async function runVerification(): Promise<void> {
+    const payload = selfie ?? readStoredSelfie();
+    if (!payload) {
+      setError("Please capture a selfie first");
+      return;
+    }
+    if (payload.width < 240 || payload.height < 240) return setError("Selfie resolution too low — please retake");
+    if (payload.bytes < 8 * 1024) return setError("Selfie image is too small — please retake");
 
     setError("");
+    setLastErrorTransient(false);
     setBusy(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error("Session expired. Please sign in again.");
 
       const aadhaarLast4 = aadhaar.replace(/\s/g, "").slice(-4);
-      const res = await fetch("/api/kyc/verify", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({
-          selfie: selfie.dataUrl,
-          width: selfie.width,
-          height: selfie.height,
-          aadhaarLast4,
-          docFrontPath: docFront?.path ?? null,
-          docBackPath: docBack?.path ?? null,
-        }),
-      });
-      const json = (await res.json().catch(() => ({}))) as { error?: string; status?: string; submissionId?: string };
-      if (!res.ok && res.status !== 202) throw new Error(json.error || `Verification failed (${res.status})`);
+      let res: Response;
+      try {
+        res = await fetch("/api/kyc/verify", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({
+            selfie: payload.dataUrl,
+            width: payload.width,
+            height: payload.height,
+            aadhaarLast4,
+            docFrontPath: docFront?.path ?? null,
+            docBackPath: docBack?.path ?? null,
+          }),
+        });
+      } catch (netErr) {
+        // Network failure — treat as transient.
+        setLastErrorTransient(true);
+        throw new Error(netErr instanceof Error ? `Network error: ${netErr.message}` : "Network error");
+      }
 
-      // Clear drafts — KYC is now in the provider's hands
+      const json = (await res.json().catch(() => ({}))) as {
+        error?: string; status?: SubStatus; submissionId?: string; providerRef?: string; reason?: string;
+      };
+      if (!res.ok && res.status !== 202) {
+        const msg = json.error || `Verification failed (${res.status})`;
+        // 5xx and known transient phrases ⇒ allow Try again without recapture.
+        if (res.status >= 500 || isTransientError(msg)) setLastErrorTransient(true);
+        throw new Error(msg);
+      }
+
+      // Record submission for the timeline + future polling
+      if (json.submissionId) {
+        const next: LastSubmission = {
+          submissionId: json.submissionId,
+          providerRef: json.providerRef ?? null,
+          status: json.status ?? "pending",
+          submittedAt: new Date().toISOString(),
+          reason: json.reason ?? (res.status === 202 ? "Provider unreachable — auto-retrying" : null),
+        };
+        setLastSubmission(next);
+      }
+
+      // Keep the selfie in localStorage until we have a non-pending status — lets the
+      // user re-check / resubmit on refresh during Step 3 without recapturing.
+      // Only clear text drafts (KYC is now in the provider's hands).
       try {
         localStorage.removeItem(KYC_DRAFT_KEY);
-        localStorage.removeItem(SELFIE_STORAGE_KEY);
         localStorage.removeItem(KYC_DOCS_KEY);
       } catch { /* ignore */ }
 
-      toast.success("Selfie submitted for verification");
+      if (res.status === 202) {
+        // Provider unreachable — surface "Try again" but still progress to pending screen
+        // so realtime polling can pick up later results.
+        setLastErrorTransient(true);
+        toast.message("Provider is busy — submitted to queue. You can try again.");
+      } else {
+        toast.success("Selfie submitted for verification");
+      }
       await persistStage("STAGE_4");
       onDone();
     } catch (e) {
@@ -348,6 +400,9 @@ export function KycFlow({ onDone }: { onDone: () => void }) {
       setBusy(false);
     }
   }
+
+  const submitStep3 = runVerification;
+  const retrySubmit = runVerification;
 
   return (
     <div className="flex-1 flex flex-col p-6 tw-slide-up">
