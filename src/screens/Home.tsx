@@ -76,6 +76,7 @@ export function Home() {
   const [view, setView] = useState<"home" | "scan">("home");
   const [quickAction, setQuickAction] = useState<QuickActionKind | null>(null);
   const [showNotifs, setShowNotifs] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [txns, setTxns] = useState<Txn[]>([]);
   const [loading, setLoading] = useState(true);
