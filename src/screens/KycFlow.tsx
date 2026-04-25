@@ -134,6 +134,67 @@ export function KycFlow({ onDone }: { onDone: () => void }) {
     } catch { /* ignore */ }
   }, [docFront, docBack]);
 
+  // Persist last submission to localStorage so refreshes don't lose context.
+  useEffect(() => {
+    try {
+      if (lastSubmission) localStorage.setItem(KYC_LAST_SUBMISSION_KEY, JSON.stringify(lastSubmission));
+    } catch { /* ignore */ }
+  }, [lastSubmission]);
+
+  // Fetch the latest server-side submission + subscribe to realtime updates.
+  useEffect(() => {
+    let cancelled = false;
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+
+    void (async () => {
+      const { data: u } = await supabase.auth.getUser();
+      if (!u.user || cancelled) return;
+      const userId = u.user.id;
+
+      const { data: rows } = await supabase
+        .from("kyc_submissions")
+        .select("id,provider_ref,status,created_at,reason")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(1);
+      if (!cancelled && rows && rows[0]) {
+        const r = rows[0];
+        setLastSubmission({
+          submissionId: r.id,
+          providerRef: r.provider_ref,
+          status: r.status,
+          submittedAt: r.created_at,
+          reason: r.reason,
+        });
+      }
+
+      channel = supabase
+        .channel(`kyc-sub-${userId}`)
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "kyc_submissions", filter: `user_id=eq.${userId}` },
+          (payload) => {
+            const row = payload.new as {
+              id: string; provider_ref: string | null; status: "pending" | "approved" | "rejected";
+              created_at: string; reason: string | null;
+            } | undefined;
+            if (!row) return;
+            setLastSubmission((cur) =>
+              !cur || cur.submissionId === row.id || new Date(row.created_at) >= new Date(cur.submittedAt)
+                ? { submissionId: row.id, providerRef: row.provider_ref, status: row.status, submittedAt: row.created_at, reason: row.reason }
+                : cur,
+            );
+          },
+        )
+        .subscribe();
+    })();
+
+    return () => {
+      cancelled = true;
+      if (channel) void supabase.removeChannel(channel);
+    };
+  }, []);
+
   // Debounced auto-save of step-1 fields to Supabase profile (cross-device continuity).
   useEffect(() => {
     if (!hydrated.current) return;
