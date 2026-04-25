@@ -271,20 +271,31 @@ function SealBadge({ variant }: { variant: "green" | "red" }) {
 
 /* ----------------------------- Approved View ----------------------------- */
 
-function ApprovedView({ onContinue }: { onContinue: () => void }) {
+function ApprovedView({ onContinue, onClose }: { onContinue: () => void; onClose: () => void }) {
   return (
-    <div className="kyc-result-root">
+    <div className="kyc-result-root kyc-approved-stage">
       <div className="kyc-result-glow green" />
-      <button className="kyc-close-btn" onClick={onContinue} aria-label="Close">
+      {/* Full-screen shimmer sweep that plays once after the seal lands */}
+      <div className="kyc-approved-shimmer" aria-hidden="true" />
+
+      <button className="kyc-close-btn" onClick={onClose} aria-label="Close">
         <X className="w-6 h-6" strokeWidth={2.2} />
       </button>
 
       <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-6 -mt-16">
-        <SealBadge variant="green" />
+        <div className="kyc-seal-bounce">
+          <SealBadge variant="green" />
+        </div>
+        <h2 className="kyc-approved-title mt-8 text-white text-[24px] font-semibold tracking-tight">
+          KYC Approved
+        </h2>
+        <p className="kyc-approved-sub mt-2 text-white/60 text-sm">
+          Taking you to your wallet…
+        </p>
       </div>
 
       <div className="relative z-10 px-6 pb-8 safe-bottom">
-        <button className="kyc-continue-btn" onClick={onContinue}>
+        <button className="kyc-continue-btn primary" onClick={onContinue}>
           Continue
         </button>
       </div>
