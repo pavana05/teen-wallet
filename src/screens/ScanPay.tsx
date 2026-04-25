@@ -408,49 +408,56 @@ function ScannerView({ onBack, onDecoded }: { onBack: () => void; onDecoded: (p:
   return (
     <div className="flex-1 flex flex-col bg-[#0B0B0B] relative overflow-hidden">
       <div id={containerId} className="absolute inset-0 [&_video]:object-cover [&_video]:w-full [&_video]:h-full" />
-      <div className="absolute inset-0 bg-black/55 z-10 pointer-events-none"
-        style={{ maskImage: "radial-gradient(circle at 50% 45%, transparent 138px, black 140px)", WebkitMaskImage: "radial-gradient(circle at 50% 45%, transparent 138px, black 140px)" }}
+      {/* Cinematic vignette mask around the viewfinder */}
+      <div className="absolute inset-0 bg-black/60 z-10 pointer-events-none"
+        style={{ maskImage: "radial-gradient(circle at 50% 44%, transparent 142px, black 158px)", WebkitMaskImage: "radial-gradient(circle at 50% 44%, transparent 142px, black 158px)" }}
       />
-      <div className="absolute top-0 left-0 right-0 z-30 px-5 pt-6 flex items-center justify-between">
-        <button onClick={onBack} aria-label="Back" className="w-10 h-10 rounded-full glass flex items-center justify-center">
+
+      {/* Top brand bar */}
+      <div className="sp2-topbar">
+        <button onClick={onBack} aria-label="Back" className="sp2-icon-btn">
           <ArrowLeft className="w-5 h-5" />
         </button>
-        <span className="text-[13px] font-medium tracking-wide text-white/80">Scan to Pay</span>
+        <div className="sp2-brand">
+          <span className="sp2-brand-dot">TW</span>
+          <span className="sp2-brand-text">Scan & Pay</span>
+        </div>
         <div className="flex items-center gap-2">
           <button
             onClick={() => setDebugOpen((v) => !v)}
             aria-label="Debug overlay"
-            className={`w-10 h-10 rounded-full flex items-center justify-center ${debugOpen ? "bg-primary text-primary-foreground" : "glass"}`}
+            className={`sp2-icon-btn ${debugOpen ? "on" : ""}`}
           >
             <Bug className="w-5 h-5" />
           </button>
-          <button onClick={toggleTorch} aria-label="Toggle flash" className="w-10 h-10 rounded-full glass flex items-center justify-center">
-            {torch ? <Zap className="w-5 h-5 text-[#6ee7a3]" /> : <ZapOff className="w-5 h-5" />}
+          <button onClick={toggleTorch} aria-label="Toggle flash" className={`sp2-icon-btn ${torch ? "on" : ""}`}>
+            {torch ? <Zap className="w-5 h-5" /> : <ZapOff className="w-5 h-5" />}
           </button>
         </div>
       </div>
 
-      <div className="absolute inset-0 z-20 flex flex-col items-center justify-center pointer-events-none">
-        <div className="sp-scan-frame">
-          <div className="sp-scan-glow" />
-          <span className="sp-scan-corner top-0 left-0 border-t-2 border-l-2 rounded-tl-2xl" />
-          <span className="sp-scan-corner top-0 right-0 border-t-2 border-r-2 rounded-tr-2xl" />
-          <span className="sp-scan-corner bottom-0 left-0 border-b-2 border-l-2 rounded-bl-2xl" />
-          <span className="sp-scan-corner bottom-0 right-0 border-b-2 border-r-2 rounded-br-2xl" />
-          <div className="sp-scan-beam" />
+      {/* Viewfinder */}
+      <div className="sp2-frame-wrap">
+        <div className="sp2-frame">
+          <div className="sp2-frame-halo" />
+          <span className="sp2-frame-corner top-0 left-0 border-t-[3px] border-l-[3px] rounded-tl-[22px]" />
+          <span className="sp2-frame-corner top-0 right-0 border-t-[3px] border-r-[3px] rounded-tr-[22px]" />
+          <span className="sp2-frame-corner bottom-0 left-0 border-b-[3px] border-l-[3px] rounded-bl-[22px]" />
+          <span className="sp2-frame-corner bottom-0 right-0 border-b-[3px] border-r-[3px] rounded-br-[22px]" />
+          <div className="sp2-beam" />
         </div>
-        <p className="mt-8 text-[13px] text-white/75 tracking-wide">
-          {starting ? "Starting camera…" : "Scan any QR to pay instantly"}
+        <p className="sp2-frame-hint">
+          {starting ? "Starting camera…" : "Align the QR inside the frame"}
         </p>
         {!starting && (
-          <button onClick={manualSoftReset} className="pointer-events-auto mt-3 text-[11px] text-white/55 underline underline-offset-4">
+          <button onClick={manualSoftReset} className="sp2-retune">
             Camera stuck? Re-tune
           </button>
         )}
       </div>
 
       {debugOpen && (
-        <div className="absolute bottom-24 left-4 right-4 z-30 rounded-2xl bg-black/85 border border-white/10 backdrop-blur-md p-3 text-[11px] font-mono text-white/85 max-h-[40%] overflow-auto">
+        <div className="absolute bottom-[140px] left-4 right-4 z-30 rounded-2xl bg-black/85 border border-white/10 backdrop-blur-md p-3 text-[11px] font-mono text-white/85 max-h-[36%] overflow-auto">
           <p className="text-primary mb-1">⚙ {tuningRef.current.profile} · fps {tuningRef.current.fps} · qrbox {tuningRef.current.qrbox.width}px · cores {tuningRef.current.cores} · mem {tuningRef.current.mem}GB · soft-resets {softResetCount}</p>
           {debug ? (
             <>
@@ -469,11 +476,23 @@ function ScannerView({ onBack, onDecoded }: { onBack: () => void; onDecoded: (p:
         </div>
       )}
 
-      <div className="absolute bottom-8 left-0 right-0 z-30 flex justify-center">
-        <label className="btn-ghost cursor-pointer">
-          <ImageIcon className="w-4 h-4" /> Upload from gallery
-          <input type="file" accept="image/*" className="hidden" onChange={handleUpload} />
-        </label>
+      {/* Bottom action dock — GPay/PhonePe style */}
+      <div className="sp2-dock safe-bottom">
+        <div className="sp2-dock-row">
+          <label className="sp2-dock-btn">
+            <span className="sp2-dock-icon"><ImageIcon className="w-[18px] h-[18px]" /></span>
+            <span className="sp2-dock-label">Upload QR</span>
+            <input type="file" accept="image/*" className="hidden" onChange={handleUpload} />
+          </label>
+          <button className="sp2-dock-btn" onClick={() => toast.message("Pay to contact", { description: "Coming soon — invite friends to Teen Wallet first." })}>
+            <span className="sp2-dock-icon"><Users className="w-[18px] h-[18px]" /></span>
+            <span className="sp2-dock-label">To contact</span>
+          </button>
+          <button className="sp2-dock-btn" onClick={() => toast.message("Self transfer", { description: "Move money between your own wallets — coming soon." })}>
+            <span className="sp2-dock-icon"><QrCode className="w-[18px] h-[18px]" /></span>
+            <span className="sp2-dock-label">My QR</span>
+          </button>
+        </div>
       </div>
     </div>
   );
