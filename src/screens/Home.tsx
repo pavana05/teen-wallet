@@ -3,6 +3,7 @@ import { useApp } from "@/lib/store";
 import { useEffect, useState, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { ScanPay } from "@/screens/ScanPay";
+import { QuickActionsPanel, type QuickActionKind } from "@/components/QuickActionsPanel";
 import heroScan from "@/assets/home-hero-scan.jpg";
 
 interface Txn {
@@ -71,6 +72,7 @@ export function Home() {
   const { fullName, userId } = useApp();
   const first = fullName?.split(" ")[0] ?? "Alex";
   const [view, setView] = useState<"home" | "scan">("home");
+  const [quickAction, setQuickAction] = useState<QuickActionKind | null>(null);
   const [txns, setTxns] = useState<Txn[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -201,10 +203,10 @@ export function Home() {
           <button className="text-white/60">›</button>
         </div>
         <div className="grid grid-cols-4 gap-3">
-          <QuickAction icon={ArrowUpRight} label={"Pay\nfriends"} onClick={() => setView("scan")} />
-          <QuickAction icon={Building2} label={"To bank &\nself a/c"} />
-          <QuickAction icon={Wallet} label={"Check\nbalance"} />
-          <QuickAction icon={History} label={"Transaction\nhistory"} />
+          <QuickAction icon={ArrowUpRight} label={"Pay\nfriends"} onClick={() => setQuickAction("pay-friends")} />
+          <QuickAction icon={Building2} label={"To bank &\nself a/c"} onClick={() => setQuickAction("to-bank")} />
+          <QuickAction icon={Wallet} label={"Check\nbalance"} onClick={() => setQuickAction("balance")} />
+          <QuickAction icon={History} label={"Transaction\nhistory"} onClick={() => setQuickAction("history")} />
         </div>
       </div>
 
@@ -269,6 +271,7 @@ export function Home() {
           </button>
         </div>
       </div>
+      {quickAction && <QuickActionsPanel kind={quickAction} onClose={() => setQuickAction(null)} />}
     </div>
   );
 }
