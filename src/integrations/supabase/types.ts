@@ -250,12 +250,15 @@ export type Database = {
       kyc_submissions: {
         Row: {
           created_at: string
+          doc_back_path: string | null
+          doc_front_path: string | null
           id: string
           match_score: number | null
           provider: string
           provider_ref: string | null
           reason: string | null
           selfie_height: number | null
+          selfie_path: string | null
           selfie_size_bytes: number | null
           selfie_width: number | null
           status: Database["public"]["Enums"]["kyc_status"]
@@ -264,12 +267,15 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          doc_back_path?: string | null
+          doc_front_path?: string | null
           id?: string
           match_score?: number | null
           provider?: string
           provider_ref?: string | null
           reason?: string | null
           selfie_height?: number | null
+          selfie_path?: string | null
           selfie_size_bytes?: number | null
           selfie_width?: number | null
           status?: Database["public"]["Enums"]["kyc_status"]
@@ -278,12 +284,15 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          doc_back_path?: string | null
+          doc_front_path?: string | null
           id?: string
           match_score?: number | null
           provider?: string
           provider_ref?: string | null
           reason?: string | null
           selfie_height?: number | null
+          selfie_path?: string | null
           selfie_size_bytes?: number | null
           selfie_width?: number | null
           status?: Database["public"]["Enums"]["kyc_status"]
