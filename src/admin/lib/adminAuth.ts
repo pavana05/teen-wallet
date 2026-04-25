@@ -90,6 +90,7 @@ export const PERMS = {
   viewKyc: ["super_admin", "operations_manager", "compliance_officer"] as AdminRole[],
   decideKyc: ["super_admin", "operations_manager"] as AdminRole[],
   viewTransactions: ["super_admin", "operations_manager", "finance_manager", "compliance_officer", "fraud_analyst"] as AdminRole[],
+  manageTransactions: ["super_admin", "operations_manager"] as AdminRole[],
   viewFraud: ["super_admin", "fraud_analyst", "compliance_officer"] as AdminRole[],
   manageAdmins: ["super_admin"] as AdminRole[],
   manageSettings: ["super_admin"] as AdminRole[],
