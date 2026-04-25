@@ -15,6 +15,8 @@ interface LatestSubmission {
 
 const POLL_INTERVAL_MS = 4000;
 const POLL_BACKOFF_MAX_MS = 15000;
+const REJECTION_REASON_KEY = "tw-kyc-rejection-reason";
+const APPROVED_ANIMATION_MS = 2400;
 
 export function KycPending({ onApproved, forceState, forceReason }: { onApproved: () => void; forceState?: Status; forceReason?: string }) {
   const [latest, setLatest] = useState<LatestSubmission | null>(
