@@ -169,7 +169,7 @@ function KycQueue() {
   const lastKycLoad = useRef(0);
   useEffect(() => {
     const throttled = () => {
-      recordRealtime("kyc_submissions");
+      recordRealtime();
       const now = Date.now();
       if (now - lastKycLoad.current < 3000) return;
       lastKycLoad.current = now;
