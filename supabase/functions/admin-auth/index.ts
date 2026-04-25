@@ -759,6 +759,29 @@ Deno.serve(async (req) => {
     return json({ rows, total: count ?? 0, page, pageSize });
   }
 
+  // ----- KYC signed URLs (selfie + Aadhaar docs) for admin review -----
+  if (action === "kyc_signed_urls") {
+    if (!can(me.role, "viewKyc")) return json({ error: "forbidden" }, 403);
+    const submissionId = String(body.submissionId ?? "");
+    if (!submissionId) return json({ error: "invalid" }, 400);
+    const { data: sub } = await sb.from("kyc_submissions")
+      .select("id,selfie_path,doc_front_path,doc_back_path")
+      .eq("id", submissionId).maybeSingle();
+    if (!sub) return json({ error: "not_found" }, 404);
+    const out: { selfieUrl: string | null; docFrontUrl: string | null; docBackUrl: string | null } = {
+      selfieUrl: null, docFrontUrl: null, docBackUrl: null,
+    };
+    const sign = async (p: string | null) => {
+      if (!p) return null;
+      const { data } = await sb.storage.from("kyc-docs").createSignedUrl(p, 60 * 10);
+      return data?.signedUrl ?? null;
+    };
+    out.selfieUrl = await sign((sub as any).selfie_path);
+    out.docFrontUrl = await sign((sub as any).doc_front_path);
+    out.docBackUrl = await sign((sub as any).doc_back_path);
+    return json(out);
+  }
+
   // ----- KYC decide (approve / reject / escalate) -----
   if (action === "kyc_decide") {
     if (!can(me.role, "decideKyc")) return json({ error: "forbidden" }, 403);
