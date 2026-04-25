@@ -59,36 +59,48 @@ export function ProfilePanel({ onClose }: Props) {
   });
   useEffect(() => { try { localStorage.setItem("tw-profile-prefs", JSON.stringify(prefs)); } catch {} }, [prefs]);
 
-  useEffect(() => {
+  const refetch = async () => {
     if (!userId) return;
-    void (async () => {
-      const { data: p } = await supabase
+    setProfileLoading(true); setStatsLoading(true); setProfileError(false);
+    const [{ data: p, error: pErr }, { data: txns, error: tErr }] = await Promise.all([
+      supabase
         .from("profiles")
         .select("full_name,phone,dob,gender,aadhaar_last4,kyc_status,created_at")
         .eq("id", userId)
-        .maybeSingle();
-      if (p) setProfile(p as typeof profile);
-
-      const { data: txns } = await supabase
+        .maybeSingle(),
+      supabase
         .from("transactions")
         .select("amount,status,created_at")
-        .eq("user_id", userId);
-      if (txns) {
-        const total = txns.reduce((s, t) => s + Number(t.amount || 0), 0);
-        const monthStart = new Date(); monthStart.setDate(1); monthStart.setHours(0, 0, 0, 0);
-        const monthSpent = txns
-          .filter((t) => new Date(t.created_at) >= monthStart && t.status === "success")
-          .reduce((s, t) => s + Number(t.amount || 0), 0);
-        const succ = txns.filter((t) => t.status === "success").length;
-        setStats({
-          totalSpent: total,
-          txnCount: txns.length,
-          monthSpent,
-          successRate: txns.length ? Math.round((succ / txns.length) * 100) : 100,
-        });
-      }
-    })();
-  }, [userId]);
+        .eq("user_id", userId),
+    ]);
+    if (pErr) {
+      setProfileError(true);
+      toast.error("Couldn't load your profile", { description: pErr.message });
+    } else if (p) {
+      setProfile(p as typeof profile);
+    }
+    setProfileLoading(false);
+
+    if (tErr) {
+      toast.error("Couldn't load your transaction stats", { description: tErr.message });
+    } else if (txns) {
+      const total = txns.reduce((s, t) => s + Number(t.amount || 0), 0);
+      const monthStart = new Date(); monthStart.setDate(1); monthStart.setHours(0, 0, 0, 0);
+      const monthSpent = txns
+        .filter((t) => new Date(t.created_at) >= monthStart && t.status === "success")
+        .reduce((s, t) => s + Number(t.amount || 0), 0);
+      const succ = txns.filter((t) => t.status === "success").length;
+      setStats({
+        totalSpent: total,
+        txnCount: txns.length,
+        monthSpent,
+        successRate: txns.length ? Math.round((succ / txns.length) * 100) : 100,
+      });
+    }
+    setStatsLoading(false);
+  };
+
+  useEffect(() => { void refetch(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [userId]);
 
   const phone = profile?.phone ?? "+91 ••••• •••••";
   const upiId = useMemo(() => {
