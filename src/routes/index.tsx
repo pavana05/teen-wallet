@@ -1,26 +1,80 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useApp, type Stage } from "@/lib/store";
+import { fetchProfile } from "@/lib/auth";
+import { PhoneShell } from "@/components/PhoneShell";
+import { Splash } from "@/screens/Splash";
+import { Onboarding } from "@/screens/Onboarding";
+import { AuthPhone } from "@/screens/AuthPhone";
+import { KycFlow } from "@/screens/KycFlow";
+import { KycPending } from "@/screens/KycPending";
+import { Home } from "@/screens/Home";
 
 export const Route = createFileRoute("/")({
+  head: () => ({
+    meta: [
+      { title: "Teen Wallet — Payments built for India's new gen" },
+      { name: "description", content: "India's first teen-first UPI wallet. Aadhaar-only KYC. Scan, pay, and earn rewards in seconds." },
+    ],
+  }),
   component: Index,
 });
 
-// IMPORTANT: Replace this placeholder. For sites with multiple pages (About, Services, Contact, etc.),
-// create separate route files (about.tsx, services.tsx, contact.tsx) — don't put all pages in this file.
-function PlaceholderIndex() {
-  return (
-    <div
-      className="flex min-h-screen items-center justify-center"
-      style={{ backgroundColor: "#fcfbf8" }}
-    >
-      <img
-        data-lovable-blank-page-placeholder="REMOVE_THIS"
-        src="https://cdn.gpteng.co/blank-app-v1.svg"
-        alt="Your app will live here!"
-      />
-    </div>
-  );
-}
-
 function Index() {
-  return <PlaceholderIndex />;
+  const { stage, splashSeen, setStage, hydrateFromProfile } = useApp();
+  const [booting, setBooting] = useState(true);
+
+  useEffect(() => {
+    let mounted = true;
+    // Hydrate from Cloud if we have a session
+    (async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        const p = await fetchProfile();
+        if (p && mounted) hydrateFromProfile({
+          id: p.id,
+          full_name: p.full_name,
+          balance: Number(p.balance),
+          onboarding_stage: p.onboarding_stage as Stage,
+        });
+      }
+      if (mounted) setBooting(false);
+    })();
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => {
+      if (!session) {
+        // signed out — keep stage as is unless explicit reset
+      }
+    });
+    return () => { mounted = false; sub.subscription.unsubscribe(); };
+  }, [hydrateFromProfile]);
+
+  if (booting) {
+    return (
+      <PhoneShell>
+        <div className="flex-1 flex items-center justify-center">
+          <div className="w-12 h-12 rounded-full tw-shimmer" />
+        </div>
+      </PhoneShell>
+    );
+  }
+
+  // Splash always shown first if not seen this device
+  if (!splashSeen) return <PhoneShell><Splash onDone={() => useApp.getState().setSplashSeen(true)} /></PhoneShell>;
+
+  return (
+    <PhoneShell>
+      {stage === "STAGE_0" || stage === "STAGE_1" ? (
+        <Onboarding onDone={() => setStage("STAGE_2")} />
+      ) : stage === "STAGE_2" ? (
+        <AuthPhone onDone={() => setStage("STAGE_3")} />
+      ) : stage === "STAGE_3" ? (
+        <KycFlow onDone={() => setStage("STAGE_4")} />
+      ) : stage === "STAGE_4" ? (
+        <KycPending onApproved={() => setStage("STAGE_5")} />
+      ) : (
+        <Home />
+      )}
+    </PhoneShell>
+  );
 }
