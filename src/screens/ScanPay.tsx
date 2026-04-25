@@ -158,8 +158,8 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
 
 
   if (phase === "processing") return <ProcessingView amount={amount} />;
-  if (phase === "success") return <SuccessView message={resultMsg} amount={amount} payee={payload?.payeeName ?? ""} onDone={onBack} />;
-  if (phase === "failed") return <FailedView kind={failKind} message={resultMsg} onRetry={reset} onCancel={onBack} />;
+  if (phase === "success") return <SuccessView message={resultMsg} amount={amount} payee={payload?.payeeName ?? ""} onDone={handleHardBack} />;
+  if (phase === "failed") return <FailedView kind={failKind} message={resultMsg} onRetry={reset} onCancel={handleHardBack} />;
   if (phase === "confirm" && payload) {
     return (
       <ConfirmView
@@ -172,7 +172,32 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
       />
     );
   }
-  return <ScannerView onBack={onBack} onDecoded={handleDecoded} />;
+  return <ScannerView key={scannerKey} onBack={handleHardBack} onDecoded={handleDecoded} />;
+}
+
+/* ============================================================
+   Persistence helpers
+   ============================================================ */
+function readPersisted(): PersistedFlow | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.sessionStorage.getItem(SCANPAY_PERSIST_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as PersistedFlow;
+    // Only resume into safe phases — never resume into processing/success/failed.
+    if (parsed.phase !== "scanning" && parsed.phase !== "confirm") return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+function writePersisted(p: PersistedFlow) {
+  if (typeof window === "undefined") return;
+  try { window.sessionStorage.setItem(SCANPAY_PERSIST_KEY, JSON.stringify(p)); } catch { /* quota — ignore */ }
+}
+function clearPersisted() {
+  if (typeof window === "undefined") return;
+  try { window.sessionStorage.removeItem(SCANPAY_PERSIST_KEY); } catch { /* ignore */ }
 }
 
 /* ============================================================
