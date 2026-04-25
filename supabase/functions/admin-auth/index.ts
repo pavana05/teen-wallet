@@ -129,7 +129,7 @@ async function totpCode(secretB32: string, time = Date.now(), step = 30): Promis
   view.setUint32(0, Math.floor(counter / 0x100000000), false);
   const key = await crypto.subtle.importKey(
     "raw",
-    base32Decode(secretB32),
+    base32Decode(secretB32) as BufferSource,
     { name: "HMAC", hash: "SHA-1" },
     false,
     ["sign"],
