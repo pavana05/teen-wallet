@@ -19,15 +19,16 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
   const [failKind, setFailKind] = useState<FailKind>("generic");
 
   const navLockRef = useRef(false);
-  const handleDecoded = (parsed: UpiPayload) => {
-    // Guardrail: ignore duplicate decodes / double-fires that race the camera stop.
+  // Stable callback so the scanner effect doesn't re-run every render
+  // (which used to tear down + restart the camera, killing detection).
+  const handleDecoded = useCallback((parsed: UpiPayload) => {
     if (navLockRef.current) return;
     navLockRef.current = true;
     if (navigator.vibrate) navigator.vibrate(40);
     setPayload(parsed);
     setAmount(parsed.amount ?? 0);
     setPhase("confirm");
-  };
+  }, []);
 
   const handlePay = useCallback(async () => {
     if (!userId || !payload) return;
@@ -150,9 +151,9 @@ function ScannerView({ onBack, onDecoded }: { onBack: () => void; onDecoded: (p:
   const containerId = "tw-qr-region";
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const [torch, setTorch] = useState(false);
+  const [permissionDenied, setPermissionDenied] = useState(false);
   const decodedRef = useRef(false);
-  const lastDecodeRef = useRef<{ key: string; at: number } | null>(null);
-  const DECODE_COOLDOWN_MS = 4000;
+  const lastInvalidToastRef = useRef(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -166,26 +167,49 @@ function ScannerView({ onBack, onDecoded }: { onBack: () => void; onDecoded: (p:
         if (cancelled) return;
         await scanner.start(
           camId,
-          { fps: 10, qrbox: { width: 240, height: 240 } },
+          {
+            fps: 25,
+            // Larger scan area + responsive sizing → reliable detection
+            // even when the QR isn't perfectly centred.
+            qrbox: (vw: number, vh: number) => {
+              const edge = Math.floor(Math.min(vw, vh) * 0.72);
+              return { width: edge, height: edge };
+            },
+            aspectRatio: 1,
+            videoConstraints: {
+              facingMode: { ideal: "environment" },
+              // Continuous autofocus dramatically improves detection speed.
+              advanced: [{ focusMode: "continuous" }],
+            },
+            // Use the BarcodeDetector / native decoder when available.
+            useBarCodeDetectorIfSupported: true,
+          } as never,
           (decoded) => {
-            // First-line guard: never act twice on the same scanner instance.
+            // Hard lock: act exactly once per scanner lifecycle.
             if (decodedRef.current) return;
-            // Cooldown guard: ignore the same QR (or any) re-firing inside the window.
-            const now = Date.now();
-            const key = decoded.trim();
-            const last = lastDecodeRef.current;
-            if (last && last.key === key && now - last.at < DECODE_COOLDOWN_MS) return;
             const parsed = parseUpiQr(decoded);
-            if (!parsed) return;
+            if (!parsed) {
+              // Surface invalid-QR feedback at most once every 2s, keep scanning.
+              const now = Date.now();
+              if (now - lastInvalidToastRef.current > 2000) {
+                lastInvalidToastRef.current = now;
+                toast.error("Invalid QR code");
+              }
+              return;
+            }
             decodedRef.current = true;
-            lastDecodeRef.current = { key, at: now };
             scanner.stop().catch(() => {});
             onDecoded(parsed);
           },
           () => {},
         );
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Camera unavailable");
+        const msg = err instanceof Error ? err.message : "Camera unavailable";
+        if (/permission|denied|NotAllowed/i.test(msg)) {
+          setPermissionDenied(true);
+        } else {
+          toast.error(msg);
+        }
       }
     };
     void start();
@@ -223,6 +247,24 @@ function ScannerView({ onBack, onDecoded }: { onBack: () => void; onDecoded: (p:
       toast.error("Could not read QR from image");
     }
   };
+
+  if (permissionDenied) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center bg-[#0B0B0B] px-8 text-center">
+        <div className="w-16 h-16 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mb-5">
+          <ZapOff className="w-7 h-7 text-white/70" />
+        </div>
+        <p className="text-[17px] font-semibold text-white">Camera permission needed</p>
+        <p className="mt-2 text-[13px] text-white/60 max-w-xs">
+          Allow camera access in your browser settings, then tap retry to scan a UPI QR.
+        </p>
+        <button onClick={() => location.reload()} className="mt-6 px-5 py-2.5 rounded-full bg-primary text-primary-foreground font-semibold text-[13px]">
+          Retry
+        </button>
+        <button onClick={onBack} className="mt-3 text-[12px] text-white/55">Go back</button>
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1 flex flex-col bg-[#0B0B0B] relative overflow-hidden">
