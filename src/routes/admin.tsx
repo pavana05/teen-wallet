@@ -95,6 +95,7 @@ function AdminLayout() {
           <Outlet />
         </main>
       </div>
+      <PerfOverlay />
     </div>
   );
 }
