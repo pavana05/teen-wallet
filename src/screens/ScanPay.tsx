@@ -151,9 +151,9 @@ function ScannerView({ onBack, onDecoded }: { onBack: () => void; onDecoded: (p:
   const containerId = "tw-qr-region";
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const [torch, setTorch] = useState(false);
+  const [permissionDenied, setPermissionDenied] = useState(false);
   const decodedRef = useRef(false);
-  const lastDecodeRef = useRef<{ key: string; at: number } | null>(null);
-  const DECODE_COOLDOWN_MS = 4000;
+  const lastInvalidToastRef = useRef(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -167,26 +167,49 @@ function ScannerView({ onBack, onDecoded }: { onBack: () => void; onDecoded: (p:
         if (cancelled) return;
         await scanner.start(
           camId,
-          { fps: 10, qrbox: { width: 240, height: 240 } },
+          {
+            fps: 25,
+            // Larger scan area + responsive sizing → reliable detection
+            // even when the QR isn't perfectly centred.
+            qrbox: (vw: number, vh: number) => {
+              const edge = Math.floor(Math.min(vw, vh) * 0.72);
+              return { width: edge, height: edge };
+            },
+            aspectRatio: 1,
+            videoConstraints: {
+              facingMode: { ideal: "environment" },
+              // Continuous autofocus dramatically improves detection speed.
+              advanced: [{ focusMode: "continuous" }],
+            },
+            // Use the BarcodeDetector / native decoder when available.
+            useBarCodeDetectorIfSupported: true,
+          } as never,
           (decoded) => {
-            // First-line guard: never act twice on the same scanner instance.
+            // Hard lock: act exactly once per scanner lifecycle.
             if (decodedRef.current) return;
-            // Cooldown guard: ignore the same QR (or any) re-firing inside the window.
-            const now = Date.now();
-            const key = decoded.trim();
-            const last = lastDecodeRef.current;
-            if (last && last.key === key && now - last.at < DECODE_COOLDOWN_MS) return;
             const parsed = parseUpiQr(decoded);
-            if (!parsed) return;
+            if (!parsed) {
+              // Surface invalid-QR feedback at most once every 2s, keep scanning.
+              const now = Date.now();
+              if (now - lastInvalidToastRef.current > 2000) {
+                lastInvalidToastRef.current = now;
+                toast.error("Invalid QR code");
+              }
+              return;
+            }
             decodedRef.current = true;
-            lastDecodeRef.current = { key, at: now };
             scanner.stop().catch(() => {});
             onDecoded(parsed);
           },
           () => {},
         );
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Camera unavailable");
+        const msg = err instanceof Error ? err.message : "Camera unavailable";
+        if (/permission|denied|NotAllowed/i.test(msg)) {
+          setPermissionDenied(true);
+        } else {
+          toast.error(msg);
+        }
       }
     };
     void start();
