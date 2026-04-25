@@ -479,9 +479,9 @@ function StatChip({ icon: Icon, label, value, tint }: { icon: React.ComponentTyp
   );
 }
 
-function Row({ icon: Icon, label, hint }: { icon: React.ComponentType<{ className?: string; strokeWidth?: number }>; label: string; hint?: React.ReactNode }) {
+function Row({ icon: Icon, label, hint, onClick }: { icon: React.ComponentType<{ className?: string; strokeWidth?: number }>; label: string; hint?: React.ReactNode; onClick?: () => void }) {
   return (
-    <button className="w-full px-3.5 py-3.5 flex items-center gap-3 hover:bg-white/[.02] transition-colors">
+    <button onClick={onClick} className="w-full px-3.5 py-3.5 flex items-center gap-3 hover:bg-white/[.02] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-2xl">
       <div className="pp-row-icon"><Icon className="w-4 h-4 text-white/85" strokeWidth={2} /></div>
       <span className="text-[13px] text-white flex-1 text-left">{label}</span>
       {hint && <span className="text-[11.5px] text-white/55">{hint}</span>}
