@@ -48,6 +48,9 @@ export function clearAdminSession() {
 }
 
 export async function callAdminFn<T = unknown>(payload: Record<string, unknown>): Promise<T> {
+  // Lazy import to avoid pulling perfBus into modules that don't already use it.
+  const { recordRequest } = await import("./perfBus");
+  recordRequest(typeof payload.action === "string" ? payload.action : undefined);
   const res = await fetch(FN_URL, {
     method: "POST",
     headers: {
