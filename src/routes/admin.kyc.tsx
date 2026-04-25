@@ -2,7 +2,11 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState, useCallback } from "react";
 import { callAdminFn, readAdminSession, can, useAdminSession } from "@/admin/lib/adminAuth";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, ShieldCheck, ShieldX, ChevronLeft, ChevronRight, RefreshCw, Clock } from "lucide-react";
+import {
+  Loader2, ShieldCheck, ShieldX, ChevronLeft, ChevronRight, RefreshCw, Clock,
+  Copy, Check, ExternalLink, ImageOff, FileImage, User as UserIcon,
+} from "lucide-react";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/admin/kyc")({
   component: KycQueue,
@@ -21,6 +25,9 @@ interface KycRow {
   selfie_size_bytes: number | null;
   selfie_width: number | null;
   selfie_height: number | null;
+  selfie_path: string | null;
+  doc_front_path: string | null;
+  doc_back_path: string | null;
   profile: {
     full_name: string | null;
     phone: string | null;
@@ -31,10 +38,10 @@ interface KycRow {
 }
 
 const STATUS_BADGE: Record<string, string> = {
-  pending: "bg-orange-500/15 text-orange-400 border-orange-500/30",
-  approved: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
-  rejected: "bg-red-500/15 text-red-400 border-red-500/30",
-  not_started: "bg-zinc-500/15 text-zinc-300 border-zinc-500/30",
+  pending: "kyc-pill kyc-pill-pending",
+  approved: "kyc-pill kyc-pill-approved",
+  rejected: "kyc-pill kyc-pill-rejected",
+  not_started: "kyc-pill kyc-pill-muted",
 };
 
 function timeAgo(iso: string): string {
@@ -45,6 +52,40 @@ function timeAgo(iso: string): string {
   const h = Math.floor(m / 60);
   if (h < 24) return `${h}h ${m % 60}m ago`;
   return `${Math.floor(h / 24)}d ago`;
+}
+
+function ageFromDob(dob: string | null | undefined): number | null {
+  if (!dob) return null;
+  const d = new Date(dob);
+  if (Number.isNaN(d.getTime())) return null;
+  const now = new Date();
+  let age = now.getFullYear() - d.getFullYear();
+  const m = now.getMonth() - d.getMonth();
+  if (m < 0 || (m === 0 && now.getDate() < d.getDate())) age--;
+  return age;
+}
+
+function MatchGauge({ score }: { score: number | null }) {
+  if (score == null) return <span className="a-mono" style={{ color: "var(--a-muted)" }}>—</span>;
+  const pct = score <= 1 ? score * 100 : score;
+  const color = pct >= 90 ? "var(--a-success)" : pct >= 75 ? "var(--a-warn)" : "var(--a-danger)";
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+      <div style={{ width: 80, height: 6, borderRadius: 999, background: "var(--a-elevated)", overflow: "hidden" }}>
+        <div style={{ width: `${Math.min(100, pct)}%`, height: "100%", background: color, transition: "width 300ms" }} />
+      </div>
+      <span className="a-mono" style={{ fontSize: 12, color }}>{pct.toFixed(1)}%</span>
+    </div>
+  );
+}
+
+function StatCard({ label, value, accent }: { label: string; value: string | number; accent?: string }) {
+  return (
+    <div className="a-surface kyc-stat">
+      <div className="a-label">{label}</div>
+      <div style={{ fontSize: 24, fontWeight: 700, marginTop: 6, color: accent || "var(--a-text)" }}>{value}</div>
+    </div>
+  );
 }
 
 function KycQueue() {
@@ -60,6 +101,9 @@ function KycQueue() {
   const [rejectReason, setRejectReason] = useState("");
   const [showReject, setShowReject] = useState(false);
   const [err, setErr] = useState("");
+  const [urls, setUrls] = useState<{ selfieUrl: string | null; docFrontUrl: string | null; docBackUrl: string | null } | null>(null);
+  const [urlsLoading, setUrlsLoading] = useState(false);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const canDecide = can(admin?.role, "decideKyc");
 
@@ -94,6 +138,21 @@ function KycQueue() {
     return () => { supabase.removeChannel(ch); };
   }, [load]);
 
+  // Fetch signed URLs whenever opening a review
+  useEffect(() => {
+    if (!reviewing) { setUrls(null); return; }
+    const s = readAdminSession();
+    if (!s) return;
+    setUrlsLoading(true);
+    setUrls(null);
+    callAdminFn<{ selfieUrl: string | null; docFrontUrl: string | null; docBackUrl: string | null }>({
+      action: "kyc_signed_urls", sessionToken: s.sessionToken, submissionId: reviewing.id,
+    })
+      .then((r) => setUrls(r))
+      .catch(() => setUrls({ selfieUrl: null, docFrontUrl: null, docBackUrl: null }))
+      .finally(() => setUrlsLoading(false));
+  }, [reviewing]);
+
   async function decide(submissionId: string, decision: "approved" | "rejected", reason?: string) {
     const s = readAdminSession();
     if (!s) return;
@@ -101,50 +160,77 @@ function KycQueue() {
     setErr("");
     try {
       await callAdminFn({ action: "kyc_decide", sessionToken: s.sessionToken, submissionId, decision, reason: reason || "" });
+      toast.success(decision === "approved" ? "KYC approved" : "KYC rejected");
       setReviewing(null);
       setShowReject(false);
       setRejectReason("");
       await load();
     } catch (e: any) {
       setErr(e.message || "Action failed");
+      toast.error(e?.message || "Action failed");
     } finally {
       setBusyId(null);
     }
   }
 
+  function copy(text: string, key: string) {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopiedId(key);
+      setTimeout(() => setCopiedId((c) => (c === key ? null : c)), 1500);
+    });
+  }
+
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const pendingCount = status === "pending" ? total : rows.filter((r) => r.status === "pending").length;
 
   return (
     <div>
-      <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 16 }}>
+      {/* Header with gradient */}
+      <div className="kyc-header">
         <div>
-          <h1 style={{ fontSize: 24, fontWeight: 700 }}>KYC Queue</h1>
-          <p style={{ fontSize: 13, color: "var(--a-muted)", marginTop: 4 }}>{total} submissions • {status}</p>
+          <div className="a-label" style={{ marginBottom: 6 }}>Verification</div>
+          <h1 style={{ fontSize: 26, fontWeight: 700, letterSpacing: "-0.01em" }}>KYC Queue</h1>
+          <p style={{ fontSize: 13, color: "var(--a-muted)", marginTop: 4 }}>
+            Review and decide identity verifications submitted by users.
+          </p>
         </div>
-        <div style={{ display: "flex", gap: 8 }}>
-          {(["pending", "approved", "rejected", "all"] as const).map((k) => (
-            <button key={k} onClick={() => { setStatus(k); setPage(1); }}
-              className={status === k ? "a-btn" : "a-btn-ghost"}
-              style={{ textTransform: "capitalize" }}>{k}</button>
-          ))}
-          <button onClick={() => void load()} className="a-btn-ghost"><RefreshCw size={14} /> Refresh</button>
-        </div>
+        <button onClick={() => void load()} className="a-btn-ghost" disabled={loading}>
+          <RefreshCw size={14} className={loading ? "animate-spin" : ""} /> Refresh
+        </button>
       </div>
 
-      {err && <div style={{ marginBottom: 12, padding: 10, borderRadius: 6, background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", color: "#fca5a5", fontSize: 13 }}>{err}</div>}
+      {/* Stat row */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, margin: "20px 0" }}>
+        <StatCard label="In queue" value={status === "pending" ? total : pendingCount} accent="var(--a-warn)" />
+        <StatCard label={`${status} total`} value={total} />
+        <StatCard label="Page" value={`${page}/${totalPages}`} />
+        <StatCard label="Provider" value="Digio" />
+      </div>
 
-      <div className="a-surface" style={{ overflow: "hidden" }}>
+      {/* Filter chips */}
+      <div className="kyc-filters">
+        {(["pending", "approved", "rejected", "all"] as const).map((k) => (
+          <button key={k} onClick={() => { setStatus(k); setPage(1); }}
+            className={`kyc-chip ${status === k ? "kyc-chip-on" : ""}`}>
+            {k}
+          </button>
+        ))}
+      </div>
+
+      {err && <div className="kyc-err">{err}</div>}
+
+      <div className="a-surface" style={{ overflow: "hidden", marginTop: 12 }}>
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
           <thead>
-            <tr style={{ background: "var(--a-elev)", color: "var(--a-muted)", textAlign: "left" }}>
-              <th style={{ padding: 12 }}>User</th>
-              <th style={{ padding: 12 }}>Phone</th>
-              <th style={{ padding: 12 }}>Aadhaar</th>
-              <th style={{ padding: 12 }}>Submitted</th>
-              <th style={{ padding: 12 }}>Wait</th>
-              <th style={{ padding: 12 }}>Match</th>
-              <th style={{ padding: 12 }}>Status</th>
-              <th style={{ padding: 12, textAlign: "right" }}>Actions</th>
+            <tr className="kyc-thead">
+              <th style={{ padding: "12px 14px" }}>User</th>
+              <th style={{ padding: "12px 14px" }}>Phone</th>
+              <th style={{ padding: "12px 14px" }}>Aadhaar</th>
+              <th style={{ padding: "12px 14px" }}>Submitted</th>
+              <th style={{ padding: "12px 14px" }}>Wait</th>
+              <th style={{ padding: "12px 14px" }}>Match</th>
+              <th style={{ padding: "12px 14px" }}>Status</th>
+              <th style={{ padding: "12px 14px", textAlign: "right" }}>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -154,32 +240,39 @@ function KycQueue() {
               </td></tr>
             )}
             {!loading && rows.length === 0 && (
-              <tr><td colSpan={8} style={{ padding: 32, textAlign: "center", color: "var(--a-muted)" }}>No submissions.</td></tr>
+              <tr><td colSpan={8} style={{ padding: 48, textAlign: "center", color: "var(--a-muted)" }}>
+                <ShieldCheck size={28} style={{ opacity: 0.4, display: "block", margin: "0 auto 8px" }} />
+                Nothing here. The queue is clear.
+              </td></tr>
             )}
             {!loading && rows.map((r) => {
               const waitMs = Date.now() - new Date(r.created_at).getTime();
               const overdue = waitMs > 60 * 60 * 1000 && r.status === "pending";
+              const age = ageFromDob(r.profile?.dob);
               return (
-                <tr key={r.id} style={{ borderTop: "1px solid var(--a-border)" }}>
-                  <td style={{ padding: 12 }}>
-                    <Link to="/admin/users/$id" params={{ id: r.user_id }} style={{ color: "var(--a-fg)", textDecoration: "none" }}>
-                      <div style={{ fontWeight: 600 }}>{r.profile?.full_name || "—"}</div>
-                      <div className="a-mono" style={{ fontSize: 11, color: "var(--a-muted)" }}>{r.user_id.slice(0, 8)}…</div>
+                <tr key={r.id} className="kyc-row">
+                  <td style={{ padding: "12px 14px" }}>
+                    <Link to="/admin/users/$id" params={{ id: r.user_id }} style={{ color: "var(--a-text)", textDecoration: "none", display: "flex", alignItems: "center", gap: 10 }}>
+                      <div className="kyc-avatar"><UserIcon size={14} /></div>
+                      <div>
+                        <div style={{ fontWeight: 600 }}>{r.profile?.full_name || "—"}{age ? <span style={{ color: "var(--a-muted)", fontWeight: 400, marginLeft: 6, fontSize: 12 }}>· {age}y</span> : null}</div>
+                        <div className="a-mono" style={{ fontSize: 11, color: "var(--a-muted)" }}>{r.user_id.slice(0, 8)}…</div>
+                      </div>
                     </Link>
                   </td>
-                  <td style={{ padding: 12 }} className="a-mono">{r.profile?.phone || "—"}</td>
-                  <td style={{ padding: 12 }} className="a-mono">{r.profile?.aadhaar_last4 ? `XXXX-XXXX-${r.profile.aadhaar_last4}` : "—"}</td>
-                  <td style={{ padding: 12, color: "var(--a-muted)" }}>{new Date(r.created_at).toLocaleString()}</td>
-                  <td style={{ padding: 12, color: overdue ? "#fca5a5" : "var(--a-muted)" }}>
+                  <td style={{ padding: "12px 14px" }} className="a-mono">{r.profile?.phone || "—"}</td>
+                  <td style={{ padding: "12px 14px" }} className="a-mono">{r.profile?.aadhaar_last4 ? `XXXX-XXXX-${r.profile.aadhaar_last4}` : "—"}</td>
+                  <td style={{ padding: "12px 14px", color: "var(--a-muted)" }}>{new Date(r.created_at).toLocaleString()}</td>
+                  <td style={{ padding: "12px 14px", color: overdue ? "var(--a-danger)" : "var(--a-muted)" }}>
                     <Clock size={12} style={{ display: "inline-block", marginRight: 4, verticalAlign: "-2px" }} />
                     {timeAgo(r.created_at)}
                   </td>
-                  <td style={{ padding: 12 }} className="a-mono">{r.match_score != null ? `${Math.round(r.match_score * 100) / 100}%` : "—"}</td>
-                  <td style={{ padding: 12 }}>
-                    <span className={STATUS_BADGE[r.status]} style={{ padding: "2px 8px", borderRadius: 4, border: "1px solid", fontSize: 11, textTransform: "uppercase" }}>{r.status}</span>
+                  <td style={{ padding: "12px 14px" }}><MatchGauge score={r.match_score} /></td>
+                  <td style={{ padding: "12px 14px" }}>
+                    <span className={STATUS_BADGE[r.status]}>{r.status}</span>
                   </td>
-                  <td style={{ padding: 12, textAlign: "right" }}>
-                    <button className="a-btn-ghost" onClick={() => setReviewing(r)}>Review</button>
+                  <td style={{ padding: "12px 14px", textAlign: "right" }}>
+                    <button className="a-btn-ghost" onClick={() => setReviewing(r)} style={{ padding: "6px 12px", fontSize: 12 }}>Review →</button>
                   </td>
                 </tr>
               );
@@ -189,7 +282,7 @@ function KycQueue() {
       </div>
 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 12, fontSize: 13, color: "var(--a-muted)" }}>
-        <div>Page {page} of {totalPages}</div>
+        <div>Page {page} of {totalPages} · {total} total</div>
         <div style={{ display: "flex", gap: 8 }}>
           <button className="a-btn-ghost" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}><ChevronLeft size={14} /></button>
           <button className="a-btn-ghost" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}><ChevronRight size={14} /></button>
@@ -198,77 +291,103 @@ function KycQueue() {
 
       {/* Review modal */}
       {reviewing && (
-        <div onClick={() => !busyId && setReviewing(null)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", display: "grid", placeItems: "center", zIndex: 50, padding: 16 }}>
-          <div onClick={(e) => e.stopPropagation()} className="a-surface" style={{ maxWidth: 720, width: "100%", padding: 24, maxHeight: "90vh", overflow: "auto" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start", marginBottom: 16 }}>
+        <div onClick={() => !busyId && setReviewing(null)} className="kyc-overlay">
+          <div onClick={(e) => e.stopPropagation()} className="kyc-modal">
+            {/* Modal header */}
+            <div className="kyc-modal-head">
               <div>
-                <h2 style={{ fontSize: 18, fontWeight: 700 }}>KYC Review</h2>
-                <div className="a-mono" style={{ fontSize: 11, color: "var(--a-muted)", marginTop: 4 }}>Submission {reviewing.id.slice(0, 8)}…</div>
+                <div className="a-label" style={{ marginBottom: 4 }}>Submission · {reviewing.provider}</div>
+                <h2 style={{ fontSize: 20, fontWeight: 700 }}>{reviewing.profile?.full_name || "Unnamed user"}</h2>
+                <div className="a-mono" style={{ fontSize: 11, color: "var(--a-muted)", marginTop: 4, display: "flex", alignItems: "center", gap: 6 }}>
+                  {reviewing.id.slice(0, 8)}…
+                  <button onClick={() => copy(reviewing.id, "sub")} className="kyc-copy" title="Copy submission id">
+                    {copiedId === "sub" ? <Check size={11} /> : <Copy size={11} />}
+                  </button>
+                  <span style={{ color: "var(--a-border)" }}>|</span>
+                  user {reviewing.user_id.slice(0, 8)}…
+                  <button onClick={() => copy(reviewing.user_id, "uid")} className="kyc-copy" title="Copy user id">
+                    {copiedId === "uid" ? <Check size={11} /> : <Copy size={11} />}
+                  </button>
+                </div>
               </div>
-              <span className={STATUS_BADGE[reviewing.status]} style={{ padding: "4px 10px", borderRadius: 4, border: "1px solid", fontSize: 11, textTransform: "uppercase" }}>{reviewing.status}</span>
+              <span className={STATUS_BADGE[reviewing.status]}>{reviewing.status}</span>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
+            {/* Selfie + Docs grid */}
+            <div className="kyc-media-grid">
+              <MediaTile label="Selfie" url={urls?.selfieUrl ?? null} loading={urlsLoading}
+                meta={reviewing.selfie_width && reviewing.selfie_height
+                  ? `${reviewing.selfie_width}×${reviewing.selfie_height}${reviewing.selfie_size_bytes ? ` · ${Math.round(reviewing.selfie_size_bytes / 1024)} KB` : ""}`
+                  : null} />
+              <MediaTile label="Aadhaar front" url={urls?.docFrontUrl ?? null} loading={urlsLoading} />
+              <MediaTile label="Aadhaar back" url={urls?.docBackUrl ?? null} loading={urlsLoading} />
+            </div>
+
+            {/* Details */}
+            <div className="kyc-details-grid">
               <div>
                 <div className="a-label" style={{ marginBottom: 8 }}>User-entered</div>
-                <div style={{ fontSize: 13, lineHeight: 1.8 }}>
-                  <div><span style={{ color: "var(--a-muted)" }}>Name:</span> {reviewing.profile?.full_name || "—"}</div>
-                  <div><span style={{ color: "var(--a-muted)" }}>Phone:</span> {reviewing.profile?.phone || "—"}</div>
-                  <div><span style={{ color: "var(--a-muted)" }}>DOB:</span> {reviewing.profile?.dob || "—"}</div>
-                  <div><span style={{ color: "var(--a-muted)" }}>Aadhaar:</span> {reviewing.profile?.aadhaar_last4 ? `XXXX-XXXX-${reviewing.profile.aadhaar_last4}` : "—"}</div>
-                </div>
+                <dl className="kyc-dl">
+                  <div><dt>Name</dt><dd>{reviewing.profile?.full_name || "—"}</dd></div>
+                  <div><dt>Phone</dt><dd className="a-mono">{reviewing.profile?.phone || "—"}</dd></div>
+                  <div><dt>DOB</dt><dd>{reviewing.profile?.dob || "—"}{ageFromDob(reviewing.profile?.dob) ? ` (${ageFromDob(reviewing.profile?.dob)} yrs)` : ""}</dd></div>
+                  <div><dt>Aadhaar</dt><dd className="a-mono">{reviewing.profile?.aadhaar_last4 ? `XXXX-XXXX-${reviewing.profile.aadhaar_last4}` : "—"}</dd></div>
+                </dl>
               </div>
               <div>
                 <div className="a-label" style={{ marginBottom: 8 }}>Provider response</div>
-                <div style={{ fontSize: 13, lineHeight: 1.8 }}>
-                  <div><span style={{ color: "var(--a-muted)" }}>Provider:</span> {reviewing.provider}</div>
-                  <div><span style={{ color: "var(--a-muted)" }}>Ref:</span> <span className="a-mono" style={{ fontSize: 11 }}>{reviewing.provider_ref || "—"}</span></div>
-                  <div><span style={{ color: "var(--a-muted)" }}>Match score:</span> {reviewing.match_score != null ? `${reviewing.match_score}%` : "—"}</div>
-                  <div><span style={{ color: "var(--a-muted)" }}>Selfie:</span> {reviewing.selfie_width && reviewing.selfie_height ? `${reviewing.selfie_width}×${reviewing.selfie_height}` : "—"} {reviewing.selfie_size_bytes ? `(${Math.round(reviewing.selfie_size_bytes / 1024)} KB)` : ""}</div>
-                </div>
+                <dl className="kyc-dl">
+                  <div><dt>Provider</dt><dd>{reviewing.provider}</dd></div>
+                  <div><dt>Ref</dt><dd className="a-mono" style={{ fontSize: 11 }}>{reviewing.provider_ref || "—"}</dd></div>
+                  <div><dt>Match</dt><dd><MatchGauge score={reviewing.match_score} /></dd></div>
+                  <div><dt>Submitted</dt><dd>{new Date(reviewing.created_at).toLocaleString()}</dd></div>
+                </dl>
               </div>
             </div>
 
             {reviewing.reason && (
-              <div style={{ padding: 10, borderRadius: 6, background: "var(--a-elev)", marginBottom: 16, fontSize: 13 }}>
+              <div className="kyc-reason">
                 <div className="a-label" style={{ marginBottom: 4 }}>Reason</div>{reviewing.reason}
               </div>
             )}
 
             {showReject && (
-              <div style={{ marginBottom: 16 }}>
+              <div style={{ marginTop: 12 }}>
                 <div className="a-label" style={{ marginBottom: 6 }}>Rejection reason (sent to user)</div>
-                <select className="a-input" value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} style={{ marginBottom: 8 }}>
+                <select className="a-input" value={rejectReason} onChange={(e) => setRejectReason(e.target.value)}>
                   <option value="">Select reason…</option>
                   <option value="Name mismatch">Name mismatch</option>
                   <option value="Selfie unclear">Selfie unclear</option>
                   <option value="Invalid Aadhaar">Invalid Aadhaar</option>
                   <option value="Age below 13">Age below 13</option>
+                  <option value="Document unreadable">Document unreadable</option>
                   <option value="Other">Other</option>
                 </select>
               </div>
             )}
 
             {!canDecide && (
-              <div style={{ padding: 10, borderRadius: 6, background: "rgba(245,158,11,0.1)", border: "1px solid rgba(245,158,11,0.3)", color: "#fcd34d", fontSize: 13, marginBottom: 12 }}>
-                Read-only: your role can view but not decide KYC.
-              </div>
+              <div className="kyc-warn">Read-only: your role can view but not decide KYC.</div>
             )}
 
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+            <div className="kyc-actions">
+              <Link to="/admin/users/$id" params={{ id: reviewing.user_id }} className="a-btn-ghost">
+                <ExternalLink size={14} /> Open user
+              </Link>
+              <div style={{ flex: 1 }} />
               <button className="a-btn-ghost" onClick={() => { setReviewing(null); setShowReject(false); }} disabled={!!busyId}>Close</button>
               {canDecide && reviewing.status === "pending" && !showReject && (
                 <>
-                  <button className="a-btn-ghost" style={{ color: "#fca5a5" }} onClick={() => setShowReject(true)} disabled={!!busyId}>
+                  <button className="kyc-btn-reject" onClick={() => setShowReject(true)} disabled={!!busyId}>
                     <ShieldX size={14} /> Reject
                   </button>
-                  <button className="a-btn" onClick={() => decide(reviewing.id, "approved")} disabled={!!busyId}>
+                  <button className="kyc-btn-approve" onClick={() => decide(reviewing.id, "approved")} disabled={!!busyId}>
                     {busyId === reviewing.id ? <Loader2 size={14} className="animate-spin" /> : <ShieldCheck size={14} />} Approve
                   </button>
                 </>
               )}
               {canDecide && showReject && (
-                <button className="a-btn" style={{ background: "#ef4444", color: "white" }}
+                <button className="kyc-btn-reject-confirm"
                   disabled={!rejectReason || !!busyId}
                   onClick={() => decide(reviewing.id, "rejected", rejectReason)}>
                   {busyId === reviewing.id ? <Loader2 size={14} className="animate-spin" /> : <ShieldX size={14} />} Confirm reject
@@ -278,6 +397,31 @@ function KycQueue() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function MediaTile({ label, url, loading, meta }: { label: string; url: string | null; loading: boolean; meta?: string | null }) {
+  return (
+    <div className="kyc-media">
+      <div className="kyc-media-label">
+        <span>{label}</span>
+        {url && <a href={url} target="_blank" rel="noreferrer" className="kyc-copy" title="Open original"><ExternalLink size={11} /></a>}
+      </div>
+      <div className="kyc-media-frame">
+        {loading ? (
+          <Loader2 size={20} className="animate-spin" style={{ color: "var(--a-muted)" }} />
+        ) : url ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={url} alt={label} loading="lazy" />
+        ) : (
+          <div className="kyc-media-empty">
+            {label === "Selfie" ? <FileImage size={22} /> : <ImageOff size={22} />}
+            <span>Not available</span>
+          </div>
+        )}
+      </div>
+      {meta && <div className="kyc-media-meta a-mono">{meta}</div>}
     </div>
   );
 }
