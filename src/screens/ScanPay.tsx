@@ -151,6 +151,8 @@ function ScannerView({ onBack, onDecoded }: { onBack: () => void; onDecoded: (p:
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const [torch, setTorch] = useState(false);
   const decodedRef = useRef(false);
+  const lastDecodeRef = useRef<{ key: string; at: number } | null>(null);
+  const DECODE_COOLDOWN_MS = 4000;
 
   useEffect(() => {
     let cancelled = false;
@@ -166,13 +168,19 @@ function ScannerView({ onBack, onDecoded }: { onBack: () => void; onDecoded: (p:
           camId,
           { fps: 10, qrbox: { width: 240, height: 240 } },
           (decoded) => {
+            // First-line guard: never act twice on the same scanner instance.
             if (decodedRef.current) return;
+            // Cooldown guard: ignore the same QR (or any) re-firing inside the window.
+            const now = Date.now();
+            const key = decoded.trim();
+            const last = lastDecodeRef.current;
+            if (last && last.key === key && now - last.at < DECODE_COOLDOWN_MS) return;
             const parsed = parseUpiQr(decoded);
-            if (parsed) {
-              decodedRef.current = true;
-              scanner.stop().catch(() => {});
-              onDecoded(parsed);
-            }
+            if (!parsed) return;
+            decodedRef.current = true;
+            lastDecodeRef.current = { key, at: now };
+            scanner.stop().catch(() => {});
+            onDecoded(parsed);
           },
           () => {},
         );
