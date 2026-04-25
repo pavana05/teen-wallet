@@ -15,6 +15,58 @@ interface Txn {
   created_at: string;
 }
 
+function QuickAction({ icon: Icon, label, onClick }: { icon: React.ComponentType<{ className?: string; strokeWidth?: number }>; label: string; onClick?: () => void }) {
+  return (
+    <button onClick={onClick} className="flex flex-col items-center gap-2 group">
+      <div className="hp-tile">
+        <Icon className="w-6 h-6 text-white/90" strokeWidth={1.6} />
+      </div>
+      <span className="text-[11px] text-white/70 leading-tight text-center whitespace-pre-line">{label}</span>
+    </button>
+  );
+}
+
+function RechargeTile({ icon: Icon, label, tint }: { icon: React.ComponentType<{ className?: string; strokeWidth?: number }>; label: string; tint: string }) {
+  return (
+    <button className="flex flex-col items-center gap-2">
+      <div className={`hp-tile bg-gradient-to-br ${tint}`}>
+        <Icon className="w-6 h-6 text-white" strokeWidth={1.7} />
+      </div>
+      <span className="text-[11px] text-white/70 leading-tight text-center">{label}</span>
+    </button>
+  );
+}
+
+function TxnRow({ txn }: { txn: Txn }) {
+  const date = new Date(txn.created_at);
+  const time = date.toLocaleString("en-IN", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
+  const failed = txn.status === "failed";
+  return (
+    <div className="flex items-center gap-3 rounded-2xl bg-white/5 border border-white/10 px-3 py-3">
+      <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${failed ? "bg-destructive/15" : "bg-primary/15"}`}>
+        <ArrowDownLeft className={`w-5 h-5 ${failed ? "text-destructive" : "text-primary"}`} strokeWidth={2} />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-[13px] font-medium text-white truncate">{txn.merchant_name}</p>
+        <p className="text-[11px] text-white/50 truncate">{txn.note ? txn.note : txn.upi_id} · {time}</p>
+      </div>
+      <div className="text-right shrink-0">
+        <p className={`text-[14px] font-semibold num-mono ${failed ? "text-destructive line-through" : "text-white"}`}>−₹{Number(txn.amount).toFixed(2)}</p>
+        <p className={`text-[10px] uppercase tracking-wider ${txn.status === "success" ? "text-primary/80" : txn.status === "pending" ? "text-yellow-400/80" : "text-destructive/80"}`}>{txn.status}</p>
+      </div>
+    </div>
+  );
+}
+
+function NavItem({ icon: Icon, label, active }: { icon: React.ComponentType<{ className?: string; strokeWidth?: number }>; label: string; active?: boolean }) {
+  return (
+    <button className={`flex-1 flex flex-col items-center py-2 rounded-full ${active ? "hp-nav-active text-white" : "text-white/55"}`}>
+      <Icon className="w-5 h-5" strokeWidth={active ? 2 : 1.6} />
+      <span className={`text-[11px] mt-0.5 ${active ? "font-semibold" : ""}`}>{label}</span>
+    </button>
+  );
+}
+
 export function Home() {
   const { fullName, userId } = useApp();
   const first = fullName?.split(" ")[0] ?? "Alex";
