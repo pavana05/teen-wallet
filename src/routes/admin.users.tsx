@@ -39,7 +39,7 @@ function loadPrefs(): Prefs {
 function savePrefs(p: Prefs) { try { localStorage.setItem(LS_KEY, JSON.stringify(p)); } catch {} }
 
 function UsersList() {
-  const { admin } = useAdminSession();
+  const admin = useMemo(() => readAdminSession()?.admin, []);
   const initial = useMemo(() => loadPrefs(), []);
   const [rows, setRows] = useState<UserRow[]>([]);
   const [total, setTotal] = useState(0);
