@@ -14,6 +14,204 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_audit_log: {
+        Row: {
+          action_type: string
+          admin_email: string | null
+          admin_id: string | null
+          admin_role: Database["public"]["Enums"]["app_admin_role"] | null
+          created_at: string
+          id: string
+          ip_address: string | null
+          new_value: Json | null
+          old_value: Json | null
+          session_id: string | null
+          target_entity: string | null
+          target_id: string | null
+          user_agent: string | null
+        }
+        Insert: {
+          action_type: string
+          admin_email?: string | null
+          admin_id?: string | null
+          admin_role?: Database["public"]["Enums"]["app_admin_role"] | null
+          created_at?: string
+          id?: string
+          ip_address?: string | null
+          new_value?: Json | null
+          old_value?: Json | null
+          session_id?: string | null
+          target_entity?: string | null
+          target_id?: string | null
+          user_agent?: string | null
+        }
+        Update: {
+          action_type?: string
+          admin_email?: string | null
+          admin_id?: string | null
+          admin_role?: Database["public"]["Enums"]["app_admin_role"] | null
+          created_at?: string
+          id?: string
+          ip_address?: string | null
+          new_value?: Json | null
+          old_value?: Json | null
+          session_id?: string | null
+          target_entity?: string | null
+          target_id?: string | null
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "admin_audit_log_admin_id_fkey"
+            columns: ["admin_id"]
+            isOneToOne: false
+            referencedRelation: "admin_users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      admin_notifications: {
+        Row: {
+          admin_id: string
+          body: string | null
+          created_at: string
+          id: string
+          link: string | null
+          priority: string
+          read: boolean
+          title: string
+          type: string
+        }
+        Insert: {
+          admin_id: string
+          body?: string | null
+          created_at?: string
+          id?: string
+          link?: string | null
+          priority?: string
+          read?: boolean
+          title: string
+          type: string
+        }
+        Update: {
+          admin_id?: string
+          body?: string | null
+          created_at?: string
+          id?: string
+          link?: string | null
+          priority?: string
+          read?: boolean
+          title?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "admin_notifications_admin_id_fkey"
+            columns: ["admin_id"]
+            isOneToOne: false
+            referencedRelation: "admin_users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      admin_sessions: {
+        Row: {
+          admin_id: string
+          created_at: string
+          expires_at: string
+          id: string
+          invalidated_at: string | null
+          ip_address: string | null
+          last_seen_at: string
+          session_token_hash: string
+          user_agent: string | null
+        }
+        Insert: {
+          admin_id: string
+          created_at?: string
+          expires_at: string
+          id?: string
+          invalidated_at?: string | null
+          ip_address?: string | null
+          last_seen_at?: string
+          session_token_hash: string
+          user_agent?: string | null
+        }
+        Update: {
+          admin_id?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          invalidated_at?: string | null
+          ip_address?: string | null
+          last_seen_at?: string
+          session_token_hash?: string
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "admin_sessions_admin_id_fkey"
+            columns: ["admin_id"]
+            isOneToOne: false
+            referencedRelation: "admin_users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      admin_users: {
+        Row: {
+          created_at: string
+          email: string
+          failed_attempts: number
+          id: string
+          ip_allowlist: string[]
+          last_login_at: string | null
+          last_login_ip: string | null
+          locked_until: string | null
+          name: string
+          password_hash: string | null
+          role: Database["public"]["Enums"]["app_admin_role"]
+          status: Database["public"]["Enums"]["admin_status"]
+          totp_enrolled: boolean
+          totp_secret: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          failed_attempts?: number
+          id?: string
+          ip_allowlist?: string[]
+          last_login_at?: string | null
+          last_login_ip?: string | null
+          locked_until?: string | null
+          name: string
+          password_hash?: string | null
+          role: Database["public"]["Enums"]["app_admin_role"]
+          status?: Database["public"]["Enums"]["admin_status"]
+          totp_enrolled?: boolean
+          totp_secret?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          failed_attempts?: number
+          id?: string
+          ip_allowlist?: string[]
+          last_login_at?: string | null
+          last_login_ip?: string | null
+          locked_until?: string | null
+          name?: string
+          password_hash?: string | null
+          role?: Database["public"]["Enums"]["app_admin_role"]
+          status?: Database["public"]["Enums"]["admin_status"]
+          totp_enrolled?: boolean
+          totp_secret?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       fraud_logs: {
         Row: {
           created_at: string
@@ -240,9 +438,17 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      admin_email_allowed: { Args: { _email: string }; Returns: boolean }
     }
     Enums: {
+      admin_status: "active" | "locked" | "disabled" | "pending"
+      app_admin_role:
+        | "super_admin"
+        | "operations_manager"
+        | "compliance_officer"
+        | "customer_support"
+        | "fraud_analyst"
+        | "finance_manager"
       kyc_status: "not_started" | "pending" | "approved" | "rejected"
       onboarding_stage:
         | "STAGE_0"
@@ -379,6 +585,15 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      admin_status: ["active", "locked", "disabled", "pending"],
+      app_admin_role: [
+        "super_admin",
+        "operations_manager",
+        "compliance_officer",
+        "customer_support",
+        "fraud_analyst",
+        "finance_manager",
+      ],
       kyc_status: ["not_started", "pending", "approved", "rejected"],
       onboarding_stage: [
         "STAGE_0",
