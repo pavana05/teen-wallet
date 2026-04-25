@@ -61,9 +61,9 @@ function TxnRow({ txn }: { txn: Txn }) {
   );
 }
 
-function NavItem({ icon: Icon, label, active }: { icon: React.ComponentType<{ className?: string; strokeWidth?: number }>; label: string; active?: boolean }) {
+function NavItem({ icon: Icon, label, active, onClick }: { icon: React.ComponentType<{ className?: string; strokeWidth?: number }>; label: string; active?: boolean; onClick?: () => void }) {
   return (
-    <button className={`flex-1 flex flex-col items-center py-2 rounded-full ${active ? "hp-nav-active text-white" : "text-white/55"}`}>
+    <button onClick={onClick} className={`flex-1 flex flex-col items-center py-2 rounded-full transition-colors ${active ? "hp-nav-active text-white" : "text-white/55 hover:text-white/80"}`}>
       <Icon className="w-5 h-5" strokeWidth={active ? 2 : 1.6} />
       <span className={`text-[11px] mt-0.5 ${active ? "font-semibold" : ""}`}>{label}</span>
     </button>
