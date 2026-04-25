@@ -947,3 +947,107 @@
   border-color: transparent;
   box-shadow: 0 8px 20px -10px rgba(200,241,53,.7);
 }
+
+/* ============= Notifications Panel ============= */
+.np-hero {
+  position: relative; overflow: hidden;
+  margin-top: 8px; padding: 18px;
+  border-radius: 22px;
+  background:
+    radial-gradient(120% 100% at 100% 0%, rgba(200,241,53,.18), transparent 55%),
+    linear-gradient(135deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
+  border: 1px solid rgba(255,255,255,.08);
+}
+.np-hero-shine {
+  position: absolute; inset: 0;
+  background: linear-gradient(115deg, transparent 35%, rgba(255,255,255,.06) 50%, transparent 65%);
+  animation: qa-shine 5s linear infinite;
+  pointer-events: none;
+}
+.np-hero-ico {
+  width: 42px; height: 42px; border-radius: 14px;
+  background: linear-gradient(180deg, #d8ff4a, #c8f135);
+  box-shadow: 0 12px 24px -10px rgba(200,241,53,.7), inset 0 1px 0 rgba(255,255,255,.4);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+
+.np-quick-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 12px; border-radius: 999px;
+  background: rgba(255,255,255,.05);
+  border: 1px solid rgba(255,255,255,.08);
+  color: rgba(255,255,255,.78);
+  font-size: 11px; font-weight: 500;
+  transition: all .18s ease;
+}
+.np-quick-btn:not(:disabled):hover { background: rgba(255,255,255,.08); color: #fff; }
+.np-quick-btn:active { transform: scale(.97); }
+.np-quick-danger { color: rgba(255,140,140,.85); border-color: rgba(255,140,140,.18); }
+.np-quick-danger:hover { background: rgba(255,80,80,.10); color: #ffb4b4; }
+
+.np-row {
+  position: relative;
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(255,255,255,.06);
+  transition: all .18s ease;
+  cursor: pointer;
+}
+.np-row:hover { background: rgba(255,255,255,.06); border-color: rgba(255,255,255,.10); }
+.np-row:active { transform: scale(.995); }
+.np-row-unread {
+  background: linear-gradient(135deg, rgba(200,241,53,.06), rgba(255,255,255,.04));
+  border-color: rgba(200,241,53,.18);
+}
+.np-row-dot {
+  position: absolute; top: 14px; right: 14px;
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--primary);
+  box-shadow: 0 0 8px var(--primary);
+}
+.np-row-ico {
+  width: 36px; height: 36px; border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.np-row-x {
+  width: 26px; height: 26px; border-radius: 999px;
+  display: flex; align-items: center; justify-content: center;
+  background: transparent;
+  color: rgba(255,255,255,.35);
+  opacity: 0; transition: all .15s ease;
+  flex-shrink: 0;
+}
+.np-row:hover .np-row-x { opacity: 1; }
+.np-row-x:hover { background: rgba(255,255,255,.08); color: #fff; }
+
+.np-empty-ico {
+  width: 64px; height: 64px; border-radius: 999px;
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(255,255,255,.08);
+  display: flex; align-items: center; justify-content: center;
+}
+
+.np-settings {
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px;
+  border-radius: 16px;
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(255,255,255,.06);
+}
+
+.hp-bell-badge {
+  position: absolute; top: 4px; right: 4px;
+  min-width: 16px; height: 16px; padding: 0 4px;
+  border-radius: 999px;
+  background: #ff5a3d;
+  color: #fff;
+  font-size: 9.5px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  border: 2px solid #0a0a0a;
+  box-shadow: 0 0 10px rgba(255,90,61,.6);
+  line-height: 1;
+}

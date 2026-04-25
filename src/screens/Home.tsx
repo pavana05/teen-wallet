@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { ScanPay } from "@/screens/ScanPay";
 import { QuickActionsPanel, type QuickActionKind } from "@/components/QuickActionsPanel";
+import { NotificationsPanel } from "@/components/NotificationsPanel";
 import heroScan from "@/assets/home-hero-scan.jpg";
 
 interface Txn {
@@ -73,6 +74,8 @@ export function Home() {
   const first = fullName?.split(" ")[0] ?? "Alex";
   const [view, setView] = useState<"home" | "scan">("home");
   const [quickAction, setQuickAction] = useState<QuickActionKind | null>(null);
+  const [showNotifs, setShowNotifs] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
   const [txns, setTxns] = useState<Txn[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -104,6 +107,27 @@ export function Home() {
       .subscribe();
     return () => { supabase.removeChannel(ch); };
   }, [userId, fetchTxns]);
+
+  // Unread notifications badge — count + realtime
+  useEffect(() => {
+    if (!userId) return;
+    const fetchUnread = async () => {
+      const { count } = await supabase
+        .from("notifications")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", userId)
+        .eq("read", false);
+      setUnreadCount(count ?? 0);
+    };
+    void fetchUnread();
+    const ch = supabase
+      .channel("home-notifs")
+      .on("postgres_changes", { event: "*", schema: "public", table: "notifications", filter: `user_id=eq.${userId}` }, () => {
+        void fetchUnread();
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [userId, showNotifs]);
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -157,9 +181,11 @@ export function Home() {
             <p className="text-[17px] font-semibold text-white leading-tight">Hey, {first} <span className="inline-block">👋</span></p>
             <p className="text-[12px] text-white/70 mt-0.5">Good to see you back!</p>
           </div>
-          <button aria-label="Notifications" className="hp-bell">
+          <button onClick={() => setShowNotifs(true)} aria-label="Notifications" className="hp-bell">
             <Bell className="w-5 h-5 text-white" strokeWidth={1.8} />
-            <span className="hp-bell-dot" />
+            {unreadCount > 0 && (
+              <span className="hp-bell-badge">{unreadCount > 9 ? "9+" : unreadCount}</span>
+            )}
           </button>
         </div>
 
@@ -272,6 +298,7 @@ export function Home() {
         </div>
       </div>
       {quickAction && <QuickActionsPanel kind={quickAction} onClose={() => setQuickAction(null)} />}
+      {showNotifs && <NotificationsPanel onClose={() => setShowNotifs(false)} />}
     </div>
   );
 }
