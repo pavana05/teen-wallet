@@ -158,11 +158,13 @@ export function SelfieCapture({ onCapture, onPermissionChange }: Props) {
         await videoRef.current.play().catch(() => {});
       }
       setPermState("granted");
+      onPermissionChange?.("granted", true);
       setStatus("streaming");
     } catch (e) {
       const err = e as DOMException;
       if (err.name === "NotAllowedError" || err.name === "SecurityError") {
         setPermState("denied");
+        onPermissionChange?.("denied", true);
         setStatus("denied");
         setErrMsg("Camera permission denied. Enable it in your browser settings and try again.");
       } else if (err.name === "NotFoundError" || err.name === "OverconstrainedError") {
