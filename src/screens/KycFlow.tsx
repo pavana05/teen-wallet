@@ -50,7 +50,16 @@ export function KycFlow({ onDone }: { onDone: () => void }) {
   const [docBack, setDocBack] = useState<DocState>(null);
   const [uploading, setUploading] = useState<DocSide | null>(null);
   const [autoSaveState, setAutoSaveState] = useState<"idle" | "saving" | "saved">("idle");
+  const [camPerm, setCamPerm] = useState<SelfiePermState>("unknown");
+  const [camSupported, setCamSupported] = useState(true);
+  const [lastSubmission, setLastSubmission] = useState<LastSubmission | null>(null);
+  const [lastErrorTransient, setLastErrorTransient] = useState(false);
   const hydrated = useRef(false);
+
+  const onCamPerm = useCallback((s: SelfiePermState, supported: boolean) => {
+    setCamPerm(s);
+    setCamSupported(supported);
+  }, []);
 
   const formatAadhaar = (v: string) =>
     v.replace(/\D/g, "").slice(0, 12).replace(/(\d{4})(?=\d)/g, "$1 ");
