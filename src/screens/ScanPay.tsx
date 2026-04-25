@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 type Phase = "scanning" | "confirm" | "processing" | "success" | "failed";
+type FailKind = "generic" | "balance_changed" | "insufficient" | "blocked";
 
 export function ScanPay({ onBack }: { onBack: () => void }) {
   const { userId, balance } = useApp();
@@ -15,6 +16,7 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
   const [payload, setPayload] = useState<UpiPayload | null>(null);
   const [amount, setAmount] = useState<number>(0);
   const [resultMsg, setResultMsg] = useState("");
+  const [failKind, setFailKind] = useState<FailKind>("generic");
 
   const handleDecoded = (parsed: UpiPayload) => {
     if (navigator.vibrate) navigator.vibrate(40);
