@@ -73,6 +73,10 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
     if (next.every((x) => x)) handleVerify(next.join(""));
   }
 
+  if (step === "verified") {
+    return <PhoneVerified onContinue={onDone} />;
+  }
+
   return (
     <div className="flex-1 flex flex-col p-6 tw-slide-up">
       <div className="flex items-center justify-between mb-12">
