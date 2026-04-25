@@ -24,6 +24,28 @@ export function KycFlow({ onDone }: { onDone: () => void }) {
 
   const formatAadhaar = (v: string) => v.replace(/\D/g, "").slice(0, 12).replace(/(\d{4})(?=\d)/g, "$1 ");
 
+  // Hydrate draft (text fields) from localStorage so the user can resume after refresh.
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(KYC_DRAFT_KEY);
+      if (raw) {
+        const d = JSON.parse(raw) as Partial<{ name: string; dob: string; gender: typeof gender; aadhaar: string; step: Step }>;
+        if (d.name) setName(d.name);
+        if (d.dob) setDob(d.dob);
+        if (d.gender) setGender(d.gender);
+        if (d.aadhaar) setAadhaar(d.aadhaar);
+        if (d.step) setStep(d.step);
+      }
+    } catch { /* ignore */ }
+  }, []);
+
+  // Persist draft on every change.
+  useEffect(() => {
+    try {
+      localStorage.setItem(KYC_DRAFT_KEY, JSON.stringify({ name, dob, gender, aadhaar, step }));
+    } catch { /* ignore */ }
+  }, [name, dob, gender, aadhaar, step]);
+
   function ageFromDob(s: string) {
     const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(s);
     if (!m) return null;
