@@ -119,12 +119,14 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
     setPayload(null);
     setAmount(0);
     setResultMsg("");
+    setFailKind("generic");
+    navLockRef.current = false;
     setPhase("scanning");
   };
 
   if (phase === "processing") return <ProcessingView amount={amount} />;
   if (phase === "success") return <SuccessView message={resultMsg} amount={amount} payee={payload?.payeeName ?? ""} onDone={onBack} />;
-  if (phase === "failed") return <FailedView message={resultMsg} onRetry={reset} onCancel={onBack} />;
+  if (phase === "failed") return <FailedView kind={failKind} message={resultMsg} onRetry={reset} onCancel={onBack} />;
   if (phase === "confirm" && payload) {
     return (
       <ConfirmView
