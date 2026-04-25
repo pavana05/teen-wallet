@@ -108,12 +108,17 @@ export function KycPending({ onApproved, forceState, forceReason }: { onApproved
 
   // ---------- Visuals ----------
 
+  const handleRetake = async () => {
+    await persistStage("STAGE_3");
+    window.location.reload();
+  };
+
   if (status === "approved") {
-    return <ApprovedView />;
+    return <ApprovedView onContinue={onApproved} />;
   }
 
   if (status === "rejected") {
-    return <RejectedView reason={latest?.reason ?? null} submissionId={latest?.submissionId ?? null} />;
+    return <RejectedView reason={latest?.reason ?? null} onRetake={handleRetake} />;
   }
 
   // Pending / unknown
