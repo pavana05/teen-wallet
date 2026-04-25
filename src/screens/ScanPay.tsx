@@ -533,6 +533,18 @@ function ConfirmView({
             className="sp-amount bg-transparent outline-none text-center w-[200px]"
           />
         </div>
+        {/* Show how the QR's amount was normalised so users can spot weird merchant QRs */}
+        {payload.amount != null && payload.amountRaw != null && (
+          <div className="mt-3 inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-[11px] text-white/70">
+            <span>From QR: <span className="num-mono text-white/90">{payload.amountRaw}</span></span>
+            {payload.amountSource === "paise" && (
+              <span className="px-1.5 py-0.5 rounded-full bg-amber-400/15 text-amber-300 text-[10px] font-medium">paise → ₹{payload.amount.toFixed(2)}</span>
+            )}
+            {payload.amountSource === "rupees" && payload.amountRaw.trim() !== payload.amount.toString() && (
+              <span className="px-1.5 py-0.5 rounded-full bg-emerald-400/15 text-emerald-300 text-[10px] font-medium">= ₹{payload.amount.toFixed(2)}</span>
+            )}
+          </div>
+        )}
         {payload.note && <p className="mt-3 text-[12px] text-white/55 italic">"{payload.note}"</p>}
         <p className="mt-6 text-[11px] text-white/35">Wallet balance · ₹{balance.toFixed(2)}</p>
       </div>
