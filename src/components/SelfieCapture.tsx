@@ -134,6 +134,17 @@ export function SelfieCapture({ onCapture, onPermissionChange }: Props) {
     };
   }, [stopStream, onCapture]);
 
+  // Ensure stream stays attached to the <video> element whenever it's mounted
+  useEffect(() => {
+    if (status !== "streaming") return;
+    const v = videoRef.current;
+    const s = streamRef.current;
+    if (v && s && v.srcObject !== s) {
+      v.srcObject = s;
+      v.play().catch(() => {});
+    }
+  }, [status]);
+
   // ----- Start camera -----
   const startCamera = async () => {
     setErrMsg("");
@@ -153,13 +164,18 @@ export function SelfieCapture({ onCapture, onPermissionChange }: Props) {
         return;
       }
       streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play().catch(() => {});
-      }
       setPermState("granted");
       onPermissionChange?.("granted", true);
       setStatus("streaming");
+      // Attach stream after the <video> element mounts (status flips to "streaming").
+      // We retry on the next frame because videoRef may still be null in this tick.
+      requestAnimationFrame(() => {
+        const v = videoRef.current;
+        if (v && streamRef.current) {
+          v.srcObject = streamRef.current;
+          v.play().catch(() => {});
+        }
+      });
     } catch (e) {
       const err = e as DOMException;
       if (err.name === "NotAllowedError" || err.name === "SecurityError") {
