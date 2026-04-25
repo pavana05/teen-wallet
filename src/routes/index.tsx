@@ -33,12 +33,20 @@ function Index() {
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
           const p = await fetchProfile();
-          if (p && mounted) hydrateFromProfile({
-            id: p.id,
-            full_name: p.full_name,
-            balance: Number(p.balance),
-            onboarding_stage: p.onboarding_stage as Stage,
-          });
+          if (p && mounted) {
+            // Reconcile saved stage with KYC truth — handles cross-device resume.
+            const profileStage = p.onboarding_stage as Stage;
+            const kyc = (p as { kyc_status?: string | null }).kyc_status ?? null;
+            let resolvedStage: Stage = profileStage;
+            if (kyc === "approved") resolvedStage = "STAGE_5";
+            else if (kyc === "pending" && (profileStage === "STAGE_3" || profileStage === "STAGE_4")) resolvedStage = "STAGE_4";
+            hydrateFromProfile({
+              id: p.id,
+              full_name: p.full_name,
+              balance: Number(p.balance),
+              onboarding_stage: resolvedStage,
+            });
+          }
         }
       } catch (err) {
         console.error("[boot] hydrate failed", err);
@@ -71,10 +79,12 @@ function Index() {
         <Onboarding onDone={() => setStage("STAGE_2")} />
       ) : stage === "STAGE_2" ? (
         <AuthPhone onDone={() => {
-          // After OTP + PhoneVerified continue: jump to whatever stage the store now holds
-          // (AuthPhone hydrated it from the profile). Falls back to KYC for new users.
+          // After OTP, AuthPhone hydrated the store from the profile (incl. KYC reconciliation).
+          // Honor whatever stage is now in the store; only fall back to KYC for new users.
           const s = useApp.getState().stage;
-          if (s === "STAGE_2") setStage("STAGE_3");
+          if (s === "STAGE_0" || s === "STAGE_1" || s === "STAGE_2") {
+            setStage("STAGE_3");
+          }
         }} />
       ) : stage === "STAGE_3" ? (
         <KycFlow onDone={() => setStage("STAGE_4")} />

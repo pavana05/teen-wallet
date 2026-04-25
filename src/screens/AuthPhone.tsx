@@ -46,13 +46,24 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
       await verifyOtp(phone, code);
       const p = await fetchProfile();
       // Resume from where the user left off. New users start at STAGE_3 (KYC).
+      // CRITICAL: if KYC was already approved (e.g. on another device), jump straight to STAGE_5.
       let resumedStage: Stage = "STAGE_3";
       if (p) {
         const profileStage = p.onboarding_stage as Stage;
-        // If profile is still pre-auth, advance to STAGE_3. Otherwise honor saved stage.
-        resumedStage = profileStage === "STAGE_0" || profileStage === "STAGE_1" || profileStage === "STAGE_2"
-          ? "STAGE_3"
-          : profileStage;
+        const kyc = p.kyc_status as string | null;
+        if (kyc === "approved") {
+          // KYC done — go home regardless of saved stage.
+          resumedStage = "STAGE_5";
+        } else if (kyc === "pending") {
+          // Awaiting approval — show pending screen.
+          resumedStage = "STAGE_4";
+        } else if (profileStage === "STAGE_0" || profileStage === "STAGE_1" || profileStage === "STAGE_2") {
+          // Pre-auth stage on profile — advance to KYC.
+          resumedStage = "STAGE_3";
+        } else {
+          // Honor whatever stage the profile holds (STAGE_3/4/5).
+          resumedStage = profileStage;
+        }
         hydrateFromProfile({ id: p.id, full_name: p.full_name, balance: Number(p.balance), onboarding_stage: resumedStage });
       }
       if (!p || p.onboarding_stage !== resumedStage) {
