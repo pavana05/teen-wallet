@@ -59,7 +59,7 @@ async function pbkdf2Hash(password: string, salt: Uint8Array, iterations = 120_0
     ["deriveBits"],
   );
   const bits = await crypto.subtle.deriveBits(
-    { name: "PBKDF2", salt, iterations, hash: "SHA-256" },
+    { name: "PBKDF2", salt: salt as BufferSource, iterations, hash: "SHA-256" },
     key,
     256,
   );
