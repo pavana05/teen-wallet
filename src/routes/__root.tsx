@@ -1,6 +1,8 @@
+import { useEffect } from "react";
 import { Outlet, Link, createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
 import { Toaster } from "@/components/ui/sonner";
 import { ShakeToReport } from "@/components/ShakeToReport";
+import { initNative } from "@/lib/native";
 
 import appCss from "../styles.css?url";
 
@@ -71,6 +73,10 @@ function RootShell({ children }: { children: React.ReactNode }) {
 }
 
 function RootComponent() {
+  useEffect(() => {
+    initNative();
+  }, []);
+
   return (
     <>
       <Outlet />
