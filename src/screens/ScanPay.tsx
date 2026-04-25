@@ -38,17 +38,46 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
     if (finalReport.blocked) {
       await logFraudFlags(userId, null, finalReport.flags, "blocked");
       setResultMsg(finalReport.flags.find((f) => f.severity === "block")?.message ?? "Payment blocked");
+      setFailKind("blocked");
       setPhase("failed");
       return;
     }
     if (amt > balance) {
       setResultMsg("Insufficient balance");
+      setFailKind("insufficient");
       setPhase("failed");
       return;
     }
 
     // Minimum visible processing window for premium feel
     await new Promise((r) => setTimeout(r, 1600));
+
+    // Final balance re-check just before insert — guards against concurrent
+    // spend on another device or a refund landing while we were processing.
+    const { data: fresh, error: balErr } = await supabase
+      .from("profiles")
+      .select("balance")
+      .eq("id", userId)
+      .single();
+    if (balErr || !fresh) {
+      setResultMsg("Couldn't verify balance. Please try again.");
+      setFailKind("generic");
+      setPhase("failed");
+      return;
+    }
+    const liveBalance = Number(fresh.balance);
+    if (Math.abs(liveBalance - balance) > 0.001) {
+      // Sync local store so the UI shows the truth.
+      useApp.setState({ balance: liveBalance });
+      if (amt > liveBalance) {
+        setResultMsg(`Your balance changed to ₹${liveBalance.toFixed(2)} and is no longer enough for this payment.`);
+      } else {
+        setResultMsg(`Your wallet balance changed to ₹${liveBalance.toFixed(2)}. Please scan the QR again to confirm.`);
+      }
+      setFailKind("balance_changed");
+      setPhase("failed");
+      return;
+    }
 
     const { data: txn, error } = await supabase
       .from("transactions")
@@ -66,12 +95,13 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
 
     if (error || !txn) {
       setResultMsg(error?.message ?? "Payment failed");
+      setFailKind("generic");
       setPhase("failed");
       return;
     }
 
     await logFraudFlags(userId, txn.id, finalReport.flags, finalReport.flags.length === 0 ? "auto_passed" : "user_confirmed");
-    const newBal = balance - amt;
+    const newBal = liveBalance - amt;
     await supabase.from("profiles").update({ balance: newBal }).eq("id", userId);
     useApp.setState({ balance: newBal });
     await supabase.from("notifications").insert({
