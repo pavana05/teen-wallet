@@ -59,10 +59,17 @@ function FraudPage() {
   }, [status, rule, page]);
   useEffect(() => { void load(); }, [load]);
 
-  // Realtime
+  // Realtime — throttled so a burst of DB changes triggers at most one reload per 3s
+  const lastLoad = useRef(0);
   useEffect(() => {
+    const throttled = () => {
+      const now = Date.now();
+      if (now - lastLoad.current < 3000) return;
+      lastLoad.current = now;
+      void load();
+    };
     const ch = supabase.channel("admin_fraud")
-      .on("postgres_changes", { event: "*", schema: "public", table: "fraud_logs" }, () => void load())
+      .on("postgres_changes", { event: "*", schema: "public", table: "fraud_logs" }, throttled)
       .subscribe();
     return () => { supabase.removeChannel(ch); };
   }, [load]);
