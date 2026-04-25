@@ -389,7 +389,7 @@ export function ProfilePanel({ onClose }: Props) {
                   <span className="text-[13px] text-red-300 flex-1 text-left">Log out</span>
                   <ChevronRight className="w-4 h-4 text-white/30" />
                 </button>
-                <button className="w-full px-3.5 py-3.5 flex items-center gap-3 hover:bg-white/[.02] transition-colors border-t border-white/5">
+                <button onClick={() => setConfirmDelete(true)} className="w-full px-3.5 py-3.5 flex items-center gap-3 hover:bg-white/[.02] transition-colors border-t border-white/5">
                   <div className="pp-row-icon bg-red-400/10"><Trash2 className="w-4 h-4 text-red-300" strokeWidth={2} /></div>
                   <span className="text-[13px] text-red-300 flex-1 text-left">Delete account</span>
                   <ChevronRight className="w-4 h-4 text-white/30" />
