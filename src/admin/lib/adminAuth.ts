@@ -44,6 +44,7 @@ export function writeAdminSession(s: StoredSession) {
 }
 export function clearAdminSession() {
   sessionStorage.removeItem(SESSION_KEY);
+  _cached = null;
 }
 
 export async function callAdminFn<T = unknown>(payload: Record<string, unknown>): Promise<T> {
