@@ -180,3 +180,43 @@
   100% { transform: translateY(256px); opacity: 0.2; }
 }
 .tw-scan-beam { animation: tw-scan-beam 2.2s ease-in-out infinite; }
+
+/* ============ ADMIN DASHBOARD TOKENS (scoped) ============ */
+.admin-shell {
+  --a-bg: #0d0d0d;
+  --a-surface: #161616;
+  --a-elevated: #1e1e1e;
+  --a-border: #2a2a2a;
+  --a-text: #f2f2f2;
+  --a-muted: #888888;
+  --a-accent: #c8f135;
+  --a-success: #22c55e;
+  --a-warn: #f59e0b;
+  --a-danger: #ef4444;
+  --a-info: #3b82f6;
+  background: var(--a-bg);
+  color: var(--a-text);
+  font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
+  min-height: 100vh;
+}
+.admin-shell .a-surface { background: var(--a-surface); border: 1px solid var(--a-border); border-radius: 12px; }
+.admin-shell .a-elevated { background: var(--a-elevated); border: 1px solid var(--a-border); border-radius: 12px; }
+.admin-shell .a-input {
+  background: var(--a-surface); border: 1px solid var(--a-border); color: var(--a-text);
+  border-radius: 8px; padding: 10px 12px; width: 100%; font-size: 14px;
+  transition: border-color 120ms ease;
+}
+.admin-shell .a-input:focus { outline: none; border-color: var(--a-accent); }
+.admin-shell .a-btn {
+  background: var(--a-accent); color: #0d0d0d; font-weight: 600;
+  border-radius: 8px; padding: 10px 16px; font-size: 14px;
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  transition: opacity 120ms; cursor: pointer; border: none;
+}
+.admin-shell .a-btn:hover { opacity: 0.9; }
+.admin-shell .a-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.admin-shell .a-btn-ghost {
+  background: transparent; border: 1px solid var(--a-border); color: var(--a-text);
+}
+.admin-shell .a-mono { font-family: "JetBrains Mono", ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+.admin-shell .a-label { font-size: 12px; color: var(--a-muted); text-transform: uppercase; letter-spacing: 0.05em; }
