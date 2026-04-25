@@ -364,6 +364,39 @@ Deno.serve(async (req) => {
   }
 
   // ---------------------------------------------------------------
+  // totp_reset_login — admin lost authenticator. Verify password, reset secret, return fresh enroll QR.
+  // ---------------------------------------------------------------
+  if (action === "totp_reset_login") {
+    const email = String(body.email ?? "").trim().toLowerCase();
+    const password = String(body.password ?? "");
+    const rl = rateCheck(`totpreset:${email}:${ip}`, 3, 60 * 60_000, 60 * 60_000);
+    if (!rl.ok) return json({ error: "rate_limited", retryAfterSec: rl.retryAfterSec }, 429);
+    if (!emailAllowed(email) || !password) return json({ error: "invalid" }, 400);
+    const { data: admin } = await sb.from("admin_users").select("*").eq("email", email).maybeSingle<Admin>();
+    if (!admin || !admin.password_hash) return json({ error: "invalid_credentials" }, 401);
+    if (admin.status === "disabled") return json({ error: "account_disabled" }, 403);
+    const ok = await verifyPassword(password, admin.password_hash);
+    if (!ok) {
+      await audit(admin.id, email, admin.role, "totp_reset_failed", { reason: "bad_password" });
+      return json({ error: "invalid_credentials" }, 401);
+    }
+    const secret = base32Encode(randomBytes(20));
+    await sb.from("admin_users").update({ totp_secret: secret, totp_enrolled: false }).eq("id", admin.id);
+    const challengeToken = bytesToHex(randomBytes(32));
+    const challengeHash = await sha256Hex("challenge:" + challengeToken);
+    await sb.from("admin_sessions").insert({
+      admin_id: admin.id, session_token_hash: challengeHash,
+      ip_address: ip, user_agent: ua,
+      expires_at: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
+    });
+    const issuer = encodeURIComponent("Teen Wallet Admin");
+    const label = encodeURIComponent(admin.email);
+    const otpauthUrl = `otpauth://totp/${issuer}:${label}?secret=${secret}&issuer=${issuer}&digits=6&period=30`;
+    await audit(admin.id, email, admin.role, "totp_reset_login");
+    return json({ stage: "enroll_totp", challengeToken, otpauthUrl, secret });
+  }
+
+  // ---------------------------------------------------------------
   // verify_totp -> issues real session
   // ---------------------------------------------------------------
   if (action === "verify_totp") {
