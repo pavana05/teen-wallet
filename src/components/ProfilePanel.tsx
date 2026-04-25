@@ -124,10 +124,51 @@ export function ProfilePanel({ onClose }: Props) {
     try { await navigator.clipboard.writeText(val); setCopied(key); setTimeout(() => setCopied(null), 1400); } catch {}
   };
 
+  const clearLocalState = () => {
+    try {
+      // Wipe everything we own without nuking the whole storage (other apps may share origin in dev).
+      const keysToClear: string[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && (k.startsWith("tw-") || k === "teenwallet-app")) keysToClear.push(k);
+      }
+      keysToClear.forEach((k) => localStorage.removeItem(k));
+      sessionStorage.clear();
+    } catch { /* ignore quota / privacy mode */ }
+  };
+
   const onLogout = async () => {
-    await logout();
-    reset();
-    onClose();
+    try {
+      await logout();
+      clearLocalState();
+      reset();
+      toast.success("Signed out");
+      onClose();
+    } catch (e) {
+      toast.error("Couldn't sign out", { description: (e as Error).message });
+    }
+  };
+
+  const onDeleteAccount = async () => {
+    if (!userId) return;
+    const t = toast.loading("Deleting your account…");
+    try {
+      const { data: sess } = await supabase.auth.getSession();
+      const accessToken = sess.session?.access_token;
+      if (!accessToken) throw new Error("Your session expired. Please sign in again.");
+      const { error } = await supabase.functions.invoke("delete-account", {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      if (error) throw error;
+      // Sign out locally + nuke caches
+      await supabase.auth.signOut().catch(() => {});
+      clearLocalState();
+      reset();
+      toast.success("Account deleted", { id: t });
+      onClose();
+    } catch (e) {
+      toast.error("Couldn't delete account", { id: t, description: (e as Error).message });
+    }
   };
 
   const kyc = profile?.kyc_status ?? "not_started";
