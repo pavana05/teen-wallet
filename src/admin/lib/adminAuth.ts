@@ -102,6 +102,38 @@ export function can(role: AdminRole | undefined, action: keyof typeof PERMS): bo
   return PERMS[action].includes(role);
 }
 
+// Module-level cache: dedupes concurrent session verifications across hook
+// instances and skips re-verification within VERIFY_TTL_MS.
+const VERIFY_TTL_MS = 60_000;
+let _cached: { admin: AdminMe; expiresAt: string; at: number } | null = null;
+let _inflight: Promise<{ admin: AdminMe; expiresAt: string } | null> | null = null;
+
+async function verifySessionShared(force = false): Promise<{ admin: AdminMe; expiresAt: string } | null> {
+  if (!force && _cached && Date.now() - _cached.at < VERIFY_TTL_MS) {
+    return { admin: _cached.admin, expiresAt: _cached.expiresAt };
+  }
+  if (_inflight) return _inflight;
+  const s = readAdminSession();
+  if (!s) return null;
+  _inflight = (async () => {
+    try {
+      const r = await callAdminFn<{ admin: AdminMe; expiresAt: string }>({
+        action: "session",
+        sessionToken: s.sessionToken,
+      });
+      _cached = { admin: r.admin, expiresAt: r.expiresAt, at: Date.now() };
+      return r;
+    } catch {
+      clearAdminSession();
+      _cached = null;
+      return null;
+    } finally {
+      _inflight = null;
+    }
+  })();
+  return _inflight;
+}
+
 // Hook: verify session, idle timeout, re-check on focus
 export function useAdminSession() {
   const [admin, setAdmin] = useState<AdminMe | null>(null);
@@ -110,22 +142,15 @@ export function useAdminSession() {
   const idleTimer = useRef<number | null>(null);
   const IDLE_MS = 4 * 60 * 60 * 1000; // 4h
 
-  const verify = useCallback(async () => {
-    const s = readAdminSession();
-    if (!s) { setAdmin(null); setLoading(false); return; }
-    try {
-      const r = await callAdminFn<{ admin: AdminMe; expiresAt: string }>({
-        action: "session",
-        sessionToken: s.sessionToken,
-      });
+  const verify = useCallback(async (force = false) => {
+    const r = await verifySessionShared(force);
+    if (r) {
       setAdmin(r.admin);
       setExpiresAt(r.expiresAt);
-    } catch {
-      clearAdminSession();
+    } else {
       setAdmin(null);
-    } finally {
-      setLoading(false);
     }
+    setLoading(false);
   }, []);
 
   useEffect(() => { void verify(); }, [verify]);
