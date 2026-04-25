@@ -162,18 +162,21 @@ export function KycFlow({ onDone }: { onDone: () => void }) {
           <h1 className="text-[28px] font-bold">Quick selfie check</h1>
           <p className="text-[#888] text-sm mt-3">We use face matching to make sure it's really you.</p>
 
-          <div className="mt-10 aspect-square rounded-3xl glass flex items-center justify-center relative overflow-hidden">
-            <div className="absolute inset-8 border-2 border-primary rounded-full lime-glow" style={{ borderRadius: "50% / 60%" }} />
-            <p className="text-xs text-muted-foreground">Camera viewfinder</p>
+          <div className="mt-6">
+            <SelfieCapture onCapture={(d) => { setSelfie(d); setError(""); }} />
           </div>
+
           <ul className="mt-4 text-xs text-muted-foreground space-y-1">
-            <li>• Look straight</li>
-            <li>• Good lighting</li>
-            <li>• No sunglasses</li>
+            <li>• Look straight into the camera</li>
+            <li>• Make sure you have good lighting</li>
+            <li>• Remove sunglasses or hats</li>
           </ul>
 
+          {error && <p className="text-destructive text-xs mt-4 tw-shake">{error}</p>}
           <div className="flex-1" />
-          <button onClick={submitStep3} disabled={busy} className="btn-primary w-full">Submit for verification</button>
+          <button onClick={submitStep3} disabled={busy || !selfie} className="btn-primary w-full disabled:opacity-50">
+            Submit for verification
+          </button>
         </>
       )}
     </div>
