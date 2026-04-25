@@ -247,6 +247,42 @@ export type Database = {
           },
         ]
       }
+      issue_reports: {
+        Row: {
+          app_version: string | null
+          category: string
+          created_at: string
+          id: string
+          message: string
+          route: string | null
+          status: string
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          app_version?: string | null
+          category?: string
+          created_at?: string
+          id?: string
+          message: string
+          route?: string | null
+          status?: string
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          app_version?: string | null
+          category?: string
+          created_at?: string
+          id?: string
+          message?: string
+          route?: string | null
+          status?: string
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       kyc_submissions: {
         Row: {
           created_at: string
