@@ -602,17 +602,18 @@ function ScannerView({ onBack, onDecoded }: { onBack: () => void; onDecoded: (p:
    ============================================================ */
 
 function ConfirmView({
-  payload, amount, onAmountChange, onConfirm, onBack, balance,
+  payload, amount, onAmountChange, note, onNoteChange, onConfirm, onBack, balance,
 }: {
   payload: UpiPayload;
   amount: number;
   onAmountChange: (n: number) => void;
+  note: string;
+  onNoteChange: (s: string) => void;
   onConfirm: () => void;
   onBack: () => void;
   balance: number;
 }) {
   const initial = (payload.payeeName || payload.upiId).trim().charAt(0).toUpperCase();
-  const [note, setNote] = useState<string>(payload.note ?? "");
   const canPay = amount > 0 && amount <= balance;
   const insufficient = amount > 0 && amount > balance;
 
@@ -623,22 +624,30 @@ function ConfirmView({
 
   const addAmount = (delta: number) => onAmountChange(Number((amount + delta).toFixed(2)));
 
+  // Allow Enter to submit when focused inside the form (note/amount), if it's payable.
+  const onFormKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && canPay) {
+      e.preventDefault();
+      onConfirm();
+    }
+  };
+
   return (
-    <div className="sp2-confirm tw-slide-up">
+    <div className="sp2-confirm tw-slide-up" onKeyDown={onFormKeyDown}>
       {/* Header */}
       <div className="sp2-confirm-head">
-        <button onClick={onBack} aria-label="Back" className="sp2-icon-btn">
+        <button onClick={onBack} aria-label="Back to scanner" className="sp2-icon-btn focus-visible:ring-2 focus-visible:ring-primary">
           <ArrowLeft className="w-5 h-5" />
         </button>
         <span className="sp2-confirm-title">Pay to merchant</span>
-        <button onClick={onBack} aria-label="Close" className="sp2-icon-btn">
+        <button onClick={onBack} aria-label="Close payment" className="sp2-icon-btn focus-visible:ring-2 focus-visible:ring-primary">
           <X className="w-5 h-5" />
         </button>
       </div>
 
       {/* Merchant verified card */}
-      <div className="sp2-merchant-card">
-        <div className="sp2-merchant-avatar">
+      <div className="sp2-merchant-card" role="group" aria-label={`Paying ${payload.payeeName || payload.upiId}`}>
+        <div className="sp2-merchant-avatar" aria-hidden="true">
           {initial || "?"}
           <span className="sp2-merchant-verified" title="Verified merchant">
             <ShieldCheck className="w-3 h-3" strokeWidth={3} />
@@ -655,19 +664,23 @@ function ConfirmView({
 
       {/* Amount */}
       <div className="sp2-amount-wrap">
-        <div className="sp2-amount-label">Enter amount</div>
+        <label htmlFor="sp2-amount-input" className="sp2-amount-label">Enter amount</label>
         <div className="sp2-amount-row">
-          <span className="sp2-amount-symbol">₹</span>
+          <span className="sp2-amount-symbol" aria-hidden="true">₹</span>
           <input
+            id="sp2-amount-input"
             autoFocus={!payload.amount}
             inputMode="decimal"
+            aria-label="Amount in rupees"
+            aria-invalid={insufficient || undefined}
+            aria-describedby={insufficient ? "sp2-amount-error" : undefined}
             value={amount === 0 ? "" : amount}
             onChange={(e) => {
               const v = e.target.value.replace(/[^0-9.]/g, "");
               onAmountChange(v === "" ? 0 : Number(v));
             }}
             placeholder="0"
-            className="sp2-amount-input bg-transparent"
+            className="sp2-amount-input bg-transparent focus-visible:outline-none"
           />
         </div>
 
@@ -684,18 +697,48 @@ function ConfirmView({
           </div>
         )}
 
-        {/* Quick amount chips */}
-        <div className="sp2-chips">
-          {quickAmounts.map((v) => (
-            <button key={v} className="sp2-chip" onClick={() => onAmountChange(v)}>
+        {/* Quick amount chips — keyboard navigable group with arrow-key support */}
+        <div
+          className="sp2-chips"
+          role="group"
+          aria-label="Quick amount selection"
+        >
+          {quickAmounts.map((v, i) => (
+            <button
+              key={v}
+              type="button"
+              className="sp2-chip focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+              onClick={() => onAmountChange(v)}
+              aria-label={`Set amount to ${v} rupees`}
+              aria-pressed={amount === v}
+              data-chip-index={i}
+              onKeyDown={(e) => {
+                if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
+                  e.preventDefault();
+                  const dir = e.key === "ArrowRight" ? 1 : -1;
+                  const next = e.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>("button.sp2-chip");
+                  if (!next) return;
+                  const arr = Array.from(next);
+                  const idx = arr.indexOf(e.currentTarget);
+                  arr[(idx + dir + arr.length) % arr.length]?.focus();
+                }
+              }}
+            >
               ₹{v}
             </button>
           ))}
-          <button className="sp2-chip sp2-chip-add" onClick={() => addAmount(100)}>+ ₹100</button>
+          <button
+            type="button"
+            className="sp2-chip sp2-chip-add focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            onClick={() => addAmount(100)}
+            aria-label="Add 100 rupees to amount"
+          >
+            + ₹100
+          </button>
         </div>
 
         {insufficient && (
-          <p className="mt-3 text-[12px] text-red-400 font-medium">
+          <p id="sp2-amount-error" role="alert" className="mt-3 text-[12px] text-red-400 font-medium">
             Insufficient balance · ₹{balance.toFixed(2)} available
           </p>
         )}
@@ -703,14 +746,20 @@ function ConfirmView({
 
       {/* Note input */}
       <div className="sp2-note-wrap">
+        <label htmlFor="sp2-note-input" className="sr-only">Add a note for this payment (optional)</label>
         <input
+          id="sp2-note-input"
           type="text"
           maxLength={50}
           value={note}
-          onChange={(e) => setNote(e.target.value)}
+          onChange={(e) => onNoteChange(e.target.value)}
           placeholder="Add a note (optional)"
-          className="sp2-note-input"
+          aria-describedby="sp2-note-counter"
+          className="sp2-note-input focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
         />
+        <span id="sp2-note-counter" className="sr-only">
+          {note.length} of 50 characters used
+        </span>
       </div>
 
       {/* Pay-from method selector */}
