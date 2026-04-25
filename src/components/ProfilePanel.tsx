@@ -316,10 +316,29 @@ export function ProfilePanel({ onClose }: Props) {
             <>
               <Section title="Quick links">
                 <Row icon={Wallet} label="Wallet & balance" hint={`₹${Number(balance).toLocaleString("en-IN")}`} />
-                <Row icon={CreditCard} label="Cards & accounts" hint="Manage" />
+                <Row icon={CreditCard} label="Virtual Card" hint={<span className="text-amber-300">Coming soon</span>} onClick={() => setVcardOpen(true)} />
                 <Row icon={Building2} label="Bank accounts" hint="Linked" />
                 <Row icon={Gift} label="Rewards & cashback" hint={<span className="text-emerald-300">New</span>} />
                 <Row icon={Users} label="Refer & earn" hint="₹100" />
+              </Section>
+
+              {/* Dedicated Virtual Card teaser — taps open the Under Construction modal */}
+              <Section title="Virtual Card">
+                <button
+                  type="button"
+                  onClick={() => setVcardOpen(true)}
+                  aria-label="Open Virtual Card details"
+                  className="w-full text-left px-3.5 py-3.5 flex items-center justify-between hover:bg-white/[0.03] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-2xl transition-colors"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="pp-row-icon"><CreditCard className="w-4 h-4 text-primary" strokeWidth={2} /></div>
+                    <div className="min-w-0">
+                      <p className="text-[13px] text-white">Get your Virtual Card</p>
+                      <p className="text-[11px] text-white/50 truncate">Tap and pay anywhere — under construction</p>
+                    </div>
+                  </div>
+                  <span className="text-[10.5px] font-semibold text-amber-300 px-2 py-0.5 rounded-full bg-amber-400/10 border border-amber-400/25 shrink-0">SOON</span>
+                </button>
               </Section>
               <Section title="Member since">
                 <div className="px-3.5 py-3.5 flex items-center justify-between">
