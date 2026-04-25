@@ -1,7 +1,7 @@
 import { createFileRoute, Outlet, useNavigate, Link, useRouterState } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useAdminSession, ROLE_LABELS, ROLE_BADGE } from "@/admin/lib/adminAuth";
-import { LayoutDashboard, Users, ShieldAlert, FileCheck2, Wallet, Settings, LogOut, Bell } from "lucide-react";
+import { LayoutDashboard, Users, ShieldAlert, FileCheck2, Wallet, Settings, LogOut, Bell, Activity } from "lucide-react";
 
 export const Route = createFileRoute("/admin")({
   component: AdminLayout,
@@ -47,6 +47,7 @@ function AdminLayout() {
     { to: "/admin/kyc", label: "KYC Queue", icon: FileCheck2 },
     { to: "/admin/transactions", label: "Transactions", icon: Wallet },
     { to: "/admin/fraud", label: "Fraud", icon: ShieldAlert },
+    { to: "/admin/diagnostics", label: "Diagnostics", icon: Activity },
     { to: "/admin/settings", label: "Settings", icon: Settings },
   ];
 
