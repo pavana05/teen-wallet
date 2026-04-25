@@ -62,6 +62,7 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
     if (navigator.vibrate) navigator.vibrate(40);
     setPayload(parsed);
     setAmount(parsed.amount ?? 0);
+    setNote(parsed.note ?? "");
     setPhase("confirm");
   }, []);
 
