@@ -348,13 +348,8 @@ export function Home() {
         )}
       </div>
 
-      {/* Page dots */}
-      <div className="flex items-center justify-center gap-1.5 mt-7">
-        <span className="w-1.5 h-1.5 rounded-full bg-white" />
-        <span className="w-1.5 h-1.5 rounded-full bg-white/30" />
-        <span className="w-1.5 h-1.5 rounded-full bg-white/30" />
-        <span className="w-1.5 h-1.5 rounded-full bg-white/30" />
-      </div>
+      {/* trailing breathing room above floating nav */}
+      <div className="h-6" />
 
       {/* ===== FLOATING BOTTOM NAV ===== */}
       <div className="fixed bottom-5 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-[400px] z-50">
