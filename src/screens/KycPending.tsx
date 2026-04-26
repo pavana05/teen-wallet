@@ -23,8 +23,15 @@ const CONTINUE_TRANSITION_MS = 520;
 interface PersistedPendingState {
   submittedAt: string;     // ISO — when submission first appeared
   lastSeenAt: string;      // ISO — last successful poll
+  lastFetchAt: string;     // ISO — last fetch attempt (success or fail)
   submissionId: string | null;
 }
+
+// Estimated time-to-verify used to drive the neon-lime progress bar.
+// Real verification usually completes in 30–120s; we asymptote toward 95% so the
+// bar never "completes" before the actual approval webhook lands.
+const ESTIMATED_VERIFY_MS = 120_000;
+const PROGRESS_CEILING = 0.95;
 
 function readPersisted(): PersistedPendingState | null {
   if (typeof window === "undefined") return null;
