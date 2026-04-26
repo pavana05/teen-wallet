@@ -1,4 +1,4 @@
-import { Bell, Home as HomeIcon, ScanLine, ShoppingBag, CreditCard, ArrowUpRight, Building2, Wallet, History, Smartphone, Zap, MoreHorizontal, Gift, ArrowDownLeft, RefreshCw, User } from "lucide-react";
+import { Bell, Home as HomeIcon, ScanLine, ShoppingBag, CreditCard, ArrowUpRight, Building2, Wallet, History, Smartphone, Zap, MoreHorizontal, Gift, ArrowDownLeft, RefreshCw, User, Sparkles, Inbox } from "lucide-react";
 import { useApp } from "@/lib/store";
 import { useEffect, useState, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -80,6 +80,8 @@ export function Home() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [txns, setTxns] = useState<Txn[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [shakeKey, setShakeKey] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
   const [pullY, setPullY] = useState(0);
   const touchStartY = useRef<number | null>(null);
@@ -87,13 +89,19 @@ export function Home() {
 
   const fetchTxns = useCallback(async () => {
     if (!userId) { setLoading(false); return; }
-    const { data } = await supabase
+    const { data, error: err } = await supabase
       .from("transactions")
       .select("id,amount,merchant_name,upi_id,note,status,created_at")
       .eq("user_id", userId)
       .order("created_at", { ascending: false })
       .limit(20);
-    setTxns((data ?? []) as Txn[]);
+    if (err) {
+      setError(err.message);
+      setShakeKey((k) => k + 1);
+    } else {
+      setError(null);
+      setTxns((data ?? []) as Txn[]);
+    }
     setLoading(false);
   }, [userId]);
 
@@ -202,24 +210,53 @@ export function Home() {
 
       {/* ===== OFFERS CAROUSEL ===== */}
       <div className="px-5 mt-4 -mt-2">
-        <div className="flex gap-3 overflow-x-auto hp-scroll snap-x snap-mandatory pb-1">
-          <div className="hp-offer hp-offer-1 snap-start shrink-0">
-            <div className="relative z-10">
-              <p className="hp-offer-eyebrow">P2P UPI · Limited</p>
-              <p className="hp-offer-headline">20%<em>flat off</em></p>
-              <p className="hp-offer-sub">On every peer transfer this month</p>
-              <span className="hp-offer-cta">Apply offer →</span>
+        {loading ? (
+          <div className="flex gap-3 overflow-hidden pb-1">
+            {[0, 1].map((i) => (
+              <div key={i} className="hp-offer snap-start shrink-0 tw-shimmer" style={{ minHeight: 140 }} />
+            ))}
+          </div>
+        ) : error ? (
+          <div key={shakeKey} className={`hp-empty hp-shake-error`}>
+            <div className="hp-empty-illu">
+              <Sparkles className="w-7 h-7 text-white/80" strokeWidth={1.6} />
+            </div>
+            <p className="text-[14px] font-semibold text-white">Couldn't load offers</p>
+            <p className="text-[12px] text-white/55 mt-1">Pull to refresh or try again in a moment.</p>
+            <button
+              onClick={() => { setLoading(true); void fetchTxns(); }}
+              className="hp-offer-cta mt-3"
+              style={{ marginTop: 14 }}
+            >
+              <RefreshCw className="w-3.5 h-3.5 hp-offer-cta-icon" /> Retry
+            </button>
+          </div>
+        ) : (
+          <div className="flex gap-3 overflow-x-auto hp-scroll snap-x snap-mandatory pb-1 tw-slide-up">
+            <div className="hp-offer hp-offer-1 snap-start shrink-0">
+              <div className="relative z-10">
+                <p className="hp-offer-eyebrow">P2P UPI · Limited</p>
+                <p className="hp-offer-headline">20%<em>flat off</em></p>
+                <p className="hp-offer-sub">On every peer transfer this month</p>
+                <button type="button" className="hp-offer-cta" aria-label="Apply 20% off offer">
+                  <span>Apply offer</span>
+                  <ArrowUpRight className="w-3.5 h-3.5 hp-offer-cta-icon" strokeWidth={2.2} />
+                </button>
+              </div>
+            </div>
+            <div className="hp-offer hp-offer-2 snap-start shrink-0">
+              <div className="relative z-10">
+                <p className="hp-offer-eyebrow">First recharge</p>
+                <p className="hp-offer-headline">40%<em>cashback</em></p>
+                <p className="hp-offer-sub">Credited instantly to your wallet</p>
+                <button type="button" className="hp-offer-cta" aria-label="Claim 40% cashback offer">
+                  <span>Claim now</span>
+                  <Sparkles className="w-3.5 h-3.5 hp-offer-cta-icon" strokeWidth={2.2} />
+                </button>
+              </div>
             </div>
           </div>
-          <div className="hp-offer hp-offer-2 snap-start shrink-0">
-            <div className="relative z-10">
-              <p className="hp-offer-eyebrow">First recharge</p>
-              <p className="hp-offer-headline">40%<em>cashback</em></p>
-              <p className="hp-offer-sub">Credited instantly to your wallet</p>
-              <span className="hp-offer-cta">Claim now →</span>
-            </div>
-          </div>
-        </div>
+        )}
       </div>
 
       {/* ===== EVERYTHING UPI ===== */}
@@ -265,9 +302,12 @@ export function Home() {
             ))}
           </div>
         ) : txns.length === 0 ? (
-          <div className="rounded-2xl bg-white/5 border border-white/10 p-6 text-center">
-            <p className="text-[13px] text-white/70">No transactions yet</p>
-            <p className="text-[11px] text-white/40 mt-1">Tap the scan button to make your first payment.</p>
+          <div className="hp-empty tw-slide-up">
+            <div className="hp-empty-illu">
+              <Inbox className="w-7 h-7 text-white/80" strokeWidth={1.6} />
+            </div>
+            <p className="text-[14px] font-semibold text-white">No transactions yet</p>
+            <p className="text-[12px] text-white/55 mt-1">Tap the scan button to make your first payment.</p>
           </div>
         ) : (
           <div className="space-y-2">
