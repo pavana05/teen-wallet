@@ -364,7 +364,7 @@ export function Home() {
         aria-busy={loading}
         aria-live="polite"
         tabIndex={-1}
-        className="px-5 mt-8 scroll-mt-4"
+        className="px-5 mt-10 scroll-mt-4"
       >
         <div className="hp-section-head">
           <div>
