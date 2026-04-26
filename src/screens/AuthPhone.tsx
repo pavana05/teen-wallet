@@ -143,23 +143,48 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
             <label htmlFor="tw-phone" className="text-[10.5px] tracking-[0.18em] uppercase text-white/55 font-medium">
               Mobile number
             </label>
-            <div className={`tw-phone-field mt-2 ${error ? "tw-phone-field-error" : ""} ${valid ? "tw-phone-field-valid" : ""}`}>
-              <div className="tw-phone-cc">
-                <span className="text-base leading-none">🇮🇳</span>
+            <label
+              htmlFor="tw-phone"
+              className={`tw-phone-field tw-phone-field-v2 mt-2 ${error ? "tw-phone-field-error" : ""} ${valid ? "tw-phone-field-valid" : ""}`}
+            >
+              <span className="tw-phone-aurora" aria-hidden="true" />
+              <span className="tw-phone-cc">
+                <span className="tw-phone-flag" aria-hidden="true">🇮🇳</span>
                 <span className="text-[13px] font-semibold tracking-tight">+91</span>
-              </div>
-              <div className="tw-phone-divider" aria-hidden="true" />
+              </span>
+              <span className="tw-phone-divider" aria-hidden="true" />
+
+              {/* Animated digit slots */}
+              <span className="tw-phone-slots" aria-hidden="true">
+                {Array.from({ length: 10 }).map((_, i) => {
+                  const ch = phone[i];
+                  const isGap = i === 5;
+                  return (
+                    <span key={i} className={`tw-slot ${isGap ? "tw-slot-gap" : ""} ${ch ? "tw-slot-filled" : ""}`}>
+                      {ch ? (
+                        <span key={`${i}-${ch}`} className="tw-slot-digit num-mono">{ch}</span>
+                      ) : (
+                        <span className="tw-slot-dot" />
+                      )}
+                    </span>
+                  );
+                })}
+              </span>
+
+              {/* Hidden native input drives state + keyboard */}
               <input
                 id="tw-phone"
                 inputMode="numeric"
-                value={formatted}
+                value={phone}
                 onChange={(e) => { setError(""); setPhone(e.target.value.replace(/\D/g, "").slice(0, 10)); }}
-                placeholder="98765 43210"
-                className="tw-phone-input num-mono"
+                className="tw-phone-input-hidden"
                 aria-invalid={!!error}
                 aria-describedby={error ? "tw-phone-error" : undefined}
+                aria-label="10-digit mobile number"
                 autoFocus
+                maxLength={10}
               />
+
               {valid && (
                 <span className="tw-phone-check" aria-hidden="true">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
@@ -167,7 +192,7 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
                   </svg>
                 </span>
               )}
-            </div>
+            </label>
             <p className="mt-2 text-[11px] text-white/45 tracking-wide">
               We'll never share your number. SMS rates may apply.
             </p>
