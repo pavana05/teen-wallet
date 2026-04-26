@@ -194,9 +194,7 @@ export function ProfilePanel({ onClose }: Props) {
           <ArrowLeft className="w-5 h-5 text-white" strokeWidth={2} />
         </button>
         <p className="text-[15px] font-semibold text-white tracking-tight">Profile</p>
-        <button onClick={onClose} aria-label="Close" className="qa-icon-btn">
-          <X className="w-5 h-5 text-white/80" strokeWidth={2} />
-        </button>
+        <div className="qa-icon-btn invisible" aria-hidden="true" />
       </div>
 
       <div className="relative z-10 flex-1 overflow-y-auto pb-32 qa-enter">
