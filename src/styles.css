@@ -948,51 +948,78 @@
 .pv-btn-shine{ position:absolute; top:0; left:0; width:40%; height:100%; background: linear-gradient(90deg, transparent, rgba(255,255,255,.18), transparent); animation: pv-btn-shine 2.8s ease-in-out 1.4s infinite; }
 
 /* ============ HOME SCREEN — premium dark + orange theme ============ */
-.hp-root { background:#0B0B0B; }
+.hp-root { background:#08090B; }
 
 .hp-hero { position:relative; padding-bottom: 8px; }
 .hp-hero-bg{
   position:absolute; inset:0;
   background:
-    radial-gradient(120% 70% at 50% 0%, #ff7a2a 0%, #d94a14 38%, #7a1e08 78%, #1a0703 100%);
+    radial-gradient(120% 80% at 50% -10%, rgba(255,138,61,0.42) 0%, rgba(180,70,20,0.22) 32%, rgba(20,12,10,0.6) 70%, #08090B 100%),
+    linear-gradient(180deg, #0e0c0b 0%, #08090B 100%);
 }
 .hp-hero-pattern{
-  position:absolute; inset:0; opacity:.22; mix-blend-mode: overlay;
+  position:absolute; inset:0; opacity:.10; mix-blend-mode: overlay;
   background-image:
-    linear-gradient(rgba(255,255,255,.55) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255,255,255,.55) 1px, transparent 1px);
-  background-size: 44px 56px, 44px 56px;
-  -webkit-mask-image: radial-gradient(120% 80% at 50% 30%, #000 30%, transparent 75%);
-          mask-image: radial-gradient(120% 80% at 50% 30%, #000 30%, transparent 75%);
+    linear-gradient(rgba(255,255,255,.45) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.45) 1px, transparent 1px);
+  background-size: 56px 64px, 56px 64px;
+  -webkit-mask-image: radial-gradient(120% 80% at 50% 25%, #000 25%, transparent 70%);
+          mask-image: radial-gradient(120% 80% at 50% 25%, #000 25%, transparent 70%);
 }
 .hp-hero-spot{
-  position:absolute; left:50%; top:-80px; transform:translateX(-50%);
-  width:420px; height:280px; border-radius:50%;
-  background: radial-gradient(closest-side, rgba(255,210,150,.55), transparent 70%);
-  filter: blur(10px); pointer-events:none;
+  position:absolute; left:50%; top:-120px; transform:translateX(-50%);
+  width:520px; height:340px; border-radius:50%;
+  background: radial-gradient(closest-side, rgba(255,200,140,.28), transparent 70%);
+  filter: blur(20px); pointer-events:none;
 }
 .hp-hero-fade{
-  position:absolute; left:0; right:0; bottom:-1px; height:90px;
-  background: linear-gradient(180deg, transparent, #0B0B0B 85%);
+  position:absolute; left:0; right:0; bottom:-1px; height:120px;
+  background: linear-gradient(180deg, transparent, #08090B 90%);
   pointer-events:none;
 }
 
 .hp-bell{
-  width:42px; height:42px; border-radius:50%;
-  background: rgba(0,0,0,.45); border:1px solid rgba(255,255,255,.08);
+  width:40px; height:40px; border-radius:50%;
+  background: rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.08);
   display:flex; align-items:center; justify-content:center; position:relative;
-  backdrop-filter: blur(8px);
+  backdrop-filter: blur(10px);
+  transition: background 180ms ease, border-color 180ms ease, transform 140ms cubic-bezier(.2,.8,.2,1);
 }
-.hp-bell-dot{ position:absolute; top:9px; right:11px; width:7px; height:7px; border-radius:50%; background:#ff8a3d; box-shadow:0 0 8px #ff8a3d; }
+.hp-bell:hover{ background: rgba(255,255,255,.07); border-color: rgba(255,255,255,.14); }
+.hp-bell:active{ transform: scale(.96); }
+.hp-bell-dot{ position:absolute; top:9px; right:11px; width:6px; height:6px; border-radius:50%; background:#ff8a3d; box-shadow:0 0 8px #ff8a3d; }
+.hp-bell-badge{
+  position:absolute; top:-3px; right:-3px; min-width:16px; height:16px; padding:0 4px;
+  border-radius:999px; background:#ff5a1f; color:#fff;
+  font-size:10px; font-weight:700; letter-spacing:0;
+  display:flex; align-items:center; justify-content:center;
+  border:1.5px solid #08090B;
+}
+
+.hp-greeting{ font-size:17px; font-weight:600; color:#f5f5f7; letter-spacing:-0.01em; }
+.hp-greeting-sub{ font-size:12px; color:rgba(255,255,255,.55); margin-top:2px; letter-spacing:0.01em; }
 
 .hp-scan-card{
-  position:relative; display:block; width: calc(100% - 40px); margin: 18px auto 0;
-  border-radius: 28px; overflow:hidden;
-  box-shadow: 0 20px 60px -20px rgba(0,0,0,.6), 0 0 0 1px rgba(255,180,90,.15);
-  transition: transform 180ms ease;
+  position:relative; display:block; width: calc(100% - 40px); margin: 22px auto 0;
+  border-radius: 26px; overflow:hidden;
+  box-shadow:
+    0 30px 80px -30px rgba(0,0,0,.85),
+    0 0 0 1px rgba(255,255,255,.06),
+    inset 0 1px 0 rgba(255,255,255,.06);
+  transition: transform 220ms cubic-bezier(.2,.8,.2,1), box-shadow 220ms ease;
 }
+.hp-scan-card:hover{ transform: translateY(-2px); box-shadow: 0 36px 90px -28px rgba(0,0,0,.9), 0 0 0 1px rgba(255,255,255,.1), inset 0 1px 0 rgba(255,255,255,.08); }
 .hp-scan-card:active{ transform: scale(.985); }
 .hp-scan-img{ width:100%; height:auto; display:block; }
+
+/* Section eyebrow + hairline */
+.hp-section-head{ display:flex; align-items:baseline; justify-content:space-between; margin-bottom: 14px; }
+.hp-section-title{ font-size:15px; font-weight:600; color:#f5f5f7; letter-spacing:-0.01em; }
+.hp-section-eyebrow{ font-size:10px; letter-spacing:0.18em; text-transform:uppercase; color:rgba(255,255,255,.42); font-weight:600; display:block; margin-bottom:4px; }
+.hp-section-link{ font-size:11px; color:rgba(255,255,255,.5); letter-spacing:0.04em; transition: color 180ms ease; }
+.hp-section-link:hover{ color:rgba(255,255,255,.85); }
+.hp-divider{ height:1px; background: linear-gradient(90deg, transparent, rgba(255,255,255,.06) 20%, rgba(255,255,255,.06) 80%, transparent); margin: 0 20px; }
+
 
 /* Offers — premium minimal */
 .hp-scroll::-webkit-scrollbar { display:none; }
