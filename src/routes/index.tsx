@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useApp, type Stage } from "@/lib/store";
 import { fetchProfile } from "@/lib/auth";
 import { PhoneShell } from "@/components/PhoneShell";
-import { Splash } from "@/screens/Splash";
+
 
 const Onboarding = lazy(() => import("@/screens/Onboarding").then(m => ({ default: m.Onboarding })));
 const AuthPhone = lazy(() => import("@/screens/AuthPhone").then(m => ({ default: m.AuthPhone })));
