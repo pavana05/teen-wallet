@@ -528,7 +528,7 @@ function VirtualCardModal({ onClose }: { onClose: () => void }) {
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div>
-      <p className="text-[11px] uppercase tracking-wider text-white/45 px-1 mb-2">{title}</p>
+      <p className="pp-section-title">{title}</p>
       <div className="pp-card divide-y divide-white/5">{children}</div>
     </div>
   );
