@@ -107,67 +107,40 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
     } finally { setBusy(false); }
   }
 
-  function classifyError(e: unknown): { message: string; isNetwork: boolean } {
-    const raw = e instanceof Error ? e.message : String(e ?? "");
-    const lower = raw.toLowerCase();
-    const isNetwork =
-      lower.includes("failed to fetch") ||
-      lower.includes("networkerror") ||
-      lower.includes("load failed") ||
-      lower.includes("network request failed") ||
-      (e instanceof TypeError && lower.includes("fetch"));
-    if (isNetwork) {
-      return {
-        message:
-          "Couldn't reach our servers. This often happens in the in-app preview — please check your connection or open the published app and try again.",
-        isNetwork: true,
-      };
-    }
-    if (lower.includes("invalid") && lower.includes("otp")) {
-      return { message: "That code didn't match. Please re-enter the OTP.", isNetwork: false };
-    }
-    if (lower.includes("expired")) {
-      return { message: "Your OTP expired. Tap Resend to get a new code.", isNetwork: false };
-    }
-    return { message: raw || "Verification failed. Please try again.", isNetwork: false };
-  }
-
   async function handleVerify(code: string) {
-    setBusy(true); setError("");
+    setBusy(true); setError(""); setErrorKind(null);
     try {
       await verifyOtp(phone, code);
       const p = await fetchProfile();
       // Resume from where the user left off. New users start at STAGE_3 (KYC).
-      // CRITICAL: if KYC was already approved (e.g. on another device), jump straight to STAGE_5.
       let resumedStage: Stage = "STAGE_3";
       if (p) {
         const profileStage = p.onboarding_stage as Stage;
         const kyc = p.kyc_status as string | null;
-        if (kyc === "approved") {
-          // KYC done — go home regardless of saved stage.
-          resumedStage = "STAGE_5";
-        } else if (kyc === "pending") {
-          // Awaiting approval — show pending screen.
-          resumedStage = "STAGE_4";
-        } else if (profileStage === "STAGE_0" || profileStage === "STAGE_1" || profileStage === "STAGE_2") {
-          // Pre-auth stage on profile — advance to KYC.
-          resumedStage = "STAGE_3";
-        } else {
-          // Honor whatever stage the profile holds (STAGE_3/4/5).
-          resumedStage = profileStage;
-        }
+        if (kyc === "approved") resumedStage = "STAGE_5";
+        else if (kyc === "pending") resumedStage = "STAGE_4";
+        else if (profileStage === "STAGE_0" || profileStage === "STAGE_1" || profileStage === "STAGE_2") resumedStage = "STAGE_3";
+        else resumedStage = profileStage;
         hydrateFromProfile({ id: p.id, full_name: p.full_name, balance: Number(p.balance), onboarding_stage: resumedStage });
       }
       if (!p || p.onboarding_stage !== resumedStage) {
         await persistStage(resumedStage);
       }
+      clearOtpState();
       setStep("verified");
     } catch (e) {
-      const { message, isNetwork } = classifyError(e);
-      setError(message);
-      toast.error(isNetwork ? "Network error" : "Verification failed", { description: message });
-      // Keep the entered code on network errors so the user can simply tap Try again.
-      if (!isNetwork) {
+      const { message, kind } = classifyOtpError(e);
+      setError(message); setErrorKind(kind);
+      void logOtpErrorEvent(kind, e instanceof Error ? e.message : String(e), phone);
+      toast.error(kind === "network" ? "Network error" : "Verification failed", { description: message });
+
+      if (kind === "rate_limited") {
+        setResendBlockedUntil(Date.now() + 60_000);
+      }
+
+      // Keep entered digits on network errors so the user can just tap Try again.
+      // For invalid/expired/unknown, clear and re-focus first slot.
+      if (kind !== "network") {
         setOtp(["", "", "", "", "", ""]);
         setTimeout(() => inputs.current[0]?.focus(), 0);
       }
@@ -176,15 +149,27 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
 
   function retryVerify() {
     const code = otp.join("");
+    setError(""); setErrorKind(null);
     if (code.length === 6) void handleVerify(code);
-    else inputs.current[otp.findIndex((d) => !d)]?.focus();
+    else {
+      const idx = otp.findIndex((d) => !d);
+      inputs.current[idx === -1 ? 0 : idx]?.focus();
+    }
   }
 
   function onOtpChange(i: number, v: string) {
     const d = v.replace(/\D/g, "").slice(-1);
     const next = [...otp]; next[i] = d; setOtp(next);
+    // Editing any digit clears the prior error so the user gets immediate feedback.
+    if (error) { setError(""); setErrorKind(null); }
     if (d && i < 5) inputs.current[i + 1]?.focus();
     if (next.every((x) => x)) handleVerify(next.join(""));
+  }
+
+  // Tapping anywhere on the OTP row auto-focuses the first empty slot.
+  function focusOtp() {
+    const idx = otp.findIndex((d) => !d);
+    inputs.current[idx === -1 ? 5 : idx]?.focus();
   }
 
   if (step === "verified") {
