@@ -552,6 +552,8 @@ Deno.serve(async (req) => {
     manageFraud: ["super_admin", "fraud_analyst"],
     viewAuditLog: ["super_admin", "compliance_officer"],
     manageAdmins: ["super_admin"],
+    viewReports: ["super_admin", "operations_manager", "customer_support", "compliance_officer"],
+    manageReports: ["super_admin", "operations_manager", "customer_support"],
   };
   function can(role: string, perm: string) {
     return (ROLE_PERMS[perm] || []).includes(role);
