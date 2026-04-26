@@ -1,8 +1,30 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  ArrowLeft, Building2, Wallet, History, Search, Star, ArrowDownLeft, Eye, EyeOff,
-  Copy, Check, ChevronRight, ShieldCheck, Send, IndianRupee, X, Sparkles,
-  Loader2, UserPlus, Repeat, AlertTriangle, ArrowUpRight, Clock, Hash, FileText,
+  ArrowLeft,
+  Building2,
+  Wallet,
+  History,
+  Search,
+  Star,
+  ArrowDownLeft,
+  Eye,
+  EyeOff,
+  Copy,
+  Check,
+  ChevronRight,
+  ShieldCheck,
+  Send,
+  IndianRupee,
+  X,
+  Sparkles,
+  Loader2,
+  UserPlus,
+  Repeat,
+  AlertTriangle,
+  ArrowUpRight,
+  Clock,
+  Hash,
+  FileText,
 } from "lucide-react";
 import { useApp } from "@/lib/store";
 import { supabase } from "@/integrations/supabase/client";
@@ -45,19 +67,23 @@ interface Contact {
  * Kept local to this module so we don't ship them in the migration data.
  */
 const STARTER_CONTACTS: Omit<Contact, "id" | "last_paid_at">[] = [
-  { name: "Aarav Mehta",  upi_id: "aarav@okhdfc",     phone: null, emoji: "🦊", verified: true },
-  { name: "Priya Shah",   upi_id: "priya.shah@oksbi", phone: null, emoji: "🌸", verified: true },
-  { name: "Rohan Verma",  upi_id: "rohan@ybl",        phone: null, emoji: "🎮", verified: false },
-  { name: "Ishita Roy",   upi_id: "ishita.r@okaxis",  phone: null, emoji: "🎧", verified: false },
+  { name: "Aarav Mehta", upi_id: "aarav@okhdfc", phone: null, emoji: "🦊", verified: true },
+  { name: "Priya Shah", upi_id: "priya.shah@oksbi", phone: null, emoji: "🌸", verified: true },
+  { name: "Rohan Verma", upi_id: "rohan@ybl", phone: null, emoji: "🎮", verified: false },
+  { name: "Ishita Roy", upi_id: "ishita.r@okaxis", phone: null, emoji: "🎧", verified: false },
 ];
 
 export function QuickActionsPanel({ kind, onClose }: Props) {
-  const title = useMemo(() => ({
-    "pay-friends": "Pay friends",
-    "to-bank": "To bank & self a/c",
-    "balance": "Check balance",
-    "history": "Transaction history",
-  }[kind]), [kind]);
+  const title = useMemo(
+    () =>
+      ({
+        "pay-friends": "Pay friends",
+        "to-bank": "To bank & self a/c",
+        balance: "Check balance",
+        history: "Transaction history",
+      })[kind],
+    [kind],
+  );
 
   return (
     <div className="qa-root absolute inset-0 z-[60] flex flex-col bg-background overflow-hidden">
@@ -96,7 +122,10 @@ function PayFriends() {
   const [picked, setPicked] = useState<Contact | null>(null);
 
   const fetchContacts = useCallback(async () => {
-    if (!userId) { setLoading(false); return; }
+    if (!userId) {
+      setLoading(false);
+      return;
+    }
     setError(null);
     const { data, error: err } = await supabase
       .from("contacts")
@@ -128,7 +157,9 @@ function PayFriends() {
     setLoading(false);
   }, [userId]);
 
-  useEffect(() => { void fetchContacts(); }, [fetchContacts]);
+  useEffect(() => {
+    void fetchContacts();
+  }, [fetchContacts]);
 
   const filtered = contacts.filter((f) => {
     const needle = q.toLowerCase();
@@ -138,21 +169,27 @@ function PayFriends() {
 
   // After a successful payment we bump the picked contact's `last_paid_at`
   // to keep the Recent rail in sync with reality.
-  const handlePaid = useCallback(async (contact: Contact) => {
-    if (!userId) return;
-    await supabase
-      .from("contacts")
-      .update({ last_paid_at: new Date().toISOString(), verified: true })
-      .eq("id", contact.id);
-    await fetchContacts();
-  }, [userId, fetchContacts]);
+  const handlePaid = useCallback(
+    async (contact: Contact) => {
+      if (!userId) return;
+      await supabase
+        .from("contacts")
+        .update({ last_paid_at: new Date().toISOString(), verified: true })
+        .eq("id", contact.id);
+      await fetchContacts();
+    },
+    [userId, fetchContacts],
+  );
 
   if (picked) {
     return (
       <ConfirmPay
         contact={picked}
         onCancel={() => setPicked(null)}
-        onSuccess={async () => { await handlePaid(picked); setPicked(null); }}
+        onSuccess={async () => {
+          await handlePaid(picked);
+          setPicked(null);
+        }}
       />
     );
   }
@@ -179,7 +216,13 @@ function PayFriends() {
         <div className="mt-8 rounded-2xl border border-destructive/30 bg-destructive/10 p-5 text-center">
           <AlertTriangle className="w-5 h-5 text-destructive mx-auto" />
           <p className="text-[13px] text-white mt-2">{error}</p>
-          <button onClick={() => { setLoading(true); void fetchContacts(); }} className="qa-cta mt-4">
+          <button
+            onClick={() => {
+              setLoading(true);
+              void fetchContacts();
+            }}
+            className="qa-cta mt-4"
+          >
             Retry
           </button>
         </div>
@@ -208,7 +251,11 @@ function PayFriends() {
             </div>
             <div className="space-y-2">
               {filtered.map((f) => (
-                <button key={f.id} onClick={() => setPicked(f)} className="qa-row group text-left w-full">
+                <button
+                  key={f.id}
+                  onClick={() => setPicked(f)}
+                  className="qa-row group text-left w-full"
+                >
                   <div className="qa-avatar-sm text-[18px]">{f.emoji ?? "👤"}</div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5">
@@ -226,13 +273,17 @@ function PayFriends() {
                 </button>
               ))}
               {filtered.length === 0 && q && (
-                <p className="text-center text-[12px] text-white/40 py-8">No contacts match "{q}"</p>
+                <p className="text-center text-[12px] text-white/40 py-8">
+                  No contacts match "{q}"
+                </p>
               )}
               {filtered.length === 0 && !q && (
                 <div className="text-center py-10">
                   <UserPlus className="w-6 h-6 text-white/30 mx-auto" />
                   <p className="text-[13px] text-white/60 mt-3">No contacts yet</p>
-                  <p className="text-[11px] text-white/40 mt-1">Pay anyone via Scan & Pay to save them here.</p>
+                  <p className="text-[11px] text-white/40 mt-1">
+                    Pay anyone via Scan & Pay to save them here.
+                  </p>
                 </div>
               )}
             </div>
@@ -337,7 +388,11 @@ function ConfirmPay({
         <p className="text-[11px] text-white/50 mt-3">
           Available balance{" "}
           <span className="text-white/80 num-mono">
-            ₹{balance.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            ₹
+            {balance.toLocaleString("en-IN", {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            })}
           </span>
         </p>
         {insufficient && (
@@ -364,7 +419,11 @@ function ConfirmPay({
       )}
 
       <div className="mt-5 flex gap-3">
-        <button onClick={onCancel} className="qa-cta !bg-white/10 !text-white flex-1" disabled={submitting}>
+        <button
+          onClick={onCancel}
+          className="qa-cta !bg-white/10 !text-white flex-1"
+          disabled={submitting}
+        >
           Cancel
         </button>
         <button
@@ -373,9 +432,13 @@ function ConfirmPay({
           className="qa-cta flex-[1.6] disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2"
         >
           {submitting ? (
-            <><Loader2 className="w-4 h-4 animate-spin text-black" /> Paying…</>
+            <>
+              <Loader2 className="w-4 h-4 animate-spin text-black" /> Paying…
+            </>
           ) : (
-            <><Send className="w-4 h-4 text-black" /> Pay ₹{valid ? amt.toFixed(0) : "0"}</>
+            <>
+              <Send className="w-4 h-4 text-black" /> Pay ₹{valid ? amt.toFixed(0) : "0"}
+            </>
           )}
         </button>
       </div>
@@ -396,7 +459,11 @@ function ToBank() {
         <div className="flex items-center gap-2 text-white/70 text-[11px] uppercase tracking-[0.14em]">
           <ShieldCheck className="w-3.5 h-3.5" /> Secure transfer
         </div>
-        <p className="text-[22px] font-semibold text-white mt-2 leading-tight">Send to any<br/>bank account</p>
+        <p className="text-[22px] font-semibold text-white mt-2 leading-tight">
+          Send to any
+          <br />
+          bank account
+        </p>
         <p className="text-[12px] text-white/60 mt-2">IMPS · NEFT · RTGS · UPI</p>
         <div className="qa-bank-shine" />
       </div>
@@ -444,10 +511,16 @@ function CheckBalance() {
   useEffect(() => {
     if (!userId) return;
     const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-    void supabase.from("transactions").select("amount,status").eq("user_id", userId).eq("status", "success").gte("created_at", since).then(({ data }) => {
-      const sum = (data ?? []).reduce((a, t) => a + Number(t.amount), 0);
-      setRecentSpend(sum);
-    });
+    void supabase
+      .from("transactions")
+      .select("amount,status")
+      .eq("user_id", userId)
+      .eq("status", "success")
+      .gte("created_at", since)
+      .then(({ data }) => {
+        const sum = (data ?? []).reduce((a, t) => a + Number(t.amount), 0);
+        setRecentSpend(sum);
+      });
   }, [userId]);
 
   const copyVpa = async () => {
@@ -462,15 +535,26 @@ function CheckBalance() {
         <div className="qa-balance-shine" />
         <div className="relative z-10">
           <div className="flex items-center justify-between">
-            <p className="text-[11px] uppercase tracking-[0.14em] text-black/60">Available balance</p>
+            <p className="text-[11px] uppercase tracking-[0.14em] text-black/60">
+              Available balance
+            </p>
             <button onClick={() => setHidden((h) => !h)} className="qa-eye">
-              {hidden ? <EyeOff className="w-4 h-4 text-black/70" /> : <Eye className="w-4 h-4 text-black/70" />}
+              {hidden ? (
+                <EyeOff className="w-4 h-4 text-black/70" />
+              ) : (
+                <Eye className="w-4 h-4 text-black/70" />
+              )}
             </button>
           </div>
           <div className="flex items-baseline gap-1 mt-3">
             <span className="text-[28px] font-semibold text-black/90 num-mono">₹</span>
             <span className="text-[44px] font-bold text-black tracking-tight num-mono leading-none">
-              {hidden ? "•••••" : balance.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              {hidden
+                ? "•••••"
+                : balance.toLocaleString("en-IN", {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}
             </span>
           </div>
           <div className="mt-5 flex items-center justify-between">
@@ -487,19 +571,26 @@ function CheckBalance() {
       </div>
 
       <p className="text-center text-[11px] text-white/40 mt-4">
-        Updated {revealedAt.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })} · Live from your account
+        Updated {revealedAt.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })} ·
+        Live from your account
       </p>
 
       <div className="grid grid-cols-2 gap-3 mt-6">
         <div className="qa-stat">
           <p className="text-[11px] text-white/55">This week spent</p>
-          <p className="text-[20px] font-semibold text-white num-mono mt-1">₹{recentSpend.toFixed(0)}</p>
-          <div className="qa-stat-bar mt-3"><span style={{ width: `${Math.min(100, (recentSpend / 5000) * 100)}%` }} /></div>
+          <p className="text-[20px] font-semibold text-white num-mono mt-1">
+            ₹{recentSpend.toFixed(0)}
+          </p>
+          <div className="qa-stat-bar mt-3">
+            <span style={{ width: `${Math.min(100, (recentSpend / 5000) * 100)}%` }} />
+          </div>
         </div>
         <div className="qa-stat">
           <p className="text-[11px] text-white/55">Weekly limit</p>
           <p className="text-[20px] font-semibold text-white num-mono mt-1">₹5,000</p>
-          <p className="text-[10px] text-primary mt-3 inline-flex items-center gap-1"><Sparkles className="w-3 h-3" /> Healthy</p>
+          <p className="text-[10px] text-primary mt-3 inline-flex items-center gap-1">
+            <Sparkles className="w-3 h-3" /> Healthy
+          </p>
         </div>
       </div>
 
@@ -518,10 +609,17 @@ function TxnHistory() {
   const [filter, setFilter] = useState<"all" | "success" | "failed" | "pending">("all");
   const [loading, setLoading] = useState(true);
   const [openTxn, setOpenTxn] = useState<Txn | null>(null);
-  const [payAgainContact, setPayAgainContact] = useState<{ contact: Pick<Contact, "name" | "upi_id" | "emoji" | "verified">; amount: number; note: string } | null>(null);
+  const [payAgainContact, setPayAgainContact] = useState<{
+    contact: Pick<Contact, "name" | "upi_id" | "emoji" | "verified">;
+    amount: number;
+    note: string;
+  } | null>(null);
 
   useEffect(() => {
-    if (!userId) { setLoading(false); return; }
+    if (!userId) {
+      setLoading(false);
+      return;
+    }
     void supabase
       .from("transactions")
       .select("id,amount,merchant_name,upi_id,note,status,created_at")
@@ -535,7 +633,9 @@ function TxnHistory() {
   }, [userId]);
 
   const filtered = filter === "all" ? txns : txns.filter((t) => t.status === filter);
-  const totalSpent = txns.filter((t) => t.status === "success").reduce((a, t) => a + Number(t.amount), 0);
+  const totalSpent = txns
+    .filter((t) => t.status === "success")
+    .reduce((a, t) => a + Number(t.amount), 0);
 
   // group by date
   const groups = filtered.reduce<Record<string, Txn[]>>((acc, t) => {
@@ -566,7 +666,10 @@ function TxnHistory() {
         prefillAmount={payAgainContact.amount}
         prefillNote={payAgainContact.note}
         onCancel={() => setPayAgainContact(null)}
-        onSuccess={async () => { await refreshTxns(); setPayAgainContact(null); }}
+        onSuccess={async () => {
+          await refreshTxns();
+          setPayAgainContact(null);
+        }}
       />
     );
   }
@@ -574,16 +677,26 @@ function TxnHistory() {
   return (
     <div className="px-5 pt-2">
       <div className="qa-history-hero">
-        <p className="text-[11px] uppercase tracking-[0.14em] text-white/55">Total spent · all time</p>
+        <p className="text-[11px] uppercase tracking-[0.14em] text-white/55">
+          Total spent · all time
+        </p>
         <p className="text-[34px] font-bold text-white num-mono mt-1 leading-none">
-          ₹{totalSpent.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          ₹
+          {totalSpent.toLocaleString("en-IN", {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          })}
         </p>
         <p className="text-[12px] text-white/55 mt-2">{txns.length} transactions</p>
       </div>
 
       <div className="mt-5 flex gap-2 overflow-x-auto hp-scroll pb-1">
         {(["all", "success", "pending", "failed"] as const).map((f) => (
-          <button key={f} onClick={() => setFilter(f)} className={`qa-chip ${filter === f ? "qa-chip-active" : ""}`}>
+          <button
+            key={f}
+            onClick={() => setFilter(f)}
+            className={`qa-chip ${filter === f ? "qa-chip-active" : ""}`}
+          >
             {f === "all" ? "All" : f.charAt(0).toUpperCase() + f.slice(1)}
           </button>
         ))}
@@ -591,18 +704,26 @@ function TxnHistory() {
 
       <div className="mt-5">
         {loading ? (
-          <div className="space-y-2">{[0, 1, 2, 3].map((i) => <div key={i} className="h-16 rounded-2xl bg-white/5 tw-shimmer" />)}</div>
+          <div className="space-y-2">
+            {[0, 1, 2, 3].map((i) => (
+              <div key={i} className="h-16 rounded-2xl bg-white/5 tw-shimmer" />
+            ))}
+          </div>
         ) : filtered.length === 0 ? (
           <div className="text-center py-12">
             <History className="w-8 h-8 text-white/20 mx-auto" />
-            <p className="text-[13px] text-white/50 mt-3">No {filter === "all" ? "" : filter} transactions</p>
+            <p className="text-[13px] text-white/50 mt-3">
+              No {filter === "all" ? "" : filter} transactions
+            </p>
           </div>
         ) : (
           Object.entries(groups).map(([day, items]) => (
             <div key={day} className="mb-5">
               <p className="text-[11px] uppercase tracking-[0.14em] text-white/40 mb-2">{day}</p>
               <div className="space-y-2">
-                {items.map((t) => <HistoryRow key={t.id} txn={t} onOpen={() => setOpenTxn(t)} />)}
+                {items.map((t) => (
+                  <HistoryRow key={t.id} txn={t} onOpen={() => setOpenTxn(t)} />
+                ))}
               </div>
             </div>
           ))
@@ -635,19 +756,38 @@ function TxnHistory() {
 function HistoryRow({ txn, onOpen }: { txn: Txn; onOpen: () => void }) {
   const failed = txn.status === "failed";
   const pending = txn.status === "pending";
-  const time = new Date(txn.created_at).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
+  const time = new Date(txn.created_at).toLocaleTimeString("en-IN", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
   return (
     <button onClick={onOpen} className="qa-row w-full text-left">
-      <div className={`qa-row-ico ${failed ? "bg-destructive/15" : pending ? "bg-yellow-400/10" : "bg-primary/15"}`}>
-        {failed ? <X className="w-4 h-4 text-destructive" /> : <ArrowDownLeft className={`w-4 h-4 ${pending ? "text-yellow-400" : "text-primary"}`} />}
+      <div
+        className={`qa-row-ico ${failed ? "bg-destructive/15" : pending ? "bg-yellow-400/10" : "bg-primary/15"}`}
+      >
+        {failed ? (
+          <X className="w-4 h-4 text-destructive" />
+        ) : (
+          <ArrowDownLeft className={`w-4 h-4 ${pending ? "text-yellow-400" : "text-primary"}`} />
+        )}
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-[13px] font-medium text-white truncate">{txn.merchant_name}</p>
-        <p className="text-[11px] text-white/45 truncate">{txn.upi_id} · {time}</p>
+        <p className="text-[11px] text-white/45 truncate">
+          {txn.upi_id} · {time}
+        </p>
       </div>
       <div className="text-right">
-        <p className={`text-[14px] font-semibold num-mono ${failed ? "text-destructive line-through" : "text-white"}`}>−₹{Number(txn.amount).toFixed(2)}</p>
-        <p className={`text-[10px] uppercase tracking-wider ${pending ? "text-yellow-400/80" : failed ? "text-destructive/80" : "text-primary/80"}`}>{txn.status}</p>
+        <p
+          className={`text-[14px] font-semibold num-mono ${failed ? "text-destructive line-through" : "text-white"}`}
+        >
+          −₹{Number(txn.amount).toFixed(2)}
+        </p>
+        <p
+          className={`text-[10px] uppercase tracking-wider ${pending ? "text-yellow-400/80" : failed ? "text-destructive/80" : "text-primary/80"}`}
+        >
+          {txn.status}
+        </p>
       </div>
       <ChevronRight className="w-4 h-4 text-white/30" />
     </button>
@@ -667,8 +807,12 @@ function TxnDetailSheet({
   const [copied, setCopied] = useState(false);
   const created = new Date(txn.created_at);
   const dateLabel = created.toLocaleString("en-IN", {
-    weekday: "short", day: "2-digit", month: "short", year: "numeric",
-    hour: "2-digit", minute: "2-digit",
+    weekday: "short",
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
   });
   const failed = txn.status === "failed";
   const pending = txn.status === "pending";
@@ -682,7 +826,9 @@ function TxnDetailSheet({
       setCopied(true);
       toast.success("Reference ID copied");
       setTimeout(() => setCopied(false), 1400);
-    } catch { /* clipboard blocked — silent */ }
+    } catch {
+      /* clipboard blocked — silent */
+    }
   };
 
   // Timeline events derived from the transaction status. We don't have a
@@ -693,9 +839,17 @@ function TxnDetailSheet({
     const items: { label: string; sub: string; tone: "ok" | "warn" | "bad" | "muted" }[] = [];
     items.push({ label: "Payment initiated", sub: dateLabel, tone: "muted" });
     if (failed) {
-      items.push({ label: "Payment failed", sub: "We couldn't complete this payment", tone: "bad" });
+      items.push({
+        label: "Payment failed",
+        sub: "We couldn't complete this payment",
+        tone: "bad",
+      });
     } else if (pending) {
-      items.push({ label: "Awaiting confirmation", sub: "The bank is still processing", tone: "warn" });
+      items.push({
+        label: "Awaiting confirmation",
+        sub: "The bank is still processing",
+        tone: "warn",
+      });
     } else {
       items.push({ label: "Sent to bank", sub: "Routed via UPI", tone: "muted" });
       items.push({ label: "Payment successful", sub: "Confirmed by recipient bank", tone: "ok" });
@@ -704,7 +858,10 @@ function TxnDetailSheet({
   }, [dateLabel, failed, pending]);
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
+    <div
+      className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm"
+      onClick={onClose}
+    >
       <div
         onClick={(e) => e.stopPropagation()}
         className="qa-sheet w-full max-w-[420px] rounded-t-3xl sm:rounded-3xl bg-background border-t sm:border border-white/10 px-5 pt-5 pb-7 max-h-[88vh] overflow-y-auto"
@@ -717,7 +874,9 @@ function TxnDetailSheet({
             <p className="text-[11px] uppercase tracking-[0.14em] text-white/45">
               {failed ? "Failed payment" : pending ? "Pending payment" : "Paid to"}
             </p>
-            <h3 className="text-[18px] font-semibold text-white truncate mt-1">{txn.merchant_name}</h3>
+            <h3 className="text-[18px] font-semibold text-white truncate mt-1">
+              {txn.merchant_name}
+            </h3>
             <p className="text-[12px] text-white/55 truncate num-mono">{txn.upi_id}</p>
           </div>
           <button onClick={onClose} className="qa-icon-btn !w-8 !h-8 shrink-0" aria-label="Close">
@@ -728,10 +887,14 @@ function TxnDetailSheet({
         {/* Amount */}
         <div className="mt-5 rounded-2xl bg-white/5 border border-white/10 p-5">
           <p className="text-[11px] uppercase tracking-[0.14em] text-white/45">Amount</p>
-          <p className={`text-[32px] font-bold num-mono mt-1 leading-none ${failed ? "text-destructive line-through" : "text-white"}`}>
+          <p
+            className={`text-[32px] font-bold num-mono mt-1 leading-none ${failed ? "text-destructive line-through" : "text-white"}`}
+          >
             ₹{amt.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </p>
-          <p className={`text-[11px] uppercase tracking-wider mt-3 ${pending ? "text-yellow-400/80" : failed ? "text-destructive/80" : "text-primary/80"}`}>
+          <p
+            className={`text-[11px] uppercase tracking-wider mt-3 ${pending ? "text-yellow-400/80" : failed ? "text-destructive/80" : "text-primary/80"}`}
+          >
             {txn.status}
           </p>
         </div>
@@ -741,7 +904,11 @@ function TxnDetailSheet({
           <Row label="Subtotal" value={`₹${amt.toFixed(2)}`} />
           <Row label="Platform fee" value="₹0.00" sub="UPI is free for you" />
           <Row label="GST" value="₹0.00" />
-          <Row label={failed ? "Total attempted" : "Total paid"} value={`₹${amt.toFixed(2)}`} bold />
+          <Row
+            label={failed ? "Total attempted" : "Total paid"}
+            value={`₹${amt.toFixed(2)}`}
+            bold
+          />
         </div>
 
         {/* Reference ID */}
@@ -749,18 +916,26 @@ function TxnDetailSheet({
           onClick={copyRef}
           className="mt-4 w-full rounded-2xl bg-white/5 border border-white/10 px-4 py-3 flex items-center gap-3 text-left active:bg-white/10 transition"
         >
-          <div className="qa-row-ico bg-white/10"><Hash className="w-4 h-4 text-white/80" /></div>
+          <div className="qa-row-ico bg-white/10">
+            <Hash className="w-4 h-4 text-white/80" />
+          </div>
           <div className="flex-1 min-w-0">
             <p className="text-[11px] uppercase tracking-[0.14em] text-white/45">Reference ID</p>
             <p className="text-[12px] text-white num-mono truncate mt-0.5">{txn.id}</p>
           </div>
-          {copied ? <Check className="w-4 h-4 text-primary" /> : <Copy className="w-4 h-4 text-white/50" />}
+          {copied ? (
+            <Check className="w-4 h-4 text-primary" />
+          ) : (
+            <Copy className="w-4 h-4 text-white/50" />
+          )}
         </button>
 
         {/* Note */}
         {txn.note && (
           <div className="mt-3 rounded-2xl bg-white/5 border border-white/10 px-4 py-3 flex items-start gap-3">
-            <div className="qa-row-ico bg-white/10"><FileText className="w-4 h-4 text-white/80" /></div>
+            <div className="qa-row-ico bg-white/10">
+              <FileText className="w-4 h-4 text-white/80" />
+            </div>
             <div className="flex-1 min-w-0">
               <p className="text-[11px] uppercase tracking-[0.14em] text-white/45">Note</p>
               <p className="text-[13px] text-white mt-0.5 break-words">{txn.note}</p>
@@ -779,9 +954,13 @@ function TxnDetailSheet({
               <li key={i} className="relative pb-4 last:pb-0">
                 <span
                   className={`absolute -left-[18px] top-1 w-3 h-3 rounded-full border-2 border-background ${
-                    item.tone === "ok" ? "bg-primary" :
-                    item.tone === "bad" ? "bg-destructive" :
-                    item.tone === "warn" ? "bg-yellow-400" : "bg-white/30"
+                    item.tone === "ok"
+                      ? "bg-primary"
+                      : item.tone === "bad"
+                        ? "bg-destructive"
+                        : item.tone === "warn"
+                          ? "bg-yellow-400"
+                          : "bg-white/30"
                   }`}
                 />
                 <p className="text-[13px] text-white font-medium leading-tight">{item.label}</p>
@@ -806,14 +985,28 @@ function TxnDetailSheet({
   );
 }
 
-function Row({ label, value, sub, bold }: { label: string; value: string; sub?: string; bold?: boolean }) {
+function Row({
+  label,
+  value,
+  sub,
+  bold,
+}: {
+  label: string;
+  value: string;
+  sub?: string;
+  bold?: boolean;
+}) {
   return (
     <div className="flex items-center justify-between px-4 py-3">
       <div>
-        <p className={`text-[13px] ${bold ? "text-white font-semibold" : "text-white/65"}`}>{label}</p>
+        <p className={`text-[13px] ${bold ? "text-white font-semibold" : "text-white/65"}`}>
+          {label}
+        </p>
         {sub && <p className="text-[10px] text-white/40 mt-0.5">{sub}</p>}
       </div>
-      <p className={`text-[13px] num-mono ${bold ? "text-white font-semibold" : "text-white/85"}`}>{value}</p>
+      <p className={`text-[13px] num-mono ${bold ? "text-white font-semibold" : "text-white/85"}`}>
+        {value}
+      </p>
     </div>
   );
 }
