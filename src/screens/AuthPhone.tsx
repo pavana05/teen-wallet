@@ -74,7 +74,7 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
   useEffect(() => {
     if (step !== "otp") return;
     saveOtpState({ phone, digits: otp, error, errorKind, correlationId: errorId, busy, resendBlockedUntil });
-  }, [step, phone, otp, error, errorKind, busy, resendBlockedUntil]);
+  }, [step, phone, otp, error, errorKind, errorId, busy, resendBlockedUntil]);
 
   // Auto-focus first empty OTP slot when entering the OTP step.
   useEffect(() => {
