@@ -34,6 +34,7 @@ function ScreenFallback() {
 
 function Index() {
   const { stage, setStage, hydrateFromProfile } = useApp();
+  const [authReady, setAuthReady] = useState(false);
   const [permsSeen, setPermsSeen] = useState<boolean>(() => {
     if (typeof window === "undefined") return true;
     try { return localStorage.getItem(PERMISSIONS_DONE_KEY) === "1"; } catch { return true; }
@@ -48,9 +49,18 @@ function Index() {
     (async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
-        if (!session) return;
+        if (!mounted) return;
+        if (!session) {
+          // No session — surface onboarding/login by resetting any stale persisted stage.
+          if (useApp.getState().stage !== "STAGE_0") {
+            useApp.getState().reset();
+          }
+          setAuthReady(true);
+          return;
+        }
         const p = await fetchProfile();
-        if (!p || !mounted) return;
+        if (!mounted) { setAuthReady(true); return; }
+        if (!p) { setAuthReady(true); return; }
         const profileStage = (p.onboarding_stage as Stage) ?? "STAGE_0";
         const kyc = (p as { kyc_status?: string | null }).kyc_status ?? null;
 
@@ -79,6 +89,8 @@ function Index() {
         if (resolvedStage !== profileStage) setStage(resolvedStage);
       } catch (err) {
         console.error("[boot] hydrate failed", err);
+      } finally {
+        if (mounted) setAuthReady(true);
       }
     })();
     const { data: sub } = supabase.auth.onAuthStateChange((event) => {
@@ -87,6 +99,10 @@ function Index() {
     return () => { mounted = false; sub.subscription.unsubscribe(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  if (!authReady) {
+    return <PhoneShell><ScreenFallback /></PhoneShell>;
+  }
 
   return (
     <PhoneShell>
