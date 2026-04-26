@@ -149,6 +149,76 @@ export function KycFlow({ onDone }: { onDone: () => void }) {
     })();
   }, []);
 
+  // ── Bucket access preflight + remote doc hydration ──
+  // Confirms the current user can READ from the private `kyc-docs` bucket
+  // (which implies their JWT + RLS policies are wired correctly), AND uses
+  // the same listing call to recover any previously uploaded Aadhaar files
+  // when localStorage was cleared (Incognito refresh, browser data wipe, new
+  // device). Storage is the canonical source of truth for doc paths because
+  // the `kyc_submissions` table has no client INSERT policy.
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const { data: u } = await supabase.auth.getUser();
+        if (!u.user) {
+          if (!cancelled) {
+            setBucketAccessOk(false);
+            setBucketAccessReason("You're signed out. Sign in to upload Aadhaar documents.");
+          }
+          return;
+        }
+        const { data: list, error: listErr } = await supabase.storage
+          .from("kyc-docs")
+          .list(u.user.id, { limit: 100, sortBy: { column: "created_at", order: "desc" } });
+        if (cancelled) return;
+        if (listErr) {
+          // Common cause: RLS policy missing/incorrect on storage.objects for this bucket.
+          setBucketAccessOk(false);
+          setBucketAccessReason(
+            /not authorized|permission|policy|row.?level/i.test(listErr.message)
+              ? "Uploads are blocked by access rules. Please contact support."
+              : `Couldn't reach storage: ${listErr.message}`,
+          );
+          return;
+        }
+        setBucketAccessOk(true);
+        setBucketAccessReason(null);
+
+        // Recover most recent front/back from storage if local state is empty.
+        // File names follow `aadhaar-{side}-{timestamp}.{ext}` (see uploadDoc).
+        const newest = (side: DocSide) =>
+          list?.find((f) => f.name.startsWith(`aadhaar-${side}-`)) ?? null;
+        const remoteFront = newest("front");
+        const remoteBack = newest("back");
+        setDocFront((cur) => {
+          if (cur) return cur;
+          if (!remoteFront) return cur;
+          return {
+            path: `${u.user.id}/${remoteFront.name}`,
+            name: remoteFront.name,
+            size: Number(remoteFront.metadata?.size ?? 0),
+          };
+        });
+        setDocBack((cur) => {
+          if (cur) return cur;
+          if (!remoteBack) return cur;
+          return {
+            path: `${u.user.id}/${remoteBack.name}`,
+            name: remoteBack.name,
+            size: Number(remoteBack.metadata?.size ?? 0),
+          };
+        });
+      } catch (e) {
+        if (cancelled) return;
+        setBucketAccessOk(false);
+        setBucketAccessReason(e instanceof Error ? e.message : "Storage check failed");
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+
   // Persist draft locally on every change.
   useEffect(() => {
     try {
