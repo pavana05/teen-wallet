@@ -34,7 +34,7 @@ function ScreenFallback() {
 }
 
 function Index() {
-  const { stage, splashSeen, setStage, hydrateFromProfile } = useApp();
+  const { stage, setStage, hydrateFromProfile } = useApp();
   const [permsSeen, setPermsSeen] = useState<boolean>(() => {
     if (typeof window === "undefined") return true;
     try { return localStorage.getItem(PERMISSIONS_DONE_KEY) === "1"; } catch { return true; }
