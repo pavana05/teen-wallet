@@ -15,6 +15,23 @@ const json = (body: unknown, status = 200) =>
     headers: { "Content-Type": "application/json", ...CORS },
   });
 
+/** Short, copy-friendly correlation ID used to tie a UI error to server logs. */
+function newCid(): string {
+  const u = (globalThis.crypto as Crypto | undefined)?.randomUUID?.() ?? "";
+  const hex = u ? u.replace(/-/g, "").slice(0, 8) : Math.floor(Math.random() * 0xffffffff).toString(16).padStart(8, "0");
+  return `tw_${hex}`;
+}
+
+/** Tagged error response that includes the correlation ID in both body and header. */
+function errJson(cid: string, error: string, status: number, extra: Record<string, unknown> = {}) {
+  // eslint-disable-next-line no-console
+  console.error(`[kyc.verify] ${cid} status=${status} error="${error}"`, extra);
+  return new Response(
+    JSON.stringify({ error, correlationId: cid, ...extra }),
+    { status, headers: { "Content-Type": "application/json", "X-Correlation-Id": cid, ...CORS } },
+  );
+}
+
 // Server-side selfie validation
 function validateSelfieDataUrl(dataUrl: string): { ok: true; bytes: number } | { ok: false; reason: string } {
   if (!dataUrl.startsWith("data:image/")) return { ok: false, reason: "Invalid image format" };
