@@ -67,6 +67,7 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
     setPayload(parsed);
     setAmount(parsed.amount ?? 0);
     setNote(parsed.note ?? "");
+    breadcrumb("payment.qr_decoded", { upiId: parsed.upiId, payee: parsed.payeeName, amount: parsed.amount });
     setPhase("confirm");
   }, []);
 
