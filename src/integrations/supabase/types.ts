@@ -212,6 +212,45 @@ export type Database = {
         }
         Relationships: []
       }
+      contacts: {
+        Row: {
+          created_at: string
+          emoji: string | null
+          id: string
+          last_paid_at: string | null
+          name: string
+          phone: string | null
+          updated_at: string
+          upi_id: string
+          user_id: string
+          verified: boolean
+        }
+        Insert: {
+          created_at?: string
+          emoji?: string | null
+          id?: string
+          last_paid_at?: string | null
+          name: string
+          phone?: string | null
+          updated_at?: string
+          upi_id: string
+          user_id: string
+          verified?: boolean
+        }
+        Update: {
+          created_at?: string
+          emoji?: string | null
+          id?: string
+          last_paid_at?: string | null
+          name?: string
+          phone?: string | null
+          updated_at?: string
+          upi_id?: string
+          user_id?: string
+          verified?: boolean
+        }
+        Relationships: []
+      }
       fraud_logs: {
         Row: {
           created_at: string
