@@ -449,6 +449,12 @@ function ScannerView({ onBack, onDecoded }: { onBack: () => void; onDecoded: (p:
   const [debugOpen, setDebugOpen] = useState(false);
   const [debug, setDebug] = useState<DebugSnapshot | null>(null);
   const [softResetCount, setSoftResetCount] = useState(0);
+  // Counts INVALID decodes (got bytes, but they weren't a UPI QR) and
+  // CAMERA START failures. When either runs hot we surface a recovery
+  // panel offering an inline retry + a one-tap fallback to gallery upload.
+  const [invalidDecodeCount, setInvalidDecodeCount] = useState(0);
+  const [cameraStartError, setCameraStartError] = useState<string | null>(null);
+  const fallbackInputRef = useRef<HTMLInputElement | null>(null);
   // Real-time camera state for the on-screen feedback strip:
   //   "starting" → still warming up the camera
   //   "tracking" → camera is feeding frames + decoder is alive (no QR yet)
@@ -499,6 +505,7 @@ function ScannerView({ onBack, onDecoded }: { onBack: () => void; onDecoded: (p:
                 lastInvalidToastRef.current = now;
                 toast.error(result.reason ?? "Invalid QR code");
               }
+              setInvalidDecodeCount((c) => c + 1);
               return;
             }
             // ✅ Valid UPI QR detected → INSTANT redirect to confirm page.
@@ -544,6 +551,9 @@ function ScannerView({ onBack, onDecoded }: { onBack: () => void; onDecoded: (p:
         if (/permission|denied|NotAllowed/i.test(msg)) {
           setPermissionDenied(true);
         } else {
+          // Surface the error inline so the user can retry or fall back to gallery,
+          // instead of relying on a transient toast they may have missed.
+          setCameraStartError(msg);
           toast.error(msg);
         }
         setStarting(false);
