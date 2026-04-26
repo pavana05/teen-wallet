@@ -31,6 +31,9 @@ interface Slide {
   iconBadge?: React.ComponentType<{ className?: string; strokeWidth?: number }>;
   title: React.ReactNode;
   sub: string;
+  // Offline-safe placeholder used when the hero image fails to load
+  fallbackIcon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
+  fallbackGradient: string;
 }
 
 const SLIDES: Slide[] = [
@@ -43,6 +46,8 @@ const SLIDES: Slide[] = [
       </>
     ),
     sub: "Fast. Secure. Rewarding.",
+    fallbackIcon: Wallet,
+    fallbackGradient: "linear-gradient(135deg, #ff5d8f 0%, #c026d3 60%, #4f46e5 100%)",
   },
   {
     hero: paymentImg,
@@ -54,6 +59,8 @@ const SLIDES: Slide[] = [
       </>
     ),
     sub: "Send or receive money in seconds using UPI. No delays, just instant vibes.",
+    fallbackIcon: Sparkles,
+    fallbackGradient: "linear-gradient(135deg, #38bdf8 0%, #6366f1 60%, #1e1b4b 100%)",
   },
   {
     hero: shieldImg,
@@ -65,6 +72,8 @@ const SLIDES: Slide[] = [
       </>
     ),
     sub: "Bank-grade security keeps your money and data always protected.",
+    fallbackIcon: ShieldCheck,
+    fallbackGradient: "linear-gradient(135deg, #a855f7 0%, #6366f1 60%, #1e1b4b 100%)",
   },
   {
     hero: giftImg,
@@ -76,6 +85,8 @@ const SLIDES: Slide[] = [
       </>
     ),
     sub: "Get TW Coins on every payment and unlock exciting rewards just for you.",
+    fallbackIcon: Gift,
+    fallbackGradient: "linear-gradient(135deg, #fb923c 0%, #f43f5e 60%, #7c2d12 100%)",
   },
 ];
 
