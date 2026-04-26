@@ -296,14 +296,17 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
               <p className="text-destructive text-xs leading-relaxed">
                 {errorKind === "invalid" ? "Re-enter the 6-digit code — that one didn't match." : error}
               </p>
-              {!busy && (
-                <button
-                  onClick={retryVerify}
-                  className="text-primary text-xs font-semibold underline underline-offset-2"
-                >
-                  Try again
-                </button>
-              )}
+              <div className="flex items-center gap-3">
+                {!busy && (
+                  <button
+                    onClick={retryVerify}
+                    className="text-primary text-xs font-semibold underline underline-offset-2"
+                  >
+                    Try again
+                  </button>
+                )}
+                {errorId && <CopyableErrorId id={errorId} />}
+              </div>
             </div>
           )}
 
