@@ -47,6 +47,19 @@ export function clearAdminSession() {
   _cached = null;
 }
 
+/** Error thrown by callAdminFn that carries the server's correlation ID
+ *  (when the response includes one) so the UI can show it next to the error. */
+export class AdminFnError extends Error {
+  correlationId: string | null;
+  status: number;
+  constructor(message: string, status: number, correlationId: string | null) {
+    super(message);
+    this.name = "AdminFnError";
+    this.correlationId = correlationId;
+    this.status = status;
+  }
+}
+
 export async function callAdminFn<T = unknown>(payload: Record<string, unknown>): Promise<T> {
   // Lazy import to avoid pulling perfBus into modules that don't already use it.
   const { recordRequest } = await import("./perfBus");
@@ -60,10 +73,11 @@ export async function callAdminFn<T = unknown>(payload: Record<string, unknown>)
     },
     body: JSON.stringify(payload),
   });
-  const json = await res.json().catch(() => ({}));
+  const json = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+  const cid = (json.correlationId as string | undefined) ?? res.headers.get("X-Correlation-Id");
   if (!res.ok) {
     const msg = (json?.reason as string) || (json?.error as string) || `HTTP ${res.status}`;
-    throw new Error(msg);
+    throw new AdminFnError(msg, res.status, cid ?? null);
   }
   return json as T;
 }
