@@ -356,7 +356,14 @@ function PendingView({
               Hang tight — this usually takes under 2 minutes.
             </p>
 
-            <div className="kyc-pending-progress mt-8 w-full max-w-[260px]">
+            <div
+              className="kyc-pending-progress mt-8 w-full max-w-[260px]"
+              role="progressbar"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={Math.round(progress * 100)}
+              style={{ ["--kyc-progress" as never]: progress }}
+            >
               <div className="kyc-pending-progress-fill" />
             </div>
 
