@@ -4,6 +4,8 @@ import { sendOtp, verifyOtp, setStage as persistStage, fetchProfile } from "@/li
 import { useApp, type Stage } from "@/lib/store";
 import { toast } from "sonner";
 import { PhoneVerified } from "./PhoneVerified";
+import { isJustVerified } from "@/lib/justVerified";
+import { supabase } from "@/integrations/supabase/client";
 
 type Step = "phone" | "otp" | "verified";
 
@@ -16,6 +18,19 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
   const [resendIn, setResendIn] = useState(30);
   const inputs = useRef<(HTMLInputElement | null)[]>([]);
   const { setPendingPhone, hydrateFromProfile } = useApp();
+
+  // If the user refreshed mid-celebration, restore them to the success
+  // screen (within the short TTL window) instead of dropping back to OTP.
+  // We still gate on a real session to avoid showing "verified" to a logged-out user.
+  useEffect(() => {
+    if (!isJustVerified()) return;
+    let cancelled = false;
+    void (async () => {
+      const { data } = await supabase.auth.getUser();
+      if (!cancelled && data.user) setStep("verified");
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   useEffect(() => {
     if (step !== "otp") return;
