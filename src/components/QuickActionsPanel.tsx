@@ -39,6 +39,7 @@ import { downloadReceiptPdf, shareReceiptPdf, buildReceiptSummary, type ReceiptD
 import { useApp } from "@/lib/store";
 import { supabase } from "@/integrations/supabase/client";
 import { payUpi } from "@/lib/payments.functions";
+import { callWithAuth } from "@/lib/serverFnAuth";
 import { breadcrumb, captureError } from "@/lib/breadcrumbs";
 import { toast } from "sonner";
 
