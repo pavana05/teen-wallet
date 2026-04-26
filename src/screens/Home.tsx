@@ -8,6 +8,18 @@ import { NotificationsPanel } from "@/components/NotificationsPanel";
 import { ProfilePanel } from "@/components/ProfilePanel";
 import heroScan from "@/assets/home-hero-scan.jpg";
 import { haptics } from "@/lib/haptics";
+import { useGenderPersona } from "@/lib/genderPersona";
+
+interface PersonaOffer {
+  id: string;
+  eyebrow: string;
+  headline: string;
+  emphasis: string;
+  subtitle: string;
+  cta_label: string;
+  accent: string;
+}
+
 
 interface Txn {
   id: string;
@@ -96,6 +108,7 @@ function NavItem({ icon: Icon, label, active, onClick }: { icon: React.Component
 
 export function Home() {
   const { fullName, userId } = useApp();
+  const persona = useGenderPersona();
   const first = fullName?.split(" ")[0] ?? "Alex";
   const [view, setView] = useState<"home" | "scan">("home");
   const [quickAction, setQuickAction] = useState<QuickActionKind | null>(null);
@@ -103,6 +116,7 @@ export function Home() {
   const [showProfile, setShowProfile] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [txns, setTxns] = useState<Txn[]>([]);
+  const [personaOffers, setPersonaOffers] = useState<PersonaOffer[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [shakeKey, setShakeKey] = useState(0);

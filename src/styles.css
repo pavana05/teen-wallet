@@ -5187,3 +5187,95 @@ button:focus-visible .hp-tile{
   background: rgba(120,200,140,0.14); color: #9adcb0;
   border: 1px solid rgba(120,200,140,0.3);
 }
+
+/* ======================================================================
+   GENDER PERSONAS — accent token swap + offer card variants
+   Applied as a class on the home root (.persona-boy / .persona-girl /
+   .persona-neutral). Swaps a small set of CSS variables so accents,
+   greeting glow, and offer chrome reflect the chosen vibe without
+   touching the core dark theme.
+   ====================================================================== */
+.persona-neutral {
+  --persona-accent: #d4c5a0;
+  --persona-accent-2: #b8a37a;
+  --persona-accent-soft: rgba(212, 197, 160, 0.12);
+  --persona-grad: linear-gradient(135deg, #e8dcc0 0%, #c9b896 50%, #a08a64 100%);
+}
+.persona-boy {
+  --persona-accent: #6ec1ff;
+  --persona-accent-2: #3a8fd9;
+  --persona-accent-soft: rgba(110, 193, 255, 0.14);
+  --persona-grad: linear-gradient(135deg, #8ed1ff 0%, #5aa9ee 50%, #2c6fb8 100%);
+}
+.persona-girl {
+  --persona-accent: #ff9bd1;
+  --persona-accent-2: #d96fae;
+  --persona-accent-soft: rgba(255, 155, 209, 0.14);
+  --persona-grad: linear-gradient(135deg, #ffb6dd 0%, #f085c0 50%, #c45a99 100%);
+}
+
+/* Persona-tinted offer cards (rendered from gender_offers rows). */
+.hp-offer-persona {
+  position: relative;
+  overflow: hidden;
+  width: 84%;
+  min-height: 140px;
+  padding: 18px 18px 16px;
+  border-radius: 22px;
+  background:
+    radial-gradient(120% 100% at 0% 0%, var(--persona-accent-soft), transparent 60%),
+    linear-gradient(160deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02));
+  border: 1px solid color-mix(in oklab, var(--persona-accent) 28%, transparent);
+  box-shadow:
+    0 1px 0 rgba(255,255,255,0.04) inset,
+    0 18px 40px -22px color-mix(in oklab, var(--persona-accent) 50%, transparent);
+}
+.hp-offer-persona::before {
+  content: "";
+  position: absolute; inset: -40% -10% auto auto;
+  width: 70%; aspect-ratio: 1;
+  background: var(--persona-grad);
+  filter: blur(40px);
+  opacity: 0.35;
+  pointer-events: none;
+}
+.hp-offer-persona .op-eyebrow {
+  font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase;
+  color: color-mix(in oklab, var(--persona-accent) 70%, white);
+  font-weight: 600;
+}
+.hp-offer-persona .op-headline {
+  margin-top: 6px;
+  font-size: 38px; line-height: 1; font-weight: 800;
+  color: #fff;
+  display: flex; align-items: baseline; gap: 8px;
+}
+.hp-offer-persona .op-headline em {
+  font-style: normal; font-size: 13px; font-weight: 600;
+  color: rgba(255,255,255,0.75);
+}
+.hp-offer-persona .op-sub {
+  margin-top: 6px; font-size: 12px; color: rgba(255,255,255,0.7);
+  max-width: 90%;
+}
+.hp-offer-persona .op-cta {
+  margin-top: 12px;
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 14px; border-radius: 999px;
+  background: var(--persona-grad);
+  color: #0c0c0e; font-size: 12px; font-weight: 700;
+  border: none; cursor: pointer;
+  transition: transform 140ms ease, box-shadow 140ms ease;
+  box-shadow: 0 8px 20px -8px color-mix(in oklab, var(--persona-accent) 60%, transparent);
+}
+.hp-offer-persona .op-cta:hover { transform: translateY(-1px); }
+
+/* Persona pill below the greeting telling the user what vibe is active. */
+.hp-persona-pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  margin-top: 6px; padding: 3px 9px; border-radius: 999px;
+  font-size: 10px; font-weight: 600; letter-spacing: 0.04em;
+  background: var(--persona-accent-soft);
+  border: 1px solid color-mix(in oklab, var(--persona-accent) 35%, transparent);
+  color: color-mix(in oklab, var(--persona-accent) 75%, white);
+}
