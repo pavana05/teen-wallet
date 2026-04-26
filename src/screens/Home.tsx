@@ -224,6 +224,11 @@ export function Home() {
   const closeProfile = useCallback(() => {
     setShowProfile(false);
     window.setTimeout(() => setNavMode("full"), 80);
+    // Page-transition reset: bring Home back to the top so the user lands at
+    // the hero instead of wherever they had scrolled before opening Profile.
+    requestAnimationFrame(() => {
+      scrollerRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+    });
   }, []);
 
   // Scan FAB → liquid expansion into ScanPay. The FAB grows into a circular
@@ -464,12 +469,15 @@ export function Home() {
       {/* trailing breathing room above floating nav */}
       <div className="h-6" />
 
-      {/* ===== FLOATING BOTTOM NAV (scroll-collapsing + liquid morph) ===== */}
+      {/* ===== FLOATING BOTTOM NAV (scroll-collapsing + liquid morph) =====
+          Hidden while the Profile panel is open so the floating dock doesn't
+          overlay the profile screen. The panel has its own back affordance. */}
       <nav
         aria-label="Primary"
         data-mode={navMode}
         data-collapsed={navCollapsed ? "true" : "false"}
-        className="hp-nav-shell fixed bottom-5 left-1/2 -translate-x-1/2 z-50"
+        aria-hidden={showProfile ? "true" : "false"}
+        className={`hp-nav-shell fixed bottom-5 left-1/2 -translate-x-1/2 z-50 transition-opacity duration-300 ease-out ${showProfile ? "opacity-0 pointer-events-none translate-y-4" : "opacity-100"}`}
       >
         <div className="flex items-center gap-3">
           <div className="hp-nav hp-nav-pill flex-1" role="tablist" aria-label="Sections">

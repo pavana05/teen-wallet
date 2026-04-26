@@ -59,6 +59,10 @@ export const getRouter = () => {
     routeTree,
     context: {},
     scrollRestoration: true,
+    // Reset window AND any inner scrollable phone-shell containers when the
+    // route changes — fixes the "lands at the previous page's scroll position"
+    // bug when navigating between routes.
+    scrollToTopSelectors: [".hp-root", ".qa-root", "[data-scroll-root]"],
     defaultPreloadStaleTime: 0,
     defaultErrorComponent: DefaultErrorComponent,
   });
