@@ -176,27 +176,50 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
       className="ob-root flex-1 flex flex-col relative overflow-hidden"
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
+      role="region"
+      aria-roledescription="carousel"
+      aria-label="Teen Wallet onboarding"
     >
+      {/* Live region announces slide changes to screen readers */}
+      <p className="sr-only" aria-live="polite" aria-atomic="true">
+        Slide {i + 1} of {SLIDES.length}: {slide.srTitle}
+      </p>
+
       {/* Ambient background glow that shifts per slide */}
       <div className={`ob-ambient ob-ambient-${i}`} aria-hidden="true" />
       <div className="ob-grain" aria-hidden="true" />
 
       {/* Top bar */}
       <div className="relative z-10 flex items-center justify-between px-5 pt-4">
-        {/* dot pagination top-left */}
-        <div className="flex items-center gap-1.5" aria-hidden="true">
-          {SLIDES.map((_, idx) => (
-            <span
+        {/* Focusable dot pagination — also a quick jump-to-slide control */}
+        <div className="flex items-center gap-1.5" role="tablist" aria-label="Onboarding slides">
+          {SLIDES.map((s, idx) => (
+            <button
               key={idx}
-              className="ob-top-dot"
-              data-active={idx === i ? "true" : undefined}
-              style={{ width: idx === i ? 18 : 6 }}
-            />
+              type="button"
+              role="tab"
+              aria-selected={idx === i}
+              aria-label={`Go to slide ${idx + 1}: ${s.srTitle}`}
+              tabIndex={idx === i ? 0 : -1}
+              onClick={() => {
+                if (idx === i) return;
+                setDirection(idx > i ? "forward" : "back");
+                setI(idx);
+                setAnimKey((k) => k + 1);
+              }}
+              className="ob-top-dot-btn"
+            >
+              <span
+                className="ob-top-dot"
+                data-active={idx === i ? "true" : undefined}
+                style={{ width: idx === i ? 18 : 6 }}
+              />
+            </button>
           ))}
         </div>
         <button
           onClick={finishOnboarding}
-          className="text-[13px] font-medium text-white/70 hover:text-white transition-colors px-2 py-1"
+          className="text-[13px] font-medium text-white/70 hover:text-white transition-colors px-2 py-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40 rounded-md"
         >
           Skip
         </button>
