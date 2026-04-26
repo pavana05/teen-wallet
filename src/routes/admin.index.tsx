@@ -140,8 +140,8 @@ function CommandCenter() {
             <AreaChart data={data?.txnSeries ?? []} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
               <defs>
                 <linearGradient id="gVol" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#c8f135" stopOpacity={0.5} />
-                  <stop offset="100%" stopColor="#c8f135" stopOpacity={0} />
+                  <stop offset="0%" stopColor={PREMIUM_ACCENT} stopOpacity={0.5} />
+                  <stop offset="100%" stopColor={PREMIUM_ACCENT} stopOpacity={0} />
                 </linearGradient>
               </defs>
               <CartesianGrid stroke="#2a2a2a" vertical={false} />
