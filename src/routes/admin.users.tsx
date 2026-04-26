@@ -147,16 +147,32 @@ function UsersList() {
     setSelected((prev) => prev.size === rows.length ? new Set() : new Set(rows.map((r) => r.id)));
   }
 
-  async function bulkDecide() {
+  // Generic bulk runner — fans out to the right edge function action based on
+  // the open form. All variants require an admin note (audited) for traceability.
+  async function runBulk() {
     if (!bulkOpen) return;
     const s = readAdminSession(); if (!s) return;
     setBulkBusy(true); setErr("");
     try {
-      const r = await callAdminFn<{ success: number; failed: number }>({
-        action: "kyc_decide_bulk", sessionToken: s.sessionToken,
-        userIds: Array.from(selected), decision: bulkOpen, reason: bulkReason,
-      });
-      setBulkOpen(null); setBulkReason(""); setSelected(new Set());
+      const ids = Array.from(selected);
+      let r: { success: number; failed: number };
+      if (bulkOpen.kind === "kyc") {
+        r = await callAdminFn({
+          action: "kyc_decide_bulk", sessionToken: s.sessionToken,
+          userIds: ids, decision: bulkOpen.decision, reason: bulkReason,
+        });
+      } else if (bulkOpen.kind === "lock") {
+        r = await callAdminFn({
+          action: "users_bulk_lock", sessionToken: s.sessionToken,
+          userIds: ids, lock: bulkOpen.lock, note: bulkNote,
+        });
+      } else {
+        r = await callAdminFn({
+          action: "users_bulk_tag", sessionToken: s.sessionToken,
+          userIds: ids, tag: bulkTag, note: bulkNote,
+        });
+      }
+      setBulkOpen(null); setBulkReason(""); setBulkNote(""); setSelected(new Set());
       setPage(1); await fetchPage(1);
       alert(`Done: ${r.success} updated, ${r.failed} failed.`);
     } catch (e: any) { setErr(e.message || "Bulk action failed"); }
