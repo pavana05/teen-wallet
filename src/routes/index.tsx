@@ -50,15 +50,26 @@ function Index() {
             const profileStage = (p.onboarding_stage as Stage) ?? "STAGE_0";
             const kyc = (p as { kyc_status?: string | null }).kyc_status ?? null;
 
-            // Reconciliation rules (KYC truth wins over saved stage):
-            //  - approved KYC -> always STAGE_5 (Home)
-            //  - pending KYC  -> at least STAGE_4 (KycPending)
-            //  - rejected KYC -> back to STAGE_3 so user can retry
-            let resolvedStage: Stage = profileStage;
+            // Reconciliation:
+            //   1. Take the MORE ADVANCED of (local persisted stage, remote profile stage).
+            //      A higher stage means the user has already verified that step on either
+            //      device — never demote them just because one side is behind.
+            //   2. Then layer KYC ground truth on top (it always wins):
+            //      - approved -> STAGE_5 (Home)
+            //      - pending  -> at least STAGE_4 (KycPending)
+            //      - rejected -> back to STAGE_3 so user can retry
+            const localStage = useApp.getState().stage;
+            const stageRank: Record<Stage, number> = {
+              STAGE_0: 0, STAGE_1: 1, STAGE_2: 2, STAGE_3: 3, STAGE_4: 4, STAGE_5: 5,
+            };
+            const moreAdvanced: Stage =
+              stageRank[localStage] >= stageRank[profileStage] ? localStage : profileStage;
+
+            let resolvedStage: Stage = moreAdvanced;
             if (kyc === "approved") resolvedStage = "STAGE_5";
             else if (kyc === "pending") {
-              resolvedStage = profileStage === "STAGE_5" ? "STAGE_5" : "STAGE_4";
-            } else if (kyc === "rejected" && profileStage === "STAGE_4") {
+              resolvedStage = stageRank[moreAdvanced] >= stageRank["STAGE_5"] ? "STAGE_5" : "STAGE_4";
+            } else if (kyc === "rejected" && moreAdvanced === "STAGE_4") {
               resolvedStage = "STAGE_3";
             }
 
@@ -69,8 +80,8 @@ function Index() {
               onboarding_stage: resolvedStage,
             });
 
-            // If we corrected the stage, push it back to the server so future boots
-            // on any device see the canonical value.
+            // If we corrected the stage in either direction, push the canonical value
+            // back to the server so future boots on any device see the same value.
             if (resolvedStage !== profileStage) {
               setStage(resolvedStage);
             }
