@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useAdminSession, ROLE_LABELS, ROLE_BADGE } from "@/admin/lib/adminAuth";
 import {
   LayoutDashboard, Users, ShieldAlert, FileCheck2, Wallet, Settings, LogOut,
-  Bell, Activity, Search, ChevronLeft, ChevronRight, Command,
+  Bell, Activity, Search, ChevronLeft, ChevronRight, Command, MessageSquareWarning,
 } from "lucide-react";
 import { PerfOverlay } from "@/admin/components/PerfOverlay";
 import { CommandPalette } from "@/admin/components/CommandPalette";
@@ -54,6 +54,7 @@ function AdminLayout() {
     { to: "/admin/kyc", label: "KYC Queue", icon: FileCheck2, kbd: "g k" },
     { to: "/admin/transactions", label: "Transactions", icon: Wallet, kbd: "g t" },
     { to: "/admin/fraud", label: "Fraud", icon: ShieldAlert, kbd: "g f" },
+    { to: "/admin/reports", label: "Issue Reports", icon: MessageSquareWarning, kbd: "g r" },
     { to: "/admin/diagnostics", label: "Diagnostics", icon: Activity },
     { to: "/admin/settings", label: "Settings", icon: Settings },
   ];
