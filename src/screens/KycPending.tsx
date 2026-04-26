@@ -196,9 +196,16 @@ export function KycPending({ onApproved, forceState, forceReason }: { onApproved
     };
   }, []);
 
-  const retryNow = () => {
+  const retryNow = async () => {
+    setRetrying(true);
     setPollMs(POLL_INTERVAL_MS);
-    void fetchLatest();
+    const ok = await fetchLatest();
+    setRetrying(false);
+    if (ok) {
+      // Make sure the local stage stays at STAGE_4 while still pending —
+      // protects against a stale cached stage drifting after a manual retry.
+      try { await persistStage("STAGE_4"); } catch { /* ignore */ }
+    }
   };
 
   // ---------- Visuals ----------
@@ -221,7 +228,17 @@ export function KycPending({ onApproved, forceState, forceReason }: { onApproved
   }
 
   // Pending / unknown — premium dark luxury layout (matches reference mock)
-  return <PendingView pollMs={pollMs} latest={latest} onRetry={retryNow} onClose={onApproved} />;
+  return (
+    <PendingView
+      pollMs={pollMs}
+      latest={latest}
+      onRetry={retryNow}
+      onClose={onApproved}
+      initialLoading={initialLoading}
+      fetchError={fetchError}
+      retrying={retrying}
+    />
+  );
 }
 
 /* ----------------------------- Pending View ----------------------------- */
