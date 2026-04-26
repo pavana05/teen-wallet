@@ -29,7 +29,12 @@ import {
   Share2,
   Mail,
   MessageCircle,
+  Phone,
+  AtSign,
+  Zap,
+  Lock,
 } from "lucide-react";
+import { haptics } from "@/lib/haptics";
 import { downloadReceiptPdf, shareReceiptPdf, buildReceiptSummary, type ReceiptData } from "@/lib/receipt";
 import { useApp } from "@/lib/store";
 import { supabase } from "@/integrations/supabase/client";
