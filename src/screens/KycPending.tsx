@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from "react";
-import { Clock, RefreshCw, X } from "lucide-react";
+import { Clock, RefreshCw, X, AlertTriangle } from "lucide-react";
 import { setStage as persistStage, updateProfileFields } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -16,7 +16,32 @@ interface LatestSubmission {
 const POLL_INTERVAL_MS = 4000;
 const POLL_BACKOFF_MAX_MS = 15000;
 const REJECTION_REASON_KEY = "tw-kyc-rejection-reason";
+const PENDING_STATE_KEY = "tw-kyc-pending-state-v1";
 const APPROVED_ANIMATION_MS = 2400;
+const CONTINUE_TRANSITION_MS = 520;
+
+interface PersistedPendingState {
+  submittedAt: string;     // ISO — when submission first appeared
+  lastSeenAt: string;      // ISO — last successful poll
+  submissionId: string | null;
+}
+
+function readPersisted(): PersistedPendingState | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(PENDING_STATE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw) as PersistedPendingState;
+  } catch { return null; }
+}
+function writePersisted(s: PersistedPendingState) {
+  if (typeof window === "undefined") return;
+  try { localStorage.setItem(PENDING_STATE_KEY, JSON.stringify(s)); } catch { /* ignore */ }
+}
+function clearPersisted() {
+  if (typeof window === "undefined") return;
+  try { localStorage.removeItem(PENDING_STATE_KEY); } catch { /* ignore */ }
+}
 
 export function KycPending({ onApproved, forceState, forceReason }: { onApproved: () => void; forceState?: Status; forceReason?: string }) {
   // Hydrate persisted rejection reason synchronously so the rejected screen
