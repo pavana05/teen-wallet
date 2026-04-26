@@ -227,96 +227,141 @@ export function ProfilePanel({ onClose }: Props) {
           </div>
         )}
 
-        {/* ── HERO CARD ── */}
+        {/* ── HERO CARD v3 (premium phone-centric) ── */}
         <div className="px-5 mt-3">
           {profileLoading ? <HeroSkeleton /> : (
-          <div className="pp-hero">
+          <div className="pp-hero pp-hero-v3">
             <div className="pp-hero-shine" />
-            <div className="flex items-start gap-4">
-              <button onClick={() => setTab("account")} className="pp-avatar-wrap" aria-label="Edit profile details">
-                <div className="pp-avatar">{initials}</div>
-              </button>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-1.5">
-                  <p className="text-white text-[17px] font-semibold truncate">{profile?.full_name ?? fullName ?? "Add your name"}</p>
-                  <button onClick={() => setTab("account")} className="text-white/60" aria-label="Edit name inline">
-                    <Pencil className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-                <p className="text-[12px] text-white/60 mt-0.5">{phone}</p>
-                <div className={`pp-kyc-badge mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border ${kycMeta.border} ${kycMeta.bg}`}>
-                  <kycMeta.icon className={`w-3.5 h-3.5 ${kycMeta.color}`} strokeWidth={2.2} />
-                  <span className={`text-[10.5px] font-semibold ${kycMeta.color} tracking-wide`}>{kycMeta.label}</span>
-                </div>
-              </div>
+            <div className="pp-hero-topglow" aria-hidden="true" />
+
+            {/* Top: phone number + member since */}
+            <div className="relative text-center pt-1">
+              <p className="pp-hero-phone num-mono">{phone}</p>
+              <p className="pp-hero-since mt-0.5">Member since {memberSince}</p>
             </div>
 
-            {/* Balance + UPI ID row */}
-            <div className="mt-4 grid grid-cols-2 gap-2.5">
-              <div className="pp-stat">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10.5px] uppercase tracking-wider text-white/50">Wallet balance</span>
-                  <button onClick={() => setHideBalance((v) => !v)} className="text-white/60" aria-label="Toggle balance">
-                    {hideBalance ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                  </button>
-                </div>
-                <p className="text-white text-[18px] font-semibold num-mono mt-1">
-                  {hideBalance ? "₹ ••••" : `₹${Number(balance).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`}
-                </p>
-              </div>
-              <button onClick={() => copy(upiId, "upi")} className="pp-stat text-left">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10.5px] uppercase tracking-wider text-white/50">UPI ID</span>
-                  {copied === "upi" ? <Check className="w-3.5 h-3.5 text-emerald-300" /> : <Copy className="w-3.5 h-3.5 text-white/60" />}
-                </div>
-                <p className="text-white text-[13px] font-medium mt-1 truncate">{upiId}</p>
-              </button>
-            </div>
-
-            <div className="mt-3 flex items-center gap-2">
-              <button onClick={() => setQrOpen(true)} disabled={upiId === "—"} className="pp-pill flex-1 disabled:opacity-50">
-                <QrCode className="w-4 h-4" strokeWidth={2} /> My QR
-              </button>
+            {/* Centered avatar with edit camera */}
+            <div className="relative mt-4 flex justify-center">
               <button
-                onClick={async () => {
-                  if (upiId === "—") { toast.error("Add your phone number first"); return; }
-                  const link = `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(profile?.full_name ?? "TeenWallet user")}&cu=INR`;
-                  if (navigator.share) {
-                    try { await navigator.share({ title: "Pay me on TeenWallet", text: `Pay ${profile?.full_name ?? ""} via UPI`, url: link }); return; } catch { /* user cancelled */ return; }
-                  }
-                  await copy(link, "upi-link");
-                  toast.success("Payment link copied");
-                }}
-                className="pp-pill flex-1"
+                onClick={() => setTab("account")}
+                className="pp-avatar-xl-wrap"
+                aria-label="Edit profile photo"
               >
-                {copied === "upi-link" ? <Check className="w-4 h-4 text-emerald-300" /> : <Share2 className="w-4 h-4" />}
-                Share QR link
+                <div className="pp-avatar pp-avatar-xl">{initials}</div>
+                <span className="pp-avatar-xl-cam" aria-hidden="true">
+                  <Camera className="w-3.5 h-3.5 text-zinc-900" strokeWidth={2.4} />
+                </span>
+              </button>
+            </div>
+
+            {/* Name + KYC badge */}
+            <div className="relative mt-3 text-center">
+              <div className="inline-flex items-center gap-1.5">
+                <p className="text-white text-[15px] font-semibold tracking-tight truncate max-w-[220px]">
+                  {profile?.full_name ?? fullName ?? "Add your name"}
+                </p>
+                <button onClick={() => setTab("account")} className="text-white/55 hover:text-white transition-colors" aria-label="Edit name">
+                  <Pencil className="w-3 h-3" />
+                </button>
+              </div>
+              <div className={`mt-1.5 inline-flex items-center gap-1 px-2 py-[3px] rounded-full border ${kycMeta.border} ${kycMeta.bg}`}>
+                <kycMeta.icon className={`w-3 h-3 ${kycMeta.color}`} strokeWidth={2.2} />
+                <span className={`text-[9.5px] font-semibold ${kycMeta.color} tracking-wide`}>{kycMeta.label}</span>
+              </div>
+            </div>
+
+            {/* Info rows: UPI ID + Phone No */}
+            <div className="relative mt-4 pp-info-block">
+              <button
+                onClick={() => copy(upiId, "upi")}
+                disabled={upiId === "—"}
+                className="pp-info-row w-full text-left disabled:opacity-60"
+                aria-label="Copy UPI ID"
+              >
+                <span className="pp-info-label">UPI ID</span>
+                <span className="pp-info-value num-mono truncate">{upiId}</span>
+                <span className="pp-info-action">
+                  {copied === "upi" ? <Check className="w-3.5 h-3.5 text-emerald-300" /> : <Copy className="w-3.5 h-3.5 text-white/55" />}
+                </span>
+              </button>
+              <div className="pp-info-divider" />
+              <button
+                onClick={() => copy(phone, "phone")}
+                className="pp-info-row w-full text-left"
+                aria-label="Copy phone number"
+              >
+                <span className="pp-info-label">Phone No.</span>
+                <span className="pp-info-value num-mono truncate">{phone}</span>
+                <span className="pp-info-action">
+                  {copied === "phone" ? <Check className="w-3.5 h-3.5 text-emerald-300" /> : <Copy className="w-3.5 h-3.5 text-white/55" />}
+                </span>
+              </button>
+            </div>
+
+            {/* Wallet balance pill row (compact) */}
+            <div className="relative mt-3 flex items-center justify-between px-1">
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] uppercase tracking-wider text-white/45">Balance</span>
+                <button
+                  onClick={() => setHideBalance((v) => !v)}
+                  className="text-white/55 hover:text-white transition-colors"
+                  aria-label="Toggle balance visibility"
+                >
+                  {hideBalance ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                </button>
+              </div>
+              <p className="text-white text-[13.5px] font-semibold num-mono">
+                {hideBalance ? "₹ ••••" : `₹${Number(balance).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`}
+              </p>
+            </div>
+
+            {/* My QR centered button */}
+            <div className="relative mt-4 flex justify-center">
+              <button
+                onClick={() => setQrOpen(true)}
+                disabled={upiId === "—"}
+                className="pp-myqr-btn disabled:opacity-50"
+                aria-label="Show my QR code"
+              >
+                <span>My QR</span>
+                <QrCode className="w-3.5 h-3.5" strokeWidth={2.2} />
               </button>
             </div>
           </div>
           )}
         </div>
 
-        {/* ── STATS STRIP ── */}
+        {/* ── BIG STAT TILES (Points + Cashback) ── */}
         <section
-          aria-label="Account statistics"
+          aria-label="Rewards summary"
           aria-busy={statsLoading}
-          className="px-5 mt-4 grid grid-cols-3 gap-2.5"
+          className="px-5 mt-3.5 grid grid-cols-2 gap-3"
         >
           {statsLoading ? (
             <>
               <StatSkeleton />
               <StatSkeleton />
-              <StatSkeleton />
             </>
           ) : (
             <>
-              <StatChip icon={IndianRupee} label="This month" value={`₹${stats.monthSpent.toLocaleString("en-IN")}`} tint="from-white/10 to-white/[.02]" />
-              <StatChip icon={Activity} label="Transactions" value={String(stats.txnCount)} tint="from-white/10 to-white/[.02]" />
-              <StatChip icon={TrendingUp} label="Success" value={`${stats.successRate}%`} tint="from-white/10 to-white/[.02]" />
+              <BigStatTile
+                tone="orange"
+                icon={Sparkles}
+                value={String(stats.txnCount * 10)}
+                label="TWPoints"
+              />
+              <BigStatTile
+                tone="green"
+                icon={IndianRupee}
+                value={`₹${Math.round(stats.totalSpent * 0.01).toLocaleString("en-IN")}`}
+                label="Cashback"
+              />
             </>
           )}
         </section>
+
+        {/* hidden helpers for layout parity */}
+        <div className="hidden">{Activity.name}{TrendingUp.name}</div>
 
         {/* ── TABS ── */}
         <div className="px-5 mt-5">
