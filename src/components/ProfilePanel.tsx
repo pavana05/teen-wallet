@@ -747,6 +747,8 @@ function BigStatTile({
     </div>
   );
 }
+
+function Row({ icon: Icon, label, hint, onClick }: { icon: React.ComponentType<{ className?: string; strokeWidth?: number }>; label: string; hint?: React.ReactNode; onClick?: () => void }) {
   return (
     <button onClick={onClick} className="w-full px-3.5 py-3.5 flex items-center gap-3 hover:bg-white/[.02] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-2xl">
       <div className="pp-row-icon"><Icon className="w-4 h-4 text-white/85" strokeWidth={2} /></div>
