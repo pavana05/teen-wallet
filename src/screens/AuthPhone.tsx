@@ -6,8 +6,18 @@ import { toast } from "sonner";
 import { PhoneVerified } from "./PhoneVerified";
 import { isJustVerified } from "@/lib/justVerified";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  classifyOtpError,
+  clearOtpState,
+  loadOtpState,
+  logOtpErrorEvent,
+  saveOtpState,
+  type OtpErrorKind,
+} from "@/lib/otpState";
 
 type Step = "phone" | "otp" | "verified";
+
+const RESEND_COOLDOWN_S = 30;
 
 export function AuthPhone({ onDone }: { onDone: () => void }) {
   const [step, setStep] = useState<Step>("phone");
