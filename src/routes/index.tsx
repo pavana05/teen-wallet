@@ -119,7 +119,7 @@ function Index() {
             setStage("STAGE_3");
           }
         }} />
-      ) : stage === "STAGE_3" && !permsSeen ? (
+      ) : !permsSeen && (stage === "STAGE_3" || stage === "STAGE_4") ? (
         <Permissions onDone={markPermsSeen} />
       ) : stage === "STAGE_3" ? (
         <KycFlow onDone={() => setStage("STAGE_4")} />
