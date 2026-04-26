@@ -49,6 +49,7 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
       setOtp(persisted.digits.length === 6 ? persisted.digits : ["", "", "", "", "", ""]);
       setError(persisted.error || "");
       setErrorKind(persisted.errorKind);
+      setErrorId(persisted.correlationId);
       setResendBlockedUntil(persisted.resendBlockedUntil);
       setStep("otp");
     }
