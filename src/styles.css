@@ -3901,3 +3901,41 @@
   box-shadow: 0 10px 24px -10px rgba(255,255,255,.4);
 }
 .ob-nav-circle-light:hover { background: linear-gradient(180deg, #ffffff, #dcdce0); }
+
+/* ===== Permissions → next-screen neon-lime transition ===== */
+.perm-exit {
+  animation: perm-exit-fade 480ms cubic-bezier(.4,0,.2,1) forwards;
+  pointer-events: none;
+}
+@keyframes perm-exit-fade {
+  0%   { opacity: 1; transform: translateY(0)     scale(1); filter: blur(0); }
+  100% { opacity: 0; transform: translateY(-12px) scale(.98); filter: blur(4px); }
+}
+.perm-continue-overlay {
+  position: absolute; inset: 0; z-index: 50;
+  pointer-events: none;
+  background: radial-gradient(ellipse at 50% 50%,
+    rgba(190,255,120,.10) 0%,
+    rgba(190,255,120,0)   60%);
+  animation: perm-overlay-in 480ms ease-out forwards;
+}
+@keyframes perm-overlay-in {
+  0%   { opacity: 0; }
+  35%  { opacity: 1; }
+  100% { opacity: .85; }
+}
+.perm-continue-bar {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  height: 3px;
+  background: linear-gradient(90deg, transparent 0%, #84cc16 25%, #bef264 50%, #84cc16 75%, transparent 100%);
+  box-shadow: 0 -2px 14px rgba(190,255,120,.55);
+  transform-origin: left center;
+  animation: perm-bar-fill 460ms cubic-bezier(.4,0,.2,1) forwards;
+}
+@keyframes perm-bar-fill {
+  0%   { transform: scaleX(0); opacity: .4; }
+  100% { transform: scaleX(1); opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .perm-exit, .perm-continue-overlay, .perm-continue-bar { animation: none !important; }
+}
