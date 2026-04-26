@@ -106,6 +106,9 @@ export function Home() {
   const [shakeKey, setShakeKey] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
   const [pullY, setPullY] = useState(0);
+  const [navCollapsed, setNavCollapsed] = useState(false);
+  const [navMode, setNavMode] = useState<"full" | "profile-morph">("full");
+  const [scanLaunching, setScanLaunching] = useState(false);
   const touchStartY = useRef<number | null>(null);
   const scrollerRef = useRef<HTMLDivElement | null>(null);
   const loadStartRef = useRef<number>(performance.now());
