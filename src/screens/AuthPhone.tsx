@@ -90,7 +90,7 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
 
   async function handleSendOtp() {
     if (!valid) { setError("Enter a valid Indian mobile number"); return; }
-    setError(""); setErrorKind(null); setBusy(true);
+    setError(""); setErrorKind(null); setErrorId(null); setBusy(true);
     try {
       const r = await sendOtp(phone);
       setPendingPhone("+91" + phone);
@@ -99,11 +99,10 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
       setResendBlockedUntil(null);
       setStep("otp");
     } catch (e) {
-      const { message, kind } = classifyOtpError(e);
-      setError(message); setErrorKind(kind);
-      void logOtpErrorEvent(kind, e instanceof Error ? e.message : String(e), phone);
+      const { message, kind, correlationId } = classifyOtpError(e);
+      setError(message); setErrorKind(kind); setErrorId(correlationId);
+      void logOtpErrorEvent(kind, e instanceof Error ? e.message : String(e), phone, correlationId);
       if (kind === "rate_limited") {
-        // Block resend for 60s when rate-limited.
         setResendBlockedUntil(Date.now() + 60_000);
       }
     } finally { setBusy(false); }
