@@ -1,25 +1,29 @@
 import { useEffect, useRef, useState, useCallback } from "react";
-import { AlertTriangle, X, Send, Bug, Lightbulb, MessageSquare, Loader2, Smartphone } from "lucide-react";
+import { AlertTriangle, X, Send, Bug, Lightbulb, MessageSquare, Loader2, Smartphone, Camera, Image as ImageIcon, Check } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { getActiveShakeProfile } from "@/lib/shakeSensitivity";
+import { getRecentConsoleErrors, getLastStackTrace } from "@/lib/consoleCapture";
 
 /**
  * Shake-to-report
  * ----------------
- * Listens to DeviceMotionEvent.accelerationIncludingGravity. When the user
- * shakes the device past a velocity threshold a fixed number of times in a
- * short window, we open a report dialog. Logged-in users get their user_id
- * attached; anonymous reports are also accepted (RLS allows user_id IS NULL).
+ * Listens to DeviceMotionEvent.accelerationIncludingGravity. Threshold and
+ * required jolt count come from `shakeSensitivity` (user-editable in
+ * Profile → Help) and are re-read on every motion event so changes apply
+ * without a reload.
+ *
+ * On submit we attach:
+ *  - Optional DOM screenshot (html2canvas)
+ *  - Optional camera photo (native input capture)
+ *  - The last 20 console errors/warnings + most recent stack trace
  *
  * iOS 13+ requires explicit permission via DeviceMotionEvent.requestPermission().
- * We only ask once on first user gesture and remember the answer locally.
  */
 
-const SHAKE_THRESHOLD = 18;            // accel delta needed to count as a "jolt"
-const SHAKES_REQUIRED = 3;             // number of jolts in the window to trigger
-const SHAKE_WINDOW_MS = 1200;          // window to collect those jolts
-const COOLDOWN_MS = 4000;              // ignore re-triggers right after one fires
+const COOLDOWN_MS = 4000;
 const PERMISSION_KEY = "tw-motion-permission-v1";
+const BUCKET = "issue-attachments";
 
 type Category = "bug" | "feature" | "feedback";
 
@@ -34,10 +38,44 @@ export function ShakeToReport() {
   const [submitting, setSubmitting] = useState(false);
   const [needsPermission, setNeedsPermission] = useState(false);
 
+  const [attachScreenshot, setAttachScreenshot] = useState(true);
+  const [screenshotBlob, setScreenshotBlob] = useState<Blob | null>(null);
+  const [screenshotBusy, setScreenshotBusy] = useState(false);
+  const [cameraFile, setCameraFile] = useState<File | null>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+
   const lastShakeAt = useRef(0);
   const shakeTimes = useRef<number[]>([]);
   const lastAccel = useRef<{ x: number; y: number; z: number } | null>(null);
   const lastTriggerAt = useRef(0);
+
+  // Capture a DOM screenshot BEFORE the dialog opens so the dialog isn't
+  // visible in the snapshot. We snap once on trigger and keep the blob.
+  const captureScreenshot = useCallback(async () => {
+    setScreenshotBusy(true);
+    try {
+      const { default: html2canvas } = await import("html2canvas");
+      const target = document.body;
+      const canvas = await html2canvas(target, {
+        backgroundColor: null,
+        scale: Math.min(window.devicePixelRatio || 1, 2),
+        useCORS: true,
+        logging: false,
+        ignoreElements: (el) =>
+          el.classList?.contains("str-overlay") ||
+          el.classList?.contains("str-perm-chip") ||
+          el.tagName === "SCRIPT" || el.tagName === "STYLE" || el.tagName === "LINK",
+      });
+      const blob: Blob | null = await new Promise((resolve) =>
+        canvas.toBlob((b) => resolve(b), "image/jpeg", 0.78),
+      );
+      if (blob) setScreenshotBlob(blob);
+    } catch {
+      // Silent — feature is best-effort.
+    } finally {
+      setScreenshotBusy(false);
+    }
+  }, []);
 
   // Open the dialog and reset transient state.
   const trigger = useCallback(() => {
@@ -48,11 +86,17 @@ export function ShakeToReport() {
     if (navigator.vibrate) navigator.vibrate([40, 30, 40]);
     setMessage("");
     setCategory("bug");
+    setAttachScreenshot(true);
+    setScreenshotBlob(null);
+    setCameraFile(null);
+    void captureScreenshot();
     setOpen(true);
-  }, []);
+  }, [captureScreenshot]);
 
   // Core motion handler: low-pass filtered jolt detection.
   const onMotion = useCallback((event: DeviceMotionEvent) => {
+    const profile = getActiveShakeProfile();
+    if (!isFinite(profile.threshold)) return; // sensitivity = "off"
     const a = event.accelerationIncludingGravity;
     if (!a || a.x == null || a.y == null || a.z == null) return;
     const cur = { x: a.x, y: a.y, z: a.z };
@@ -61,21 +105,18 @@ export function ShakeToReport() {
     if (!prev) return;
 
     const delta = Math.abs(cur.x - prev.x) + Math.abs(cur.y - prev.y) + Math.abs(cur.z - prev.z);
-    if (delta < SHAKE_THRESHOLD) return;
+    if (delta < profile.threshold) return;
 
     const now = Date.now();
-    // Debounce: ignore jolts < 80 ms apart (same physical shake).
-    if (now - lastShakeAt.current < 80) return;
+    if (now - lastShakeAt.current < 80) return; // debounce same physical shake
     lastShakeAt.current = now;
     shakeTimes.current.push(now);
-    // Drop jolts outside the window.
-    shakeTimes.current = shakeTimes.current.filter((t) => now - t < SHAKE_WINDOW_MS);
-    if (shakeTimes.current.length >= SHAKES_REQUIRED) {
+    shakeTimes.current = shakeTimes.current.filter((t) => now - t < profile.windowMs);
+    if (shakeTimes.current.length >= profile.shakesRequired) {
       trigger();
     }
   }, [trigger]);
 
-  // Attach motion listener (after permission, if iOS).
   const attachListener = useCallback(() => {
     window.addEventListener("devicemotion", onMotion);
   }, [onMotion]);
@@ -88,21 +129,14 @@ export function ShakeToReport() {
     const stored = typeof localStorage !== "undefined" ? localStorage.getItem(PERMISSION_KEY) : null;
 
     if (!requiresPerm) {
-      // Android / desktop with motion sensor — just attach.
       attachListener();
       return () => window.removeEventListener("devicemotion", onMotion);
     }
-
-    // iOS path
     if (stored === "granted") {
       attachListener();
       return () => window.removeEventListener("devicemotion", onMotion);
     }
-    if (stored === "denied") {
-      // Respect user's previous choice — silent.
-      return;
-    }
-    // Show the permission CTA the first time.
+    if (stored === "denied") return;
     setNeedsPermission(true);
     return undefined;
   }, [attachListener, onMotion]);
@@ -119,7 +153,6 @@ export function ShakeToReport() {
     return () => window.removeEventListener("keydown", onKey);
   }, [trigger]);
 
-  // iOS permission request — must be a user gesture.
   const requestPermission = useCallback(async () => {
     const Ctor = (window.DeviceMotionEvent as unknown) as DeviceMotionEventConstructorWithPermission;
     try {
@@ -138,6 +171,27 @@ export function ShakeToReport() {
     }
   }, [attachListener]);
 
+  // Upload a blob/file to the issue-attachments bucket. Returns the storage
+  // path on success, or null on failure (we still let the report submit).
+  const uploadAttachment = useCallback(async (
+    userId: string | null,
+    blob: Blob | File,
+    label: "screenshot" | "camera",
+  ): Promise<string | null> => {
+    const folder = userId ?? "anon";
+    const ext = (blob instanceof File && blob.name.split(".").pop()) || "jpg";
+    const path = `${folder}/${Date.now()}-${label}-${crypto.randomUUID().slice(0, 8)}.${ext}`;
+    const { error } = await supabase.storage.from(BUCKET).upload(path, blob, {
+      contentType: blob.type || "image/jpeg",
+      upsert: false,
+    });
+    if (error) {
+      console.warn("[shake-to-report] attachment upload failed", error.message);
+      return null;
+    }
+    return path;
+  }, []);
+
   const submit = useCallback(async () => {
     const trimmed = message.trim();
     if (!trimmed) {
@@ -147,16 +201,34 @@ export function ShakeToReport() {
     setSubmitting(true);
     try {
       const { data: u } = await supabase.auth.getUser();
+      const userId = u.user?.id ?? null;
       const route = typeof window !== "undefined" ? window.location.pathname + window.location.search : null;
       const ua = typeof navigator !== "undefined" ? navigator.userAgent : null;
-      const { error } = await supabase.from("issue_reports").insert({
-        user_id: u.user?.id ?? null,
+
+      const consoleErrors = getRecentConsoleErrors();
+      const stackTrace = getLastStackTrace();
+
+      let screenshotPath: string | null = null;
+      let cameraPath: string | null = null;
+      if (attachScreenshot && screenshotBlob) {
+        screenshotPath = await uploadAttachment(userId, screenshotBlob, "screenshot");
+      }
+      if (cameraFile) {
+        cameraPath = await uploadAttachment(userId, cameraFile, "camera");
+      }
+
+      const { error } = await supabase.from("issue_reports").insert([{
+        user_id: userId,
         category,
         message: trimmed,
         route,
         user_agent: ua,
         app_version: "tw-web-1.0",
-      });
+        console_errors: JSON.parse(JSON.stringify(consoleErrors)),
+        stack_trace: stackTrace,
+        screenshot_path: screenshotPath,
+        camera_photo_path: cameraPath,
+      }]);
       if (error) throw error;
       toast.success("Report sent — thank you!");
       setOpen(false);
@@ -167,9 +239,8 @@ export function ShakeToReport() {
     } finally {
       setSubmitting(false);
     }
-  }, [category, message]);
+  }, [category, message, attachScreenshot, screenshotBlob, cameraFile, uploadAttachment]);
 
-  // Render: floating permission chip (one-time, iOS only) + dialog
   return (
     <>
       {needsPermission && (
@@ -231,6 +302,49 @@ export function ShakeToReport() {
             <div className="str-meta">
               <span>{message.length}/500</span>
               <span className="str-route">{typeof window !== "undefined" ? window.location.pathname : ""}</span>
+            </div>
+
+            {/* Attachments */}
+            <div className="str-attach">
+              <label className="str-attach-row" title="Attach a snapshot of the screen at the moment of the issue">
+                <input
+                  type="checkbox"
+                  checked={attachScreenshot}
+                  onChange={(e) => setAttachScreenshot(e.target.checked)}
+                  disabled={submitting}
+                />
+                <ImageIcon className="w-4 h-4" />
+                <span style={{ flex: 1 }}>Attach screenshot</span>
+                {screenshotBusy && <Loader2 className="w-3.5 h-3.5 animate-spin opacity-70" />}
+                {!screenshotBusy && screenshotBlob && attachScreenshot && (
+                  <span className="str-chip-ok"><Check className="w-3 h-3" /> ready</span>
+                )}
+              </label>
+
+              <button
+                type="button"
+                onClick={() => cameraInputRef.current?.click()}
+                disabled={submitting}
+                className="str-attach-row str-attach-btn"
+              >
+                <Camera className="w-4 h-4" />
+                <span style={{ flex: 1, textAlign: "left" }}>
+                  {cameraFile ? "Photo attached — tap to replace" : "Add photo from camera"}
+                </span>
+                {cameraFile && <span className="str-chip-ok"><Check className="w-3 h-3" /> {Math.round(cameraFile.size / 1024)}KB</span>}
+              </button>
+              <input
+                ref={cameraInputRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                hidden
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) setCameraFile(f);
+                  e.currentTarget.value = "";
+                }}
+              />
             </div>
 
             <button

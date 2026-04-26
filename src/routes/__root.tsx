@@ -4,6 +4,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { ShakeToReport } from "@/components/ShakeToReport";
 import { initNative } from "@/lib/native";
 import { breadcrumb, captureError } from "@/lib/breadcrumbs";
+import { installConsoleCapture } from "@/lib/consoleCapture";
 
 import appCss from "../styles.css?url";
 
@@ -104,6 +105,7 @@ function RootShell({ children }: { children: React.ReactNode }) {
 
 function RootComponent() {
   useEffect(() => {
+    installConsoleCapture();
     initNative();
     breadcrumb("system.boot", { platform: typeof navigator !== "undefined" ? navigator.userAgent : undefined });
 

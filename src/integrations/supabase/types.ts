@@ -286,36 +286,86 @@ export type Database = {
           },
         ]
       }
+      issue_report_notes: {
+        Row: {
+          admin_email: string
+          body: string
+          created_at: string
+          id: string
+          report_id: string
+        }
+        Insert: {
+          admin_email: string
+          body: string
+          created_at?: string
+          id?: string
+          report_id: string
+        }
+        Update: {
+          admin_email?: string
+          body?: string
+          created_at?: string
+          id?: string
+          report_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "issue_report_notes_report_id_fkey"
+            columns: ["report_id"]
+            isOneToOne: false
+            referencedRelation: "issue_reports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       issue_reports: {
         Row: {
           app_version: string | null
+          camera_photo_path: string | null
           category: string
+          console_errors: Json
           created_at: string
           id: string
           message: string
+          resolved_at: string | null
+          resolved_by_email: string | null
           route: string | null
+          screenshot_path: string | null
+          stack_trace: string | null
           status: string
           user_agent: string | null
           user_id: string | null
         }
         Insert: {
           app_version?: string | null
+          camera_photo_path?: string | null
           category?: string
+          console_errors?: Json
           created_at?: string
           id?: string
           message: string
+          resolved_at?: string | null
+          resolved_by_email?: string | null
           route?: string | null
+          screenshot_path?: string | null
+          stack_trace?: string | null
           status?: string
           user_agent?: string | null
           user_id?: string | null
         }
         Update: {
           app_version?: string | null
+          camera_photo_path?: string | null
           category?: string
+          console_errors?: Json
           created_at?: string
           id?: string
           message?: string
+          resolved_at?: string | null
+          resolved_by_email?: string | null
           route?: string | null
+          screenshot_path?: string | null
+          stack_trace?: string | null
           status?: string
           user_agent?: string | null
           user_id?: string | null
