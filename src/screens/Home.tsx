@@ -213,7 +213,7 @@ export function Home() {
     if (dy > 0) setPullY(Math.min(dy * 0.5, 80));
   };
   const onTouchEnd = () => {
-    if (pullY > 60) void handleRefresh();
+    if (pullY > 60) { void haptics.swipe(); void handleRefresh(); }
     setPullY(0);
     touchStartY.current = null;
   };
