@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { Html5Qrcode } from "html5-qrcode";
-import { ArrowLeft, ArrowRight, Image as ImageIcon, Zap, ZapOff, X, Share2, Check, Bug, ShieldCheck, Wallet, Users, User as UserIcon, QrCode, Download, RotateCcw, Copy, ScanLine, ExternalLink } from "lucide-react";
+import { ArrowLeft, ArrowRight, Image as ImageIcon, Zap, ZapOff, X, Share2, Check, Bug, ShieldCheck, Wallet, Users, User as UserIcon, QrCode, Download, RotateCcw, Copy, ScanLine, ExternalLink, AlertTriangle, Info } from "lucide-react";
 import { parseUpiQr, parseUpiQrWithReason, canOpenUpiApp, type UpiPayload, type UpiParseResult } from "@/lib/upi";
-import { scanTransaction, logFraudFlags } from "@/lib/fraud";
+import { scanTransaction, logFraudFlags, type FraudFlag } from "@/lib/fraud";
 import { useApp } from "@/lib/store";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -153,6 +153,10 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
 
     if (serverResult && serverResult.ok) {
       useApp.setState({ balance: serverResult.newBalance });
+      // Post-payment reconciliation: re-fetch live balance from Supabase and
+      // detect drift between the server function's reported newBalance and the
+      // actual profile row (e.g., a parental top-up landed mid-transaction).
+      void reconcileBalance(userId, serverResult.newBalance);
       const txn: SavedTxn = {
         id: serverResult.txnId,
         amount: amt,
@@ -232,6 +236,9 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
     const newBal = liveBalance - amt;
     await supabase.from("profiles").update({ balance: newBal }).eq("id", userId);
     useApp.setState({ balance: newBal });
+    // Reconcile against the canonical DB row in case another tab/server
+    // changed the balance between our update and now.
+    void reconcileBalance(userId, newBal);
     await supabase.from("notifications").insert({
       user_id: userId,
       type: "transaction",
@@ -330,6 +337,7 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
         onConfirm={handlePay}
         onBack={reset}
         balance={balance}
+        userId={userId}
       />
     );
   }
@@ -359,6 +367,45 @@ function writePersisted(p: PersistedFlow) {
 function clearPersisted() {
   if (typeof window === "undefined") return;
   try { window.sessionStorage.removeItem(SCANPAY_PERSIST_KEY); } catch { /* ignore */ }
+}
+
+/**
+ * Post-payment balance reconciliation.
+ *
+ * After a successful payment we already optimistically updated the local
+ * balance from the server function's `newBalance`. This re-fetches the
+ * canonical `profiles.balance` row and:
+ *   • silently corrects local state if the values match (no-op),
+ *   • updates local state + emits a soft toast if a drift is detected
+ *     (e.g., a parental top-up landed in the same window),
+ *   • is fully best-effort — any error is swallowed because the user
+ *     already saw a success screen and we don't want to scare them.
+ */
+async function reconcileBalance(userId: string, expected: number): Promise<void> {
+  try {
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("balance")
+      .eq("id", userId)
+      .single();
+    if (error || !data) return;
+    const live = Number(data.balance);
+    if (Number.isNaN(live)) return;
+    const drift = Math.abs(live - expected);
+    if (drift < 0.01) {
+      // In sync — make sure local matches canonical anyway.
+      useApp.setState({ balance: live });
+      return;
+    }
+    // Drift detected — sync local store to the truth and let the user know.
+    useApp.setState({ balance: live });
+    breadcrumb("payment.balance_reconciled", { expected, live, drift }, "info");
+    toast.message("Balance updated", {
+      description: `Wallet now shows ₹${live.toFixed(2)}.`,
+    });
+  } catch (err) {
+    captureError(err, { where: "scanpay.reconcileBalance" });
+  }
 }
 
 /* ============================================================
@@ -403,6 +450,12 @@ function ScannerView({ onBack, onDecoded }: { onBack: () => void; onDecoded: (p:
   const [debugOpen, setDebugOpen] = useState(false);
   const [debug, setDebug] = useState<DebugSnapshot | null>(null);
   const [softResetCount, setSoftResetCount] = useState(0);
+  // Counts INVALID decodes (got bytes, but they weren't a UPI QR) and
+  // CAMERA START failures. When either runs hot we surface a recovery
+  // panel offering an inline retry + a one-tap fallback to gallery upload.
+  const [invalidDecodeCount, setInvalidDecodeCount] = useState(0);
+  const [cameraStartError, setCameraStartError] = useState<string | null>(null);
+  const fallbackInputRef = useRef<HTMLInputElement | null>(null);
   // Real-time camera state for the on-screen feedback strip:
   //   "starting" → still warming up the camera
   //   "tracking" → camera is feeding frames + decoder is alive (no QR yet)
@@ -453,6 +506,7 @@ function ScannerView({ onBack, onDecoded }: { onBack: () => void; onDecoded: (p:
                 lastInvalidToastRef.current = now;
                 toast.error(result.reason ?? "Invalid QR code");
               }
+              setInvalidDecodeCount((c) => c + 1);
               return;
             }
             // ✅ Valid UPI QR detected → INSTANT redirect to confirm page.
@@ -498,6 +552,9 @@ function ScannerView({ onBack, onDecoded }: { onBack: () => void; onDecoded: (p:
         if (/permission|denied|NotAllowed/i.test(msg)) {
           setPermissionDenied(true);
         } else {
+          // Surface the error inline so the user can retry or fall back to gallery,
+          // instead of relying on a transient toast they may have missed.
+          setCameraStartError(msg);
           toast.error(msg);
         }
         setStarting(false);
@@ -525,8 +582,17 @@ function ScannerView({ onBack, onDecoded }: { onBack: () => void; onDecoded: (p:
 
   const manualSoftReset = () => {
     setSoftResetCount((c) => c + 1);
+    setInvalidDecodeCount(0);
+    setCameraStartError(null);
     setStarting(true);
     setRestartTick((t) => t + 1);
+  };
+
+  // Trigger gallery picker programmatically — used by the recovery panel so
+  // a struggling user can fall back from camera scanning to file upload in
+  // a single tap, without hunting for the small Upload chip in the dock.
+  const openGalleryPicker = () => {
+    fallbackInputRef.current?.click();
   };
 
   const toggleTorch = async () => {
@@ -551,10 +617,20 @@ function ScannerView({ onBack, onDecoded }: { onBack: () => void; onDecoded: (p:
       const decoded = await scanner.scanFile(file, false);
       const result = parseUpiQrWithReason(decoded);
       setDebug({ raw: decoded, result, at: Date.now() });
-      if (result.payload) onDecoded(result.payload);
-      else toast.error(result.reason ?? "Not a valid UPI QR code");
+      if (result.payload) {
+        onDecoded(result.payload);
+      } else {
+        // Gallery decode succeeded but the QR isn't a UPI payment — count it
+        // toward the invalid streak so the recovery panel stays visible.
+        setInvalidDecodeCount((c) => c + 1);
+        toast.error(result.reason ?? "Not a valid UPI QR code");
+      }
     } catch {
-      toast.error("Could not read QR from image");
+      setInvalidDecodeCount((c) => c + 1);
+      toast.error("Could not read QR from image. Try a clearer photo.");
+    } finally {
+      // Always clear the input so picking the same file again still triggers onChange.
+      if (e.target) e.target.value = "";
     }
   };
 
@@ -680,6 +756,62 @@ function ScannerView({ onBack, onDecoded }: { onBack: () => void; onDecoded: (p:
         </div>
       )}
 
+      {/* ── QR scan recovery panel ──
+          Shown when the user has hit 3+ invalid QR decodes, has done 2+ soft
+          resets without locking, OR the camera failed to start. Offers a one-
+          tap retry of the camera AND a one-tap fallback to gallery upload so
+          a frustrated user is never stuck on the scanner. */}
+      {(invalidDecodeCount >= 3 || softResetCount >= 2 || cameraStartError) && scanState !== "locked" && (
+        <div className="sp2-recover" role="alertdialog" aria-live="polite" aria-label="Trouble scanning">
+          <div className="sp2-recover-icon" aria-hidden="true">
+            <AlertTriangle className="w-4 h-4" strokeWidth={2.4} />
+          </div>
+          <div className="sp2-recover-text">
+            <p className="sp2-recover-title">
+              {cameraStartError ? "Camera couldn't start" : "Trouble scanning?"}
+            </p>
+            <p className="sp2-recover-sub">
+              {cameraStartError
+                ? cameraStartError
+                : invalidDecodeCount >= 3
+                  ? "We're seeing QRs that aren't UPI payments. Try a clearer angle or upload a photo."
+                  : "The camera is having trouble. Re-tune or pick a QR photo from your gallery."}
+            </p>
+          </div>
+          <div className="sp2-recover-actions">
+            <button
+              type="button"
+              onClick={manualSoftReset}
+              className="sp2-recover-btn ghost"
+              aria-label="Retry camera"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              Retry
+            </button>
+            <button
+              type="button"
+              onClick={openGalleryPicker}
+              className="sp2-recover-btn primary"
+              aria-label="Use gallery instead"
+            >
+              <ImageIcon className="w-3.5 h-3.5" />
+              Use gallery
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Hidden file input used by the recovery panel's "Use gallery" CTA. */}
+      <input
+        ref={fallbackInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={handleUpload}
+        aria-hidden="true"
+        tabIndex={-1}
+      />
+
       {/* Bottom action dock — GPay/PhonePe style */}
       <div className="sp2-dock safe-bottom">
         <div className="sp2-dock-row">
@@ -707,7 +839,7 @@ function ScannerView({ onBack, onDecoded }: { onBack: () => void; onDecoded: (p:
    ============================================================ */
 
 function ConfirmView({
-  payload, amount, onAmountChange, note, onNoteChange, onConfirm, onBack, balance,
+  payload, amount, onAmountChange, note, onNoteChange, onConfirm, onBack, balance, userId,
 }: {
   payload: UpiPayload;
   amount: number;
@@ -717,10 +849,58 @@ function ConfirmView({
   onConfirm: () => void;
   onBack: () => void;
   balance: number;
+  userId: string | null;
 }) {
   const initial = (payload.payeeName || payload.upiId).trim().charAt(0).toUpperCase();
-  const canPay = amount > 0 && amount <= balance;
   const insufficient = amount > 0 && amount > balance;
+
+  // ── Fraud preview ──
+  // Run the SAME client-side rules used at submit, but BEFORE the user slides
+  // to pay, so they can see warnings (and any block reason) up front and either
+  // tweak the amount or explicitly acknowledge the warning before continuing.
+  const [fraud, setFraud] = useState<{ flags: FraudFlag[]; blocked: boolean } | null>(null);
+  const [fraudLoading, setFraudLoading] = useState(false);
+  const [acknowledged, setAcknowledged] = useState(false);
+
+  // Re-acknowledge whenever amount or merchant changes — silently consenting
+  // to a different payment than the one originally reviewed would be a footgun.
+  useEffect(() => {
+    setAcknowledged(false);
+  }, [amount, payload.upiId]);
+
+  // Debounced preflight on amount change. Skip when amount is invalid.
+  useEffect(() => {
+    if (!userId || amount <= 0 || amount > balance) {
+      setFraud(null);
+      return;
+    }
+    let cancelled = false;
+    setFraudLoading(true);
+    const t = setTimeout(async () => {
+      try {
+        const report = await scanTransaction({ userId, amount, upiId: payload.upiId });
+        if (cancelled) return;
+        setFraud({ flags: report.flags, blocked: report.blocked });
+      } catch {
+        if (!cancelled) setFraud(null);
+      } finally {
+        if (!cancelled) setFraudLoading(false);
+      }
+    }, 350);
+    return () => { cancelled = true; clearTimeout(t); };
+  }, [userId, amount, balance, payload.upiId]);
+
+  const warnFlags = fraud?.flags.filter((f) => f.severity === "warn") ?? [];
+  const blockFlags = fraud?.flags.filter((f) => f.severity === "block") ?? [];
+  const isBlocked = fraud?.blocked === true;
+  const needsAck = warnFlags.length > 0 && !isBlocked;
+
+  // Slide is gated on: valid amount + (no warnings OR user acknowledged) + not blocked.
+  const canPay =
+    amount > 0 &&
+    amount <= balance &&
+    !isBlocked &&
+    (!needsAck || acknowledged);
 
   // Smart quick-amount chips: show the QR amount if present, otherwise common values.
   const quickAmounts = payload.amount && payload.amount > 0
@@ -877,12 +1057,54 @@ function ConfirmView({
         <div className="sp2-method-bal">₹{balance.toFixed(2)}</div>
       </div>
 
+      {/* ── Review & Continue gate ──
+          Surfaces fraud preflight flags BEFORE the slide. Block flags fully
+          disable payment and show the final block reason. Warn flags require
+          an explicit acknowledge tick before the slide unlocks. */}
+      {(isBlocked || warnFlags.length > 0) && (
+        <div
+          className={`sp2-fraud-panel ${isBlocked ? "sp2-fraud-blocked" : "sp2-fraud-warn"}`}
+          role={isBlocked ? "alert" : "status"}
+          aria-live="polite"
+        >
+          <div className="sp2-fraud-head">
+            {isBlocked ? <X className="w-4 h-4" strokeWidth={2.6} /> : <AlertTriangle className="w-4 h-4" strokeWidth={2.4} />}
+            <span className="sp2-fraud-title">
+              {isBlocked ? "Payment will be blocked" : `${warnFlags.length} warning${warnFlags.length > 1 ? "s" : ""} — review before paying`}
+            </span>
+          </div>
+          <ul className="sp2-fraud-list">
+            {(isBlocked ? blockFlags : warnFlags).map((f) => (
+              <li key={f.rule}>
+                <Info className="w-3 h-3 mt-0.5 shrink-0 opacity-70" />
+                <span>{f.message}</span>
+              </li>
+            ))}
+          </ul>
+          {!isBlocked && (
+            <label className="sp2-fraud-ack">
+              <input
+                type="checkbox"
+                checked={acknowledged}
+                onChange={(e) => setAcknowledged(e.target.checked)}
+                aria-label="Acknowledge warnings and confirm paying"
+              />
+              <span>I've reviewed the warnings and want to continue</span>
+            </label>
+          )}
+        </div>
+      )}
+
       {/* Slide to pay */}
       <div className="relative z-10 px-4 pt-4 pb-6 safe-bottom">
         <SlideToPay disabled={!canPay} onComplete={onConfirm} />
         <p className="text-center text-[10px] text-white/35 mt-3 tracking-wider">
-          <UserIcon className="w-3 h-3 inline-block mr-1 align-[-2px]" />
-          Secured by Teen Wallet · UPI
+          {fraudLoading ? "Checking payment safety…" : (
+            <>
+              <UserIcon className="w-3 h-3 inline-block mr-1 align-[-2px]" />
+              Secured by Teen Wallet · UPI
+            </>
+          )}
         </p>
       </div>
     </div>
