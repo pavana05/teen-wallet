@@ -211,8 +211,12 @@ export function Home() {
   }, []);
 
   // Profile tap → fluid morph: nav contracts to a single Profile pill,
-  // then we open the Profile panel after the morph settles.
+  // then we open the Profile panel after the morph settles. Works in both
+  // expanded and collapsed scroll states because the Profile tab is always
+  // kept reachable (never hidden) — and we briefly force-expand the nav so
+  // the morph reads as a continuous liquid transition either way.
   const openProfile = useCallback(() => {
+    setNavCollapsed(false);
     setNavMode("profile-morph");
     window.setTimeout(() => setShowProfile(true), 360);
   }, []);
