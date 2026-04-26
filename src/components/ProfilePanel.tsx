@@ -233,14 +233,14 @@ export function ProfilePanel({ onClose }: Props) {
           <div className="pp-hero">
             <div className="pp-hero-shine" />
             <div className="flex items-start gap-4">
-              <button onClick={() => setEditOpen(true)} className="pp-avatar-wrap" aria-label="Change photo">
+              <button onClick={() => setTab("account")} className="pp-avatar-wrap" aria-label="Edit profile photo and details">
                 <div className="pp-avatar">{initials}</div>
                 <span className="pp-avatar-cam"><Camera className="w-3.5 h-3.5 text-black" strokeWidth={2.4} /></span>
               </button>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-1.5">
                   <p className="text-white text-[17px] font-semibold truncate">{profile?.full_name ?? fullName ?? "Add your name"}</p>
-                  <button onClick={() => setEditOpen(true)} className="text-white/60" aria-label="Edit name">
+                  <button onClick={() => setTab("account")} className="text-white/60" aria-label="Edit name inline">
                     <Pencil className="w-3.5 h-3.5" />
                   </button>
                 </div>
