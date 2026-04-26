@@ -337,13 +337,11 @@ function ConfirmPay({
     breadcrumb("payment.payfriends_started", { upiId: contact.upi_id, amount: amt });
 
     try {
-      const res = await payUpi({
-        data: {
-          amount: amt,
-          upiId: contact.upi_id,
-          payeeName: contact.name,
-          note: note.trim() || null,
-        },
+      const res = await callWithAuth(payUpi, {
+        amount: amt,
+        upiId: contact.upi_id,
+        payeeName: contact.name,
+        note: note.trim() || null,
       });
 
       if (!res.ok) {
