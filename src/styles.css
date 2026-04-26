@@ -1076,9 +1076,73 @@
   border: 1px solid rgba(255,255,255,0.1);
   color: #f5f5f7;
   backdrop-filter: blur(8px);
-  transition: background 180ms ease, border-color 180ms ease;
+  transition: background 180ms ease, border-color 180ms ease, transform 140ms cubic-bezier(0.2,0.8,0.2,1), box-shadow 180ms ease;
+  will-change: transform;
 }
 .hp-offer:hover .hp-offer-cta{ background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.18); }
+.hp-offer-cta:active{ transform: scale(0.96); }
+.hp-offer-cta:focus-visible{
+  outline: none;
+  box-shadow: 0 2px 0 0 rgba(200,241,53,0.85), 0 8px 24px -8px rgba(200,241,53,0.55);
+  border-color: rgba(200,241,53,0.55);
+}
+.hp-offer-cta:active .hp-offer-cta-icon,
+.hp-offer-cta:focus-visible .hp-offer-cta-icon{ animation: hp-icon-pulse 420ms ease-out; }
+
+@keyframes hp-icon-pulse{
+  0%   { transform: scale(1);   opacity: 1; }
+  40%  { transform: scale(1.35); opacity: 0.85; }
+  100% { transform: scale(1);   opacity: 1; }
+}
+
+/* Glowing bottom-border focus for inputs related to offers/home */
+.hp-input-glow{
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-bottom: 2px solid rgba(255,255,255,0.10);
+  border-radius: 14px;
+  padding: 10px 14px;
+  color: #f5f5f7; font-size: 13px;
+  transition: border-color 180ms ease, box-shadow 220ms ease, background 180ms ease;
+}
+.hp-input-glow:focus,
+.hp-input-glow:focus-visible{
+  outline: none;
+  background: rgba(255,255,255,0.06);
+  border-bottom-color: rgba(200,241,53,0.95);
+  box-shadow: 0 6px 24px -10px rgba(200,241,53,0.55);
+}
+
+/* Premium empty-state card */
+.hp-empty{
+  position: relative; overflow: hidden;
+  border-radius: 22px;
+  padding: 24px 18px;
+  background:
+    radial-gradient(120% 80% at 50% 0%, rgba(200,241,53,0.08), transparent 60%),
+    linear-gradient(180deg, #15161a 0%, #0c0d10 100%);
+  border: 1px solid rgba(255,255,255,0.07);
+  box-shadow: 0 24px 60px -30px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.04);
+  text-align: center;
+}
+.hp-empty-illu{
+  width: 88px; height: 88px; margin: 0 auto 12px;
+  border-radius: 50%;
+  background:
+    conic-gradient(from 200deg, rgba(200,241,53,0.18), rgba(255,255,255,0.04), rgba(200,241,53,0.14));
+  display: flex; align-items: center; justify-content: center;
+  border: 1px solid rgba(255,255,255,0.08);
+  box-shadow: inset 0 0 24px rgba(0,0,0,0.5), 0 0 32px -12px rgba(200,241,53,0.35);
+}
+.hp-empty-illu::after{
+  content: ""; position: absolute; inset: -1px; border-radius: inherit;
+  pointer-events: none;
+}
+.hp-shake-error{
+  animation: tw-shake 360ms cubic-bezier(.36,.07,.19,.97) both;
+  border-color: #FF4444 !important;
+  box-shadow: 0 0 0 1px rgba(255,68,68,0.45), 0 12px 28px -12px rgba(255,68,68,0.55) !important;
+}
 
 
 /* Quick action tiles */
