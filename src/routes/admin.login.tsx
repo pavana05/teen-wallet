@@ -1,8 +1,9 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import QRCode from "qrcode";
-import { callAdminFn, writeAdminSession, type AdminMe } from "@/admin/lib/adminAuth";
+import { callAdminFn, writeAdminSession, AdminFnError, type AdminMe } from "@/admin/lib/adminAuth";
 import { Shield, KeyRound, Loader2 } from "lucide-react";
+import { CopyableErrorId } from "@/components/CopyableErrorId";
 
 export const Route = createFileRoute("/admin/login")({
   component: AdminLogin,
