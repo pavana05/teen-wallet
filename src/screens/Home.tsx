@@ -120,12 +120,14 @@ export function Home() {
     setWaveEnabled((prev) => {
       const next = !prev;
       try { localStorage.setItem("tw_greeting_wave", next ? "1" : "0"); } catch { /* ignore */ }
+      void haptics.select();
       return next;
     });
   }, []);
   const handleGreetingTap = useCallback(() => {
     setGreetingPulse((k) => k + 1);
     setShowGreetingTip(true);
+    void haptics.heartbeat();
     window.setTimeout(() => setShowGreetingTip(false), 2200);
   }, []);
   const touchStartY = useRef<number | null>(null);
