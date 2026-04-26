@@ -8,6 +8,18 @@ import { NotificationsPanel } from "@/components/NotificationsPanel";
 import { ProfilePanel } from "@/components/ProfilePanel";
 import heroScan from "@/assets/home-hero-scan.jpg";
 import { haptics } from "@/lib/haptics";
+import { useGenderPersona } from "@/lib/genderPersona";
+
+interface PersonaOffer {
+  id: string;
+  eyebrow: string;
+  headline: string;
+  emphasis: string;
+  subtitle: string;
+  cta_label: string;
+  accent: string;
+}
+
 
 interface Txn {
   id: string;
