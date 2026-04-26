@@ -337,6 +337,7 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
         onConfirm={handlePay}
         onBack={reset}
         balance={balance}
+        userId={userId}
       />
     );
   }
