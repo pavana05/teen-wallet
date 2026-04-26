@@ -24,7 +24,7 @@ export async function callWithAuth<TInput, TResult>(
     throw new Error("Not signed in");
   }
   return fn({
-    data,
+    data: { ...(data as object), authToken: token } as TInput,
     headers: { Authorization: `Bearer ${token}` },
   });
 }
