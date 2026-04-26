@@ -222,6 +222,13 @@ function TransactionsList() {
         <button onClick={() => { setPage(1); void fetchPage(1); }} className="a-btn-ghost"><RefreshCw size={14} /> Refresh</button>
       </div>
 
+      <PermissionBanner
+        canView={canView}
+        canDecide={canManage}
+        decideLabel="reverse"
+        resourceLabel="transactions"
+      />
+
       <div className="a-surface" style={{ padding: 16, marginBottom: 12, display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr auto", gap: 12, alignItems: "end" }}>
         <div>
           <div className="a-label" style={{ marginBottom: 6 }}>Search</div>
