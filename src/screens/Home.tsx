@@ -213,22 +213,24 @@ export function Home() {
         {loading ? (
           <div className="flex gap-3 overflow-hidden pb-1">
             {[0, 1].map((i) => (
-              <div key={i} className="hp-offer snap-start shrink-0 tw-shimmer" style={{ minHeight: 140 }} />
+              <div key={i} className="hp-skeleton snap-start shrink-0" style={{ width: "84%", minHeight: 140 }} />
             ))}
           </div>
         ) : error ? (
-          <div key={shakeKey} className={`hp-empty hp-shake-error`}>
+          <div key={`offers-err-${shakeKey}`} className="hp-empty hp-shake-error tw-slide-up">
             <div className="hp-empty-illu">
-              <Sparkles className="w-7 h-7 text-white/80" strokeWidth={1.6} />
+              <Sparkles className="w-7 h-7 text-white/85" strokeWidth={1.6} />
             </div>
-            <p className="text-[14px] font-semibold text-white">Couldn't load offers</p>
-            <p className="text-[12px] text-white/55 mt-1">Pull to refresh or try again in a moment.</p>
+            <p className="hp-empty-title">Couldn't load offers</p>
+            <p className="hp-empty-sub">Check your connection and try again — your rewards will be right back.</p>
             <button
+              type="button"
               onClick={() => { setLoading(true); void fetchTxns(); }}
-              className="hp-offer-cta mt-3"
-              style={{ marginTop: 14 }}
+              className="hp-cta-pill"
+              aria-label="Retry loading offers"
             >
-              <RefreshCw className="w-3.5 h-3.5 hp-offer-cta-icon" /> Retry
+              <RefreshCw className="w-3.5 h-3.5" strokeWidth={2.2} />
+              <span>Retry</span>
             </button>
           </div>
         ) : (
