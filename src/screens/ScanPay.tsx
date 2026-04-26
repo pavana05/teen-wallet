@@ -368,6 +368,45 @@ function clearPersisted() {
   try { window.sessionStorage.removeItem(SCANPAY_PERSIST_KEY); } catch { /* ignore */ }
 }
 
+/**
+ * Post-payment balance reconciliation.
+ *
+ * After a successful payment we already optimistically updated the local
+ * balance from the server function's `newBalance`. This re-fetches the
+ * canonical `profiles.balance` row and:
+ *   • silently corrects local state if the values match (no-op),
+ *   • updates local state + emits a soft toast if a drift is detected
+ *     (e.g., a parental top-up landed in the same window),
+ *   • is fully best-effort — any error is swallowed because the user
+ *     already saw a success screen and we don't want to scare them.
+ */
+async function reconcileBalance(userId: string, expected: number): Promise<void> {
+  try {
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("balance")
+      .eq("id", userId)
+      .single();
+    if (error || !data) return;
+    const live = Number(data.balance);
+    if (Number.isNaN(live)) return;
+    const drift = Math.abs(live - expected);
+    if (drift < 0.01) {
+      // In sync — make sure local matches canonical anyway.
+      useApp.setState({ balance: live });
+      return;
+    }
+    // Drift detected — sync local store to the truth and let the user know.
+    useApp.setState({ balance: live });
+    breadcrumb("payment.balance_reconciled", { expected, live, drift }, "info");
+    toast.message("Balance updated", {
+      description: `Wallet now shows ₹${live.toFixed(2)}.`,
+    });
+  } catch (err) {
+    captureError(err, { where: "scanpay.reconcileBalance" });
+  }
+}
+
 /* ============================================================
    1. SCANNER
    ============================================================ */
