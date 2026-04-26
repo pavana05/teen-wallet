@@ -292,10 +292,25 @@ export function Home() {
 
         {/* Header */}
         <div className="relative z-10 flex items-center justify-between px-6 pt-8">
-          <div>
-            <p className="hp-greeting">Hey, {first} 👋</p>
+          <button
+            type="button"
+            onClick={handleGreetingTap}
+            onDoubleClick={toggleWave}
+            aria-label={`Greeting for ${first}. Double-tap to ${waveEnabled ? "hide" : "show"} the wave emoji.`}
+            className="hp-greeting-tap text-left"
+          >
+            <p key={greetingPulse} className="hp-greeting hp-greeting-pulse">
+              Hey, {first}{waveEnabled ? " 👋" : ""}
+            </p>
             <p className="hp-greeting-sub">Welcome back</p>
-          </div>
+            <span
+              role="status"
+              aria-live="polite"
+              className={`hp-greeting-tip ${showGreetingTip ? "is-visible" : ""}`}
+            >
+              {waveEnabled ? "Double-tap to hide 👋" : "Double-tap to bring back 👋"}
+            </span>
+          </button>
           <button
             type="button"
             onClick={() => setShowNotifs(true)}
