@@ -336,7 +336,6 @@ export function Home() {
         </div>
       </div>
 
-      <div className="hp-divider mt-8" />
 
       {/* ===== RECHARGES AND BILLS ===== */}
       <div className="px-5 mt-8">
