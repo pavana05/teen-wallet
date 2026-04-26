@@ -11,12 +11,14 @@
 
 import { supabase } from "@/integrations/supabase/client";
 
-type ServerFnArg<TInput> = { data: TInput; headers?: Record<string, string> };
-type ServerFn<TInput, TResult> = (arg: ServerFnArg<TInput>) => Promise<TResult>;
+type ServerFn<TResult> = (arg: {
+  data: Record<string, unknown>;
+  headers?: Record<string, string>;
+}) => Promise<TResult>;
 
-export async function callWithAuth<TInput, TResult>(
-  fn: ServerFn<TInput, TResult>,
-  data: TInput,
+export async function callWithAuth<TResult>(
+  fn: ServerFn<TResult>,
+  data: Record<string, unknown>,
 ): Promise<TResult> {
   const { data: sessionData } = await supabase.auth.getSession();
   const token = sessionData.session?.access_token;
@@ -24,7 +26,7 @@ export async function callWithAuth<TInput, TResult>(
     throw new Error("Not signed in");
   }
   return fn({
-    data: { ...(data as object), authToken: token } as TInput,
+    data: { ...data, authToken: token },
     headers: { Authorization: `Bearer ${token}` },
   });
 }
