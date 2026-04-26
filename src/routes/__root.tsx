@@ -3,6 +3,7 @@ import { Outlet, Link, createRootRoute, HeadContent, Scripts } from "@tanstack/r
 import { Toaster } from "@/components/ui/sonner";
 import { ShakeToReport } from "@/components/ShakeToReport";
 import { initNative } from "@/lib/native";
+import { breadcrumb, captureError } from "@/lib/breadcrumbs";
 
 import appCss from "../styles.css?url";
 
@@ -75,6 +76,16 @@ function RootShell({ children }: { children: React.ReactNode }) {
 function RootComponent() {
   useEffect(() => {
     initNative();
+    breadcrumb("system.boot", { platform: typeof navigator !== "undefined" ? navigator.userAgent : undefined });
+
+    const onError = (e: ErrorEvent) => captureError(e.error ?? e.message, { where: "window.onerror" });
+    const onRejection = (e: PromiseRejectionEvent) => captureError(e.reason, { where: "window.unhandledrejection" });
+    window.addEventListener("error", onError);
+    window.addEventListener("unhandledrejection", onRejection);
+    return () => {
+      window.removeEventListener("error", onError);
+      window.removeEventListener("unhandledrejection", onRejection);
+    };
   }, []);
 
   return (

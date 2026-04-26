@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { downloadReceiptPdf, shareReceiptPdf, type ReceiptData } from "@/lib/receipt";
 import { payUpi } from "@/lib/payments.functions";
+import { breadcrumb, captureError } from "@/lib/breadcrumbs";
 
 const SCANPAY_PERSIST_KEY = "tw-scanpay-flow-v1";
 
@@ -66,6 +67,7 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
     setPayload(parsed);
     setAmount(parsed.amount ?? 0);
     setNote(parsed.note ?? "");
+    breadcrumb("payment.qr_decoded", { upiId: parsed.upiId, payee: parsed.payeeName, amount: parsed.amount ?? undefined });
     setPhase("confirm");
   }, []);
 
@@ -74,6 +76,8 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
     setPhase("processing");
     const amt = amount;
     const noteToSave = note.trim() || payload.note || null;
+    const startedAt = Date.now();
+    breadcrumb("payment.submit_started", { amount: amt, upiId: payload.upiId, payee: payload.payeeName });
 
     // ── Pre-flight client-side fraud check ──
     // Mirrors the server rules so the user gets instant feedback for things
@@ -81,13 +85,16 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
     // these on submit so the check cannot be bypassed.
     const preflight = await scanTransaction({ userId, amount: amt, upiId: payload.upiId });
     if (preflight.blocked) {
+      const blockFlag = preflight.flags.find((f) => f.severity === "block");
+      breadcrumb("fraud.blocked_preflight", { amount: amt, upiId: payload.upiId, fraudRule: blockFlag?.rule, reason: blockFlag?.message }, "warning");
       await logFraudFlags(userId, null, preflight.flags, "blocked");
-      setResultMsg(preflight.flags.find((f) => f.severity === "block")?.message ?? "Payment blocked");
+      setResultMsg(blockFlag?.message ?? "Payment blocked");
       setFailKind("blocked");
       setPhase("failed");
       return;
     }
     if (amt > balance) {
+      breadcrumb("payment.insufficient_preflight", { amount: amt, balance }, "warning");
       setResultMsg("Insufficient balance");
       setFailKind("insufficient");
       setPhase("failed");
@@ -116,7 +123,7 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
       // Network / server function unavailable — fall back to direct insert
       // so the demo flow keeps working in environments where the server
       // function isn't deployed yet.
-      console.warn("[ScanPay] payUpi server function failed, falling back to direct insert:", err);
+      captureError(err, { where: "payment.payUpi", amount: amt, upiId: payload.upiId });
       serverResult = null;
     }
 
@@ -132,6 +139,13 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
       } else {
         setFailKind("generic");
       }
+      breadcrumb("payment.failed", {
+        amount: amt,
+        upiId: payload.upiId,
+        reason: serverResult.reason,
+        message: serverResult.message,
+        durationMs: Date.now() - startedAt,
+      }, "warning");
       setResultMsg(serverResult.message);
       setPhase("failed");
       return;
@@ -149,6 +163,13 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
         upiDeepLink: serverResult.upiDeepLink,
       };
       setSavedTxn(txn);
+      breadcrumb("payment.success", {
+        amount: amt,
+        upiId: payload.upiId,
+        txnId: serverResult.txnId,
+        newBalance: serverResult.newBalance,
+        durationMs: Date.now() - startedAt,
+      });
       setResultMsg(`₹${amt.toFixed(0)} sent to ${payload.payeeName}`);
       if (navigator.vibrate) navigator.vibrate([30, 60, 30]);
       // On a real mobile device, hand off to the user's UPI app immediately.

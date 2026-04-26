@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { setStage as persistStageRemote } from "./auth";
+import { breadcrumb, captureError, setBreadcrumbUser } from "./breadcrumbs";
 
 export type Stage = "STAGE_0" | "STAGE_1" | "STAGE_2" | "STAGE_3" | "STAGE_4" | "STAGE_5";
 
@@ -31,25 +32,31 @@ export const useApp = create<AppState>()(
       fullName: null,
       balance: 2450,
       setStage: (stage) => {
+        const prev = get().stage;
         set({ stage });
+        breadcrumb("kyc.stage_changed", { kycStage: stage, from: prev });
         // Only persist remote if we have an authenticated user. Errors are non-fatal —
         // the local persisted state still allows resume on this device, and the next
         // boot will reconcile via fetchProfile().
         if (get().userId) {
           persistStageRemote(stage).catch((err) => {
-            console.warn("[stage] remote persist failed", err);
+            captureError(err, { where: "store.persistStageRemote", kycStage: stage });
           });
         }
       },
       setStageLocal: (stage) => set({ stage }),
       setSplashSeen: (splashSeen) => set({ splashSeen }),
       setPendingPhone: (pendingPhone) => set({ pendingPhone }),
-      hydrateFromProfile: (p) => set({
-        userId: p.id,
-        fullName: p.full_name,
-        balance: Number(p.balance ?? 2450),
-        stage: p.onboarding_stage,
-      }),
+      hydrateFromProfile: (p) => {
+        set({
+          userId: p.id,
+          fullName: p.full_name,
+          balance: Number(p.balance ?? 2450),
+          stage: p.onboarding_stage,
+        });
+        setBreadcrumbUser({ id: p.id });
+        breadcrumb("auth.hydrated", { kycStage: p.onboarding_stage });
+      },
       reset: () => set({ stage: "STAGE_0", splashSeen: false, pendingPhone: null, userId: null, fullName: null, balance: 2450 }),
     }),
     {
