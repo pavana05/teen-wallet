@@ -849,13 +849,23 @@ export function KycFlow({ onDone }: { onDone: () => void }) {
 }
 
 function DocSlot({
-  side, label, doc, uploading, onPick, onRemove,
+  side, label, doc, uploading, progress, retryAvailable, disabled, onPick, onRetry, onRemove,
 }: {
   side: DocSide;
   label: string;
   doc: DocState;
   uploading: boolean;
+  /** 0–100 upload progress; only meaningful while `uploading` is true. */
+  progress: number;
+  /** True when the previous upload attempt failed transiently and a one-tap
+   *  retry (using the cached File) is available. */
+  retryAvailable: boolean;
+  /** Disables BOTH the file picker and the retry button — used to prevent
+   *  duplicate concurrent uploads while the sibling slot is busy, and to
+   *  block uploads when the bucket-access preflight failed. */
+  disabled: boolean;
   onPick: (f: File) => void;
+  onRetry: () => void;
   onRemove: () => void;
 }) {
   const id = `kyc-doc-${side}`;
@@ -866,24 +876,64 @@ function DocSlot({
           <Check className="w-5 h-5 text-primary" />
           <p className="text-xs mt-1 truncate max-w-full">{doc.name}</p>
           <p className="text-[10px] text-muted-foreground">{(doc.size / 1024).toFixed(0)} KB</p>
-          <button onClick={onRemove} className="mt-1 text-[10px] text-muted-foreground hover:text-destructive flex items-center gap-1">
+          <button
+            onClick={onRemove}
+            disabled={disabled}
+            className="mt-1 text-[10px] text-muted-foreground hover:text-destructive disabled:opacity-50 flex items-center gap-1"
+          >
             <X className="w-3 h-3" /> Remove
           </button>
         </>
       ) : uploading ? (
         <>
           <Loader2 className="w-5 h-5 animate-spin text-primary" />
-          <p className="text-xs mt-1 text-muted-foreground">Uploading…</p>
+          <p className="text-xs mt-1 text-muted-foreground">Uploading… {progress}%</p>
+          {/* Determinate progress bar driven by XHR `progress` events. */}
+          <div className="w-full h-1 mt-2 rounded-full bg-white/10 overflow-hidden">
+            <div
+              className="h-full bg-primary transition-[width] duration-150"
+              style={{ width: `${progress}%` }}
+              role="progressbar"
+              aria-valuenow={progress}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-label={`Aadhaar ${label} upload progress`}
+            />
+          </div>
+        </>
+      ) : retryAvailable ? (
+        // Network failed mid-upload — offer one-tap retry without re-picking
+        // the file (and without disturbing the selfie state on Step 3).
+        <>
+          <AlertTriangle className="w-5 h-5 text-destructive" />
+          <p className="text-xs mt-1 font-medium">Upload failed</p>
+          <button
+            onClick={onRetry}
+            disabled={disabled}
+            className="mt-1 text-[11px] text-primary inline-flex items-center gap-1 hover:underline disabled:opacity-50"
+            aria-label={`Retry uploading Aadhaar ${label}`}
+          >
+            <RefreshCw className="w-3 h-3" /> Retry upload
+          </button>
         </>
       ) : (
         <>
-          <label htmlFor={id} className="cursor-pointer flex flex-col items-center">
+          <label
+            htmlFor={id}
+            className={`cursor-pointer flex flex-col items-center ${disabled ? "opacity-50 pointer-events-none" : ""}`}
+          >
             <Upload className="w-5 h-5 text-primary" />
             <p className="text-xs mt-1 font-medium">Aadhaar {label}</p>
             <p className="text-[10px] text-muted-foreground">Tap to upload</p>
           </label>
-          <input id={id} type="file" accept="image/*,application/pdf" className="hidden"
-            onChange={(e) => { const f = e.target.files?.[0]; if (f) onPick(f); e.currentTarget.value = ""; }} />
+          <input
+            id={id}
+            type="file"
+            accept="image/*,application/pdf"
+            className="hidden"
+            disabled={disabled}
+            onChange={(e) => { const f = e.target.files?.[0]; if (f) onPick(f); e.currentTarget.value = ""; }}
+          />
         </>
       )}
     </div>
