@@ -1082,6 +1082,18 @@
   box-shadow: 0 0 24px rgba(255,255,255,.18), 0 12px 28px -10px rgba(0,0,0,.7);
   border:1px solid rgba(255,255,255,.5);
 }
+.hp-scan-card--image{
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  min-height: 132px;
+}
+.hp-scan-card--image .hp-scan-card-overlay{
+  position:absolute; inset:0; z-index:0; pointer-events:none;
+  background:
+    linear-gradient(90deg, rgba(8,9,12,.82) 0%, rgba(8,9,12,.55) 55%, rgba(8,9,12,.25) 100%),
+    linear-gradient(180deg, rgba(0,0,0,.15) 0%, rgba(0,0,0,.45) 100%);
+}
 
 /* Section eyebrow + hairline */
 .hp-section-head{ display:flex; align-items:baseline; justify-content:space-between; margin-bottom: 16px; }
