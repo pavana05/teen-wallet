@@ -353,8 +353,9 @@ function KycQueue() {
       setShowReject(false);
       setRejectReason("");
       setRejectNote("");
-      setPage(1);
-      await fetchPage(1);
+      setCursor(null);
+      setRows([]);
+      await fetchList(true);
     } catch (e: any) {
       setErr(e.message || "Action failed");
       toast.error(e?.message || "Action failed");
@@ -494,7 +495,7 @@ function KycQueue() {
             Review and decide identity verifications submitted by users.
           </p>
         </div>
-        <button onClick={() => { setPage(1); void fetchPage(1); }} className="a-btn-ghost" disabled={initialLoading}>
+        <button onClick={() => { setCursor(null); setRows([]); void fetchList(true); }} className="a-btn-ghost" disabled={initialLoading}>
           <RefreshCw size={14} className={initialLoading ? "animate-spin" : ""} /> Refresh
         </button>
       </div>
@@ -524,10 +525,11 @@ function KycQueue() {
         ))}
       </div>
 
-      <ErrorState
+      <ShakeErrorPanel
         error={err}
         retrying={initialLoading}
-        onRetry={() => { setPage(1); void fetchPage(1); }}
+        onRetry={() => { setCursor(null); setRows([]); void fetchList(true); }}
+        title="Couldn’t load the KYC queue"
       />
 
 
