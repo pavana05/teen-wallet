@@ -563,11 +563,15 @@ function VirtualCardModal({ onClose }: { onClose: () => void }) {
 /* ───────── building blocks ───────── */
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  const id = useMemo(
+    () => `pp-sec-${title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
+    [title],
+  );
   return (
-    <div>
-      <p className="pp-section-title">{title}</p>
+    <section aria-labelledby={id}>
+      <p id={id} className="pp-section-title">{title}</p>
       <div className="pp-card divide-y divide-white/5">{children}</div>
-    </div>
+    </section>
   );
 }
 
