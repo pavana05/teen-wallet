@@ -23,45 +23,87 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
   const [step, setStep] = useState<Step>("phone");
   const [phone, setPhone] = useState("");
   const [error, setError] = useState("");
+  const [errorKind, setErrorKind] = useState<OtpErrorKind | null>(null);
   const [busy, setBusy] = useState(false);
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
-  const [resendIn, setResendIn] = useState(30);
+  const [resendIn, setResendIn] = useState(RESEND_COOLDOWN_S);
+  const [resendBlockedUntil, setResendBlockedUntil] = useState<number | null>(null);
   const inputs = useRef<(HTMLInputElement | null)[]>([]);
+  const otpRowRef = useRef<HTMLDivElement | null>(null);
   const { setPendingPhone, hydrateFromProfile } = useApp();
 
-  // If the user refreshed mid-celebration, restore them to the success
-  // screen (within the short TTL window) instead of dropping back to OTP.
-  // We still gate on a real session to avoid showing "verified" to a logged-out user.
+  // Restore mid-celebration session, OR a persisted in-progress OTP attempt.
   useEffect(() => {
-    if (!isJustVerified()) return;
-    let cancelled = false;
-    void (async () => {
-      const { data } = await supabase.auth.getUser();
-      if (!cancelled && data.user) setStep("verified");
-    })();
-    return () => { cancelled = true; };
+    if (isJustVerified()) {
+      let cancelled = false;
+      void (async () => {
+        const { data } = await supabase.auth.getUser();
+        if (!cancelled && data.user) setStep("verified");
+      })();
+      return () => { cancelled = true; };
+    }
+    const persisted = loadOtpState();
+    if (persisted && persisted.phone) {
+      setPhone(persisted.phone);
+      setOtp(persisted.digits.length === 6 ? persisted.digits : ["", "", "", "", "", ""]);
+      setError(persisted.error || "");
+      setErrorKind(persisted.errorKind);
+      setResendBlockedUntil(persisted.resendBlockedUntil);
+      setStep("otp");
+    }
   }, []);
 
+  // Resend cooldown ticker — also honors a server-side rate-limit window.
   useEffect(() => {
     if (step !== "otp") return;
-    setResendIn(30);
-    const t = setInterval(() => setResendIn((v) => (v > 0 ? v - 1 : 0)), 1000);
+    const computeRemaining = () => {
+      if (resendBlockedUntil && resendBlockedUntil > Date.now()) {
+        return Math.ceil((resendBlockedUntil - Date.now()) / 1000);
+      }
+      return resendIn;
+    };
+    setResendIn((v) => (resendBlockedUntil && resendBlockedUntil > Date.now() ? Math.ceil((resendBlockedUntil - Date.now()) / 1000) : v));
+    const t = setInterval(() => setResendIn(() => Math.max(0, computeRemaining() - 1)), 1000);
     return () => clearInterval(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, resendBlockedUntil]);
+
+  // Persist OTP UX state on every meaningful change so refresh doesn't lose progress.
+  useEffect(() => {
+    if (step !== "otp") return;
+    saveOtpState({ phone, digits: otp, error, errorKind, busy, resendBlockedUntil });
+  }, [step, phone, otp, error, errorKind, busy, resendBlockedUntil]);
+
+  // Auto-focus first empty OTP slot when entering the OTP step.
+  useEffect(() => {
+    if (step !== "otp") return;
+    const idx = otp.findIndex((d) => !d);
+    inputs.current[idx === -1 ? 5 : idx]?.focus();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step]);
 
   const valid = /^[6-9]\d{9}$/.test(phone);
   const formatted = phone.replace(/(\d{5})(\d{0,5})/, (_, a, b) => (b ? `${a} ${b}` : a));
+  const resendBlocked = resendIn > 0 || (resendBlockedUntil !== null && resendBlockedUntil > Date.now());
 
   async function handleSendOtp() {
     if (!valid) { setError("Enter a valid Indian mobile number"); return; }
-    setError(""); setBusy(true);
+    setError(""); setErrorKind(null); setBusy(true);
     try {
       const r = await sendOtp(phone);
       setPendingPhone("+91" + phone);
       toast.success(`OTP sent — dev code: ${r.devOtp}`);
+      setResendIn(RESEND_COOLDOWN_S);
+      setResendBlockedUntil(null);
       setStep("otp");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to send OTP");
+      const { message, kind } = classifyOtpError(e);
+      setError(message); setErrorKind(kind);
+      void logOtpErrorEvent(kind, e instanceof Error ? e.message : String(e), phone);
+      if (kind === "rate_limited") {
+        // Block resend for 60s when rate-limited.
+        setResendBlockedUntil(Date.now() + 60_000);
+      }
     } finally { setBusy(false); }
   }
 
