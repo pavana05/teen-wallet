@@ -358,25 +358,37 @@ export function Home() {
       <div className="hp-divider mt-8" />
 
       {/* ===== PAYMENT HISTORY ===== */}
-      <div className="px-5 mt-8">
+      <section
+        id="hp-payment-history"
+        aria-label="Payment history"
+        aria-busy={loading}
+        aria-live="polite"
+        tabIndex={-1}
+        className="px-5 mt-8 scroll-mt-4"
+      >
         <div className="hp-section-head">
           <div>
             <span className="hp-section-eyebrow">Activity</span>
             <h3 className="hp-section-title">Payment history</h3>
           </div>
-          <button onClick={handleRefresh} className="hp-section-link inline-flex items-center gap-1.5">
-            <RefreshCw className={`w-3 h-3 ${refreshing ? "animate-spin" : ""}`} /> Refresh
+          <button
+            type="button"
+            onClick={handleRefresh}
+            aria-label={refreshing ? "Refreshing payment history" : "Refresh payment history"}
+            className="hp-section-link inline-flex items-center gap-1.5"
+          >
+            <RefreshCw className={`w-3 h-3 ${refreshing ? "animate-spin" : ""}`} aria-hidden="true" /> Refresh
           </button>
         </div>
         {loading ? (
-          <div className="space-y-2">
+          <div className="space-y-2" aria-hidden="true">
             {[0, 1, 2].map((i) => (
               <div key={i} className="hp-skeleton-row" />
             ))}
           </div>
         ) : error ? (
-          <div key={`hist-err-${shakeKey}`} className="hp-empty hp-shake-error tw-slide-up">
-            <div className="hp-empty-illu">
+          <div key={`hist-err-${shakeKey}`} role="alert" className="hp-empty hp-shake-error hp-fade-in">
+            <div className="hp-empty-illu" aria-hidden="true">
               <RefreshCw className="w-7 h-7 text-white/85" strokeWidth={1.6} />
             </div>
             <p className="hp-empty-title">Couldn't load payments</p>
@@ -387,39 +399,47 @@ export function Home() {
               className="hp-cta-pill"
               aria-label="Retry loading payment history"
             >
-              <RefreshCw className="w-3.5 h-3.5" strokeWidth={2.2} />
+              <RefreshCw className="w-3.5 h-3.5" strokeWidth={2.2} aria-hidden="true" />
               <span>Retry</span>
             </button>
           </div>
         ) : txns.length === 0 ? (
-          <div className="hp-empty tw-slide-up">
-            <div className="hp-empty-illu">
+          <div className="hp-empty hp-fade-in">
+            <div className="hp-empty-illu" aria-hidden="true">
               <Inbox className="w-7 h-7 text-white/85" strokeWidth={1.6} />
             </div>
             <p className="hp-empty-title">No transactions yet</p>
             <p className="hp-empty-sub">Tap the scan button below to make your first payment — it'll show up here instantly.</p>
           </div>
         ) : (
-          <div className="space-y-2 tw-slide-up">
+          <div className="space-y-2 hp-fade-in" role="list" aria-label="Recent transactions">
             {txns.map((t) => <TxnRow key={t.id} txn={t} />)}
           </div>
         )}
-      </div>
+      </section>
 
       {/* trailing breathing room above floating nav */}
       <div className="h-6" />
 
       {/* ===== FLOATING BOTTOM NAV ===== */}
-      <div className="fixed bottom-5 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-[400px] z-50">
+      <nav
+        aria-label="Primary"
+        className="fixed bottom-5 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-[400px] z-50"
+      >
         <div className="flex items-center gap-3">
-          <div className="hp-nav flex-1">
+          <div className="hp-nav flex-1" role="tablist">
             <NavItem icon={HomeIcon} label="Home" active />
             <NavItem icon={Gift} label="Shop" />
             <NavItem icon={CreditCard} label="Card" />
             <NavItem icon={User} label="Profile" onClick={() => setShowProfile(true)} />
           </div>
-          <button onClick={() => setView("scan")} className="hp-scan-fab" aria-label="Scan">
-            <ScanLine className="w-6 h-6 text-black" strokeWidth={2.4} />
+          <button
+            type="button"
+            onClick={() => setView("scan")}
+            className="hp-scan-fab"
+            aria-label="Scan to pay"
+          >
+            <ScanLine className="w-6 h-6 text-black" strokeWidth={2.4} aria-hidden="true" />
           </button>
         </div>
       </div>
