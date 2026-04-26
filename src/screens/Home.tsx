@@ -204,10 +204,17 @@ export function Home() {
       className="hp-root flex-1 flex flex-col tw-slide-up pb-32 overflow-y-auto relative"
       style={{ transform: pullY ? `translateY(${pullY}px)` : undefined, transition: pullY ? "none" : "transform 220ms ease" }}
     >
+      {/* Keyboard skip-link to payment history */}
+      <a href="#hp-payment-history" className="hp-skip-link">Skip to payment history</a>
+
       {/* Pull-to-refresh indicator */}
       {(pullY > 0 || refreshing) && (
-        <div className="absolute top-2 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/60 backdrop-blur-md border border-white/10">
-          <RefreshCw className={`w-3.5 h-3.5 text-white ${refreshing ? "animate-spin" : ""}`} style={{ transform: !refreshing ? `rotate(${pullY * 4}deg)` : undefined }} />
+        <div
+          role="status"
+          aria-live="polite"
+          className="absolute top-2 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/60 backdrop-blur-md border border-white/10"
+        >
+          <RefreshCw className={`w-3.5 h-3.5 text-white ${refreshing ? "animate-spin" : ""}`} style={{ transform: !refreshing ? `rotate(${pullY * 4}deg)` : undefined }} aria-hidden="true" />
           <span className="text-[11px] text-white/80">{refreshing ? "Refreshing…" : pullY > 60 ? "Release to refresh" : "Pull to refresh"}</span>
         </div>
       )}
