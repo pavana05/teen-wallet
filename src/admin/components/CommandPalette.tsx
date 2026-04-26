@@ -390,9 +390,10 @@ export function CommandPalette() {
         </div>
 
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 14px", borderTop: "1px solid var(--a-border)", fontSize: 11, color: "var(--a-muted)" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
             <span><kbd style={kbdStyle}>↑↓</kbd> navigate</span>
             <span><kbd style={kbdStyle}>↵</kbd> select</span>
+            <span><kbd style={kbdStyle}>⌘C</kbd> copy</span>
             <span><kbd style={kbdStyle}>g</kbd> + <kbd style={kbdStyle}>u/t/k/f/d</kbd> jump</span>
           </div>
           <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
