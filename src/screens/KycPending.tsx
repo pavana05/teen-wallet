@@ -604,7 +604,38 @@ function SealBadge({ variant }: { variant: "green" | "red" }) {
 
 /* ----------------------------- Approved View ----------------------------- */
 
+// Auto-redirect timing — gives the seal animation + shimmer time to play through
+// before whisking the user into their wallet. Tuned to match the bounce duration.
+const APPROVED_AUTO_REDIRECT_MS = 3200;
+// Standard new-account wallet limit shown across approved/rejected helper copy.
+// Kept as a single constant so currency formatting + value stay consistent.
+const WALLET_LIMIT_INR = 10_000;
+const fmtINR = (n: number) =>
+  `₹${n.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
+
 function ApprovedView({ onContinue, onClose }: { onContinue: () => void; onClose: () => void }) {
+  // Countdown that drives the visible "Continuing in Ns…" affordance and the
+  // automatic navigation. The user can tap Continue to skip the wait at any
+  // time — both paths funnel through the same `onContinue` handler so they're
+  // idempotent and the auto-timer is cleared on manual navigation.
+  const [secondsLeft, setSecondsLeft] = useState(Math.ceil(APPROVED_AUTO_REDIRECT_MS / 1000));
+  const continuedRef = useRef(false);
+
+  const handleContinue = () => {
+    if (continuedRef.current) return;
+    continuedRef.current = true;
+    onContinue();
+  };
+
+  useEffect(() => {
+    const tick = setInterval(() => {
+      setSecondsLeft((s) => (s > 0 ? s - 1 : 0));
+    }, 1000);
+    const redirect = setTimeout(handleContinue, APPROVED_AUTO_REDIRECT_MS);
+    return () => { clearInterval(tick); clearTimeout(redirect); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return (
     <div className="kyc-result-root kyc-approved-stage">
       <div className="kyc-result-glow green" />
@@ -619,17 +650,27 @@ function ApprovedView({ onContinue, onClose }: { onContinue: () => void; onClose
         <div className="kyc-seal-bounce">
           <SealBadge variant="green" />
         </div>
-        <h2 className="kyc-approved-title mt-8 text-white text-[24px] font-semibold tracking-tight">
+        <h2 className="kyc-approved-title mt-8 text-white text-[24px] font-semibold tracking-tight text-center">
           KYC Approved
         </h2>
-        <p className="kyc-approved-sub mt-2 text-white/60 text-sm">
-          Taking you to your wallet…
+        <p className="kyc-approved-sub mt-2 text-white/60 text-sm text-center max-w-[280px]">
+          Your wallet is live with a daily limit of {fmtINR(WALLET_LIMIT_INR)}.
+        </p>
+        <p
+          className="mt-3 text-[12px] text-white/45 text-center"
+          role="status"
+          aria-live="polite"
+          suppressHydrationWarning
+        >
+          {secondsLeft > 0
+            ? `Taking you to your wallet in ${secondsLeft}s…`
+            : "Opening your wallet…"}
         </p>
       </div>
 
       <div className="relative z-10 px-6 pb-8 safe-bottom">
-        <button className="kyc-continue-btn primary" onClick={onContinue}>
-          Continue
+        <button className="kyc-continue-btn primary" onClick={handleContinue}>
+          Continue to wallet
         </button>
       </div>
     </div>
@@ -638,7 +679,18 @@ function ApprovedView({ onContinue, onClose }: { onContinue: () => void; onClose
 
 /* ----------------------------- Rejected View ----------------------------- */
 
-function RejectedView({ reason, onRetake, onClose }: { reason: string | null; onRetake: () => void; onClose: () => void }) {
+function RejectedView({
+  reason,
+  providerRef,
+  onRetake,
+  onClose,
+}: {
+  reason: string | null;
+  providerRef: string | null;
+  onRetake: () => void;
+  onClose: () => void;
+}) {
+  const hasProviderReason = !!reason && reason.trim().length > 0;
   return (
     <div className="kyc-result-root">
       <div className="kyc-result-glow red" />
@@ -653,22 +705,38 @@ function RejectedView({ reason, onRetake, onClose }: { reason: string | null; on
           Verification failed
         </h1>
         <p className="text-white/60 text-sm mt-2 text-center max-w-[280px]">
-          We couldn't verify your KYC. See the reason below and try again.
+          We couldn't verify your KYC. Retry to unlock your {fmtINR(WALLET_LIMIT_INR)} wallet limit.
         </p>
 
         <div className="kyc-reason-card mt-6 w-full max-w-[320px]">
-          <p className="text-[10px] uppercase tracking-[0.18em] text-red-400/90 font-semibold">
-            Reason for rejection
-          </p>
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-[10px] uppercase tracking-[0.18em] text-red-400/90 font-semibold">
+              Rejection reason
+            </p>
+            <span
+              className={`text-[10px] uppercase tracking-[0.14em] font-semibold ${
+                hasProviderReason ? "text-red-300/80" : "text-white/40"
+              }`}
+            >
+              {hasProviderReason ? "From verifier" : "No detail provided"}
+            </span>
+          </div>
           <p className="text-sm text-white/90 mt-1.5 leading-relaxed">
-            {reason ?? "Your selfie didn't match the Aadhaar photo clearly. Please retake in good lighting with a neutral expression."}
+            {hasProviderReason
+              ? reason
+              : "The verification provider didn't return a specific reason. Please retake your selfie and re-upload your Aadhaar in good lighting."}
           </p>
+          {providerRef && (
+            <p className="text-[10.5px] text-white/40 mt-3 font-mono break-all">
+              Reference ID: {providerRef}
+            </p>
+          )}
         </div>
       </div>
 
       <div className="relative z-10 px-6 pb-8 safe-bottom">
         <button className="kyc-continue-btn" onClick={onRetake}>
-          <RefreshCw className="w-4 h-4 mr-2" /> Continue
+          <RefreshCw className="w-4 h-4 mr-2" /> Retry verification
         </button>
       </div>
     </div>
