@@ -293,7 +293,7 @@ function KycQueue() {
     return () => { supabase.removeChannel(ch); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters.status]);
-  }, [fetchPage]);
+  
 
   // Fetch signed URLs whenever opening a review
   useEffect(() => {
