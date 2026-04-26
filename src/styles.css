@@ -39,34 +39,80 @@
 
 :root {
   --radius: 1rem;
-  /* Teen Wallet — pure black + neon lime */
-  --background: oklch(0.08 0 0);
-  --foreground: oklch(0.97 0 0);
-  --card: oklch(0.12 0 0);
-  --card-foreground: oklch(0.97 0 0);
-  --popover: oklch(0.12 0 0);
-  --popover-foreground: oklch(0.97 0 0);
-  /* Neon lime #C8F135 */
-  --primary: oklch(0.92 0.21 122);
-  --primary-foreground: oklch(0.08 0 0);
-  --secondary: oklch(0.18 0 0);
-  --secondary-foreground: oklch(0.97 0 0);
-  --muted: oklch(0.18 0 0);
-  --muted-foreground: oklch(0.62 0 0);
-  --accent: oklch(0.92 0.21 122);
-  --accent-foreground: oklch(0.08 0 0);
-  --destructive: oklch(0.62 0.24 27);
-  --destructive-foreground: oklch(0.97 0 0);
+  /* Teen Wallet — Premium Dark (default).
+   * Deep graphite surfaces, soft champagne accent, refined neutrals. */
+  --background: oklch(0.10 0.004 270);
+  --foreground: oklch(0.97 0.005 90);
+  --card: oklch(0.14 0.005 270);
+  --card-foreground: oklch(0.97 0.005 90);
+  --popover: oklch(0.14 0.005 270);
+  --popover-foreground: oklch(0.97 0.005 90);
+  /* Champagne / soft platinum accent — premium, not neon */
+  --primary: oklch(0.86 0.045 85);
+  --primary-foreground: oklch(0.14 0.005 270);
+  --secondary: oklch(0.20 0.005 270);
+  --secondary-foreground: oklch(0.97 0.005 90);
+  --muted: oklch(0.20 0.005 270);
+  --muted-foreground: oklch(0.66 0.008 90);
+  --accent: oklch(0.86 0.045 85);
+  --accent-foreground: oklch(0.14 0.005 270);
+  --destructive: oklch(0.62 0.18 25);
+  --destructive-foreground: oklch(0.97 0.005 90);
   --border: oklch(1 0 0 / 0.08);
   --input: oklch(1 0 0 / 0.06);
-  --ring: oklch(0.92 0.21 122);
+  --ring: oklch(0.86 0.045 85);
   --glass: oklch(1 0 0 / 0.04);
   --glass-border: oklch(1 0 0 / 0.08);
+
+  /* Premium semantic tokens (used by raw-CSS components) */
+  --premium-accent: #d4c5a0;
+  --premium-accent-2: #b8a37a;
+  --premium-accent-soft: rgba(212, 197, 160, 0.12);
+  --premium-accent-glow: rgba(212, 197, 160, 0.28);
+  --premium-grad: linear-gradient(135deg, #e8dcc0 0%, #c9b896 50%, #a08a64 100%);
+  --premium-grad-soft: linear-gradient(135deg, rgba(232,220,192,.20), rgba(160,138,100,.10));
+  --premium-ink: #0c0c0e;
+  --premium-surface: #141417;
+  --premium-surface-2: #1a1a1e;
+  --premium-elevated: #1f1f24;
+  --premium-hairline: rgba(255,255,255,0.07);
+  --premium-hairline-strong: rgba(255,255,255,0.12);
+}
+
+/* Premium Light (opt-in via .light or [data-theme="light"]) */
+.light, [data-theme="light"] {
+  --background: oklch(0.98 0.005 85);
+  --foreground: oklch(0.18 0.008 270);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.18 0.008 270);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.18 0.008 270);
+  --primary: oklch(0.55 0.05 85);
+  --primary-foreground: oklch(0.98 0.005 85);
+  --secondary: oklch(0.94 0.005 85);
+  --secondary-foreground: oklch(0.22 0.008 270);
+  --muted: oklch(0.95 0.005 85);
+  --muted-foreground: oklch(0.45 0.008 270);
+  --accent: oklch(0.55 0.05 85);
+  --accent-foreground: oklch(0.98 0.005 85);
+  --destructive: oklch(0.55 0.20 25);
+  --destructive-foreground: oklch(0.98 0.005 85);
+  --border: oklch(0.18 0.008 270 / 0.10);
+  --input: oklch(0.18 0.008 270 / 0.06);
+  --ring: oklch(0.55 0.05 85);
+  --glass: oklch(0.18 0.008 270 / 0.03);
+  --glass-border: oklch(0.18 0.008 270 / 0.08);
+  --premium-hairline: rgba(0,0,0,0.06);
+  --premium-hairline-strong: rgba(0,0,0,0.12);
+  --premium-surface: #fafaf7;
+  --premium-surface-2: #f3f2ee;
+  --premium-elevated: #ebeae5;
+  --premium-ink: #f6f5f1;
 }
 
 .dark {
-  --background: oklch(0.08 0 0);
-  --foreground: oklch(0.97 0 0);
+  --background: oklch(0.10 0.004 270);
+  --foreground: oklch(0.97 0.005 90);
 }
 
 @layer base {
@@ -2581,9 +2627,202 @@
   0% { transform: translateX(-120%); }
   100% { transform: translateX(120%); }
 }
-.vcard-shimmer::after {
-  content: ""; position: absolute; inset: 0;
-  background: linear-gradient(110deg, transparent 35%, rgba(255,255,255,.18) 50%, transparent 65%);
-  animation: vcard-shimmer-sweep 2.6s ease-in-out infinite;
-  pointer-events: none;
 }
+
+/* =====================================================================
+ * PREMIUM THEME OVERRIDES — removes neon lime + neon orange/purple/cyan
+ * triad in favour of a unified champagne / platinum metallic system.
+ * Appended last so cascade order wins. Tokens come from :root above.
+ * ===================================================================== */
+
+/* Replace lime glow & shimmer with subtle champagne luminance */
+.lime-glow {
+  box-shadow:
+    0 0 30px -8px var(--premium-accent-glow),
+    0 0 80px -28px var(--premium-accent-glow);
+}
+.btn-primary { box-shadow: 0 14px 30px -14px var(--premium-accent-glow); }
+.tw-input:focus { box-shadow: 0 4px 20px -10px var(--premium-accent-glow); }
+.tw-shimmer {
+  background: linear-gradient(90deg, rgba(255,255,255,0.04) 0%, rgba(212,197,160,0.18) 50%, rgba(255,255,255,0.04) 100%);
+  background-size: 200% 100%;
+}
+
+/* Quick actions / balance card — premium graphite + champagne accent
+ * (was neon-lime gradient). Keeps the dark-on-card readability via
+ * a near-white text override below. */
+.qa-balance-card {
+  background:
+    radial-gradient(80% 100% at 0% 0%, #2a2a30 0%, #1a1a1e 60%, #101012 100%);
+  border: 1px solid var(--premium-hairline-strong);
+  box-shadow:
+    0 30px 60px -28px rgba(0,0,0,.7),
+    inset 0 1px 0 rgba(255,255,255,.06);
+}
+.qa-balance-card,
+.qa-balance-card * { color: rgba(255,255,255,.95); }
+.qa-balance-card .qa-eye { background: rgba(255,255,255,.08); }
+.qa-balance-card .qa-copy {
+  background: var(--premium-accent-soft);
+  color: var(--premium-accent);
+  border: 1px solid rgba(212,197,160,0.25);
+}
+.qa-balance-shine {
+  background: linear-gradient(115deg, transparent 35%, rgba(212,197,160,.18) 50%, transparent 65%);
+}
+.qa-stat-bar > span {
+  background: var(--premium-grad);
+  box-shadow: 0 0 12px var(--premium-accent-glow);
+}
+.qa-cta {
+  background: var(--premium-grad);
+  color: var(--premium-ink);
+  box-shadow: 0 18px 40px -18px var(--premium-accent-glow), inset 0 1px 0 rgba(255,255,255,.35);
+}
+.qa-chip-active {
+  background: var(--premium-accent);
+  color: var(--premium-ink);
+  box-shadow: 0 8px 20px -10px var(--premium-accent-glow);
+}
+.qa-history-hero {
+  background:
+    radial-gradient(80% 80% at 100% 100%, rgba(212,197,160,.10), transparent 60%),
+    linear-gradient(135deg, rgba(255,255,255,.05), rgba(255,255,255,.02));
+}
+
+/* Notifications panel hero — drop neon lime */
+.np-hero {
+  background:
+    radial-gradient(120% 100% at 100% 0%, rgba(212,197,160,.12), transparent 55%),
+    linear-gradient(135deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
+}
+.np-hero-ico {
+  background: var(--premium-grad);
+  box-shadow: 0 12px 24px -12px var(--premium-accent-glow), inset 0 1px 0 rgba(255,255,255,.35);
+}
+
+/* ScanPay v2 tracking dot */
+.sp2-state-tracking {
+  background: var(--premium-accent) !important;
+  box-shadow: 0 0 12px var(--premium-accent-glow) !important;
+}
+
+/* ───── Admin shell — swap neon lime accent for premium champagne ───── */
+.admin-shell {
+  --a-accent: #d4c5a0;
+  --a-accent-soft: rgba(212, 197, 160, 0.12);
+  --a-grad-accent: linear-gradient(135deg, #e8dcc0 0%, #c9b896 100%);
+  background:
+    radial-gradient(1200px 600px at 0% -10%, rgba(212,197,160,0.04), transparent 60%),
+    radial-gradient(900px 500px at 100% 0%, rgba(255,255,255,0.02), transparent 70%),
+    var(--a-bg) !important;
+}
+.admin-shell .a-input:focus {
+  border-color: var(--a-accent);
+  box-shadow: 0 0 0 3px rgba(212,197,160,0.14);
+}
+.admin-shell .a-btn {
+  background: var(--a-grad-accent);
+  color: #14110a;
+  box-shadow: 0 4px 14px -4px rgba(212,197,160,0.32);
+}
+
+/* ───── Profile panel — unify orange/purple/cyan triad to champagne ───── */
+.pp-aurora {
+  background:
+    radial-gradient(40% 28% at 12% 6%, rgba(212,197,160,.16), transparent 65%),
+    radial-gradient(38% 26% at 92% 14%, rgba(255,255,255,.06), transparent 65%),
+    radial-gradient(55% 32% at 50% 102%, rgba(212,197,160,.08), transparent 65%);
+}
+.pp-hero {
+  background:
+    radial-gradient(120% 80% at 0% 0%, rgba(212,197,160,.10), transparent 55%),
+    radial-gradient(120% 80% at 100% 0%, rgba(255,255,255,.04), transparent 55%),
+    linear-gradient(180deg, rgba(255,255,255,.07), rgba(255,255,255,.012) 60%),
+    rgba(20,20,23,.72);
+}
+.pp-avatar {
+  background:
+    radial-gradient(120% 100% at 0% 0%, rgba(255,255,255,.30), transparent 55%),
+    var(--premium-grad);
+  color: var(--premium-ink);
+  box-shadow:
+    0 14px 36px -14px var(--premium-accent-glow),
+    inset 0 1px 0 rgba(255,255,255,.35),
+    inset 0 -8px 18px rgba(0,0,0,.18);
+}
+.pp-avatar-wrap::before {
+  background: conic-gradient(from 140deg, #e8dcc0, #c9b896, #a08a64, #e8dcc0);
+  opacity: .65;
+}
+.pp-section-title::before {
+  background: var(--premium-grad);
+  box-shadow: 0 0 8px var(--premium-accent-glow);
+}
+.pp-switch-on {
+  background: var(--premium-grad);
+  box-shadow:
+    0 0 0 1px rgba(212,197,160,.35),
+    0 6px 16px -8px var(--premium-accent-glow);
+}
+.pp-chip-active {
+  background: var(--premium-grad-soft);
+  border-color: rgba(212,197,160,.45);
+  color: #fff;
+}
+.pp-btn-primary {
+  background: var(--premium-grad);
+  color: var(--premium-ink);
+  box-shadow:
+    0 14px 30px -14px var(--premium-accent-glow),
+    inset 0 1px 0 rgba(255,255,255,.35),
+    inset 0 -2px 0 rgba(0,0,0,.10);
+}
+.pp-progress-fill {
+  background: var(--premium-grad);
+  box-shadow: 0 0 12px var(--premium-accent-glow);
+}
+.pp-field input:focus { border-color: rgba(212,197,160,.55); }
+
+/* ───── Profile skeletons — richer, content-shaped ───── */
+.pp-skel-2 {
+  position: relative; overflow: hidden;
+  background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02));
+  border: 1px solid var(--premium-hairline);
+  border-radius: 14px;
+}
+.pp-skel-2::after {
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.07), transparent);
+  transform: translateX(-100%);
+  animation: pp-shimmer 1.6s ease-in-out infinite;
+}
+.pp-skel-line {
+  height: 10px; border-radius: 6px;
+  background: rgba(255,255,255,.06);
+  position: relative; overflow: hidden;
+}
+.pp-skel-line::after {
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.08), transparent);
+  transform: translateX(-100%);
+  animation: pp-shimmer 1.6s ease-in-out infinite;
+}
+
+/* Light-theme contrast tweaks for premium components inside .light */
+.light .pp-hero,
+[data-theme="light"] .pp-hero {
+  background:
+    radial-gradient(120% 80% at 0% 0%, rgba(160,138,100,.10), transparent 55%),
+    linear-gradient(180deg, rgba(0,0,0,.02), rgba(0,0,0,.01)),
+    #ffffff;
+  border: 1px solid var(--premium-hairline);
+  color: var(--foreground);
+}
+.light .pp-card,
+[data-theme="light"] .pp-card {
+  background: #fff;
+  border: 1px solid var(--premium-hairline);
+  color: var(--foreground);
+}
+

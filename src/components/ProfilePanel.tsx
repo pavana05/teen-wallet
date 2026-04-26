@@ -183,19 +183,26 @@ export function ProfilePanel({ onClose }: Props) {
   }[kyc];
 
   return (
-    <div className="qa-root absolute inset-0 z-[60] flex flex-col bg-background overflow-hidden">
+    <div
+      className="qa-root absolute inset-0 z-[60] flex flex-col bg-background overflow-hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="profile-panel-title"
+      aria-describedby="profile-panel-desc"
+    >
       <div className="qa-bg" />
       <div className="qa-grid" />
-      <div className="pp-aurora" />
+      <div className="pp-aurora" aria-hidden="true" />
 
       {/* header */}
-      <div className="relative z-10 flex items-center justify-between px-5 pt-7 pb-2">
-        <button onClick={onClose} aria-label="Back" className="qa-icon-btn">
-          <ArrowLeft className="w-5 h-5 text-white" strokeWidth={2} />
+      <header className="relative z-10 flex items-center justify-between px-5 pt-7 pb-2">
+        <button onClick={onClose} aria-label="Back to home" className="qa-icon-btn">
+          <ArrowLeft className="w-5 h-5 text-white" strokeWidth={2} aria-hidden="true" />
         </button>
-        <p className="text-[15px] font-semibold text-white tracking-tight">Profile</p>
+        <h1 id="profile-panel-title" className="text-[15px] font-semibold text-white tracking-tight">Profile</h1>
+        <p id="profile-panel-desc" className="sr-only">Manage your TeenWallet account, security, preferences and support options.</p>
         <div className="qa-icon-btn invisible" aria-hidden="true" />
-      </div>
+      </header>
 
       <div className="relative z-10 flex-1 overflow-y-auto pb-32 qa-enter">
         {/* error banner */}
@@ -281,27 +288,40 @@ export function ProfilePanel({ onClose }: Props) {
         </div>
 
         {/* ── STATS STRIP ── */}
-        <div className="px-5 mt-4 grid grid-cols-3 gap-2.5">
+        <section
+          aria-label="Account statistics"
+          aria-busy={statsLoading}
+          className="px-5 mt-4 grid grid-cols-3 gap-2.5"
+        >
           {statsLoading ? (
             <>
-              <div className="pp-statchip pp-skel" />
-              <div className="pp-statchip pp-skel" />
-              <div className="pp-statchip pp-skel" />
+              <StatSkeleton />
+              <StatSkeleton />
+              <StatSkeleton />
             </>
           ) : (
             <>
-              <StatChip icon={IndianRupee} label="This month" value={`₹${stats.monthSpent.toLocaleString("en-IN")}`} tint="from-orange-500/30 to-amber-500/10" />
-              <StatChip icon={Activity} label="Transactions" value={String(stats.txnCount)} tint="from-violet-500/30 to-fuchsia-500/10" />
-              <StatChip icon={TrendingUp} label="Success" value={`${stats.successRate}%`} tint="from-emerald-500/30 to-teal-500/10" />
+              <StatChip icon={IndianRupee} label="This month" value={`₹${stats.monthSpent.toLocaleString("en-IN")}`} tint="from-white/10 to-white/[.02]" />
+              <StatChip icon={Activity} label="Transactions" value={String(stats.txnCount)} tint="from-white/10 to-white/[.02]" />
+              <StatChip icon={TrendingUp} label="Success" value={`${stats.successRate}%`} tint="from-white/10 to-white/[.02]" />
             </>
           )}
-        </div>
+        </section>
 
         {/* ── TABS ── */}
         <div className="px-5 mt-5">
-          <div className="pp-tabs">
+          <div className="pp-tabs" role="tablist" aria-label="Profile sections">
             {(["overview", "account", "security", "preferences", "support"] as Tab[]).map((t) => (
-              <button key={t} onClick={() => setTab(t)} className={`pp-tab ${tab === t ? "pp-tab-active" : ""}`}>
+              <button
+                key={t}
+                role="tab"
+                id={`pp-tab-${t}`}
+                aria-controls={`pp-panel-${t}`}
+                aria-selected={tab === t}
+                tabIndex={tab === t ? 0 : -1}
+                onClick={() => setTab(t)}
+                className={`pp-tab ${tab === t ? "pp-tab-active" : ""}`}
+              >
                 {t[0].toUpperCase() + t.slice(1)}
               </button>
             ))}
@@ -309,7 +329,12 @@ export function ProfilePanel({ onClose }: Props) {
         </div>
 
         {/* ── TAB CONTENT ── */}
-        <div className="px-5 mt-4 space-y-3">
+        <div
+          className="px-5 mt-4 space-y-3"
+          role="tabpanel"
+          id={`pp-panel-${tab}`}
+          aria-labelledby={`pp-tab-${tab}`}
+        >
           {tab === "overview" && (
             <>
               <Section title="Quick links">
@@ -366,19 +391,23 @@ export function ProfilePanel({ onClose }: Props) {
           )}
 
           {tab === "account" && (
-            <>
-              <Section title="Personal details">
-                <DetailRow icon={Pencil} label="Full name" value={profile?.full_name ?? "—"} onEdit={() => setEditOpen(true)} />
-                <DetailRow icon={Smartphone} label="Phone" value={phone} />
-                <DetailRow icon={Cake} label="Date of birth" value={profile?.dob ?? "—"} onEdit={() => setEditOpen(true)} />
-                <DetailRow icon={Mail} label="Email" value="—" onEdit={() => setEditOpen(true)} />
-                <DetailRow icon={MapPin} label="Address" value="—" onEdit={() => setEditOpen(true)} />
-              </Section>
-              <Section title="Identity">
-                <DetailRow icon={ShieldCheck} label="Aadhaar" value={profile?.aadhaar_last4 ? `XXXX XXXX ${profile.aadhaar_last4}` : "Not added"} />
-                <DetailRow icon={BadgeCheck} label="KYC status" value={kycMeta.label} />
-              </Section>
-            </>
+            profileLoading ? (
+              <SectionSkeleton title="Personal details" rows={5} />
+            ) : (
+              <>
+                <Section title="Personal details">
+                  <DetailRow icon={Pencil} label="Full name" value={profile?.full_name ?? "—"} onEdit={() => setEditOpen(true)} />
+                  <DetailRow icon={Smartphone} label="Phone" value={phone} />
+                  <DetailRow icon={Cake} label="Date of birth" value={profile?.dob ?? "—"} onEdit={() => setEditOpen(true)} />
+                  <DetailRow icon={Mail} label="Email" value="—" onEdit={() => setEditOpen(true)} />
+                  <DetailRow icon={MapPin} label="Address" value="—" onEdit={() => setEditOpen(true)} />
+                </Section>
+                <Section title="Identity">
+                  <DetailRow icon={ShieldCheck} label="Aadhaar" value={profile?.aadhaar_last4 ? `XXXX XXXX ${profile.aadhaar_last4}` : "Not added"} />
+                  <DetailRow icon={BadgeCheck} label="KYC status" value={kycMeta.label} />
+                </Section>
+              </>
+            )
           )}
 
           {tab === "security" && (
@@ -538,11 +567,15 @@ function VirtualCardModal({ onClose }: { onClose: () => void }) {
 /* ───────── building blocks ───────── */
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  const id = useMemo(
+    () => `pp-sec-${title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
+    [title],
+  );
   return (
-    <div>
-      <p className="pp-section-title">{title}</p>
+    <section aria-labelledby={id}>
+      <p id={id} className="pp-section-title">{title}</p>
       <div className="pp-card divide-y divide-white/5">{children}</div>
-    </div>
+    </section>
   );
 }
 
@@ -696,11 +729,18 @@ function EditProfileSheet({
   };
 
   return (
-    <div className="absolute inset-0 z-[80] flex items-end pp-sheet-backdrop" onClick={onClose}>
+    <div
+      className="absolute inset-0 z-[80] flex items-end pp-sheet-backdrop"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="pp-edit-title"
+      aria-describedby="pp-edit-desc"
+    >
       <div className="pp-sheet" onClick={(e) => e.stopPropagation()}>
         <div className="pp-sheet-grab" />
-        <p className="text-[15px] font-semibold text-white px-1">Edit profile</p>
-        <p className="text-[12px] text-white/55 px-1 mt-0.5 mb-4">Update your personal details</p>
+        <p id="pp-edit-title" className="text-[15px] font-semibold text-white px-1">Edit profile</p>
+        <p id="pp-edit-desc" className="text-[12px] text-white/55 px-1 mt-0.5 mb-4">Update your personal details</p>
 
         <label className="pp-field">
           <span>Full name</span>
@@ -785,11 +825,17 @@ function MyQrSheet({ upiId, payeeName, onClose }: { upiId: string; payeeName: st
   };
 
   return (
-    <div className="absolute inset-0 z-[80] flex items-end pp-sheet-backdrop" onClick={onClose}>
+    <div
+      className="absolute inset-0 z-[80] flex items-end pp-sheet-backdrop"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="pp-qr-title"
+    >
       <div className="pp-sheet" onClick={(e) => e.stopPropagation()}>
         <div className="pp-sheet-grab" />
         <div className="flex items-center justify-between px-1 mb-3">
-          <p className="text-[15px] font-semibold text-white">My UPI QR</p>
+          <p id="pp-qr-title" className="text-[15px] font-semibold text-white">My UPI QR</p>
           <button onClick={onClose} aria-label="Close" className="qa-icon-btn"><X className="w-4 h-4 text-white/80" /></button>
         </div>
 
@@ -826,16 +872,23 @@ function DeleteAccountSheet({ onCancel, onConfirm }: { onCancel: () => void; onC
   const [busy, setBusy] = useState(false);
   const ok = text.trim().toUpperCase() === "DELETE";
   return (
-    <div className="absolute inset-0 z-[80] flex items-end pp-sheet-backdrop" onClick={onCancel}>
+    <div
+      className="absolute inset-0 z-[80] flex items-end pp-sheet-backdrop"
+      onClick={onCancel}
+      role="alertdialog"
+      aria-modal="true"
+      aria-labelledby="pp-del-title"
+      aria-describedby="pp-del-desc"
+    >
       <div className="pp-sheet" onClick={(e) => e.stopPropagation()}>
         <div className="pp-sheet-grab" />
         <div className="flex items-center gap-2.5 px-1">
-          <div className="w-9 h-9 rounded-full bg-red-400/15 border border-red-400/30 flex items-center justify-center">
+          <div className="w-9 h-9 rounded-full bg-red-400/15 border border-red-400/30 flex items-center justify-center" aria-hidden="true">
             <AlertTriangle className="w-4.5 h-4.5 text-red-300" strokeWidth={2.2} />
           </div>
-          <p className="text-[16px] font-semibold text-white">Delete your account?</p>
+          <p id="pp-del-title" className="text-[16px] font-semibold text-white">Delete your account?</p>
         </div>
-        <p className="text-[12.5px] text-white/65 mt-2 px-1">
+        <p id="pp-del-desc" className="text-[12.5px] text-white/65 mt-2 px-1">
           This permanently removes your profile, transactions, notifications and KYC records.
           Your wallet balance will be lost. This action cannot be undone.
         </p>
@@ -862,11 +915,18 @@ function ConfirmSheet({ title, desc, confirmLabel, danger, onCancel, onConfirm }
   title: string; desc: string; confirmLabel: string; danger?: boolean; onCancel: () => void; onConfirm: () => void;
 }) {
   return (
-    <div className="absolute inset-0 z-[80] flex items-end pp-sheet-backdrop" onClick={onCancel}>
+    <div
+      className="absolute inset-0 z-[80] flex items-end pp-sheet-backdrop"
+      onClick={onCancel}
+      role="alertdialog"
+      aria-modal="true"
+      aria-labelledby="pp-confirm-title"
+      aria-describedby="pp-confirm-desc"
+    >
       <div className="pp-sheet" onClick={(e) => e.stopPropagation()}>
         <div className="pp-sheet-grab" />
-        <p className="text-[16px] font-semibold text-white">{title}</p>
-        <p className="text-[12.5px] text-white/60 mt-1">{desc}</p>
+        <p id="pp-confirm-title" className="text-[16px] font-semibold text-white">{title}</p>
+        <p id="pp-confirm-desc" className="text-[12.5px] text-white/60 mt-1">{desc}</p>
         <div className="flex gap-2 mt-5">
           <button onClick={onCancel} className="pp-btn-ghost flex-1">Cancel</button>
           <button onClick={onConfirm} className={`flex-1 ${danger ? "pp-btn-danger" : "pp-btn-primary"}`}>{confirmLabel}</button>
@@ -876,21 +936,28 @@ function ConfirmSheet({ title, desc, confirmLabel, danger, onCancel, onConfirm }
   );
 }
 
-/* ───────── skeletons ───────── */
+/* ───────── skeletons (content-shaped, not blank blocks) ───────── */
 function HeroSkeleton() {
   return (
-    <div className="pp-hero">
+    <div className="pp-hero" aria-busy="true" aria-live="polite" role="status">
+      <span className="sr-only">Loading your profile…</span>
       <div className="flex items-start gap-4">
         <div className="w-16 h-16 rounded-2xl pp-skel" />
-        <div className="flex-1 space-y-2">
-          <div className="h-4 w-1/2 rounded pp-skel" />
-          <div className="h-3 w-1/3 rounded pp-skel" />
-          <div className="h-5 w-24 rounded-full pp-skel mt-2" />
+        <div className="flex-1 space-y-2.5 pt-1">
+          <div className="pp-skel-line w-2/3" />
+          <div className="pp-skel-line w-1/3 h-2.5" />
+          <div className="h-5 w-28 rounded-full pp-skel mt-2.5" />
         </div>
       </div>
       <div className="mt-4 grid grid-cols-2 gap-2.5">
-        <div className="h-16 rounded-2xl pp-skel" />
-        <div className="h-16 rounded-2xl pp-skel" />
+        <div className="pp-skel-2 h-[68px] p-3 flex flex-col justify-between">
+          <div className="pp-skel-line w-1/2 h-2.5" />
+          <div className="pp-skel-line w-2/3" />
+        </div>
+        <div className="pp-skel-2 h-[68px] p-3 flex flex-col justify-between">
+          <div className="pp-skel-line w-1/2 h-2.5" />
+          <div className="pp-skel-line w-3/4" />
+        </div>
       </div>
       <div className="mt-3 grid grid-cols-2 gap-2">
         <div className="h-10 rounded-2xl pp-skel" />
@@ -899,3 +966,37 @@ function HeroSkeleton() {
     </div>
   );
 }
+
+function StatSkeleton() {
+  return (
+    <div className="pp-statchip pp-skel-2 h-[78px] p-3 flex flex-col justify-between" aria-hidden="true">
+      <div className="w-4 h-4 rounded pp-skel" />
+      <div className="space-y-1.5">
+        <div className="pp-skel-line h-2 w-2/3" />
+        <div className="pp-skel-line w-1/2" />
+      </div>
+    </div>
+  );
+}
+
+function SectionSkeleton({ title, rows = 4 }: { title: string; rows?: number }) {
+  return (
+    <section aria-busy="true" aria-live="polite" role="status">
+      <span className="sr-only">Loading {title}…</span>
+      <p className="pp-section-title">{title}</p>
+      <div className="pp-card divide-y divide-white/5">
+        {Array.from({ length: rows }).map((_, i) => (
+          <div key={i} className="px-3.5 py-3.5 flex items-center gap-3" aria-hidden="true">
+            <div className="w-9 h-9 rounded-xl pp-skel" />
+            <div className="flex-1 space-y-1.5">
+              <div className="pp-skel-line h-2 w-1/4" />
+              <div className="pp-skel-line w-2/3" />
+            </div>
+            <div className="h-6 w-12 rounded-full pp-skel" />
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
