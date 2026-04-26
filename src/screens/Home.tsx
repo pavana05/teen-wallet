@@ -7,6 +7,7 @@ import { QuickActionsPanel, type QuickActionKind } from "@/components/QuickActio
 import { NotificationsPanel } from "@/components/NotificationsPanel";
 import { ProfilePanel } from "@/components/ProfilePanel";
 import heroScan from "@/assets/home-hero-scan.jpg";
+import { haptics } from "@/lib/haptics";
 
 interface Txn {
   id: string;
@@ -23,7 +24,7 @@ function QuickAction({ icon: Icon, label, onClick }: { icon: React.ComponentType
   return (
     <button
       type="button"
-      onClick={onClick}
+      onClick={() => { void haptics.tap(); onClick?.(); }}
       aria-label={accessibleLabel}
       className="flex flex-col items-center gap-2 group rounded-2xl focus:outline-none"
     >
@@ -39,6 +40,7 @@ function RechargeTile({ icon: Icon, label, tint }: { icon: React.ComponentType<{
   return (
     <button
       type="button"
+      onClick={() => { void haptics.tap(); }}
       aria-label={label}
       className="flex flex-col items-center gap-2 rounded-2xl focus:outline-none"
     >
@@ -81,7 +83,7 @@ function NavItem({ icon: Icon, label, active, onClick }: { icon: React.Component
   return (
     <button
       type="button"
-      onClick={onClick}
+      onClick={() => { void haptics.select(); onClick?.(); }}
       aria-label={label}
       aria-current={active ? "page" : undefined}
       className={`flex-1 flex flex-col items-center py-2 rounded-full transition-colors focus:outline-none ${active ? "hp-nav-active text-white" : "text-white/55 hover:text-white/80"}`}
@@ -119,12 +121,14 @@ export function Home() {
     setWaveEnabled((prev) => {
       const next = !prev;
       try { localStorage.setItem("tw_greeting_wave", next ? "1" : "0"); } catch { /* ignore */ }
+      void haptics.select();
       return next;
     });
   }, []);
   const handleGreetingTap = useCallback(() => {
     setGreetingPulse((k) => k + 1);
     setShowGreetingTip(true);
+    void haptics.heartbeat();
     window.setTimeout(() => setShowGreetingTip(false), 2200);
   }, []);
   const touchStartY = useRef<number | null>(null);
@@ -209,7 +213,7 @@ export function Home() {
     if (dy > 0) setPullY(Math.min(dy * 0.5, 80));
   };
   const onTouchEnd = () => {
-    if (pullY > 60) void handleRefresh();
+    if (pullY > 60) { void haptics.swipe(); void handleRefresh(); }
     setPullY(0);
     touchStartY.current = null;
   };
@@ -234,12 +238,14 @@ export function Home() {
   // kept reachable (never hidden) — and we briefly force-expand the nav so
   // the morph reads as a continuous liquid transition either way.
   const openProfile = useCallback(() => {
+    void haptics.bloom();
     setNavCollapsed(false);
     setNavMode("profile-morph");
     window.setTimeout(() => setShowProfile(true), 360);
   }, []);
 
   const closeProfile = useCallback(() => {
+    void haptics.swipe();
     setShowProfile(false);
     window.setTimeout(() => setNavMode("full"), 80);
     // Page-transition reset: bring Home back to the top so the user lands at
@@ -252,6 +258,7 @@ export function Home() {
   // Scan FAB → liquid expansion into ScanPay. The FAB grows into a circular
   // overlay that fills the shell, then we mount ScanPay underneath.
   const launchScan = useCallback(() => {
+    void haptics.bloom();
     setScanLaunching(true);
     window.setTimeout(() => {
       setView("scan");
@@ -313,7 +320,7 @@ export function Home() {
           </button>
           <button
             type="button"
-            onClick={() => setShowNotifs(true)}
+            onClick={() => { void haptics.tap(); setShowNotifs(true); }}
             aria-label={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : "Notifications"}
             className="hp-bell"
           >
@@ -379,7 +386,7 @@ export function Home() {
                 <p className="hp-offer-eyebrow">P2P UPI · Limited</p>
                 <p className="hp-offer-headline">20%<em>flat off</em></p>
                 <p className="hp-offer-sub">On every peer transfer this month</p>
-                <button type="button" className="hp-offer-cta" aria-label="Apply 20% flat off offer on peer transfers">
+                <button type="button" onClick={() => void haptics.success()} className="hp-offer-cta" aria-label="Apply 20% flat off offer on peer transfers">
                   <span>Apply offer</span>
                   <ArrowUpRight className="w-3.5 h-3.5 hp-offer-cta-icon" strokeWidth={2.2} aria-hidden="true" />
                 </button>
@@ -390,7 +397,7 @@ export function Home() {
                 <p className="hp-offer-eyebrow">First recharge</p>
                 <p className="hp-offer-headline">40%<em>cashback</em></p>
                 <p className="hp-offer-sub">Credited instantly to your wallet</p>
-                <button type="button" className="hp-offer-cta" aria-label="Claim 40% cashback offer on your first recharge">
+                <button type="button" onClick={() => void haptics.success()} className="hp-offer-cta" aria-label="Claim 40% cashback offer on your first recharge">
                   <span>Claim now</span>
                   <Sparkles className="w-3.5 h-3.5 hp-offer-cta-icon" strokeWidth={2.2} aria-hidden="true" />
                 </button>
