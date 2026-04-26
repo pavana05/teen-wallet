@@ -148,7 +148,7 @@ function CommandCenter() {
               <XAxis dataKey="date" tickFormatter={shortDate} stroke="#666" tick={{ fontSize: 11 }} />
               <YAxis stroke="#666" tick={{ fontSize: 11 }} tickFormatter={(v) => `₹${shortNum(v)}`} />
               <Tooltip contentStyle={tooltipStyle} formatter={(v: any) => [`₹${Number(v).toLocaleString("en-IN")}`, "Volume"]} labelFormatter={shortDate} />
-              <Area type="monotone" dataKey="volume" stroke="#c8f135" strokeWidth={2} fill="url(#gVol)" />
+              <Area type="monotone" dataKey="volume" stroke={PREMIUM_ACCENT} strokeWidth={2} fill="url(#gVol)" />
             </AreaChart>
           </ResponsiveContainer>
         </ChartCard>
