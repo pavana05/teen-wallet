@@ -304,7 +304,7 @@ export function Home() {
       onTouchStart={onTouchStart}
       onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}
-      className="hp-root flex-1 flex flex-col tw-slide-up pb-32 overflow-y-auto relative"
+      className={`hp-root ${persona.accentClass} flex-1 flex flex-col tw-slide-up pb-32 overflow-y-auto relative`}
       style={{ transform: pullY ? `translateY(${pullY}px)` : undefined, transition: pullY ? "none" : "transform 220ms ease" }}
     >
       {/* Keyboard skip-link to payment history */}
