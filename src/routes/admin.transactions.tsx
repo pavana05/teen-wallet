@@ -64,9 +64,12 @@ function TransactionsList() {
   const [reversing, setReversing] = useState<TxnRow | null>(null);
   const [reverseReason, setReverseReason] = useState("");
   const [reversePassword, setReversePassword] = useState("");
+  const [stepUpVerified, setStepUpVerified] = useState(false);
+  const [verifying, setVerifying] = useState(false);
   const [err, setErr] = useState("");
 
   const canManage = can(admin?.role, "manageTransactions");
+  const canView = can(admin?.role, "viewTransactions") || canManage;
 
   // debounce search
   useEffect(() => {
