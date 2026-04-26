@@ -350,24 +350,38 @@ export function CommandPalette() {
                   const idx = runningIndex++;
                   const isActive = idx === active;
                   return (
-                    <button
+                    <div
                       key={it.id}
-                      type="button"
+                      role="button"
+                      tabIndex={-1}
                       onMouseEnter={() => setActive(idx)}
                       onClick={() => it.onRun()}
                       style={{
                         width: "100%", display: "flex", alignItems: "center", gap: 10,
-                        padding: "9px 12px", borderRadius: 8, border: "none", textAlign: "left",
+                        padding: "9px 12px", borderRadius: 8, textAlign: "left",
                         background: isActive ? "var(--a-elevated)" : "transparent",
                         color: "var(--a-text)", cursor: "pointer",
                         borderLeft: isActive ? "2px solid var(--a-accent)" : "2px solid transparent",
                       }}
                     >
                       <it.icon size={14} />
-                      <span style={{ flex: 1, fontSize: 13 }}>{it.label}</span>
+                      <span style={{ flex: 1, fontSize: 13, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{it.label}</span>
                       {it.hint && <span className="a-mono" style={{ fontSize: 11, color: "var(--a-muted)" }}>{it.hint}</span>}
+                      {it.copy && (
+                        <button
+                          type="button"
+                          title="Copy details (⌘C)"
+                          onClick={(e) => { e.stopPropagation(); void copyText(it.copy!(), "details"); }}
+                          style={{
+                            background: "transparent", border: "1px solid var(--a-border)", color: "var(--a-muted)",
+                            borderRadius: 4, padding: "2px 6px", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 3, fontSize: 10,
+                          }}
+                        >
+                          <Copy size={10} />
+                        </button>
+                      )}
                       {isActive && <ArrowRight size={12} style={{ color: "var(--a-accent)" }} />}
-                    </button>
+                    </div>
                   );
                 })}
               </div>
