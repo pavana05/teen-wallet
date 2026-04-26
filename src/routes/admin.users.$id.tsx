@@ -78,7 +78,9 @@ function UserDetail() {
     finally { setBusy(false); }
   }
 
-  if (!data) {
+  const risk = useMemo(() => (data ? computeRisk(data) : null), [data]);
+
+  if (!data || !risk) {
     return (
       <div style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--a-muted)" }}>
         <Loader2 size={14} className="animate-spin" /> Loading…
@@ -88,7 +90,6 @@ function UserDetail() {
 
   const p = data.profile;
   const canManage = can(admin?.role, "manageUsers");
-  const risk = useMemo(() => computeRisk(data), [data]);
 
   return (
     <div>
