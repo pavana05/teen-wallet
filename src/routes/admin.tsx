@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useAdminSession, ROLE_LABELS, ROLE_BADGE } from "@/admin/lib/adminAuth";
 import {
   LayoutDashboard, Users, ShieldAlert, FileCheck2, Wallet, Settings, LogOut,
-  Bell, Activity, Search, ChevronLeft, ChevronRight, Command,
+  Bell, Activity, Search, ChevronLeft, ChevronRight, Command, MessageSquareWarning,
 } from "lucide-react";
 import { PerfOverlay } from "@/admin/components/PerfOverlay";
 import { CommandPalette } from "@/admin/components/CommandPalette";
