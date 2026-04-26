@@ -45,6 +45,12 @@ export interface VirtualTableProps<T> {
   onLoadMore?: () => void;
   /** Empty-state node when not loading and rows is empty. */
   empty?: ReactNode;
+  /** Optional pointer-down handler on a row (used for long-press). */
+  onRowPointerDown?: (row: T, index: number) => void;
+  /** Optional pointer-up handler on a row (used to fire a tap action). */
+  onRowPointerUp?: (row: T, index: number) => void;
+  /** Optional pointer-cancel handler on a row (used to abort long-press timers). */
+  onRowPointerCancel?: (row: T, index: number) => void;
 }
 
 export function VirtualTable<T>({
