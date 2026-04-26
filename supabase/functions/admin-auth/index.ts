@@ -821,6 +821,45 @@ Deno.serve(async (req) => {
     return json(out);
   }
 
+  // ----- KYC submission action history (timeline of admin decisions) -----
+  // Reads admin_audit_log rows targeting this kyc_submissions id and joins to
+  // admin_users to surface the reviewer's display name. Returns most recent first.
+  if (action === "kyc_history") {
+    if (!can(me.role, "viewKyc")) return json({ error: "forbidden" }, 403);
+    const submissionId = String(body.submissionId ?? "");
+    if (!submissionId) return json({ error: "invalid" }, 400);
+
+    const { data: events, error: hErr } = await sb
+      .from("admin_audit_log")
+      .select("id,action_type,admin_id,admin_email,admin_role,old_value,new_value,created_at,ip_address")
+      .eq("target_entity", "kyc_submissions")
+      .eq("target_id", submissionId)
+      .order("created_at", { ascending: false })
+      .limit(50);
+    if (hErr) return json({ error: hErr.message }, 500);
+
+    const adminIds = Array.from(new Set((events ?? []).map((e: any) => e.admin_id).filter(Boolean)));
+    let nameMap: Record<string, string> = {};
+    if (adminIds.length) {
+      const { data: admins } = await sb.from("admin_users").select("id,name").in("id", adminIds);
+      for (const a of admins ?? []) nameMap[(a as any).id] = (a as any).name;
+    }
+    const rows = (events ?? []).map((e: any) => ({
+      id: e.id,
+      actionType: e.action_type,
+      adminId: e.admin_id,
+      adminEmail: e.admin_email,
+      adminName: e.admin_id ? nameMap[e.admin_id] ?? null : null,
+      adminRole: e.admin_role,
+      decision: (e.new_value && typeof e.new_value === "object") ? (e.new_value as any).decision ?? null : null,
+      reason: (e.new_value && typeof e.new_value === "object") ? (e.new_value as any).reason ?? null : null,
+      previousStatus: (e.old_value && typeof e.old_value === "object") ? (e.old_value as any).sub_status ?? null : null,
+      ip: e.ip_address ?? null,
+      at: e.created_at,
+    }));
+    return json({ rows });
+  }
+
   // ----- KYC decide (approve / reject / escalate) -----
   if (action === "kyc_decide") {
     if (!can(me.role, "decideKyc")) return json({ error: "forbidden" }, 403);
