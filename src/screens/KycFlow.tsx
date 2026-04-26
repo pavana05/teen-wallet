@@ -327,7 +327,14 @@ export function KycFlow({ onDone }: { onDone: () => void }) {
     setError("");
     setLastErrorTransient(false);
     setBusy(true);
-    try {
+    const startedAt = Date.now();
+    breadcrumb("kyc.submit_started", {
+      step,
+      selfieBytes: payload.bytes,
+      selfieRes: `${payload.width}x${payload.height}`,
+      hasDocFront: !!docFront,
+      hasDocBack: !!docBack,
+    });
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error("Session expired. Please sign in again.");
 
