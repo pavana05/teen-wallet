@@ -406,10 +406,12 @@ export type Database = {
           balance: number
           created_at: string
           dob: string | null
+          email: string | null
           full_name: string | null
           gender: string | null
           id: string
           kyc_status: Database["public"]["Enums"]["kyc_status"]
+          notif_prefs: Json
           onboarding_stage: Database["public"]["Enums"]["onboarding_stage"]
           phone: string | null
           updated_at: string
@@ -419,10 +421,12 @@ export type Database = {
           balance?: number
           created_at?: string
           dob?: string | null
+          email?: string | null
           full_name?: string | null
           gender?: string | null
           id: string
           kyc_status?: Database["public"]["Enums"]["kyc_status"]
+          notif_prefs?: Json
           onboarding_stage?: Database["public"]["Enums"]["onboarding_stage"]
           phone?: string | null
           updated_at?: string
@@ -432,10 +436,12 @@ export type Database = {
           balance?: number
           created_at?: string
           dob?: string | null
+          email?: string | null
           full_name?: string | null
           gender?: string | null
           id?: string
           kyc_status?: Database["public"]["Enums"]["kyc_status"]
+          notif_prefs?: Json
           onboarding_stage?: Database["public"]["Enums"]["onboarding_stage"]
           phone?: string | null
           updated_at?: string
