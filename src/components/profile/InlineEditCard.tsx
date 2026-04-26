@@ -115,9 +115,10 @@ function InlineRow({
 
     setSaving(true);
     const next = v === "" ? null : v;
+    const patch: Partial<InlineProfile> = { [field.key]: next };
     const { error } = await supabase
       .from("profiles")
-      .update({ [field.key]: next })
+      .update(patch)
       .eq("id", userId);
     setSaving(false);
     if (error) {
