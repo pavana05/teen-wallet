@@ -25,7 +25,12 @@ import {
   Clock,
   Hash,
   FileText,
+  Download,
+  Share2,
+  Mail,
+  MessageCircle,
 } from "lucide-react";
+import { downloadReceiptPdf, shareReceiptPdf, buildReceiptSummary, type ReceiptData } from "@/lib/receipt";
 import { useApp } from "@/lib/store";
 import { supabase } from "@/integrations/supabase/client";
 import { payUpi } from "@/lib/payments.functions";
@@ -970,6 +975,53 @@ function TxnDetailSheet({
           </ol>
         </div>
 
+
+        {/* Receipt actions — available for any non-pending payment */}
+        {!pending && (
+          <div className="mt-5">
+            <p className="text-[11px] uppercase tracking-[0.14em] text-white/45 mb-2">Receipt</p>
+            <div className="grid grid-cols-2 gap-2">
+              <ReceiptBtn
+                icon={Download}
+                label="Download PDF"
+                onClick={async () => {
+                  try {
+                    await downloadReceiptPdf(toReceipt(txn));
+                    toast.success("Receipt downloaded");
+                  } catch { toast.error("Couldn't generate receipt"); }
+                }}
+              />
+              <ReceiptBtn
+                icon={Share2}
+                label="Share"
+                onClick={async () => {
+                  try {
+                    const shared = await shareReceiptPdf(toReceipt(txn));
+                    if (!shared) toast.success("Receipt downloaded");
+                  } catch { toast.error("Share failed"); }
+                }}
+              />
+              <ReceiptBtn
+                icon={Mail}
+                label="Email"
+                onClick={() => {
+                  const subject = encodeURIComponent(`Payment receipt · ₹${Number(txn.amount).toFixed(2)} → ${txn.merchant_name}`);
+                  const body = encodeURIComponent(buildReceiptSummary(toReceipt(txn)));
+                  window.location.href = `mailto:?subject=${subject}&body=${body}`;
+                }}
+              />
+              <ReceiptBtn
+                icon={MessageCircle}
+                label="SMS"
+                onClick={() => {
+                  const body = encodeURIComponent(buildReceiptSummary(toReceipt(txn)));
+                  window.location.href = `sms:?body=${body}`;
+                }}
+              />
+            </div>
+          </div>
+        )}
+
         {/* Pay again — only for completed UPI payments */}
         {!pending && (
           <button
@@ -1010,3 +1062,37 @@ function Row({
     </div>
   );
 }
+
+// Map a row from the transactions table to the receipt PDF shape.
+function toReceipt(t: Txn): ReceiptData {
+  return {
+    txnId: t.id,
+    amount: Number(t.amount),
+    payee: t.merchant_name,
+    upiId: t.upi_id,
+    note: t.note,
+    status: t.status,
+    createdAt: t.created_at,
+  };
+}
+
+function ReceiptBtn({
+  icon: Icon,
+  label,
+  onClick,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className="flex items-center justify-center gap-1.5 rounded-2xl bg-white/5 border border-white/10 px-3 py-2.5 text-[12px] font-medium text-white hover:bg-white/[.08] transition"
+    >
+      <Icon className="w-3.5 h-3.5" />
+      {label}
+    </button>
+  );
+}
+

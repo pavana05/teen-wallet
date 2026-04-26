@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { Html5Qrcode } from "html5-qrcode";
-import { ArrowLeft, ArrowRight, Image as ImageIcon, Zap, ZapOff, X, Share2, Check, Bug, ShieldCheck, Wallet, Users, User as UserIcon, QrCode, Download, RotateCcw, Copy, ScanLine, ExternalLink, AlertTriangle, Info } from "lucide-react";
+import { ArrowLeft, ArrowRight, Image as ImageIcon, Zap, ZapOff, X, Share2, Check, Bug, ShieldCheck, Wallet, Users, User as UserIcon, QrCode, Download, RotateCcw, Copy, ScanLine, ExternalLink, AlertTriangle, Info, Mail, MessageCircle } from "lucide-react";
 import { parseUpiQr, parseUpiQrWithReason, canOpenUpiApp, type UpiPayload, type UpiParseResult } from "@/lib/upi";
 import { scanTransaction, logFraudFlags, type FraudFlag } from "@/lib/fraud";
 import { useApp } from "@/lib/store";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { downloadReceiptPdf, shareReceiptPdf, type ReceiptData } from "@/lib/receipt";
+import { downloadReceiptPdf, shareReceiptPdf, buildReceiptSummary, type ReceiptData } from "@/lib/receipt";
 import { payUpi } from "@/lib/payments.functions";
 import { breadcrumb, captureError } from "@/lib/breadcrumbs";
 
@@ -16,6 +16,7 @@ interface PersistedFlow {
   phase: Phase;
   payload: UpiPayload | null;
   amount: number;
+  note?: string;
 }
 
 type Phase = "scanning" | "confirm" | "processing" | "success" | "failed";
@@ -46,18 +47,19 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
   // The actual transaction returned from the API after a successful insert.
   // Drives the success screen's reference ID + receipt PDF.
   const [savedTxn, setSavedTxn] = useState<SavedTxn | null>(null);
-  const [note, setNote] = useState<string>("");
+  const [note, setNote] = useState<string>(persisted?.note ?? "");
   // Bump this to force-remount the ScannerView and dispose its camera + Html5Qrcode instance.
   const [scannerKey, setScannerKey] = useState(0);
 
-  // Keep persistence in sync; clear on terminal states.
+  // Keep persistence in sync; clear on terminal states. Including `note` so a
+  // user-typed memo survives accidental nav-away mid-flow.
   useEffect(() => {
     if (phase === "scanning" || phase === "confirm") {
-      writePersisted({ phase, payload, amount });
+      writePersisted({ phase, payload, amount, note });
     } else {
       clearPersisted();
     }
-  }, [phase, payload, amount]);
+  }, [phase, payload, amount, note]);
 
   const navLockRef = useRef(false);
   const handleDecoded = useCallback((parsed: UpiPayload) => {
@@ -1275,11 +1277,11 @@ function SuccessView({
     payerPhone,
   }), [txn, payerName, payerPhone]);
 
-  const handleDownload = () => {
+  const handleDownload = async () => {
     try {
-      downloadReceiptPdf(receipt());
+      await downloadReceiptPdf(receipt());
       toast.success("Receipt downloaded");
-    } catch (e) {
+    } catch {
       toast.error("Couldn't generate receipt");
     }
   };
@@ -1291,6 +1293,24 @@ function SuccessView({
     } catch {
       toast.error("Share failed");
     }
+  };
+
+  // Open the device email composer with the receipt summary pre-filled.
+  // Most platforms can't attach a generated File via mailto:, so we lead
+  // with the readable summary and offer "Download PDF" alongside.
+  const handleEmail = () => {
+    const subject = encodeURIComponent(`Payment receipt · ₹${txn.amount.toFixed(2)} → ${txn.payee}`);
+    const body = encodeURIComponent(buildReceiptSummary(receipt()));
+    window.location.href = `mailto:?subject=${subject}&body=${body}`;
+  };
+
+  // SMS deep link: works on iOS / Android. We keep the body short to avoid
+  // forcing the carrier to split into multiple messages.
+  const handleSms = () => {
+    const body = encodeURIComponent(buildReceiptSummary(receipt()));
+    // iOS uses `&body=` after `&`; Android uses `?body=`. Both accept `?body=`
+    // with no recipient, so we use that.
+    window.location.href = `sms:?body=${body}`;
   };
 
   const copyRef = () => {
@@ -1400,6 +1420,24 @@ function SuccessView({
           >
             <Share2 className="w-4 h-4" />
             Share
+          </button>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            onClick={handleEmail}
+            className="sp-receipt-action focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            aria-label="Email this receipt"
+          >
+            <Mail className="w-4 h-4" />
+            Email
+          </button>
+          <button
+            onClick={handleSms}
+            className="sp-receipt-action focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            aria-label="Send receipt by SMS"
+          >
+            <MessageCircle className="w-4 h-4" />
+            SMS
           </button>
         </div>
         <div className="grid grid-cols-2 gap-2">
