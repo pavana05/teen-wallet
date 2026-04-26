@@ -166,12 +166,15 @@ function KycQueue() {
 
   const [rows, setRows] = useState<KycRow[]>([]);
   const [total, setTotal] = useState(0);
-  const [page, setPage] = useState(1);
+  // Cursor pagination state — composite (created_at, id) so realtime inserts
+  // between page loads never produce duplicates or skipped rows.
+  const [cursor, setCursor] = useState<{ ts: string; id: string } | null>(null);
   const [hasMore, setHasMore] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [reviewing, setReviewing] = useState<KycRow | null>(null);
+  const [quickPreview, setQuickPreview] = useState<KycRow | null>(null);
   const [rejectReason, setRejectReason] = useState<RejectReason | "">("");
   const [rejectNote, setRejectNote] = useState("");
   const [showReject, setShowReject] = useState(false);
@@ -187,52 +190,91 @@ function KycQueue() {
   const canDecide = can(admin?.role, "decideKyc");
   const canView = can(admin?.role, "viewKyc") || canDecide;
 
+  // Monotonically increasing request id — older in-flight requests' results
+  // are dropped when a newer one fires (filter change, refresh, realtime burst).
+  // This is the de-dupe-by-request-id mechanism.
   const reqId = useRef(0);
-  const fetchPage = useCallback(async (pageNum: number) => {
+  // Stable ref to "is a fetch in flight" so callbacks see the latest value
+  // without retriggering the effect that wires the realtime channel.
+  const inFlightRef = useRef(false);
+
+  /**
+   * Cursor-based fetch.
+   * - reset=true: fresh page from the top (clears rows + cursor).
+   * - reset=false: append the next page using the current cursor as anchor.
+   * Rows are de-duped by id when appending, defending against race conditions
+   * where realtime + scroll-load fire in rapid succession.
+   */
+  const fetchList = useCallback(async (reset: boolean) => {
     const s = readAdminSession();
     if (!s) return;
+    // Hard guard: never run two concurrent loads (in addition to the
+    // VirtualTable observer's own guard). Refresh always wins by ignoring this.
+    if (!reset && inFlightRef.current) return;
+    inFlightRef.current = true;
     const myReq = ++reqId.current;
-    if (pageNum === 1) setInitialLoading(true);
+    if (reset) setInitialLoading(true);
     else setLoadingMore(true);
     const t0 = performance.now();
     try {
-      const r = await callAdminFn<{ rows: KycRow[]; total: number }>({
+      const r = await callAdminFn<{
+        rows: KycRow[];
+        total: number;
+        nextCursor: string | null;
+        nextCursorId: string | null;
+      }>({
         action: "kyc_list",
         sessionToken: s.sessionToken,
         status: filters.status,
-        page: pageNum,
         pageSize: PAGE_SIZE,
+        cursor: reset ? null : cursor?.ts ?? null,
+        cursorId: reset ? null : cursor?.id ?? null,
       });
+      // Drop stale responses — a newer request has superseded this one.
       if (myReq !== reqId.current) return;
       setTotal(r.total);
-      setHasMore(pageNum * PAGE_SIZE < r.total);
-      setRows((prev) => (pageNum === 1 ? r.rows : [...prev, ...r.rows]));
+      setHasMore(Boolean(r.nextCursor));
+      setCursor(r.nextCursor && r.nextCursorId ? { ts: r.nextCursor, id: r.nextCursorId } : null);
+      setRows((prev) => {
+        if (reset) return r.rows;
+        // Dedupe by id — required because realtime can insert a row between
+        // when we computed the cursor and when this response arrived.
+        const seen = new Set(prev.map((row) => row.id));
+        const fresh = r.rows.filter((row) => !seen.has(row.id));
+        return [...prev, ...fresh];
+      });
       setErr("");
       recordPanelLoad("KYC · queue", performance.now() - t0);
     } catch (e: any) {
-      if (myReq === reqId.current) setErr(e.message || "Failed to load");
+      if (myReq === reqId.current) setErr(e.message || "Failed to load KYC submissions.");
     } finally {
       if (myReq === reqId.current) {
         setInitialLoading(false);
         setLoadingMore(false);
       }
+      inFlightRef.current = false;
     }
+  }, [filters.status, cursor]);
+
+  // Reset & reload on filter change. We deliberately only depend on
+  // filters.status — fetchList changes whenever cursor changes, but we don't
+  // want a new cursor to retrigger this reset effect.
+  useEffect(() => {
+    setCursor(null);
+    setRows([]);
+    void fetchList(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters.status]);
 
-  // Reset & reload on filter change
-  useEffect(() => {
-    setPage(1);
-    void fetchPage(1);
-  }, [fetchPage]);
-
   const loadMore = useCallback(() => {
+    // Defensive guards: VirtualTable already short-circuits when loadingMore
+    // or initialLoading, but keep belt-and-suspenders here for safety.
     if (loadingMore || initialLoading || !hasMore) return;
-    const next = page + 1;
-    setPage(next);
-    void fetchPage(next);
-  }, [page, hasMore, loadingMore, initialLoading, fetchPage]);
+    void fetchList(false);
+  }, [hasMore, loadingMore, initialLoading, fetchList]);
 
-  // Realtime — throttled refresh of page 1
+  // Realtime — throttled refresh from the top. Throttle prevents a burst of
+  // database changes from triggering a flood of refetches.
   const lastKycLoad = useRef(0);
   useEffect(() => {
     const throttled = () => {
@@ -240,14 +282,17 @@ function KycQueue() {
       const now = Date.now();
       if (now - lastKycLoad.current < 3000) return;
       lastKycLoad.current = now;
-      setPage(1);
-      void fetchPage(1);
+      setCursor(null);
+      setRows([]);
+      void fetchList(true);
     };
     const ch = supabase
       .channel("admin_kyc")
       .on("postgres_changes", { event: "*", schema: "public", table: "kyc_submissions" }, throttled)
       .subscribe();
     return () => { supabase.removeChannel(ch); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters.status]);
   }, [fetchPage]);
 
   // Fetch signed URLs whenever opening a review
