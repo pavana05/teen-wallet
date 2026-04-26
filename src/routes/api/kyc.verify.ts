@@ -9,12 +9,6 @@ const CORS = {
   "Access-Control-Allow-Headers": "Content-Type, Authorization",
 };
 
-const json = (body: unknown, status = 200) =>
-  new Response(JSON.stringify(body), {
-    status,
-    headers: { "Content-Type": "application/json", ...CORS },
-  });
-
 /** Short, copy-friendly correlation ID used to tie a UI error to server logs. */
 function newCid(): string {
   const u = (globalThis.crypto as Crypto | undefined)?.randomUUID?.() ?? "";
