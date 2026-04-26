@@ -76,6 +76,8 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
     setPhase("processing");
     const amt = amount;
     const noteToSave = note.trim() || payload.note || null;
+    const startedAt = Date.now();
+    breadcrumb("payment.submit_started", { amount: amt, upiId: payload.upiId, payee: payload.payeeName });
 
     // ── Pre-flight client-side fraud check ──
     // Mirrors the server rules so the user gets instant feedback for things
@@ -83,13 +85,16 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
     // these on submit so the check cannot be bypassed.
     const preflight = await scanTransaction({ userId, amount: amt, upiId: payload.upiId });
     if (preflight.blocked) {
+      const blockFlag = preflight.flags.find((f) => f.severity === "block");
+      breadcrumb("fraud.blocked_preflight", { amount: amt, upiId: payload.upiId, fraudRule: blockFlag?.rule, reason: blockFlag?.message }, "warning");
       await logFraudFlags(userId, null, preflight.flags, "blocked");
-      setResultMsg(preflight.flags.find((f) => f.severity === "block")?.message ?? "Payment blocked");
+      setResultMsg(blockFlag?.message ?? "Payment blocked");
       setFailKind("blocked");
       setPhase("failed");
       return;
     }
     if (amt > balance) {
+      breadcrumb("payment.insufficient_preflight", { amount: amt, balance }, "warning");
       setResultMsg("Insufficient balance");
       setFailKind("insufficient");
       setPhase("failed");
