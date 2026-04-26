@@ -1,9 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { callAdminFn, readAdminSession, can } from "@/admin/lib/adminAuth";
-import { Search, Loader2, ShieldCheck, ShieldX, CheckSquare, Square } from "lucide-react";
+import { Search, Loader2, ShieldCheck, ShieldX, CheckSquare, Square, Lock, Unlock, Tag } from "lucide-react";
 import { VirtualTable, type Column } from "@/admin/components/VirtualTable";
 import { usePersistedState } from "@/admin/lib/usePersistedState";
+import { SavedViewsBar } from "@/admin/components/SavedViewsBar";
 import { recordPanelLoad } from "@/admin/lib/perfBus";
 
 export const Route = createFileRoute("/admin/users")({
@@ -21,6 +22,8 @@ interface UserRow {
   created_at: string;
   aadhaar_last4: string | null;
   txn_count: number;
+  account_locked?: boolean;
+  account_tag?: string;
 }
 
 const KYC_BADGE: Record<string, string> = {
