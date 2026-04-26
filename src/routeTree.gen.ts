@@ -16,6 +16,7 @@ import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as PreviewSplashRouteImport } from './routes/preview.splash'
 import { Route as PreviewScanPayRouteImport } from './routes/preview.scan-pay'
 import { Route as PreviewPhoneVerifiedRouteImport } from './routes/preview.phone-verified'
+import { Route as PreviewPermissionsRouteImport } from './routes/preview.permissions'
 import { Route as PreviewOnboardingRouteImport } from './routes/preview.onboarding'
 import { Route as PreviewKycRejectedRouteImport } from './routes/preview.kyc-rejected'
 import { Route as PreviewKycPendingRouteImport } from './routes/preview.kyc-pending'
@@ -66,6 +67,11 @@ const PreviewScanPayRoute = PreviewScanPayRouteImport.update({
 const PreviewPhoneVerifiedRoute = PreviewPhoneVerifiedRouteImport.update({
   id: '/preview/phone-verified',
   path: '/preview/phone-verified',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PreviewPermissionsRoute = PreviewPermissionsRouteImport.update({
+  id: '/preview/permissions',
+  path: '/preview/permissions',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PreviewOnboardingRoute = PreviewOnboardingRouteImport.update({
@@ -166,6 +172,7 @@ export interface FileRoutesByFullPath {
   '/preview/kyc-pending': typeof PreviewKycPendingRoute
   '/preview/kyc-rejected': typeof PreviewKycRejectedRoute
   '/preview/onboarding': typeof PreviewOnboardingRoute
+  '/preview/permissions': typeof PreviewPermissionsRoute
   '/preview/phone-verified': typeof PreviewPhoneVerifiedRoute
   '/preview/scan-pay': typeof PreviewScanPayRoute
   '/preview/splash': typeof PreviewSplashRoute
@@ -190,6 +197,7 @@ export interface FileRoutesByTo {
   '/preview/kyc-pending': typeof PreviewKycPendingRoute
   '/preview/kyc-rejected': typeof PreviewKycRejectedRoute
   '/preview/onboarding': typeof PreviewOnboardingRoute
+  '/preview/permissions': typeof PreviewPermissionsRoute
   '/preview/phone-verified': typeof PreviewPhoneVerifiedRoute
   '/preview/scan-pay': typeof PreviewScanPayRoute
   '/preview/splash': typeof PreviewSplashRoute
@@ -216,6 +224,7 @@ export interface FileRoutesById {
   '/preview/kyc-pending': typeof PreviewKycPendingRoute
   '/preview/kyc-rejected': typeof PreviewKycRejectedRoute
   '/preview/onboarding': typeof PreviewOnboardingRoute
+  '/preview/permissions': typeof PreviewPermissionsRoute
   '/preview/phone-verified': typeof PreviewPhoneVerifiedRoute
   '/preview/scan-pay': typeof PreviewScanPayRoute
   '/preview/splash': typeof PreviewSplashRoute
@@ -243,6 +252,7 @@ export interface FileRouteTypes {
     | '/preview/kyc-pending'
     | '/preview/kyc-rejected'
     | '/preview/onboarding'
+    | '/preview/permissions'
     | '/preview/phone-verified'
     | '/preview/scan-pay'
     | '/preview/splash'
@@ -267,6 +277,7 @@ export interface FileRouteTypes {
     | '/preview/kyc-pending'
     | '/preview/kyc-rejected'
     | '/preview/onboarding'
+    | '/preview/permissions'
     | '/preview/phone-verified'
     | '/preview/scan-pay'
     | '/preview/splash'
@@ -292,6 +303,7 @@ export interface FileRouteTypes {
     | '/preview/kyc-pending'
     | '/preview/kyc-rejected'
     | '/preview/onboarding'
+    | '/preview/permissions'
     | '/preview/phone-verified'
     | '/preview/scan-pay'
     | '/preview/splash'
@@ -311,6 +323,7 @@ export interface RootRouteChildren {
   PreviewKycPendingRoute: typeof PreviewKycPendingRoute
   PreviewKycRejectedRoute: typeof PreviewKycRejectedRoute
   PreviewOnboardingRoute: typeof PreviewOnboardingRoute
+  PreviewPermissionsRoute: typeof PreviewPermissionsRoute
   PreviewPhoneVerifiedRoute: typeof PreviewPhoneVerifiedRoute
   PreviewScanPayRoute: typeof PreviewScanPayRoute
   PreviewSplashRoute: typeof PreviewSplashRoute
@@ -367,6 +380,13 @@ declare module '@tanstack/react-router' {
       path: '/preview/phone-verified'
       fullPath: '/preview/phone-verified'
       preLoaderRoute: typeof PreviewPhoneVerifiedRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/preview/permissions': {
+      id: '/preview/permissions'
+      path: '/preview/permissions'
+      fullPath: '/preview/permissions'
+      preLoaderRoute: typeof PreviewPermissionsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/preview/onboarding': {
@@ -530,6 +550,7 @@ const rootRouteChildren: RootRouteChildren = {
   PreviewKycPendingRoute: PreviewKycPendingRoute,
   PreviewKycRejectedRoute: PreviewKycRejectedRoute,
   PreviewOnboardingRoute: PreviewOnboardingRoute,
+  PreviewPermissionsRoute: PreviewPermissionsRoute,
   PreviewPhoneVerifiedRoute: PreviewPhoneVerifiedRoute,
   PreviewScanPayRoute: PreviewScanPayRoute,
   PreviewSplashRoute: PreviewSplashRoute,
