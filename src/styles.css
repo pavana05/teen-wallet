@@ -1064,7 +1064,26 @@
 .hp-section-link:hover{ color:rgba(255,255,255,.85); }
 .hp-section-link:active{ transform: scale(.96); }
 .hp-section-link:active svg{ animation: hp-icon-pulse 420ms ease-out; }
-.hp-divider{ height:1px; background: linear-gradient(90deg, transparent, rgba(255,255,255,.07) 20%, rgba(255,255,255,.07) 80%, transparent); margin: 0 20px; }
+.hp-divider{
+  position: relative;
+  height: 1px;
+  margin: 0 24px;
+  background: linear-gradient(90deg,
+    transparent 0%,
+    rgba(255,255,255,0.10) 30%,
+    rgba(255,255,255,0.18) 50%,
+    rgba(255,255,255,0.10) 70%,
+    transparent 100%);
+}
+.hp-divider::after{
+  content:"";
+  position:absolute; left:50%; top:50%;
+  width: 55%; height: 8px;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(closest-side, rgba(200,241,53,0.18), transparent 75%);
+  filter: blur(4px);
+  pointer-events: none;
+}
 
 
 /* Offers — premium minimal */
