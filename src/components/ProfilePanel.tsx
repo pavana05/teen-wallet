@@ -560,17 +560,12 @@ export function ProfilePanel({ onClose }: Props) {
         </div>
       </div>
 
-      {editOpen && profile && (
-        <EditProfileSheet
-          initial={{
-            full_name: profile.full_name,
-            phone: profile.phone,
-            dob: profile.dob,
-            gender: profile.gender,
-          }}
+      {editPhoneOpen && profile && (
+        <EditPhoneSheet
+          initial={profile.phone}
           userId={userId}
-          onClose={() => setEditOpen(false)}
-          onSaved={(p) => { setProfile((prev) => prev ? { ...prev, ...p } : prev); setEditOpen(false); }}
+          onClose={() => setEditPhoneOpen(false)}
+          onSaved={(newPhone) => { setProfile((prev) => prev ? { ...prev, phone: newPhone } : prev); setEditPhoneOpen(false); }}
         />
       )}
       {qrOpen && (
