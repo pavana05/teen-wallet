@@ -355,7 +355,6 @@ export function Home() {
         </div>
       </div>
 
-      <div className="hp-divider mt-8" />
 
       {/* ===== PAYMENT HISTORY ===== */}
       <section
