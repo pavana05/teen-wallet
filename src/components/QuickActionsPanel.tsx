@@ -118,6 +118,7 @@ export function QuickActionsPanel({ kind, onClose }: Props) {
         {kind === "to-bank" && <ToBank />}
         {kind === "balance" && <CheckBalance />}
         {kind === "history" && <TxnHistory />}
+        {kind === "send-money" && <SendMoney />}
       </div>
     </div>
   );
