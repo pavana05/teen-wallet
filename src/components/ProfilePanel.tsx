@@ -183,19 +183,26 @@ export function ProfilePanel({ onClose }: Props) {
   }[kyc];
 
   return (
-    <div className="qa-root absolute inset-0 z-[60] flex flex-col bg-background overflow-hidden">
+    <div
+      className="qa-root absolute inset-0 z-[60] flex flex-col bg-background overflow-hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="profile-panel-title"
+      aria-describedby="profile-panel-desc"
+    >
       <div className="qa-bg" />
       <div className="qa-grid" />
-      <div className="pp-aurora" />
+      <div className="pp-aurora" aria-hidden="true" />
 
       {/* header */}
-      <div className="relative z-10 flex items-center justify-between px-5 pt-7 pb-2">
-        <button onClick={onClose} aria-label="Back" className="qa-icon-btn">
-          <ArrowLeft className="w-5 h-5 text-white" strokeWidth={2} />
+      <header className="relative z-10 flex items-center justify-between px-5 pt-7 pb-2">
+        <button onClick={onClose} aria-label="Back to home" className="qa-icon-btn">
+          <ArrowLeft className="w-5 h-5 text-white" strokeWidth={2} aria-hidden="true" />
         </button>
-        <p className="text-[15px] font-semibold text-white tracking-tight">Profile</p>
+        <h1 id="profile-panel-title" className="text-[15px] font-semibold text-white tracking-tight">Profile</h1>
+        <p id="profile-panel-desc" className="sr-only">Manage your TeenWallet account, security, preferences and support options.</p>
         <div className="qa-icon-btn invisible" aria-hidden="true" />
-      </div>
+      </header>
 
       <div className="relative z-10 flex-1 overflow-y-auto pb-32 qa-enter">
         {/* error banner */}
