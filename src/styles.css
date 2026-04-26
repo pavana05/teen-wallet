@@ -441,10 +441,84 @@
   background: linear-gradient(90deg, transparent, #ffd84a, #f59e0b, transparent);
   animation: kyc-pending-slide 1.6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
 }
+
+/* ===== Pending — neon-lime skeleton (initial fetch only) ===== */
+.kyc-skeleton-wrap {
+  display: flex; flex-direction: column; align-items: center;
+  width: 100%;
+}
+.kyc-skel-badge {
+  width: 132px; height: 132px;
+  border-radius: 50%;
+  background: linear-gradient(110deg, rgba(255,255,255,.04) 30%, rgba(190,255,120,.18) 50%, rgba(255,255,255,.04) 70%);
+  background-size: 220% 100%;
+  border: 1px solid rgba(190,255,120,.18);
+  box-shadow: 0 12px 40px -16px rgba(190,255,120,.35);
+  animation: kyc-skel-shimmer 1.4s ease-in-out infinite;
+}
+.kyc-skel-line {
+  height: 12px;
+  border-radius: 999px;
+  background: linear-gradient(110deg, rgba(255,255,255,.04) 30%, rgba(190,255,120,.16) 50%, rgba(255,255,255,.04) 70%);
+  background-size: 220% 100%;
+  animation: kyc-skel-shimmer 1.4s ease-in-out infinite;
+}
+.kyc-skel-line-1 { width: 200px; height: 18px; }
+.kyc-skel-line-2 { width: 240px; height: 12px; }
+.kyc-skel-line-3 { width: 220px; height: 4px; opacity: .65; }
+@keyframes kyc-skel-shimmer {
+  0%   { background-position: 220% 0; }
+  100% { background-position: -120% 0; }
+}
+
+/* ===== Premium error banner (red shake + inline retry) ===== */
+.kyc-error-banner {
+  display: flex; align-items: center; gap: 10px;
+  width: 100%; max-width: 320px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgba(239,68,68,.14), rgba(239,68,68,.06));
+  border: 1px solid rgba(248,113,113,.45);
+  color: #fecaca;
+  box-shadow: 0 10px 26px -14px rgba(220,38,38,.5), inset 0 1px 0 rgba(255,255,255,.04);
+  animation: kyc-err-shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
+}
+@keyframes kyc-err-shake {
+  10%, 90% { transform: translateX(-1px); }
+  20%, 80% { transform: translateX(2px); }
+  30%, 50%, 70% { transform: translateX(-4px); }
+  40%, 60% { transform: translateX(4px); }
+}
+.kyc-error-retry {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(248,113,113,.18);
+  border: 1px solid rgba(248,113,113,.5);
+  color: #fff;
+  font-size: 11.5px; font-weight: 600;
+  cursor: pointer;
+  transition: background .15s ease, transform .12s ease;
+  flex-shrink: 0;
+}
+.kyc-error-retry:hover:not(:disabled) { background: rgba(248,113,113,.3); }
+.kyc-error-retry:active:not(:disabled) { transform: scale(.96); }
+.kyc-error-retry:disabled { opacity: .65; cursor: not-allowed; }
+
+/* ===== Continue exit transition (fade + slight scale-down) ===== */
+@keyframes kyc-exit-fade {
+  0%   { opacity: 1; transform: scale(1); filter: blur(0); }
+  100% { opacity: 0; transform: scale(.97); filter: blur(2px); }
+}
+.kyc-exit {
+  animation: kyc-exit-fade 520ms cubic-bezier(.4,0,.2,1) forwards;
+  pointer-events: none;
+}
 @keyframes kyc-pending-slide {
   0%   { left: -45%; }
   100% { left: 100%; }
 }
+
 
 /* Top-left close button */
 .kyc-close-btn {

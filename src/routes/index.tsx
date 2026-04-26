@@ -119,8 +119,12 @@ function Index() {
             setStage("STAGE_3");
           }
         }} />
-      ) : stage === "STAGE_3" && !permsSeen ? (
-        <Permissions onDone={markPermsSeen} />
+      ) : !permsSeen && (stage === "STAGE_3" || stage === "STAGE_4") ? (
+        <Permissions onDone={() => {
+          markPermsSeen();
+          // After permissions, if we were waiting on KYC, stay on STAGE_4 (pending will resume).
+          // If we were on STAGE_3, the next render shows KycFlow.
+        }} />
       ) : stage === "STAGE_3" ? (
         <KycFlow onDone={() => setStage("STAGE_4")} />
       ) : stage === "STAGE_4" ? (

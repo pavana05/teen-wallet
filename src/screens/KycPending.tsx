@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from "react";
-import { Clock, RefreshCw, X } from "lucide-react";
+import { RefreshCw, X, AlertTriangle, Loader2 } from "lucide-react";
 import { setStage as persistStage, updateProfileFields } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -16,7 +16,32 @@ interface LatestSubmission {
 const POLL_INTERVAL_MS = 4000;
 const POLL_BACKOFF_MAX_MS = 15000;
 const REJECTION_REASON_KEY = "tw-kyc-rejection-reason";
+const PENDING_STATE_KEY = "tw-kyc-pending-state-v1";
 const APPROVED_ANIMATION_MS = 2400;
+const CONTINUE_TRANSITION_MS = 520;
+
+interface PersistedPendingState {
+  submittedAt: string;     // ISO — when submission first appeared
+  lastSeenAt: string;      // ISO — last successful poll
+  submissionId: string | null;
+}
+
+function readPersisted(): PersistedPendingState | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(PENDING_STATE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw) as PersistedPendingState;
+  } catch { return null; }
+}
+function writePersisted(s: PersistedPendingState) {
+  if (typeof window === "undefined") return;
+  try { localStorage.setItem(PENDING_STATE_KEY, JSON.stringify(s)); } catch { /* ignore */ }
+}
+function clearPersisted() {
+  if (typeof window === "undefined") return;
+  try { localStorage.removeItem(PENDING_STATE_KEY); } catch { /* ignore */ }
+}
 
 export function KycPending({ onApproved, forceState, forceReason }: { onApproved: () => void; forceState?: Status; forceReason?: string }) {
   // Hydrate persisted rejection reason synchronously so the rejected screen
@@ -24,13 +49,23 @@ export function KycPending({ onApproved, forceState, forceReason }: { onApproved
   const persistedReason =
     typeof window !== "undefined" ? localStorage.getItem(REJECTION_REASON_KEY) : null;
 
+  // Hydrate persisted submittedAt so the "Submitted X ago" line is correct
+  // immediately on reopen — before the network round-trip completes.
+  const persistedPending = forceState ? null : readPersisted();
+
   const [latest, setLatest] = useState<LatestSubmission | null>(
     forceState
       ? { submissionId: "preview", providerRef: "preview", status: forceState, submittedAt: new Date().toISOString(), reason: forceReason ?? persistedReason ?? null }
-      : null
+      : persistedPending
+        ? { submissionId: persistedPending.submissionId ?? "cached", providerRef: null, status: "pending", submittedAt: persistedPending.submittedAt, reason: null }
+        : null
   );
   const [status, setStatus] = useState<Status>(forceState ?? "pending");
   const [pollMs, setPollMs] = useState(POLL_INTERVAL_MS);
+  // Initial-load skeleton: only true until first fetch resolves (success or error).
+  const [initialLoading, setInitialLoading] = useState<boolean>(!forceState && !persistedPending);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+  const [retrying, setRetrying] = useState(false);
   const stoppedRef = useRef(!!forceState);
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const redirectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -46,45 +81,71 @@ export function KycPending({ onApproved, forceState, forceReason }: { onApproved
   };
 
   // Fetch the latest submission row + reconcile profile.kyc_status.
-  const fetchLatest = async () => {
-    if (stoppedRef.current) return;
-    const { data: u } = await supabase.auth.getUser();
-    if (!u.user) return;
-    const { data: rows, error } = await supabase
-      .from("kyc_submissions")
-      .select("id,provider_ref,status,created_at,reason")
-      .eq("user_id", u.user.id)
-      .order("created_at", { ascending: false })
-      .limit(1);
-    if (error) return;
-    const r = rows?.[0];
-    if (!r) return;
-    const next: LatestSubmission = {
-      submissionId: r.id,
-      providerRef: r.provider_ref,
-      status: r.status as Status,
-      submittedAt: r.created_at,
-      reason: r.reason,
-    };
-    setLatest(next);
-    setStatus(next.status);
-
-    if (next.status === "approved") {
-      stopAllListeners();
-      // Clear any stale rejection reason now that the user is approved.
-      try { localStorage.removeItem(REJECTION_REASON_KEY); } catch { /* ignore */ }
-      await updateProfileFields({ kyc_status: "approved" });
-      await persistStage("STAGE_5");
-      // Wait for the seal bounce + shimmer sweep to finish before transitioning.
-      if (redirectTimerRef.current) clearTimeout(redirectTimerRef.current);
-      redirectTimerRef.current = setTimeout(() => onApproved(), APPROVED_ANIMATION_MS);
-    } else if (next.status === "rejected") {
-      stopAllListeners();
-      // Persist the reason so a reload still shows it.
-      if (next.reason) {
-        try { localStorage.setItem(REJECTION_REASON_KEY, next.reason); } catch { /* ignore */ }
+  // Returns true on success, false on error so callers can react.
+  const fetchLatest = async (): Promise<boolean> => {
+    if (stoppedRef.current) return true;
+    try {
+      const { data: u, error: authErr } = await supabase.auth.getUser();
+      if (authErr) throw authErr;
+      if (!u.user) {
+        setInitialLoading(false);
+        return true; // not signed-in is not a transient error
       }
-      await updateProfileFields({ kyc_status: "rejected" });
+      const { data: rows, error } = await supabase
+        .from("kyc_submissions")
+        .select("id,provider_ref,status,created_at,reason")
+        .eq("user_id", u.user.id)
+        .order("created_at", { ascending: false })
+        .limit(1);
+      if (error) throw error;
+      const r = rows?.[0];
+      setInitialLoading(false);
+      setFetchError(null);
+      if (!r) return true;
+      const next: LatestSubmission = {
+        submissionId: r.id,
+        providerRef: r.provider_ref,
+        status: r.status as Status,
+        submittedAt: r.created_at,
+        reason: r.reason,
+      };
+      setLatest(next);
+      setStatus(next.status);
+
+      // Persist for cross-reload resume (only while still pending).
+      if (next.status === "pending") {
+        writePersisted({
+          submittedAt: next.submittedAt,
+          lastSeenAt: new Date().toISOString(),
+          submissionId: next.submissionId,
+        });
+      }
+
+      if (next.status === "approved") {
+        stopAllListeners();
+        // Clear any stale rejection reason now that the user is approved.
+        try { localStorage.removeItem(REJECTION_REASON_KEY); } catch { /* ignore */ }
+        clearPersisted();
+        await updateProfileFields({ kyc_status: "approved" });
+        await persistStage("STAGE_5");
+        // Wait for the seal bounce + shimmer sweep to finish before transitioning.
+        if (redirectTimerRef.current) clearTimeout(redirectTimerRef.current);
+        redirectTimerRef.current = setTimeout(() => onApproved(), APPROVED_ANIMATION_MS);
+      } else if (next.status === "rejected") {
+        stopAllListeners();
+        clearPersisted();
+        // Persist the reason so a reload still shows it.
+        if (next.reason) {
+          try { localStorage.setItem(REJECTION_REASON_KEY, next.reason); } catch { /* ignore */ }
+        }
+        await updateProfileFields({ kyc_status: "rejected" });
+      }
+      return true;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Couldn't reach verification service";
+      setInitialLoading(false);
+      setFetchError(message);
+      return false;
     }
   };
 
@@ -135,9 +196,16 @@ export function KycPending({ onApproved, forceState, forceReason }: { onApproved
     };
   }, []);
 
-  const retryNow = () => {
+  const retryNow = async () => {
+    setRetrying(true);
     setPollMs(POLL_INTERVAL_MS);
-    void fetchLatest();
+    const ok = await fetchLatest();
+    setRetrying(false);
+    if (ok) {
+      // Make sure the local stage stays at STAGE_4 while still pending —
+      // protects against a stale cached stage drifting after a manual retry.
+      try { await persistStage("STAGE_4"); } catch { /* ignore */ }
+    }
   };
 
   // ---------- Visuals ----------
@@ -160,7 +228,17 @@ export function KycPending({ onApproved, forceState, forceReason }: { onApproved
   }
 
   // Pending / unknown — premium dark luxury layout (matches reference mock)
-  return <PendingView pollMs={pollMs} latest={latest} onRetry={retryNow} onClose={onApproved} />;
+  return (
+    <PendingView
+      pollMs={pollMs}
+      latest={latest}
+      onRetry={retryNow}
+      onClose={onApproved}
+      initialLoading={initialLoading}
+      fetchError={fetchError}
+      retrying={retrying}
+    />
+  );
 }
 
 /* ----------------------------- Pending View ----------------------------- */
@@ -170,73 +248,137 @@ function PendingView({
   latest,
   onRetry,
   onClose,
+  initialLoading,
+  fetchError,
+  retrying,
 }: {
   pollMs: number;
   latest: LatestSubmission | null;
-  onRetry: () => void;
+  onRetry: () => void | Promise<void>;
   onClose: () => void;
+  initialLoading: boolean;
+  fetchError: string | null;
+  retrying: boolean;
 }) {
   // Render submission timestamp on client only — avoids SSR/CSR locale + timezone hydration mismatch.
   const [submittedLabel, setSubmittedLabel] = useState<string | null>(null);
+  const [exiting, setExiting] = useState(false);
+  // Re-trigger shake on each new error string by keying the banner on it.
+  const errorKey = fetchError ?? "";
+
   useEffect(() => {
     if (!latest?.submittedAt) { setSubmittedLabel(null); return; }
-    setSubmittedLabel(new Date(latest.submittedAt).toLocaleString());
+    const fmt = () => {
+      const d = new Date(latest.submittedAt);
+      const diffSec = Math.max(0, Math.round((Date.now() - d.getTime()) / 1000));
+      if (diffSec < 60) return `${diffSec}s ago`;
+      if (diffSec < 3600) return `${Math.round(diffSec / 60)}m ago`;
+      return d.toLocaleString();
+    };
+    setSubmittedLabel(fmt());
+    const t = setInterval(() => setSubmittedLabel(fmt()), 1000);
+    return () => clearInterval(t);
   }, [latest?.submittedAt]);
 
+  const handleContinue = () => {
+    if (exiting) return;
+    setExiting(true);
+    setTimeout(() => onClose(), CONTINUE_TRANSITION_MS);
+  };
+
   return (
-    <div className="kyc-result-root kyc-pending-stage">
+    <div className={`kyc-result-root kyc-pending-stage ${exiting ? "kyc-exit" : ""}`}>
       <div className="kyc-result-glow yellow" />
       <div className="kyc-pending-rays" aria-hidden="true" />
 
-      <button className="kyc-close-btn" onClick={onClose} aria-label="Close">
+      <button className="kyc-close-btn" onClick={handleContinue} aria-label="Close">
         <X className="w-6 h-6" strokeWidth={2.2} />
       </button>
 
       <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-6 -mt-12">
-        {/* Soft ripple wave behind badge */}
-        <div className="kyc-pending-ripple" aria-hidden="true">
-          <span /><span /><span />
-        </div>
+        {initialLoading ? (
+          <PendingSkeleton />
+        ) : (
+          <>
+            {/* Soft ripple wave behind badge */}
+            <div className="kyc-pending-ripple" aria-hidden="true">
+              <span /><span /><span />
+            </div>
 
-        <div className="kyc-seal-bounce">
-          <ClockBadge />
-        </div>
+            <div className="kyc-seal-bounce">
+              <ClockBadge />
+            </div>
 
-        {/* Shimmer that sweeps once over the badge */}
-        <div className="kyc-pending-shimmer" aria-hidden="true" />
+            {/* Shimmer that sweeps once over the badge */}
+            <div className="kyc-pending-shimmer" aria-hidden="true" />
 
-        <h1 className="kyc-approved-title mt-10 text-white text-[24px] font-semibold tracking-tight text-center">
-          Verifying your KYC
-        </h1>
-        <p className="kyc-approved-sub mt-2 text-white/60 text-sm text-center max-w-[280px]">
-          Hang tight — this usually takes under 2 minutes.
-        </p>
+            <h1 className="kyc-approved-title mt-10 text-white text-[24px] font-semibold tracking-tight text-center">
+              Verifying your KYC
+            </h1>
+            <p className="kyc-approved-sub mt-2 text-white/60 text-sm text-center max-w-[280px]">
+              Hang tight — this usually takes under 2 minutes.
+            </p>
 
-        <div className="kyc-pending-progress mt-8 w-full max-w-[260px]">
-          <div className="kyc-pending-progress-fill" />
-        </div>
+            <div className="kyc-pending-progress mt-8 w-full max-w-[260px]">
+              <div className="kyc-pending-progress-fill" />
+            </div>
 
-        {latest && (
-          <div className="mt-7 text-[11px] text-white/45 text-center space-y-0.5">
-            <p>Auto-refreshing every {Math.round(pollMs / 1000)}s</p>
-            {submittedLabel && (
-              <p suppressHydrationWarning>Submitted: {submittedLabel}</p>
+            {latest && (
+              <div className="mt-7 text-[11px] text-white/45 text-center space-y-0.5">
+                <p>Auto-refreshing every {Math.round(pollMs / 1000)}s</p>
+                {submittedLabel && (
+                  <p suppressHydrationWarning>Submitted {submittedLabel}</p>
+                )}
+              </div>
             )}
-          </div>
+
+            {fetchError && (
+              <div key={errorKey} className="kyc-error-banner mt-6" role="alert" aria-live="polite">
+                <AlertTriangle className="w-4 h-4 shrink-0" strokeWidth={2.2} />
+                <div className="flex-1 min-w-0">
+                  <p className="text-[12.5px] font-semibold text-red-100">Couldn't reach verification</p>
+                  <p className="text-[11px] text-red-200/75 truncate">{fetchError}</p>
+                </div>
+                <button
+                  onClick={onRetry}
+                  disabled={retrying}
+                  className="kyc-error-retry"
+                >
+                  {retrying ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+                  <span>Retry</span>
+                </button>
+              </div>
+            )}
+          </>
         )}
       </div>
 
       <div className="relative z-10 px-6 pb-8 safe-bottom flex flex-col items-center gap-3">
-        <button onClick={onRetry} className="text-[12px] text-white/55 inline-flex items-center gap-1.5 hover:text-white transition-colors">
-          <RefreshCw className="w-3 h-3" /> Refresh now
-        </button>
-        <button className="kyc-continue-btn" onClick={onClose}>
+        {!initialLoading && !fetchError && (
+          <button onClick={onRetry} disabled={retrying} className="text-[12px] text-white/55 inline-flex items-center gap-1.5 hover:text-white transition-colors disabled:opacity-50">
+            {retrying ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />} Refresh now
+          </button>
+        )}
+        <button className="kyc-continue-btn" onClick={handleContinue} disabled={initialLoading}>
           Continue in background
         </button>
       </div>
     </div>
   );
 }
+
+/* Neon-lime skeleton shown only during the very first fetch */
+function PendingSkeleton() {
+  return (
+    <div className="kyc-skeleton-wrap" aria-busy="true" aria-label="Loading verification status">
+      <div className="kyc-skel-badge" />
+      <div className="kyc-skel-line kyc-skel-line-1 mt-10" />
+      <div className="kyc-skel-line kyc-skel-line-2 mt-3" />
+      <div className="kyc-skel-line kyc-skel-line-3 mt-8" />
+    </div>
+  );
+}
+
 
 /* ----------------------------- Clock Badge ----------------------------- */
 
