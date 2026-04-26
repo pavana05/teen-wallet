@@ -113,13 +113,11 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
     // real UPI app on mobile.
     let serverResult: Awaited<ReturnType<typeof payUpi>> | null = null;
     try {
-      serverResult = await payUpi({
-        data: {
-          amount: amt,
-          upiId: payload.upiId,
-          payeeName: payload.payeeName,
-          note: noteToSave,
-        },
+      serverResult = await callWithAuth(payUpi, {
+        amount: amt,
+        upiId: payload.upiId,
+        payeeName: payload.payeeName,
+        note: noteToSave,
       });
     } catch (err) {
       // Network / server function unavailable — fall back to direct insert
