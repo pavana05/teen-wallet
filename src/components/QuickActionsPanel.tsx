@@ -42,7 +42,7 @@ import { payUpi } from "@/lib/payments.functions";
 import { breadcrumb, captureError } from "@/lib/breadcrumbs";
 import { toast } from "sonner";
 
-export type QuickActionKind = "pay-friends" | "to-bank" | "balance" | "history";
+export type QuickActionKind = "pay-friends" | "to-bank" | "balance" | "history" | "send-money";
 
 interface Props {
   kind: QuickActionKind;
