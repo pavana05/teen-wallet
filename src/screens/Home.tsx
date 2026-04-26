@@ -430,7 +430,7 @@ export function Home() {
           <div className="hp-nav flex-1" role="tablist">
             <NavItem icon={HomeIcon} label="Home" active />
             <NavItem icon={Gift} label="Shop" />
-            <NavItem icon={CreditCard} label="Card" />
+            
             <NavItem icon={User} label="Profile" onClick={() => setShowProfile(true)} />
           </div>
           <button
