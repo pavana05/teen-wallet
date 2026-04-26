@@ -1422,6 +1422,24 @@ function SuccessView({
         </div>
         <div className="grid grid-cols-2 gap-2">
           <button
+            onClick={handleEmail}
+            className="sp-receipt-action focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            aria-label="Email this receipt"
+          >
+            <Mail className="w-4 h-4" />
+            Email
+          </button>
+          <button
+            onClick={handleSms}
+            className="sp-receipt-action focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            aria-label="Send receipt by SMS"
+          >
+            <MessageCircle className="w-4 h-4" />
+            SMS
+          </button>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <button
             onClick={onScanAgain}
             className="sp-receipt-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
           >
