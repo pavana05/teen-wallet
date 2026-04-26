@@ -45,6 +45,12 @@ export interface VirtualTableProps<T> {
   onLoadMore?: () => void;
   /** Empty-state node when not loading and rows is empty. */
   empty?: ReactNode;
+  /** Optional pointer-down handler on a row (used for long-press). */
+  onRowPointerDown?: (row: T, index: number) => void;
+  /** Optional pointer-up handler on a row (used to fire a tap action). */
+  onRowPointerUp?: (row: T, index: number) => void;
+  /** Optional pointer-cancel handler on a row (used to abort long-press timers). */
+  onRowPointerCancel?: (row: T, index: number) => void;
 }
 
 export function VirtualTable<T>({
@@ -60,6 +66,9 @@ export function VirtualTable<T>({
   hasMore = false,
   onLoadMore,
   empty,
+  onRowPointerDown,
+  onRowPointerUp,
+  onRowPointerCancel,
 }: VirtualTableProps<T>) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
@@ -157,6 +166,10 @@ export function VirtualTable<T>({
                 <div
                   key={id}
                   className={`vt-row ${cls ?? ""}`}
+                  onPointerDown={onRowPointerDown ? () => onRowPointerDown(row, vRow.index) : undefined}
+                  onPointerUp={onRowPointerUp ? () => onRowPointerUp(row, vRow.index) : undefined}
+                  onPointerLeave={onRowPointerCancel ? () => onRowPointerCancel(row, vRow.index) : undefined}
+                  onPointerCancel={onRowPointerCancel ? () => onRowPointerCancel(row, vRow.index) : undefined}
                   style={{
                     position: "absolute",
                     top: 0,
@@ -167,6 +180,7 @@ export function VirtualTable<T>({
                     display: "grid",
                     gridTemplateColumns: totalGridTemplate,
                     alignItems: "center",
+                    cursor: onRowPointerUp ? "pointer" : undefined,
                     ...styleExtra,
                   }}
                 >

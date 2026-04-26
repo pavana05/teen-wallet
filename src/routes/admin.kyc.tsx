@@ -6,9 +6,9 @@ import {
   Loader2, ShieldCheck, ShieldX, RefreshCw, Clock,
   Copy, Check, ExternalLink, ImageOff, FileImage, User as UserIcon,
   ZoomIn, X, SplitSquareHorizontal, History as HistoryIcon, AlertTriangle,
-  ChevronUp, ChevronDown, ChevronsUpDown,
+  ChevronUp, ChevronDown, ChevronsUpDown, Eye,
 } from "lucide-react";
-import { PermissionBanner, ErrorState } from "@/admin/components/AdminFeedback";
+import { PermissionBanner, ShakeErrorPanel } from "@/admin/components/AdminFeedback";
 import { toast } from "sonner";
 import { VirtualTable, type Column } from "@/admin/components/VirtualTable";
 import { usePersistedState } from "@/admin/lib/usePersistedState";
@@ -166,12 +166,15 @@ function KycQueue() {
 
   const [rows, setRows] = useState<KycRow[]>([]);
   const [total, setTotal] = useState(0);
-  const [page, setPage] = useState(1);
+  // Cursor pagination state — composite (created_at, id) so realtime inserts
+  // between page loads never produce duplicates or skipped rows.
+  const [cursor, setCursor] = useState<{ ts: string; id: string } | null>(null);
   const [hasMore, setHasMore] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [reviewing, setReviewing] = useState<KycRow | null>(null);
+  const [quickPreview, setQuickPreview] = useState<KycRow | null>(null);
   const [rejectReason, setRejectReason] = useState<RejectReason | "">("");
   const [rejectNote, setRejectNote] = useState("");
   const [showReject, setShowReject] = useState(false);
@@ -187,52 +190,91 @@ function KycQueue() {
   const canDecide = can(admin?.role, "decideKyc");
   const canView = can(admin?.role, "viewKyc") || canDecide;
 
+  // Monotonically increasing request id — older in-flight requests' results
+  // are dropped when a newer one fires (filter change, refresh, realtime burst).
+  // This is the de-dupe-by-request-id mechanism.
   const reqId = useRef(0);
-  const fetchPage = useCallback(async (pageNum: number) => {
+  // Stable ref to "is a fetch in flight" so callbacks see the latest value
+  // without retriggering the effect that wires the realtime channel.
+  const inFlightRef = useRef(false);
+
+  /**
+   * Cursor-based fetch.
+   * - reset=true: fresh page from the top (clears rows + cursor).
+   * - reset=false: append the next page using the current cursor as anchor.
+   * Rows are de-duped by id when appending, defending against race conditions
+   * where realtime + scroll-load fire in rapid succession.
+   */
+  const fetchList = useCallback(async (reset: boolean) => {
     const s = readAdminSession();
     if (!s) return;
+    // Hard guard: never run two concurrent loads (in addition to the
+    // VirtualTable observer's own guard). Refresh always wins by ignoring this.
+    if (!reset && inFlightRef.current) return;
+    inFlightRef.current = true;
     const myReq = ++reqId.current;
-    if (pageNum === 1) setInitialLoading(true);
+    if (reset) setInitialLoading(true);
     else setLoadingMore(true);
     const t0 = performance.now();
     try {
-      const r = await callAdminFn<{ rows: KycRow[]; total: number }>({
+      const r = await callAdminFn<{
+        rows: KycRow[];
+        total: number;
+        nextCursor: string | null;
+        nextCursorId: string | null;
+      }>({
         action: "kyc_list",
         sessionToken: s.sessionToken,
         status: filters.status,
-        page: pageNum,
         pageSize: PAGE_SIZE,
+        cursor: reset ? null : cursor?.ts ?? null,
+        cursorId: reset ? null : cursor?.id ?? null,
       });
+      // Drop stale responses — a newer request has superseded this one.
       if (myReq !== reqId.current) return;
       setTotal(r.total);
-      setHasMore(pageNum * PAGE_SIZE < r.total);
-      setRows((prev) => (pageNum === 1 ? r.rows : [...prev, ...r.rows]));
+      setHasMore(Boolean(r.nextCursor));
+      setCursor(r.nextCursor && r.nextCursorId ? { ts: r.nextCursor, id: r.nextCursorId } : null);
+      setRows((prev) => {
+        if (reset) return r.rows;
+        // Dedupe by id — required because realtime can insert a row between
+        // when we computed the cursor and when this response arrived.
+        const seen = new Set(prev.map((row) => row.id));
+        const fresh = r.rows.filter((row) => !seen.has(row.id));
+        return [...prev, ...fresh];
+      });
       setErr("");
       recordPanelLoad("KYC · queue", performance.now() - t0);
     } catch (e: any) {
-      if (myReq === reqId.current) setErr(e.message || "Failed to load");
+      if (myReq === reqId.current) setErr(e.message || "Failed to load KYC submissions.");
     } finally {
       if (myReq === reqId.current) {
         setInitialLoading(false);
         setLoadingMore(false);
       }
+      inFlightRef.current = false;
     }
+  }, [filters.status, cursor]);
+
+  // Reset & reload on filter change. We deliberately only depend on
+  // filters.status — fetchList changes whenever cursor changes, but we don't
+  // want a new cursor to retrigger this reset effect.
+  useEffect(() => {
+    setCursor(null);
+    setRows([]);
+    void fetchList(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters.status]);
 
-  // Reset & reload on filter change
-  useEffect(() => {
-    setPage(1);
-    void fetchPage(1);
-  }, [fetchPage]);
-
   const loadMore = useCallback(() => {
+    // Defensive guards: VirtualTable already short-circuits when loadingMore
+    // or initialLoading, but keep belt-and-suspenders here for safety.
     if (loadingMore || initialLoading || !hasMore) return;
-    const next = page + 1;
-    setPage(next);
-    void fetchPage(next);
-  }, [page, hasMore, loadingMore, initialLoading, fetchPage]);
+    void fetchList(false);
+  }, [hasMore, loadingMore, initialLoading, fetchList]);
 
-  // Realtime — throttled refresh of page 1
+  // Realtime — throttled refresh from the top. Throttle prevents a burst of
+  // database changes from triggering a flood of refetches.
   const lastKycLoad = useRef(0);
   useEffect(() => {
     const throttled = () => {
@@ -240,15 +282,18 @@ function KycQueue() {
       const now = Date.now();
       if (now - lastKycLoad.current < 3000) return;
       lastKycLoad.current = now;
-      setPage(1);
-      void fetchPage(1);
+      setCursor(null);
+      setRows([]);
+      void fetchList(true);
     };
     const ch = supabase
       .channel("admin_kyc")
       .on("postgres_changes", { event: "*", schema: "public", table: "kyc_submissions" }, throttled)
       .subscribe();
     return () => { supabase.removeChannel(ch); };
-  }, [fetchPage]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters.status]);
+  
 
   // Fetch signed URLs whenever opening a review
   useEffect(() => {
@@ -308,8 +353,9 @@ function KycQueue() {
       setShowReject(false);
       setRejectReason("");
       setRejectNote("");
-      setPage(1);
-      await fetchPage(1);
+      setCursor(null);
+      setRows([]);
+      await fetchList(true);
     } catch (e: any) {
       setErr(e.message || "Action failed");
       toast.error(e?.message || "Action failed");
@@ -431,12 +477,58 @@ function KycQueue() {
       cell: (r) => <StatusPill status={r.status} />,
     },
     {
-      key: "actions", header: "", width: "110px", align: "right",
+      key: "actions", header: "", width: "150px", align: "right",
       cell: (r) => (
-        <button className="a-btn-ghost" onClick={() => setReviewing(r)} style={{ padding: "6px 12px", fontSize: 12 }}>Review →</button>
+        <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
+          <button
+            className="a-btn-ghost"
+            onClick={(e) => { e.stopPropagation(); setQuickPreview(r); }}
+            style={{ padding: "6px 10px", fontSize: 11 }}
+            title="Quick preview (or click row / long-press)"
+          >
+            <Eye size={11} /> Quick
+          </button>
+          <button
+            className="a-btn-ghost"
+            onClick={(e) => { e.stopPropagation(); setReviewing(r); }}
+            style={{ padding: "6px 10px", fontSize: 11 }}
+          >
+            Review →
+          </button>
+        </div>
       ),
     },
   ], [sort]);
+
+  // Long-press / click handlers for the whole row. Long-press (≥450ms) opens
+  // the quick side panel; a plain click also opens it. The full review modal
+  // is reserved for the explicit "Review →" button so we don't take admins
+  // out of context unexpectedly.
+  const longPressTimer = useRef<number | null>(null);
+  const longPressFired = useRef(false);
+  const handleRowPointerDown = useCallback((row: KycRow) => {
+    longPressFired.current = false;
+    if (longPressTimer.current) window.clearTimeout(longPressTimer.current);
+    longPressTimer.current = window.setTimeout(() => {
+      longPressFired.current = true;
+      setQuickPreview(row);
+    }, 450);
+  }, []);
+  const handleRowPointerUp = useCallback((row: KycRow) => {
+    if (longPressTimer.current) {
+      window.clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+    // If the long-press already fired, the panel is open — don't re-open.
+    if (longPressFired.current) return;
+    setQuickPreview(row);
+  }, []);
+  const handleRowPointerCancel = useCallback(() => {
+    if (longPressTimer.current) {
+      window.clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  }, []);
 
   return (
     <div>
@@ -449,7 +541,7 @@ function KycQueue() {
             Review and decide identity verifications submitted by users.
           </p>
         </div>
-        <button onClick={() => { setPage(1); void fetchPage(1); }} className="a-btn-ghost" disabled={initialLoading}>
+        <button onClick={() => { setCursor(null); setRows([]); void fetchList(true); }} className="a-btn-ghost" disabled={initialLoading}>
           <RefreshCw size={14} className={initialLoading ? "animate-spin" : ""} /> Refresh
         </button>
       </div>
@@ -479,10 +571,11 @@ function KycQueue() {
         ))}
       </div>
 
-      <ErrorState
+      <ShakeErrorPanel
         error={err}
         retrying={initialLoading}
-        onRetry={() => { setPage(1); void fetchPage(1); }}
+        onRetry={() => { setCursor(null); setRows([]); void fetchList(true); }}
+        title="Couldn’t load the KYC queue"
       />
 
 
@@ -497,6 +590,10 @@ function KycQueue() {
           loadingMore={loadingMore}
           hasMore={hasMore}
           onLoadMore={loadMore}
+          onRowPointerDown={handleRowPointerDown}
+          onRowPointerUp={handleRowPointerUp}
+          onRowPointerCancel={handleRowPointerCancel}
+          rowClass={(r) => (quickPreview?.id === r.id ? "kyc-row-pressing" : undefined)}
           empty={
             <div style={{ padding: 48, textAlign: "center", color: "var(--a-muted)" }}>
               <ShieldCheck size={28} style={{ opacity: 0.4, display: "block", margin: "0 auto 8px" }} />
@@ -708,7 +805,147 @@ function KycQueue() {
           onClose={() => setCompareOpen(false)}
         />
       )}
+
+      {/* Quick side-panel preview — opens on row click or long-press. */}
+      {quickPreview && (
+        <KycSidePanel
+          row={quickPreview}
+          onClose={() => setQuickPreview(null)}
+          onOpenFullReview={() => { setReviewing(quickPreview); setQuickPreview(null); }}
+          onZoom={(url, label) => setZoomUrl({ url, label })}
+        />
+      )}
     </div>
+  );
+}
+
+/**
+ * Quick side-panel preview that slides in from the right.
+ * - Loads its own signed URLs (independent of the full review modal so it's
+ *   instant whether or not the modal has been opened before).
+ * - Shows a compact summary, three thumbnails, and a single "Open full review"
+ *   button as the path to the heavyweight modal.
+ */
+function KycSidePanel({
+  row, onClose, onOpenFullReview, onZoom,
+}: {
+  row: KycRow;
+  onClose: () => void;
+  onOpenFullReview: () => void;
+  onZoom: (url: string, label: string) => void;
+}) {
+  const [urls, setUrls] = useState<{ selfieUrl: string | null; docFrontUrl: string | null; docBackUrl: string | null } | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    const s = readAdminSession();
+    if (!s) { setLoading(false); return; }
+    setLoading(true);
+    callAdminFn<{ selfieUrl: string | null; docFrontUrl: string | null; docBackUrl: string | null }>({
+      action: "kyc_signed_urls", sessionToken: s.sessionToken, submissionId: row.id,
+    })
+      .then((r) => { if (!cancelled) setUrls(r); })
+      .catch(() => { if (!cancelled) setUrls({ selfieUrl: null, docFrontUrl: null, docBackUrl: null }); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [row.id]);
+
+  // Close on ESC for keyboard-first admins.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  const thumbs: Array<{ key: string; label: string; url: string | null }> = [
+    { key: "selfie", label: "Selfie", url: urls?.selfieUrl ?? null },
+    { key: "front", label: "Aadhaar front", url: urls?.docFrontUrl ?? null },
+    { key: "back", label: "Aadhaar back", url: urls?.docBackUrl ?? null },
+  ];
+
+  return (
+    <>
+      <div className="kyc-side-overlay" onClick={onClose} />
+      <aside className="kyc-side-panel" role="dialog" aria-label="KYC quick preview">
+        <div className="kyc-side-head">
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="a-label" style={{ marginBottom: 2 }}>Quick preview</div>
+            <div style={{ fontSize: 15, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+              {row.profile?.full_name || "Unnamed user"}
+            </div>
+          </div>
+          <StatusPill status={row.status} />
+          <button onClick={onClose} className="a-btn-ghost" aria-label="Close" style={{ padding: 6 }}>
+            <X size={14} />
+          </button>
+        </div>
+
+        <div className="kyc-side-body">
+          <div className="kyc-side-thumbs">
+            {thumbs.map((t) => (
+              <div key={t.key}>
+                <button
+                  type="button"
+                  className="kyc-side-thumb"
+                  onClick={() => t.url && onZoom(t.url, t.label)}
+                  disabled={!t.url}
+                  title={t.url ? `Tap to zoom · ${t.label}` : "Not available"}
+                >
+                  {loading ? (
+                    <Loader2 size={16} className="animate-spin" style={{ color: "var(--a-muted)" }} />
+                  ) : t.url ? (
+                    <img src={t.url} alt={t.label} loading="lazy" />
+                  ) : t.key === "selfie" ? (
+                    <FileImage size={18} style={{ color: "var(--a-muted)" }} />
+                  ) : (
+                    <ImageOff size={18} style={{ color: "var(--a-muted)" }} />
+                  )}
+                </button>
+                <div className="kyc-side-thumb-label">{t.label}</div>
+              </div>
+            ))}
+          </div>
+
+          <dl className="kyc-dl">
+            <div><dt>Phone</dt><dd className="a-mono">{row.profile?.phone || "—"}</dd></div>
+            <div><dt>DOB</dt><dd>{row.profile?.dob || "—"}{ageFromDob(row.profile?.dob) ? ` (${ageFromDob(row.profile?.dob)} yrs)` : ""}</dd></div>
+            <div><dt>Aadhaar</dt><dd className="a-mono">{row.profile?.aadhaar_last4 ? `XXXX-XXXX-${row.profile.aadhaar_last4}` : "—"}</dd></div>
+            <div><dt>Match</dt><dd><MatchGauge score={row.match_score} /></dd></div>
+            <div><dt>Submitted</dt><dd>{timeAgo(row.created_at)}</dd></div>
+            <div><dt>Provider</dt><dd>{row.provider}</dd></div>
+          </dl>
+
+          {row.reason && (
+            <div style={{ marginTop: 12, padding: 10, borderRadius: 6, background: "var(--a-surface-2)", border: "1px solid var(--a-border)", fontSize: 12 }}>
+              <div className="a-label" style={{ marginBottom: 4 }}>Latest reason</div>
+              {row.reason}
+            </div>
+          )}
+        </div>
+
+        <div className="kyc-side-foot">
+          <Link
+            to="/admin/users/$id"
+            params={{ id: row.user_id }}
+            className="a-btn-ghost"
+            onClick={onClose}
+            style={{ fontSize: 12 }}
+          >
+            <ExternalLink size={12} /> Open user
+          </Link>
+          <div style={{ flex: 1 }} />
+          <button
+            type="button"
+            className="a-btn-ghost"
+            onClick={onOpenFullReview}
+            style={{ fontSize: 12, fontWeight: 600 }}
+          >
+            Open full review →
+          </button>
+        </div>
+      </aside>
+    </>
   );
 }
 

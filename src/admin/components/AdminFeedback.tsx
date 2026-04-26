@@ -100,3 +100,50 @@ export function ErrorState({
     </div>
   );
 }
+
+/**
+ * Heavier red-shake error panel for unrecoverable list-load failures.
+ * Animates a single shake when `error` transitions from null → string so
+ * the eye is drawn to it. One-tap retry button calls `onRetry` (typically
+ * a refetch of the current filter). Renders nothing when there is no error.
+ */
+export function ShakeErrorPanel({
+  error,
+  onRetry,
+  retrying,
+  title = "Couldn’t load data",
+}: {
+  error: string | null | undefined;
+  onRetry?: () => void;
+  retrying?: boolean;
+  title?: string;
+}) {
+  if (!error) return null;
+  return (
+    <div
+      role="alert"
+      // `key={error}` re-mounts the node whenever the error string changes, restarting the shake animation.
+      key={error}
+      className="a-shake-panel"
+    >
+      <div className="a-shake-icon">
+        <AlertTriangle size={18} />
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 2 }}>{title}</div>
+        <div style={{ fontSize: 12, opacity: 0.85, wordBreak: "break-word" }}>{error}</div>
+      </div>
+      {onRetry && (
+        <button
+          type="button"
+          onClick={onRetry}
+          disabled={retrying}
+          className="a-shake-retry"
+        >
+          {retrying ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={13} />}
+          {retrying ? "Retrying…" : "Try again"}
+        </button>
+      )}
+    </div>
+  );
+}
