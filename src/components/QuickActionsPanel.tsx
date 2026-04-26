@@ -458,6 +458,290 @@ function ConfirmPay({
   );
 }
 
+/* ───────── SEND MONEY (P2P: phone or UPI ID) ───────── */
+// Common UPI handle providers users on Teen Pay actually have. We surface
+// these as one-tap suggestions when the user types a 10-digit phone number,
+// since UPI doesn't have a public phone→VPA directory the client can hit.
+// The user picks the right one and we hand off to the same ConfirmPay flow
+// as Pay friends — so all server-side fraud rules + balance checks apply.
+const PHONE_VPA_PROVIDERS: { suffix: string; label: string; tint: string }[] = [
+  { suffix: "@ybl",     label: "PhonePe",  tint: "from-violet-500/40 to-fuchsia-500/30" },
+  { suffix: "@paytm",   label: "Paytm",    tint: "from-sky-500/40 to-blue-600/30" },
+  { suffix: "@okaxis",  label: "GPay (Axis)",   tint: "from-rose-500/40 to-orange-500/30" },
+  { suffix: "@oksbi",   label: "GPay (SBI)",    tint: "from-emerald-500/40 to-teal-500/30" },
+  { suffix: "@okhdfcbank", label: "GPay (HDFC)", tint: "from-indigo-500/40 to-violet-500/30" },
+  { suffix: "@okicici", label: "GPay (ICICI)",  tint: "from-orange-500/40 to-rose-500/30" },
+];
+
+const VPA_RE = /^[a-zA-Z0-9._-]{2,256}@[a-zA-Z][a-zA-Z0-9.-]{1,64}$/;
+const PHONE_RE = /^[6-9]\d{9}$/; // Indian mobile numbers
+
+type SendTarget = {
+  kind: "phone" | "upi";
+  raw: string;
+  /** Resolved UPI ID once the user picks (phone) or auto (upi) */
+  upiId: string;
+  payeeName: string;
+};
+
+function SendMoney() {
+  const { userId } = useApp();
+  const [input, setInput] = useState("");
+  const [providerPick, setProviderPick] = useState<string | null>(null);
+  const [picked, setPicked] = useState<SendTarget | null>(null);
+  const [recents, setRecents] = useState<Contact[]>([]);
+
+  // Pull the most-recent paid contacts so the user can re-send in 1 tap
+  // without re-typing. Same RLS-scoped table the Pay friends view uses.
+  useEffect(() => {
+    if (!userId) return;
+    void supabase
+      .from("contacts")
+      .select("id,name,upi_id,phone,emoji,verified,last_paid_at")
+      .eq("user_id", userId)
+      .not("last_paid_at", "is", null)
+      .order("last_paid_at", { ascending: false })
+      .limit(5)
+      .then(({ data }) => setRecents((data ?? []) as Contact[]));
+  }, [userId]);
+
+  const trimmed = input.trim();
+  const cleanedDigits = trimmed.replace(/[\s+\-()]/g, "");
+  // Strip India country code so "+91 98xxxxxxxx" works naturally
+  const phoneCandidate = cleanedDigits.startsWith("91") && cleanedDigits.length === 12
+    ? cleanedDigits.slice(2)
+    : cleanedDigits;
+
+  const isPhone = PHONE_RE.test(phoneCandidate);
+  const isUpi = VPA_RE.test(trimmed);
+  const showProviders = isPhone && !isUpi;
+
+  const handleProceed = () => {
+    if (isUpi) {
+      setPicked({
+        kind: "upi",
+        raw: trimmed,
+        upiId: trimmed.toLowerCase(),
+        payeeName: trimmed.split("@")[0],
+      });
+      return;
+    }
+    if (isPhone && providerPick) {
+      const upiId = `${phoneCandidate}${providerPick}`;
+      setPicked({
+        kind: "phone",
+        raw: phoneCandidate,
+        upiId,
+        payeeName: phoneCandidate,
+      });
+    }
+  };
+
+  if (picked) {
+    return (
+      <ConfirmPay
+        contact={{
+          name: picked.payeeName,
+          upi_id: picked.upiId,
+          emoji: picked.kind === "phone" ? "📱" : "✉️",
+          verified: false, // first-time send → server fraud rules will warn "NEW_MERCHANT"
+        }}
+        onCancel={() => setPicked(null)}
+        onSuccess={async () => {
+          // Best-effort: persist the recipient as a contact for next time
+          if (userId) {
+            await supabase
+              .from("contacts")
+              .upsert(
+                {
+                  user_id: userId,
+                  name: picked.payeeName,
+                  upi_id: picked.upiId,
+                  phone: picked.kind === "phone" ? picked.raw : null,
+                  emoji: picked.kind === "phone" ? "📱" : "✉️",
+                  verified: true,
+                  last_paid_at: new Date().toISOString(),
+                },
+                { onConflict: "user_id,upi_id", ignoreDuplicates: false },
+              );
+          }
+          setPicked(null);
+          setInput("");
+          setProviderPick(null);
+        }}
+      />
+    );
+  }
+
+  return (
+    <div className="px-5 pt-2">
+      {/* Hero — emphasises speed + safety */}
+      <div className="qa-bank-hero">
+        <div className="flex items-center gap-2 text-white/70 text-[11px] uppercase tracking-[0.14em]">
+          <ShieldCheck className="w-3.5 h-3.5" /> End-to-end encrypted
+        </div>
+        <p className="text-[22px] font-semibold text-white mt-2 leading-tight">
+          Send money in
+          <br />
+          seconds
+        </p>
+        <p className="text-[12px] text-white/60 mt-2">
+          Phone number or UPI ID · Instant · Free
+        </p>
+        <div className="qa-bank-shine" />
+      </div>
+
+      {/* Input */}
+      <div className="mt-6">
+        <p className="text-[11px] uppercase tracking-[0.14em] text-white/45 mb-2">
+          Recipient
+        </p>
+        <div className="qa-search">
+          {isPhone ? (
+            <Phone className="w-4 h-4 text-primary" />
+          ) : isUpi ? (
+            <AtSign className="w-4 h-4 text-primary" />
+          ) : (
+            <Search className="w-4 h-4 text-white/50" />
+          )}
+          <input
+            inputMode="email"
+            autoComplete="off"
+            value={input}
+            onChange={(e) => {
+              setInput(e.target.value);
+              setProviderPick(null);
+            }}
+            placeholder="Phone number or name@upi"
+            className="bg-transparent flex-1 outline-none text-[14px] text-white placeholder:text-white/40"
+            aria-label="Recipient phone number or UPI ID"
+          />
+          {trimmed && (
+            <button
+              type="button"
+              onClick={() => { setInput(""); setProviderPick(null); void haptics.tap(); }}
+              aria-label="Clear input"
+              className="qa-icon-btn !w-7 !h-7"
+            >
+              <X className="w-3.5 h-3.5 text-white/70" />
+            </button>
+          )}
+        </div>
+        {/* Live validation hints — keep them friendly, not scolding */}
+        {trimmed.length > 0 && !isPhone && !isUpi && (
+          <p className="text-[11px] text-white/45 mt-2 inline-flex items-center gap-1.5">
+            <AlertTriangle className="w-3 h-3 text-yellow-400/80" />
+            Enter a 10-digit phone number or a UPI ID like{" "}
+            <span className="num-mono text-white/65">name@bank</span>
+          </p>
+        )}
+        {isUpi && (
+          <p className="text-[11px] text-primary mt-2 inline-flex items-center gap-1.5">
+            <ShieldCheck className="w-3 h-3" />
+            Valid UPI ID — ready to send
+          </p>
+        )}
+        {isPhone && (
+          <p className="text-[11px] text-white/55 mt-2">
+            Pick the recipient's UPI app to continue
+          </p>
+        )}
+      </div>
+
+      {/* Provider picker — shown only for phone-number flow */}
+      {showProviders && (
+        <div className="mt-4 grid grid-cols-2 gap-3 qa-enter">
+          {PHONE_VPA_PROVIDERS.map((p) => {
+            const active = providerPick === p.suffix;
+            return (
+              <button
+                key={p.suffix}
+                type="button"
+                onClick={() => { setProviderPick(p.suffix); void haptics.select(); }}
+                className={`qa-action-card !items-start text-left transition ${
+                  active ? "!border-primary/60 !bg-primary/10" : ""
+                }`}
+                aria-pressed={active}
+              >
+                <div className={`qa-bank-logo bg-gradient-to-br ${p.tint} !w-9 !h-9 !text-[14px]`}>
+                  {p.label.charAt(0)}
+                </div>
+                <p className="text-[13px] text-white mt-2 font-medium">{p.label}</p>
+                <p className="text-[11px] text-white/50 num-mono truncate w-full">
+                  {phoneCandidate}{p.suffix}
+                </p>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Primary CTA */}
+      <button
+        onClick={() => { void haptics.bloom(); handleProceed(); }}
+        disabled={!isUpi && !(isPhone && providerPick)}
+        className="qa-cta mt-6 w-full disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2"
+      >
+        <Zap className="w-4 h-4 text-black" />
+        Continue to send
+      </button>
+
+      {/* Trust strip */}
+      <div className="mt-4 grid grid-cols-3 gap-2 text-center">
+        <div className="qa-trust-pill">
+          <Lock className="w-3.5 h-3.5 text-primary mx-auto" />
+          <p className="text-[10px] text-white/65 mt-1">Bank-grade</p>
+        </div>
+        <div className="qa-trust-pill">
+          <ShieldCheck className="w-3.5 h-3.5 text-primary mx-auto" />
+          <p className="text-[10px] text-white/65 mt-1">Fraud-checked</p>
+        </div>
+        <div className="qa-trust-pill">
+          <Zap className="w-3.5 h-3.5 text-primary mx-auto" />
+          <p className="text-[10px] text-white/65 mt-1">Instant</p>
+        </div>
+      </div>
+
+      {/* Recents — 1-tap repeat send */}
+      {recents.length > 0 && !trimmed && (
+        <div className="mt-7">
+          <p className="text-[11px] uppercase tracking-[0.14em] text-white/45 mb-3">
+            Send again
+          </p>
+          <div className="space-y-2">
+            {recents.map((r) => (
+              <button
+                key={r.id}
+                onClick={() => {
+                  setPicked({
+                    kind: "upi",
+                    raw: r.upi_id,
+                    upiId: r.upi_id,
+                    payeeName: r.name,
+                  });
+                  void haptics.select();
+                }}
+                className="qa-row group text-left w-full"
+              >
+                <div className="qa-avatar-sm text-[18px]">{r.emoji ?? "👤"}</div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <p className="text-[13px] font-medium text-white truncate">{r.name}</p>
+                    {r.verified && <ShieldCheck className="w-3.5 h-3.5 text-primary shrink-0" />}
+                  </div>
+                  <p className="text-[11px] text-white/50 truncate num-mono">{r.upi_id}</p>
+                </div>
+                <Send className="w-4 h-4 text-primary opacity-0 group-hover:opacity-100 transition" />
+                <ChevronRight className="w-4 h-4 text-white/40" />
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ───────── TO BANK / SELF ACCOUNT ───────── */
 function ToBank() {
   const banks = [
