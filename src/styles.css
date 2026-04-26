@@ -426,20 +426,35 @@
   opacity: 0.9;
 }
 
-/* Pending progress — sliding shimmer fill */
+/* Pending progress — time-based neon-lime fill driven by --kyc-progress (0..1) */
 .kyc-pending-progress {
-  height: 3px;
+  height: 4px;
   border-radius: 999px;
   background: rgba(255,255,255,0.06);
   overflow: hidden;
   position: relative;
+  box-shadow: inset 0 0 0 1px rgba(190,255,120,.06);
 }
 .kyc-pending-progress-fill {
-  position: absolute; top: 0; bottom: 0;
-  width: 40%;
+  position: absolute; top: 0; bottom: 0; left: 0;
+  width: calc(var(--kyc-progress, 0) * 100%);
   border-radius: 999px;
-  background: linear-gradient(90deg, transparent, #ffd84a, #f59e0b, transparent);
-  animation: kyc-pending-slide 1.6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  background: linear-gradient(90deg, #84cc16 0%, #bef264 50%, #ecfccb 100%);
+  box-shadow: 0 0 12px rgba(190,255,120,.55), 0 0 24px rgba(190,255,120,.25);
+  transition: width 480ms cubic-bezier(.4,0,.2,1);
+}
+.kyc-pending-progress-fill::after {
+  content: "";
+  position: absolute; inset: 0;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,.6) 50%, transparent 100%);
+  background-size: 200% 100%;
+  animation: kyc-pending-sheen 2.2s ease-in-out infinite;
+  mix-blend-mode: overlay;
+}
+@keyframes kyc-pending-sheen {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -100% 0; }
 }
 
 /* ===== Pending — neon-lime skeleton (initial fetch only) ===== */
