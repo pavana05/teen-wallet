@@ -10,12 +10,19 @@ import { toast } from "sonner";
 // ── Types ────────────────────────────────────────────────────────────────────
 type CmdItem = {
   id: string;
-  group: "Navigate" | "Users" | "Transactions" | "Actions";
+  group: "Navigate" | "Users" | "Transactions" | "Actions" | "KYC Queue";
   label: string;
   hint?: string;
   icon: React.ComponentType<{ size?: number }>;
   onRun: () => void | Promise<void>;
+  /** Optional secondary action: produce a string to copy to clipboard. */
+  copy?: () => string;
 };
+
+async function copyText(text: string, what: string) {
+  try { await navigator.clipboard.writeText(text); toast.success(`Copied ${what}`); }
+  catch { toast.error("Copy failed"); }
+}
 
 interface UserRow { id: string; full_name: string | null; phone: string | null; kyc_status: string }
 interface TxnRow  { id: string; amount: number; merchant_name: string; upi_id: string; status: string; created_at: string }
