@@ -1345,6 +1345,69 @@ button:focus-visible .hp-tile{
   box-shadow: 0 0 0 2px rgba(200,241,53,.35), 0 14px 32px -10px rgba(0,0,0,.8);
 }
 
+/* ===== Token-driven transaction row (replaces ad-hoc bg-white/5) ===== */
+.hp-row{
+  display:flex; align-items:center; gap: 12px;
+  padding: 12px;
+  border-radius: var(--hp-radius-md);
+  background: var(--hp-glass-bg);
+  border: 1px solid var(--hp-glass-border);
+  transition: border-color var(--hp-dur) var(--hp-ease),
+              background var(--hp-dur) var(--hp-ease),
+              transform 160ms var(--hp-ease);
+}
+.hp-row:hover{ border-color: var(--hp-glass-border-strong); background: rgba(255,255,255,.06); }
+.hp-row:active{ transform: scale(.985); }
+.hp-row:focus-visible{
+  outline: none;
+  border-color: rgba(200,241,53,.55);
+  box-shadow: 0 6px 24px -10px rgba(200,241,53,.55);
+}
+
+/* ===== Skip link (a11y) ===== */
+.hp-skip-link{
+  position: absolute; top: 8px; left: 50%; transform: translate(-50%, -150%);
+  z-index: 100;
+  padding: 8px 14px; border-radius: var(--hp-radius-sm);
+  background: rgba(200,241,53,.95); color: #0b0a09;
+  font-size: 12px; font-weight: 600; letter-spacing: .02em;
+  transition: transform 220ms var(--hp-ease);
+}
+.hp-skip-link:focus{ transform: translate(-50%, 0); outline: none; }
+
+/* ===== Anti-flicker skeleton + smooth crossfade-in ===== */
+@keyframes hp-fade-in-up {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.hp-fade-in{ animation: hp-fade-in-up 400ms cubic-bezier(.2,.8,.2,1) both; }
+
+/* Skeletons fade out softly when content arrives */
+.hp-skeleton,
+.hp-skeleton-row{
+  animation-delay: 120ms; /* prevents <120ms flash when network is instant */
+  opacity: 0;
+  animation-fill-mode: both;
+}
+.hp-skeleton{
+  animation: hp-skel-in 200ms ease-out 120ms forwards, hp-shimmer-sweep 1.6s ease-in-out 320ms infinite;
+}
+.hp-skeleton-row{
+  animation: hp-skel-in 200ms ease-out 120ms forwards, hp-shimmer-sweep 1.6s ease-in-out 320ms infinite;
+}
+@keyframes hp-skel-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce){
+  .hp-fade-in,
+  .hp-skeleton,
+  .hp-skeleton-row,
+  .hp-shake-error{ animation: none !important; }
+  .hp-offer, .hp-tile, .hp-bell, .hp-scan-card, .hp-scan-fab, .hp-nav button{ transition: none !important; }
+}
+
 
 /* ============================================================
    PAYMENT FLOW — premium scanner / confirm / slide / process / success
