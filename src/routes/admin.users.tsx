@@ -60,11 +60,15 @@ function UsersList() {
   const [err, setErr] = useState("");
 
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [bulkOpen, setBulkOpen] = useState<null | "approved" | "rejected">(null);
+  // Generalised bulk action sheet — `kind` decides which form is shown.
+  const [bulkOpen, setBulkOpen] = useState<null | { kind: "kyc"; decision: "approved" | "rejected" } | { kind: "lock"; lock: boolean } | { kind: "tag" }>(null);
   const [bulkReason, setBulkReason] = useState("");
+  const [bulkNote, setBulkNote] = useState("");
+  const [bulkTag, setBulkTag] = useState<"standard" | "vip" | "watchlist">("standard");
   const [bulkBusy, setBulkBusy] = useState(false);
 
   const canDecide = can(admin?.role, "decideKyc");
+  const canManage = can(admin?.role, "manageUsers");
 
   // Debounce search → filters.search
   useEffect(() => {
