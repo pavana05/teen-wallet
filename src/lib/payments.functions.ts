@@ -28,6 +28,10 @@ const PayInput = z.object({
     .regex(/^[a-zA-Z0-9._-]{2,256}@[a-zA-Z][a-zA-Z0-9.-]{1,64}$/, "Invalid UPI ID"),
   payeeName: z.string().min(1).max(120),
   note: z.string().max(80).nullable().optional(),
+  // Passed by callWithAuth. Keeping auth inside validated data avoids raw
+  // framework-level 401 Responses from middleware, which surfaced as
+  // `[object Response]` blank-screen runtime errors.
+  authToken: z.string().min(1).optional(),
 });
 
 export type PayUpiResult =
@@ -41,7 +45,7 @@ export type PayUpiResult =
     }
   | {
       ok: false;
-      reason: "blocked" | "insufficient" | "balance_changed" | "fetch_failed" | "insert_failed";
+      reason: "auth_required" | "blocked" | "insufficient" | "balance_changed" | "fetch_failed" | "insert_failed";
       message: string;
       newBalance?: number;
       flags?: { rule: string; severity: "block" | "warn" | "info"; message: string }[];
