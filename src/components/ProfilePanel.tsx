@@ -905,21 +905,28 @@ function ConfirmSheet({ title, desc, confirmLabel, danger, onCancel, onConfirm }
   );
 }
 
-/* ───────── skeletons ───────── */
+/* ───────── skeletons (content-shaped, not blank blocks) ───────── */
 function HeroSkeleton() {
   return (
-    <div className="pp-hero">
+    <div className="pp-hero" aria-busy="true" aria-live="polite" role="status">
+      <span className="sr-only">Loading your profile…</span>
       <div className="flex items-start gap-4">
         <div className="w-16 h-16 rounded-2xl pp-skel" />
-        <div className="flex-1 space-y-2">
-          <div className="h-4 w-1/2 rounded pp-skel" />
-          <div className="h-3 w-1/3 rounded pp-skel" />
-          <div className="h-5 w-24 rounded-full pp-skel mt-2" />
+        <div className="flex-1 space-y-2.5 pt-1">
+          <div className="pp-skel-line w-2/3" />
+          <div className="pp-skel-line w-1/3 h-2.5" />
+          <div className="h-5 w-28 rounded-full pp-skel mt-2.5" />
         </div>
       </div>
       <div className="mt-4 grid grid-cols-2 gap-2.5">
-        <div className="h-16 rounded-2xl pp-skel" />
-        <div className="h-16 rounded-2xl pp-skel" />
+        <div className="pp-skel-2 h-[68px] p-3 flex flex-col justify-between">
+          <div className="pp-skel-line w-1/2 h-2.5" />
+          <div className="pp-skel-line w-2/3" />
+        </div>
+        <div className="pp-skel-2 h-[68px] p-3 flex flex-col justify-between">
+          <div className="pp-skel-line w-1/2 h-2.5" />
+          <div className="pp-skel-line w-3/4" />
+        </div>
       </div>
       <div className="mt-3 grid grid-cols-2 gap-2">
         <div className="h-10 rounded-2xl pp-skel" />
@@ -928,3 +935,16 @@ function HeroSkeleton() {
     </div>
   );
 }
+
+function StatSkeleton() {
+  return (
+    <div className="pp-statchip pp-skel-2 h-[78px] p-3 flex flex-col justify-between" aria-hidden="true">
+      <div className="w-4 h-4 rounded pp-skel" />
+      <div className="space-y-1.5">
+        <div className="pp-skel-line h-2 w-2/3" />
+        <div className="pp-skel-line w-1/2" />
+      </div>
+    </div>
+  );
+}
+
