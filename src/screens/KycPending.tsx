@@ -280,6 +280,8 @@ function PendingView({
 }) {
   // Render submission timestamp on client only — avoids SSR/CSR locale + timezone hydration mismatch.
   const [submittedLabel, setSubmittedLabel] = useState<string | null>(null);
+  // Time-based neon-lime progress (0..PROGRESS_CEILING) that resumes after reload.
+  const [progress, setProgress] = useState(0);
   const [exiting, setExiting] = useState(false);
   // Re-trigger shake on each new error string by keying the banner on it.
   const errorKey = fetchError ?? "";
@@ -296,6 +298,23 @@ function PendingView({
     setSubmittedLabel(fmt());
     const t = setInterval(() => setSubmittedLabel(fmt()), 1000);
     return () => clearInterval(t);
+  }, [latest?.submittedAt]);
+
+  // Smooth time-based progress that survives reloads.
+  // Math: ease-out curve (1 - (1 - x)^2) where x = elapsed / ESTIMATED_VERIFY_MS,
+  // clamped at PROGRESS_CEILING so the bar visibly "waits" for the real result.
+  useEffect(() => {
+    if (!latest?.submittedAt) { setProgress(0); return; }
+    const submittedAtMs = new Date(latest.submittedAt).getTime();
+    const compute = () => {
+      const elapsed = Math.max(0, Date.now() - submittedAtMs);
+      const x = Math.min(1, elapsed / ESTIMATED_VERIFY_MS);
+      const eased = 1 - (1 - x) * (1 - x);
+      return Math.min(PROGRESS_CEILING, eased * PROGRESS_CEILING + 0.04);
+    };
+    setProgress(compute());
+    const id = setInterval(() => setProgress(compute()), 500);
+    return () => clearInterval(id);
   }, [latest?.submittedAt]);
 
   const handleContinue = () => {
