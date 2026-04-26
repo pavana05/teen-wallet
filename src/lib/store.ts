@@ -54,8 +54,8 @@ export const useApp = create<AppState>()(
           balance: Number(p.balance ?? 2450),
           stage: p.onboarding_stage,
         });
-        setBreadcrumbUser({ id: p.id, phone: p.phone ?? undefined });
-        breadcrumb("auth.hydrated", { kycStage: p.onboarding_stage, kycStatus: p.kyc_status });
+        setBreadcrumbUser({ id: p.id });
+        breadcrumb("auth.hydrated", { kycStage: p.onboarding_stage });
       },
       reset: () => set({ stage: "STAGE_0", splashSeen: false, pendingPhone: null, userId: null, fullName: null, balance: 2450 }),
     }),
