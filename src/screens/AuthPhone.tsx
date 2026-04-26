@@ -73,7 +73,7 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
   // Persist OTP UX state on every meaningful change so refresh doesn't lose progress.
   useEffect(() => {
     if (step !== "otp") return;
-    saveOtpState({ phone, digits: otp, error, errorKind, busy, resendBlockedUntil });
+    saveOtpState({ phone, digits: otp, error, errorKind, correlationId: errorId, busy, resendBlockedUntil });
   }, [step, phone, otp, error, errorKind, busy, resendBlockedUntil]);
 
   // Auto-focus first empty OTP slot when entering the OTP step.
