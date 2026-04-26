@@ -2,10 +2,11 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { callAdminFn, readAdminSession, can } from "@/admin/lib/adminAuth";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, RefreshCw, Search, AlertTriangle, RotateCcw } from "lucide-react";
+import { Loader2, RefreshCw, Search, AlertTriangle, RotateCcw, ShieldCheck, Lock } from "lucide-react";
 import { VirtualTable, type Column } from "@/admin/components/VirtualTable";
 import { usePersistedState } from "@/admin/lib/usePersistedState";
 import { recordPanelLoad, recordRealtime } from "@/admin/lib/perfBus";
+import { PermissionBanner, ErrorState } from "@/admin/components/AdminFeedback";
 
 export const Route = createFileRoute("/admin/transactions")({
   component: TransactionsList,
@@ -63,9 +64,12 @@ function TransactionsList() {
   const [reversing, setReversing] = useState<TxnRow | null>(null);
   const [reverseReason, setReverseReason] = useState("");
   const [reversePassword, setReversePassword] = useState("");
+  const [stepUpVerified, setStepUpVerified] = useState(false);
+  const [verifying, setVerifying] = useState(false);
   const [err, setErr] = useState("");
 
   const canManage = can(admin?.role, "manageTransactions");
+  const canView = can(admin?.role, "viewTransactions") || canManage;
 
   // debounce search
   useEffect(() => {
@@ -132,16 +136,37 @@ function TransactionsList() {
     return () => { supabase.removeChannel(ch); };
   }, [fetchPage]);
 
-  async function reverse() {
-    if (!reversing) return;
-    const s = readAdminSession(); if (!s) return;
-    if (!reverseReason.trim()) { setErr("Reason required"); return; }
+  function closeReverseModal() {
+    setReversing(null);
+    setReverseReason("");
+    setReversePassword("");
+    setStepUpVerified(false);
+    setErr("");
+  }
+
+  async function verifyStepUp() {
     if (!reversePassword) { setErr("Password required"); return; }
-    setBusyId(reversing.id); setErr("");
+    setVerifying(true); setErr("");
     try {
       await callAdminFn({ action: "login_password", email: admin?.email, password: reversePassword });
+      setStepUpVerified(true);
+    } catch (e: any) {
+      setStepUpVerified(false);
+      setErr(e?.message || "Step-up verification failed");
+    } finally {
+      setVerifying(false);
+    }
+  }
+
+  async function commitReverse() {
+    if (!reversing) return;
+    const s = readAdminSession(); if (!s) return;
+    if (!stepUpVerified) { setErr("Re-verify your password before mutating"); return; }
+    if (!reverseReason.trim()) { setErr("Reason required"); return; }
+    setBusyId(reversing.id); setErr("");
+    try {
       await callAdminFn({ action: "transaction_reverse", sessionToken: s.sessionToken, txnId: reversing.id, reason: reverseReason });
-      setReversing(null); setReverseReason(""); setReversePassword("");
+      closeReverseModal();
       setPage(1); await fetchPage(1);
     } catch (e: any) { setErr(e.message || "Reverse failed"); }
     finally { setBusyId(null); }
@@ -197,6 +222,13 @@ function TransactionsList() {
         <button onClick={() => { setPage(1); void fetchPage(1); }} className="a-btn-ghost"><RefreshCw size={14} /> Refresh</button>
       </div>
 
+      <PermissionBanner
+        canView={canView}
+        canDecide={canManage}
+        decideLabel="reverse"
+        resourceLabel="transactions"
+      />
+
       <div className="a-surface" style={{ padding: 16, marginBottom: 12, display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr auto", gap: 12, alignItems: "end" }}>
         <div>
           <div className="a-label" style={{ marginBottom: 6 }}>Search</div>
@@ -228,7 +260,11 @@ function TransactionsList() {
         </label>
       </div>
 
-      {err && <div style={{ marginBottom: 12, padding: 10, borderRadius: 6, background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", color: "#fca5a5", fontSize: 13 }}>{err}</div>}
+      <ErrorState
+        error={err && !reversing ? err : null}
+        retrying={initialLoading}
+        onRetry={() => { setPage(1); void fetchPage(1); }}
+      />
 
       <VirtualTable<TxnRow>
         rows={rows}
@@ -249,26 +285,64 @@ function TransactionsList() {
       />
 
       {reversing && (
-        <div onClick={() => !busyId && setReversing(null)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", display: "grid", placeItems: "center", zIndex: 50, padding: 16 }}>
+        <div onClick={() => !busyId && !verifying && closeReverseModal()} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", display: "grid", placeItems: "center", zIndex: 50, padding: 16 }}>
           <div onClick={(e) => e.stopPropagation()} className="a-surface" style={{ maxWidth: 480, width: "100%", padding: 24 }}>
             <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 4 }}>Reverse transaction</h2>
             <p style={{ fontSize: 13, color: "var(--a-muted)", marginBottom: 16 }}>
               ₹{fmtINR(Number(reversing.amount))} • {reversing.merchant_name} • <span className="a-mono" style={{ fontSize: 11 }}>{reversing.id.slice(0, 8)}…</span>
             </p>
-            <div style={{ marginBottom: 12 }}>
-              <div className="a-label" style={{ marginBottom: 6 }}>Reason (audit logged)</div>
-              <textarea className="a-input" rows={3} value={reverseReason} onChange={(e) => setReverseReason(e.target.value)} placeholder="e.g. duplicate charge, disputed by user…" />
+
+            {/* Step indicator */}
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16, fontSize: 11, color: "var(--a-muted)" }}>
+              <span style={{ color: "var(--a-text)", fontWeight: 600 }}>1. Step-up auth</span>
+              {stepUpVerified && <ShieldCheck size={12} style={{ color: "var(--a-success)" }} />}
+              <span style={{ color: "var(--a-border-strong)" }}>→</span>
+              <span style={{ color: stepUpVerified ? "var(--a-text)" : "var(--a-muted)", fontWeight: stepUpVerified ? 600 : 400 }}>2. Confirm reverse</span>
             </div>
-            <div style={{ marginBottom: 16 }}>
-              <div className="a-label" style={{ marginBottom: 6 }}>Confirm with your password</div>
-              <input className="a-input" type="password" value={reversePassword} onChange={(e) => setReversePassword(e.target.value)} placeholder="Step-up auth" />
-            </div>
-            {err && <div style={{ marginBottom: 12, padding: 8, borderRadius: 6, background: "rgba(239,68,68,0.1)", color: "#fca5a5", fontSize: 12 }}>{err}</div>}
+
+            {!stepUpVerified ? (
+              <div style={{ marginBottom: 16 }}>
+                <div className="a-label" style={{ marginBottom: 6, display: "flex", alignItems: "center", gap: 6 }}>
+                  <Lock size={11} /> Re-verify your admin password
+                </div>
+                <input
+                  className="a-input"
+                  type="password"
+                  value={reversePassword}
+                  onChange={(e) => setReversePassword(e.target.value)}
+                  placeholder="Your admin password"
+                  autoFocus
+                  onKeyDown={(e) => { if (e.key === "Enter" && reversePassword && !verifying) void verifyStepUp(); }}
+                />
+                <div style={{ fontSize: 11, color: "var(--a-muted)", marginTop: 6 }}>
+                  Required before any transaction mutation. We never reuse a previous step-up.
+                </div>
+              </div>
+            ) : (
+              <>
+                <div style={{ marginBottom: 12, padding: 10, borderRadius: 6, background: "color-mix(in oklab, var(--a-success) 10%, transparent)", border: "1px solid color-mix(in oklab, var(--a-success) 30%, transparent)", fontSize: 12, color: "var(--a-success)", display: "flex", alignItems: "center", gap: 8 }}>
+                  <ShieldCheck size={13} /> Step-up verified for this action
+                </div>
+                <div style={{ marginBottom: 16 }}>
+                  <div className="a-label" style={{ marginBottom: 6 }}>Reason (audit logged)</div>
+                  <textarea className="a-input" rows={3} value={reverseReason} onChange={(e) => setReverseReason(e.target.value)} placeholder="e.g. duplicate charge, disputed by user…" autoFocus />
+                </div>
+              </>
+            )}
+
+            <ErrorState error={err} compact />
+
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
-              <button className="a-btn-ghost" disabled={!!busyId} onClick={() => { setReversing(null); setReverseReason(""); setReversePassword(""); setErr(""); }}>Cancel</button>
-              <button className="a-btn" style={{ background: "#ef4444", color: "white" }} disabled={!!busyId || !reverseReason || !reversePassword} onClick={() => void reverse()}>
-                {busyId ? <Loader2 size={14} className="animate-spin" /> : <RotateCcw size={14} />} Confirm reverse
-              </button>
+              <button className="a-btn-ghost" disabled={!!busyId || verifying} onClick={closeReverseModal}>Cancel</button>
+              {!stepUpVerified ? (
+                <button className="a-btn" style={{ background: "var(--a-accent)", color: "#0a0a0b" }} disabled={!reversePassword || verifying} onClick={() => void verifyStepUp()}>
+                  {verifying ? <Loader2 size={14} className="animate-spin" /> : <Lock size={14} />} Verify password
+                </button>
+              ) : (
+                <button className="a-btn" style={{ background: "#ef4444", color: "white" }} disabled={!!busyId || !reverseReason.trim()} onClick={() => void commitReverse()}>
+                  {busyId ? <Loader2 size={14} className="animate-spin" /> : <RotateCcw size={14} />} Confirm reverse
+                </button>
+              )}
             </div>
           </div>
         </div>
