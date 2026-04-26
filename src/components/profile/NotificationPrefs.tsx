@@ -106,17 +106,18 @@ export function NotificationPrefs({ userId, initial, email }: Props) {
   }
 
   return (
-    <div className="pp-card divide-y divide-white/5">
-      {GROUPS.map((g) => (
-        <div key={g.title} className="px-3.5 py-3.5">
+    <div className="np-card">
+      <div className="np-shine" aria-hidden="true" />
+      {GROUPS.map((g, gi) => (
+        <div key={g.title} className={`np-group ${gi > 0 ? "np-group-divider" : ""}`}>
           <div className="flex items-start gap-3">
-            <div className="pp-row-icon"><g.icon className="w-4 h-4 text-white/85" strokeWidth={2} /></div>
+            <div className="np-group-icon"><g.icon className="w-[18px] h-[18px] text-white/90" strokeWidth={2} /></div>
             <div className="flex-1 min-w-0">
-              <p className="text-[13px] text-white font-medium">{g.title}</p>
+              <p className="text-[13.5px] text-white font-semibold tracking-tight">{g.title}</p>
               <p className="text-[11.5px] text-white/55 mt-0.5 leading-snug">{g.desc}</p>
             </div>
           </div>
-          <div className="mt-3 ml-12 grid gap-2">
+          <div className="mt-3.5 ml-[44px] grid gap-2">
             {g.channels.map((c) => {
               const on = prefs[c.key];
               const saving = savingKey === c.key;
@@ -127,12 +128,14 @@ export function NotificationPrefs({ userId, initial, email }: Props) {
                   onClick={() => toggle(c.key)}
                   aria-pressed={on}
                   disabled={saving}
-                  className={`pp-prefchip ${on ? "pp-prefchip-on" : ""}`}
+                  className={`np-chip ${on ? "np-chip-on" : ""}`}
                 >
-                  <c.icon className="w-3.5 h-3.5" strokeWidth={2.2} />
-                  <span className="text-[11.5px] font-medium">{c.channel}</span>
-                  <span className="ml-auto text-[10.5px] tracking-wider uppercase opacity-80">
-                    {saving ? <Loader2 className="w-3 h-3 animate-spin inline" /> : on ? "On" : "Off"}
+                  <span className="np-chip-icon">
+                    <c.icon className="w-3.5 h-3.5" strokeWidth={2.4} />
+                  </span>
+                  <span className="text-[12px] font-medium tracking-tight">{c.channel}</span>
+                  <span className="np-chip-state">
+                    {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : on ? "ON" : "OFF"}
                   </span>
                 </button>
               );
