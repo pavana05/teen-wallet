@@ -230,7 +230,6 @@ Deno.serve(async (req) => {
   // Per-request correlation ID. Generated up-front so even early validation
   // failures (bad method, bad JSON) come back with an ID the user can copy.
   const cid = newCid();
-  if (req.method !== "POST") return json({ error: "method_not_allowed" }, 405, cid);
 
   const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
   const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -241,17 +240,25 @@ Deno.serve(async (req) => {
     ?? "unknown";
   const ua = req.headers.get("user-agent") ?? "unknown";
 
-  // Shadow the outer helper so every existing `json(...)` call site
-  // inside this handler automatically gets the request correlation ID.
-  // eslint-disable-next-line @typescript-eslint/no-shadow
-  const _json = json;
-  const json = (data: unknown, status = 200) => {
+  // Local helper that shadows the module `json`. Every existing `json(...)` call
+  // site inside this handler automatically gets the request correlation ID,
+  // and error responses are mirrored to console for log-grep correlation.
+  // Hoisted via function-declaration so the early POST guard below can use it.
+  function localJson(data: unknown, status = 200): Response {
     if (status >= 400) {
-      // Mirror error responses to console with cid for log-grep correlation.
-      console.error(`[admin-auth] ${cid} action="${String((data as any)?.error ?? "?")}" status=${status} ip=${ip}`);
+      const errCode = (data as { error?: string } | null)?.error ?? "?";
+      console.error(`[admin-auth] ${cid} error="${errCode}" status=${status} ip=${ip}`);
     }
-    return _json(data, status, cid);
-  };
+    const headers: Record<string, string> = { "Content-Type": "application/json", ...corsHeaders, "X-Correlation-Id": cid };
+    const body = data && typeof data === "object"
+      ? { ...(data as Record<string, unknown>), correlationId: cid }
+      : { value: data, correlationId: cid };
+    return new Response(JSON.stringify(body), { status, headers });
+  }
+  // Alias as `json` so we don't have to rewrite ~30 existing call sites below.
+  const json = localJson;
+
+  if (req.method !== "POST") return json({ error: "method_not_allowed" }, 405);
 
   let body: Record<string, unknown> = {};
   try { body = await req.json(); } catch { return json({ error: "invalid_json" }, 400); }
