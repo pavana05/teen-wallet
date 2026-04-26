@@ -1382,5 +1382,124 @@ Deno.serve(async (req) => {
     return json({ ok: true, success: ok, failed: fail });
   }
 
+  // ─────────────────────────────────────────────────────────────────────────
+  // Gender campaigns: targeted notifications + offers/rewards CRUD
+  // ─────────────────────────────────────────────────────────────────────────
+  if (action === "gender_notify_send") {
+    if (!can(me.role, "manageUsers")) return json({ error: "forbidden" }, 403);
+    const target = String(body.target ?? "");
+    const title = String(body.title ?? "").trim().slice(0, 120);
+    const bodyText = String(body.body ?? "").trim().slice(0, 500);
+    if (!["boy", "girl", "all"].includes(target)) return json({ error: "invalid_target" }, 400);
+    if (!title) return json({ error: "title_required" }, 400);
+
+    let q = sb.from("profiles").select("id");
+    if (target === "boy") q = q.in("gender", ["boy", "male", "Male", "M"]);
+    else if (target === "girl") q = q.in("gender", ["girl", "female", "Female", "F"]);
+    const { data: users, error: uerr } = await q;
+    if (uerr) return json({ error: uerr.message }, 500);
+
+    const rows = (users ?? []).map((u: any) => ({
+      user_id: u.id, type: "campaign", title, body: bodyText || null, read: false,
+    }));
+    if (rows.length) {
+      // Chunk inserts to stay under PG payload limits
+      for (let i = 0; i < rows.length; i += 500) {
+        const chunk = rows.slice(i, i + 500);
+        const { error: ierr } = await sb.from("notifications").insert(chunk);
+        if (ierr) return json({ error: ierr.message }, 500);
+      }
+    }
+    await audit(me.id, me.email, me.role, "gender_notify_send", { target, sent: rows.length, title });
+    return json({ ok: true, sent: rows.length });
+  }
+
+  if (action === "gender_offers_list") {
+    if (!can(me.role, "manageUsers")) return json({ error: "forbidden" }, 403);
+    const { data, error } = await sb.from("gender_offers").select("*").order("gender_target").order("sort_order");
+    if (error) return json({ error: error.message }, 500);
+    return json({ rows: data ?? [] });
+  }
+
+  if (action === "gender_offers_create" || action === "gender_offers_update") {
+    if (!can(me.role, "manageUsers")) return json({ error: "forbidden" }, 403);
+    const payload = {
+      gender_target: String(body.gender_target ?? ""),
+      eyebrow: String(body.eyebrow ?? "").slice(0, 60),
+      headline: String(body.headline ?? "").slice(0, 30),
+      emphasis: String(body.emphasis ?? "").slice(0, 30),
+      subtitle: String(body.subtitle ?? "").slice(0, 200),
+      cta_label: String(body.cta_label ?? "Apply offer").slice(0, 30),
+      accent: String(body.accent ?? "neutral"),
+      active: Boolean(body.active),
+      sort_order: Number(body.sort_order ?? 100),
+    };
+    if (!["boy", "girl", "all"].includes(payload.gender_target)) return json({ error: "invalid_target" }, 400);
+    if (!["boy", "girl", "neutral"].includes(payload.accent)) return json({ error: "invalid_accent" }, 400);
+    if (action === "gender_offers_create") {
+      const { error } = await sb.from("gender_offers").insert(payload);
+      if (error) return json({ error: error.message }, 500);
+    } else {
+      const id = String(body.id ?? "");
+      if (!id) return json({ error: "missing_id" }, 400);
+      const { error } = await sb.from("gender_offers").update(payload).eq("id", id);
+      if (error) return json({ error: error.message }, 500);
+    }
+    await audit(me.id, me.email, me.role, action, payload);
+    return json({ ok: true });
+  }
+
+  if (action === "gender_offers_delete") {
+    if (!can(me.role, "manageUsers")) return json({ error: "forbidden" }, 403);
+    const id = String(body.id ?? "");
+    if (!id) return json({ error: "missing_id" }, 400);
+    const { error } = await sb.from("gender_offers").delete().eq("id", id);
+    if (error) return json({ error: error.message }, 500);
+    await audit(me.id, me.email, me.role, "gender_offers_delete", { id });
+    return json({ ok: true });
+  }
+
+  if (action === "gender_rewards_list") {
+    if (!can(me.role, "manageUsers")) return json({ error: "forbidden" }, 403);
+    const { data, error } = await sb.from("gender_rewards_rules").select("*").order("gender_target").order("sort_order");
+    if (error) return json({ error: error.message }, 500);
+    return json({ rows: data ?? [] });
+  }
+
+  if (action === "gender_rewards_create" || action === "gender_rewards_update") {
+    if (!can(me.role, "manageUsers")) return json({ error: "forbidden" }, 403);
+    const payload = {
+      gender_target: String(body.gender_target ?? ""),
+      category: String(body.category ?? "").slice(0, 60),
+      cashback_pct: Number(body.cashback_pct ?? 0),
+      description: String(body.description ?? "").slice(0, 200),
+      active: Boolean(body.active),
+      sort_order: Number(body.sort_order ?? 100),
+    };
+    if (!["boy", "girl", "all"].includes(payload.gender_target)) return json({ error: "invalid_target" }, 400);
+    if (payload.cashback_pct < 0 || payload.cashback_pct > 100) return json({ error: "invalid_pct" }, 400);
+    if (action === "gender_rewards_create") {
+      const { error } = await sb.from("gender_rewards_rules").insert(payload);
+      if (error) return json({ error: error.message }, 500);
+    } else {
+      const id = String(body.id ?? "");
+      if (!id) return json({ error: "missing_id" }, 400);
+      const { error } = await sb.from("gender_rewards_rules").update(payload).eq("id", id);
+      if (error) return json({ error: error.message }, 500);
+    }
+    await audit(me.id, me.email, me.role, action, payload);
+    return json({ ok: true });
+  }
+
+  if (action === "gender_rewards_delete") {
+    if (!can(me.role, "manageUsers")) return json({ error: "forbidden" }, 403);
+    const id = String(body.id ?? "");
+    if (!id) return json({ error: "missing_id" }, 400);
+    const { error } = await sb.from("gender_rewards_rules").delete().eq("id", id);
+    if (error) return json({ error: error.message }, 500);
+    await audit(me.id, me.email, me.role, "gender_rewards_delete", { id });
+    return json({ ok: true });
+  }
+
   return json({ error: "unknown_action" }, 400);
 });
