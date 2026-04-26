@@ -211,8 +211,12 @@ export function Home() {
   }, []);
 
   // Profile tap → fluid morph: nav contracts to a single Profile pill,
-  // then we open the Profile panel after the morph settles.
+  // then we open the Profile panel after the morph settles. Works in both
+  // expanded and collapsed scroll states because the Profile tab is always
+  // kept reachable (never hidden) — and we briefly force-expand the nav so
+  // the morph reads as a continuous liquid transition either way.
   const openProfile = useCallback(() => {
+    setNavCollapsed(false);
     setNavMode("profile-morph");
     window.setTimeout(() => setShowProfile(true), 360);
   }, []);
@@ -468,12 +472,19 @@ export function Home() {
         className="hp-nav-shell fixed bottom-5 left-1/2 -translate-x-1/2 z-50"
       >
         <div className="flex items-center gap-3">
-          <div className="hp-nav hp-nav-pill flex-1" role="tablist">
+          <div className="hp-nav hp-nav-pill flex-1" role="tablist" aria-label="Sections">
             <NavItem icon={HomeIcon} label="Home" active />
-            <span className="hp-nav-tab" data-hidden={navCollapsed || navMode === "profile-morph" ? "true" : "false"}>
+            <span
+              className="hp-nav-tab"
+              data-hidden={navCollapsed || navMode === "profile-morph" ? "true" : "false"}
+              aria-hidden={navCollapsed || navMode === "profile-morph" ? "true" : "false"}
+            >
               <NavItem icon={Gift} label="Shop" />
             </span>
-            <span className="hp-nav-tab" data-hidden="false">
+            {/* Profile is ALWAYS reachable: never hidden in collapsed/morph states.
+                Keeps keyboard focus order intact and ensures the liquid morph
+                transition has a consistent target element. */}
+            <span className="hp-nav-tab" data-hidden="false" data-testid="hp-nav-profile-wrap">
               <NavItem icon={User} label="Profile" onClick={openProfile} />
             </span>
           </div>
