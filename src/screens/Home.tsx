@@ -109,6 +109,24 @@ export function Home() {
   const [navCollapsed, setNavCollapsed] = useState(false);
   const [navMode, setNavMode] = useState<"full" | "profile-morph">("full");
   const [scanLaunching, setScanLaunching] = useState(false);
+  const [greetingPulse, setGreetingPulse] = useState(0);
+  const [showGreetingTip, setShowGreetingTip] = useState(false);
+  const [waveEnabled, setWaveEnabled] = useState<boolean>(() => {
+    if (typeof window === "undefined") return true;
+    try { const v = localStorage.getItem("tw_greeting_wave"); return v === null ? true : v === "1"; } catch { return true; }
+  });
+  const toggleWave = useCallback(() => {
+    setWaveEnabled((prev) => {
+      const next = !prev;
+      try { localStorage.setItem("tw_greeting_wave", next ? "1" : "0"); } catch { /* ignore */ }
+      return next;
+    });
+  }, []);
+  const handleGreetingTap = useCallback(() => {
+    setGreetingPulse((k) => k + 1);
+    setShowGreetingTip(true);
+    window.setTimeout(() => setShowGreetingTip(false), 2200);
+  }, []);
   const touchStartY = useRef<number | null>(null);
   const scrollerRef = useRef<HTMLDivElement | null>(null);
   const loadStartRef = useRef<number>(performance.now());
