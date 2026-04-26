@@ -210,24 +210,53 @@ export function Home() {
 
       {/* ===== OFFERS CAROUSEL ===== */}
       <div className="px-5 mt-4 -mt-2">
-        <div className="flex gap-3 overflow-x-auto hp-scroll snap-x snap-mandatory pb-1">
-          <div className="hp-offer hp-offer-1 snap-start shrink-0">
-            <div className="relative z-10">
-              <p className="hp-offer-eyebrow">P2P UPI · Limited</p>
-              <p className="hp-offer-headline">20%<em>flat off</em></p>
-              <p className="hp-offer-sub">On every peer transfer this month</p>
-              <span className="hp-offer-cta">Apply offer →</span>
+        {loading ? (
+          <div className="flex gap-3 overflow-hidden pb-1">
+            {[0, 1].map((i) => (
+              <div key={i} className="hp-offer snap-start shrink-0 tw-shimmer" style={{ minHeight: 140 }} />
+            ))}
+          </div>
+        ) : error ? (
+          <div key={shakeKey} className={`hp-empty hp-shake-error`}>
+            <div className="hp-empty-illu">
+              <Sparkles className="w-7 h-7 text-white/80" strokeWidth={1.6} />
+            </div>
+            <p className="text-[14px] font-semibold text-white">Couldn't load offers</p>
+            <p className="text-[12px] text-white/55 mt-1">Pull to refresh or try again in a moment.</p>
+            <button
+              onClick={() => { setLoading(true); void fetchTxns(); }}
+              className="hp-offer-cta mt-3"
+              style={{ marginTop: 14 }}
+            >
+              <RefreshCw className="w-3.5 h-3.5 hp-offer-cta-icon" /> Retry
+            </button>
+          </div>
+        ) : (
+          <div className="flex gap-3 overflow-x-auto hp-scroll snap-x snap-mandatory pb-1 tw-slide-up">
+            <div className="hp-offer hp-offer-1 snap-start shrink-0">
+              <div className="relative z-10">
+                <p className="hp-offer-eyebrow">P2P UPI · Limited</p>
+                <p className="hp-offer-headline">20%<em>flat off</em></p>
+                <p className="hp-offer-sub">On every peer transfer this month</p>
+                <button type="button" className="hp-offer-cta" aria-label="Apply 20% off offer">
+                  <span>Apply offer</span>
+                  <ArrowUpRight className="w-3.5 h-3.5 hp-offer-cta-icon" strokeWidth={2.2} />
+                </button>
+              </div>
+            </div>
+            <div className="hp-offer hp-offer-2 snap-start shrink-0">
+              <div className="relative z-10">
+                <p className="hp-offer-eyebrow">First recharge</p>
+                <p className="hp-offer-headline">40%<em>cashback</em></p>
+                <p className="hp-offer-sub">Credited instantly to your wallet</p>
+                <button type="button" className="hp-offer-cta" aria-label="Claim 40% cashback offer">
+                  <span>Claim now</span>
+                  <Sparkles className="w-3.5 h-3.5 hp-offer-cta-icon" strokeWidth={2.2} />
+                </button>
+              </div>
             </div>
           </div>
-          <div className="hp-offer hp-offer-2 snap-start shrink-0">
-            <div className="relative z-10">
-              <p className="hp-offer-eyebrow">First recharge</p>
-              <p className="hp-offer-headline">40%<em>cashback</em></p>
-              <p className="hp-offer-sub">Credited instantly to your wallet</p>
-              <span className="hp-offer-cta">Claim now →</span>
-            </div>
-          </div>
-        </div>
+        )}
       </div>
 
       {/* ===== EVERYTHING UPI ===== */}
