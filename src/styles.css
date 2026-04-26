@@ -1832,6 +1832,51 @@ button:focus-visible .hp-tile{
   border: 1px solid rgba(255,255,255,.07);
 }
 
+/* Send Money — primary P2P CTA on the home screen */
+.hp-send-cta {
+  position: relative;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  border-radius: 22px;
+  background:
+    linear-gradient(135deg, rgba(200,241,53,.14), rgba(200,241,53,.04) 60%),
+    rgba(255,255,255,.04);
+  border: 1px solid rgba(200,241,53,.22);
+  box-shadow:
+    0 10px 30px -16px rgba(200,241,53,.45),
+    inset 0 1px 0 rgba(255,255,255,.06);
+  overflow: hidden;
+  transition: transform 220ms cubic-bezier(.2,.8,.2,1), border-color 220ms ease, box-shadow 220ms ease;
+}
+.hp-send-cta:hover {
+  border-color: rgba(200,241,53,.42);
+  box-shadow:
+    0 14px 40px -14px rgba(200,241,53,.55),
+    inset 0 1px 0 rgba(255,255,255,.08);
+}
+.hp-send-cta:active { transform: scale(.985); }
+.hp-send-cta-icon {
+  width: 40px; height: 40px; border-radius: 14px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: linear-gradient(180deg, var(--primary), #b6e02e);
+  box-shadow: 0 6px 18px -6px rgba(200,241,53,.7);
+  flex-shrink: 0;
+}
+.hp-send-cta-glow {
+  position: absolute; inset: -40% -10% auto auto;
+  width: 160px; height: 160px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(200,241,53,.35), transparent 60%);
+  filter: blur(20px);
+  pointer-events: none;
+  opacity: .8;
+}
+@media (prefers-reduced-motion: reduce) {
+  .hp-send-cta { transition: none; }
+}
+
 
 /* ============= Quick Actions Panel ============= */
 .qa-root { animation: qa-in 360ms cubic-bezier(.2,.8,.2,1) both; }
