@@ -102,6 +102,9 @@ export function Permissions({ onDone }: Props) {
     contacts: "idle", location: "idle", camera: "idle", notifications: "idle", microphone: "idle",
   });
   const [busyAll, setBusyAll] = useState(false);
+  // Brief neon-lime exit animation when continuing — only shown if any permissions
+  // are still missing (granted-everything → instant route, no transition delay).
+  const [continuing, setContinuing] = useState(false);
 
   const ask = useCallback(async (key: PermKey) => {
     setStatus((s) => ({ ...s, [key]: "loading" }));
@@ -126,6 +129,16 @@ export function Permissions({ onDone }: Props) {
   };
 
   const grantedCount = Object.values(status).filter((s) => s === "granted").length;
+  const allGranted = grantedCount === PERMS.length;
+
+  const handleContinue = () => {
+    if (continuing) return;
+    // If everything is already granted, route immediately — no animation needed.
+    if (allGranted) { onDone(); return; }
+    // Otherwise play the short neon-lime transition before advancing.
+    setContinuing(true);
+    setTimeout(() => onDone(), 480);
+  };
 
   return (
     <div className="perm-root flex-1 flex flex-col p-6 tw-slide-up">
