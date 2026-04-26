@@ -724,102 +724,32 @@ function ToggleRow({ icon: Icon, label, desc, value, onChange }: { icon: React.C
   );
 }
 
-/* ───────── edit sheet (validated + upserted to Supabase) ───────── */
+/* ───────── Edit phone sheet (focused single-field editor) ───────── */
 
-const profileSchema = z.object({
-  full_name: z
-    .string()
-    .trim()
-    .min(2, "Name must be at least 2 characters")
-    .max(80, "Name must be 80 characters or fewer")
-    .regex(/^[\p{L}\p{M}.''\- ]+$/u, "Name can only contain letters, spaces, . - '"),
-  phone: z
-    .string()
-    .trim()
-    .regex(/^\+?[0-9 ()-]{10,18}$/, "Enter a valid phone number")
-    .transform((s) => {
-      const digits = s.replace(/\D/g, "");
-      // Normalise to +91XXXXXXXXXX when user types a 10-digit Indian number.
-      return digits.length === 10 ? `+91${digits}` : `+${digits}`;
-    }),
-  dob: z
-    .string()
-    .trim()
-    .refine((v) => !v || /^\d{4}-\d{2}-\d{2}$/.test(v), "Invalid date")
-    .refine((v) => {
-      if (!v) return true;
-      const d = new Date(v);
-      if (Number.isNaN(d.getTime())) return false;
-      const today = new Date();
-      const age = (today.getTime() - d.getTime()) / (365.25 * 24 * 3600 * 1000);
-      return age >= 13 && age <= 120;
-    }, "You must be 13 years or older"),
-  gender: z.enum(["male", "female", "other", ""]).optional(),
-});
-
-type ProfileFormErrors = Partial<Record<"full_name" | "phone" | "dob" | "gender" | "_form", string>>;
-
-function EditProfileSheet({
-  initial,
-  userId,
-  onClose,
-  onSaved,
+function EditPhoneSheet({
+  initial, userId, onClose, onSaved,
 }: {
-  initial: { full_name: string | null; phone: string | null; dob: string | null; gender: string | null };
+  initial: string | null;
   userId: string | null;
   onClose: () => void;
-  onSaved: (p: { full_name: string | null; phone: string | null; dob: string | null; gender: string | null }) => void;
+  onSaved: (newPhone: string) => void;
 }) {
-  const [name, setName] = useState(initial.full_name ?? "");
-  const [phone, setPhone] = useState(initial.phone ?? "");
-  const [dob, setDob] = useState(initial.dob ?? "");
-  const [gender, setGender] = useState(initial.gender ?? "");
+  const [phone, setPhone] = useState(initial ?? "");
   const [saving, setSaving] = useState(false);
-  const [errors, setErrors] = useState<ProfileFormErrors>({});
+  const [err, setErr] = useState<string | null>(null);
 
   const save = async () => {
-    setErrors({});
-    const parsed = profileSchema.safeParse({ full_name: name, phone, dob, gender });
-    if (!parsed.success) {
-      const next: ProfileFormErrors = {};
-      for (const issue of parsed.error.issues) {
-        const k = issue.path[0] as keyof ProfileFormErrors;
-        if (k && !next[k]) next[k] = issue.message;
-      }
-      setErrors(next);
-      return;
-    }
-    if (!userId) {
-      setErrors({ _form: "You're not signed in. Please sign in again." });
-      return;
-    }
-
+    setErr(null);
+    const digits = phone.replace(/\D/g, "");
+    if (!/^[0-9]{10,15}$/.test(digits)) { setErr("Enter a valid phone number"); return; }
+    const normalised = digits.length === 10 ? `+91${digits}` : `+${digits}`;
+    if (!userId) { setErr("Please sign in again"); return; }
     setSaving(true);
-    const fields = {
-      full_name: parsed.data.full_name,
-      phone: parsed.data.phone,
-      dob: parsed.data.dob || null,
-      gender: parsed.data.gender || null,
-    };
-    // Upsert so we always create a row if one is missing.
-    const { error } = await supabase
-      .from("profiles")
-      .upsert({ id: userId, ...fields }, { onConflict: "id" });
+    const { error } = await supabase.from("profiles").update({ phone: normalised }).eq("id", userId);
     setSaving(false);
-    if (error) {
-      // Try to map Postgres errors to specific fields.
-      const msg = error.message.toLowerCase();
-      const fieldErr: ProfileFormErrors = {};
-      if (msg.includes("phone")) fieldErr.phone = error.message;
-      else if (msg.includes("name")) fieldErr.full_name = error.message;
-      else fieldErr._form = error.message;
-      setErrors(fieldErr);
-      toast.error("Couldn't save changes", { description: error.message });
-      return;
-    }
-    useApp.setState({ fullName: fields.full_name });
-    toast.success("Profile updated");
-    onSaved(fields);
+    if (error) { setErr(error.message); return; }
+    toast.success("Phone updated");
+    onSaved(normalised);
   };
 
   return (
@@ -828,47 +758,21 @@ function EditProfileSheet({
       onClick={onClose}
       role="dialog"
       aria-modal="true"
-      aria-labelledby="pp-edit-title"
-      aria-describedby="pp-edit-desc"
+      aria-labelledby="pp-phone-title"
     >
       <div className="pp-sheet" onClick={(e) => e.stopPropagation()}>
         <div className="pp-sheet-grab" />
-        <p id="pp-edit-title" className="text-[15px] font-semibold text-white px-1">Edit profile</p>
-        <p id="pp-edit-desc" className="text-[12px] text-white/55 px-1 mt-0.5 mb-4">Update your personal details</p>
-
-        <label className="pp-field">
-          <span>Full name</span>
-          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Your name" maxLength={80} autoComplete="name" />
-          {errors.full_name && <p className="pp-field-err">{errors.full_name}</p>}
-        </label>
+        <p id="pp-phone-title" className="text-[15px] font-semibold text-white px-1">Update phone</p>
+        <p className="text-[12px] text-white/55 px-1 mt-0.5 mb-4">We'll use this for OTPs and payment alerts.</p>
         <label className="pp-field">
           <span>Phone</span>
-          <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+91 90000 00000" inputMode="tel" autoComplete="tel" maxLength={18} />
-          {errors.phone && <p className="pp-field-err">{errors.phone}</p>}
+          <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+91 90000 00000" inputMode="tel" autoComplete="tel" maxLength={18} autoFocus />
+          {err && <p className="pp-field-err">{err}</p>}
         </label>
-        <label className="pp-field">
-          <span>Date of birth</span>
-          <input type="date" value={dob} onChange={(e) => setDob(e.target.value)} max={new Date().toISOString().slice(0, 10)} />
-          {errors.dob && <p className="pp-field-err">{errors.dob}</p>}
-        </label>
-        <label className="pp-field">
-          <span>Gender</span>
-          <div className="flex gap-2 mt-1.5">
-            {["male", "female", "other"].map((g) => (
-              <button key={g} type="button" onClick={() => setGender(g)} className={`pp-chip ${gender === g ? "pp-chip-active" : ""}`}>
-                {g[0].toUpperCase() + g.slice(1)}
-              </button>
-            ))}
-          </div>
-          {errors.gender && <p className="pp-field-err">{errors.gender}</p>}
-        </label>
-
-        {errors._form && <p className="pp-field-err mt-3">{errors._form}</p>}
-
         <div className="flex gap-2 mt-5">
           <button onClick={onClose} className="pp-btn-ghost flex-1">Cancel</button>
           <button onClick={save} disabled={saving} className="pp-btn-primary flex-1 disabled:opacity-60">
-            {saving ? "Saving…" : "Save changes"}
+            {saving ? "Saving…" : "Save"}
           </button>
         </div>
       </div>
@@ -876,220 +780,41 @@ function EditProfileSheet({
   );
 }
 
-/* ───────── My QR sheet ───────── */
-function MyQrSheet({ upiId, payeeName, onClose }: { upiId: string; payeeName: string; onClose: () => void }) {
-  const upiLink = useMemo(
-    () => `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(payeeName)}&cu=INR`,
-    [upiId, payeeName],
-  );
-  const [dataUrl, setDataUrl] = useState<string | null>(null);
-  const [err, setErr] = useState<string | null>(null);
+/* ───────── Collapsible section (persists open/closed via parent) ───────── */
 
-  useEffect(() => {
-    let active = true;
-    QRCode.toDataURL(upiLink, {
-      errorCorrectionLevel: "M",
-      margin: 2,
-      width: 320,
-      color: { dark: "#0a0a0a", light: "#ffffff" },
-    })
-      .then((url) => { if (active) setDataUrl(url); })
-      .catch((e: unknown) => { if (active) setErr(e instanceof Error ? e.message : "Couldn't generate QR"); });
-    return () => { active = false; };
-  }, [upiLink]);
-
-  const download = () => {
-    if (!dataUrl) return;
-    const a = document.createElement("a");
-    a.href = dataUrl;
-    a.download = `teenwallet-${upiId.replace(/[^a-z0-9]/gi, "_")}.png`;
-    document.body.appendChild(a); a.click(); a.remove();
-    toast.success("QR saved to downloads");
-  };
-
-  const share = async () => {
-    try {
-      if (navigator.share) {
-        await navigator.share({ title: "Pay me on TeenWallet", text: `Pay ${payeeName} via UPI`, url: upiLink });
-        return;
-      }
-      await navigator.clipboard.writeText(upiLink);
-      toast.success("Payment link copied");
-    } catch { /* user cancelled */ }
-  };
-
-  return (
-    <div
-      className="absolute inset-0 z-[80] flex items-end pp-sheet-backdrop"
-      onClick={onClose}
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="pp-qr-title"
-    >
-      <div className="pp-sheet" onClick={(e) => e.stopPropagation()}>
-        <div className="pp-sheet-grab" />
-        <div className="flex items-center justify-between px-1 mb-3">
-          <p id="pp-qr-title" className="text-[15px] font-semibold text-white">My UPI QR</p>
-          <button onClick={onClose} aria-label="Close" className="qa-icon-btn"><X className="w-4 h-4 text-white/80" /></button>
-        </div>
-
-        <div className="flex flex-col items-center">
-          <div className="rounded-2xl bg-white p-3 shadow-2xl">
-            {dataUrl ? (
-              <img src={dataUrl} alt="UPI QR code" width={240} height={240} className="block rounded-md" />
-            ) : (
-              <div className="w-[240px] h-[240px] rounded-md bg-neutral-200 animate-pulse" />
-            )}
-          </div>
-          <p className="mt-4 text-[13px] text-white font-medium">{payeeName}</p>
-          <p className="text-[12px] text-white/60 num-mono">{upiId}</p>
-          {err && <p className="text-[12px] text-red-300 mt-2">{err}</p>}
-        </div>
-
-        <div className="flex gap-2 mt-5">
-          <button onClick={download} disabled={!dataUrl} className="pp-btn-ghost flex-1 disabled:opacity-50">
-            <Download className="w-4 h-4 inline -mt-0.5 mr-1.5" /> Save
-          </button>
-          <button onClick={share} className="pp-btn-primary flex-1">
-            <Share2 className="w-4 h-4 inline -mt-0.5 mr-1.5" /> Share
-          </button>
-        </div>
-        <p className="text-[11px] text-white/45 text-center mt-3">Scan this QR in any UPI app to pay you instantly.</p>
-      </div>
-    </div>
-  );
-}
-
-/* ───────── Delete account sheet (typed-confirmation) ───────── */
-function DeleteAccountSheet({ onCancel, onConfirm }: { onCancel: () => void; onConfirm: () => void | Promise<void> }) {
-  const [text, setText] = useState("");
-  const [busy, setBusy] = useState(false);
-  const ok = text.trim().toUpperCase() === "DELETE";
-  return (
-    <div
-      className="absolute inset-0 z-[80] flex items-end pp-sheet-backdrop"
-      onClick={onCancel}
-      role="alertdialog"
-      aria-modal="true"
-      aria-labelledby="pp-del-title"
-      aria-describedby="pp-del-desc"
-    >
-      <div className="pp-sheet" onClick={(e) => e.stopPropagation()}>
-        <div className="pp-sheet-grab" />
-        <div className="flex items-center gap-2.5 px-1">
-          <div className="w-9 h-9 rounded-full bg-red-400/15 border border-red-400/30 flex items-center justify-center" aria-hidden="true">
-            <AlertTriangle className="w-4.5 h-4.5 text-red-300" strokeWidth={2.2} />
-          </div>
-          <p id="pp-del-title" className="text-[16px] font-semibold text-white">Delete your account?</p>
-        </div>
-        <p id="pp-del-desc" className="text-[12.5px] text-white/65 mt-2 px-1">
-          This permanently removes your profile, transactions, notifications and KYC records.
-          Your wallet balance will be lost. This action cannot be undone.
-        </p>
-        <label className="pp-field">
-          <span>Type DELETE to confirm</span>
-          <input value={text} onChange={(e) => setText(e.target.value)} placeholder="DELETE" autoCapitalize="characters" />
-        </label>
-        <div className="flex gap-2 mt-5">
-          <button onClick={onCancel} className="pp-btn-ghost flex-1">Cancel</button>
-          <button
-            onClick={async () => { setBusy(true); await onConfirm(); setBusy(false); }}
-            disabled={!ok || busy}
-            className="pp-btn-danger flex-1 disabled:opacity-50"
-          >
-            {busy ? "Deleting…" : "Delete account"}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function ConfirmSheet({ title, desc, confirmLabel, danger, onCancel, onConfirm }: {
-  title: string; desc: string; confirmLabel: string; danger?: boolean; onCancel: () => void; onConfirm: () => void;
+function CollapsibleSection({
+  id, title, children, isOpen, onToggle,
+}: {
+  id: string;
+  title: string;
+  defaultOpen?: boolean;
+  isOpen: boolean;
+  onToggle: () => void;
+  children: React.ReactNode;
 }) {
+  const headerId = `${id}-header`;
+  const panelId = `${id}-panel`;
   return (
-    <div
-      className="absolute inset-0 z-[80] flex items-end pp-sheet-backdrop"
-      onClick={onCancel}
-      role="alertdialog"
-      aria-modal="true"
-      aria-labelledby="pp-confirm-title"
-      aria-describedby="pp-confirm-desc"
-    >
-      <div className="pp-sheet" onClick={(e) => e.stopPropagation()}>
-        <div className="pp-sheet-grab" />
-        <p id="pp-confirm-title" className="text-[16px] font-semibold text-white">{title}</p>
-        <p id="pp-confirm-desc" className="text-[12.5px] text-white/60 mt-1">{desc}</p>
-        <div className="flex gap-2 mt-5">
-          <button onClick={onCancel} className="pp-btn-ghost flex-1">Cancel</button>
-          <button onClick={onConfirm} className={`flex-1 ${danger ? "pp-btn-danger" : "pp-btn-primary"}`}>{confirmLabel}</button>
+    <section aria-labelledby={headerId}>
+      <button
+        id={headerId}
+        type="button"
+        onClick={onToggle}
+        aria-expanded={isOpen}
+        aria-controls={panelId}
+        className="pp-section-title flex items-center justify-between w-full"
+      >
+        <span>{title}</span>
+        <ChevronDown
+          className={`w-3.5 h-3.5 text-white/50 transition-transform ${isOpen ? "rotate-180" : ""}`}
+          strokeWidth={2}
+        />
+      </button>
+      {isOpen && (
+        <div id={panelId} role="region" aria-labelledby={headerId} className="pp-card divide-y divide-white/5">
+          {children}
         </div>
-      </div>
-    </div>
-  );
-}
-
-/* ───────── skeletons (content-shaped, not blank blocks) ───────── */
-function HeroSkeleton() {
-  return (
-    <div className="pp-hero" aria-busy="true" aria-live="polite" role="status">
-      <span className="sr-only">Loading your profile…</span>
-      <div className="flex items-start gap-4">
-        <div className="w-16 h-16 rounded-2xl pp-skel" />
-        <div className="flex-1 space-y-2.5 pt-1">
-          <div className="pp-skel-line w-2/3" />
-          <div className="pp-skel-line w-1/3 h-2.5" />
-          <div className="h-5 w-28 rounded-full pp-skel mt-2.5" />
-        </div>
-      </div>
-      <div className="mt-4 grid grid-cols-2 gap-2.5">
-        <div className="pp-skel-2 h-[68px] p-3 flex flex-col justify-between">
-          <div className="pp-skel-line w-1/2 h-2.5" />
-          <div className="pp-skel-line w-2/3" />
-        </div>
-        <div className="pp-skel-2 h-[68px] p-3 flex flex-col justify-between">
-          <div className="pp-skel-line w-1/2 h-2.5" />
-          <div className="pp-skel-line w-3/4" />
-        </div>
-      </div>
-      <div className="mt-3 grid grid-cols-2 gap-2">
-        <div className="h-10 rounded-2xl pp-skel" />
-        <div className="h-10 rounded-2xl pp-skel" />
-      </div>
-    </div>
-  );
-}
-
-function StatSkeleton() {
-  return (
-    <div className="pp-statchip pp-skel-2 h-[78px] p-3 flex flex-col justify-between" aria-hidden="true">
-      <div className="w-4 h-4 rounded pp-skel" />
-      <div className="space-y-1.5">
-        <div className="pp-skel-line h-2 w-2/3" />
-        <div className="pp-skel-line w-1/2" />
-      </div>
-    </div>
-  );
-}
-
-function SectionSkeleton({ title, rows = 4 }: { title: string; rows?: number }) {
-  return (
-    <section aria-busy="true" aria-live="polite" role="status">
-      <span className="sr-only">Loading {title}…</span>
-      <p className="pp-section-title">{title}</p>
-      <div className="pp-card divide-y divide-white/5">
-        {Array.from({ length: rows }).map((_, i) => (
-          <div key={i} className="px-3.5 py-3.5 flex items-center gap-3" aria-hidden="true">
-            <div className="w-9 h-9 rounded-xl pp-skel" />
-            <div className="flex-1 space-y-1.5">
-              <div className="pp-skel-line h-2 w-1/4" />
-              <div className="pp-skel-line w-2/3" />
-            </div>
-            <div className="h-6 w-12 rounded-full pp-skel" />
-          </div>
-        ))}
-      </div>
+      )}
     </section>
   );
 }
