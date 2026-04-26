@@ -123,7 +123,7 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
       // Network / server function unavailable — fall back to direct insert
       // so the demo flow keeps working in environments where the server
       // function isn't deployed yet.
-      console.warn("[ScanPay] payUpi server function failed, falling back to direct insert:", err);
+      captureError(err, { where: "payment.payUpi", amount: amt, upiId: payload.upiId });
       serverResult = null;
     }
 
@@ -139,6 +139,13 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
       } else {
         setFailKind("generic");
       }
+      breadcrumb("payment.failed", {
+        amount: amt,
+        upiId: payload.upiId,
+        reason: serverResult.reason,
+        message: serverResult.message,
+        durationMs: Date.now() - startedAt,
+      }, "warning");
       setResultMsg(serverResult.message);
       setPhase("failed");
       return;
@@ -156,6 +163,13 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
         upiDeepLink: serverResult.upiDeepLink,
       };
       setSavedTxn(txn);
+      breadcrumb("payment.success", {
+        amount: amt,
+        upiId: payload.upiId,
+        txnId: serverResult.txnId,
+        newBalance: serverResult.newBalance,
+        durationMs: Date.now() - startedAt,
+      });
       setResultMsg(`₹${amt.toFixed(0)} sent to ${payload.payeeName}`);
       if (navigator.vibrate) navigator.vibrate([30, 60, 30]);
       // On a real mobile device, hand off to the user's UPI app immediately.
