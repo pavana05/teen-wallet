@@ -141,8 +141,15 @@ export function Permissions({ onDone }: Props) {
   };
 
   return (
-    <div className="perm-root flex-1 flex flex-col p-6 tw-slide-up">
+    <div className={`perm-root flex-1 flex flex-col p-6 tw-slide-up ${continuing ? "perm-exit" : ""}`}>
       <div className="perm-aurora" aria-hidden="true" />
+
+      {/* Neon-lime transition overlay shown only when continuing with missing perms */}
+      {continuing && (
+        <div className="perm-continue-overlay" aria-hidden="true">
+          <div className="perm-continue-bar" />
+        </div>
+      )}
 
       <div className="relative z-10 flex items-center justify-center mb-6">
         <span className="text-[11px] tracking-[0.35em] text-white/60 font-light">TEEN WALLET</span>
@@ -170,7 +177,7 @@ export function Permissions({ onDone }: Props) {
               key={p.key}
               type="button"
               onClick={() => !granted && !loading && ask(p.key)}
-              disabled={granted || loading || unsupported}
+              disabled={granted || loading || unsupported || continuing}
               className={`perm-row ${granted ? "perm-row-on" : ""} ${denied ? "perm-row-denied" : ""}`}
             >
               <div className="perm-row-icon">
@@ -200,22 +207,27 @@ export function Permissions({ onDone }: Props) {
       <div className="relative z-10 space-y-2.5 pt-6">
         <button
           onClick={askAll}
-          disabled={busyAll}
+          disabled={busyAll || continuing}
           className="btn-primary w-full"
         >
           {busyAll ? (
             <><Loader2 className="w-4 h-4 animate-spin" /> Requesting…</>
-          ) : grantedCount === PERMS.length ? (
+          ) : allGranted ? (
             <>All set — Continue</>
           ) : (
             <>Allow all & continue</>
           )}
         </button>
         <button
-          onClick={onDone}
-          className="w-full text-center text-[12px] text-white/55 hover:text-white/80 py-2 tracking-wide"
+          onClick={handleContinue}
+          disabled={continuing}
+          className="w-full text-center text-[12px] text-white/55 hover:text-white/80 py-2 tracking-wide disabled:opacity-60 inline-flex items-center justify-center gap-2"
         >
-          {grantedCount > 0 ? "Continue" : "Skip for now"}
+          {continuing ? (
+            <><Loader2 className="w-3.5 h-3.5 animate-spin text-lime-300" /> <span className="text-lime-200">Continuing…</span></>
+          ) : (
+            grantedCount > 0 ? "Continue" : "Skip for now"
+          )}
         </button>
       </div>
     </div>
