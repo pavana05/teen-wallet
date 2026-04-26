@@ -1131,18 +1131,18 @@
 
 .hp-offer{
   position: relative;
-  width: 84%;
-  min-height: 112px;
-  border-radius: var(--hp-radius-lg);
-  padding: 18px 20px;
+  width: 86%;
+  min-height: 138px;
+  border-radius: 22px;
+  padding: 20px 22px 18px;
   background:
-    radial-gradient(120% 140% at 100% 0%, rgba(255,255,255,0.05) 0%, transparent 55%),
-    linear-gradient(180deg, #15161a 0%, #0c0d10 100%);
+    radial-gradient(140% 160% at 100% 0%, rgba(255,255,255,0.07) 0%, transparent 55%),
+    linear-gradient(180deg, #16171b 0%, #0a0b0e 100%);
   border: 1px solid var(--hp-glass-border);
   box-shadow:
-    inset 0 1px 0 rgba(255,255,255,0.06),
-    0 18px 40px -22px rgba(0,0,0,0.85),
-    0 0 0 0 rgba(255,255,255,0);
+    inset 0 1px 0 rgba(255,255,255,0.07),
+    inset 0 -1px 0 rgba(0,0,0,0.6),
+    0 24px 50px -28px rgba(0,0,0,0.95);
   overflow: hidden;
   isolation: isolate;
   transition: transform var(--hp-dur) var(--hp-ease),
@@ -1151,38 +1151,42 @@
 }
 .hp-offer-1{
   box-shadow:
-    inset 0 1px 0 rgba(255,255,255,0.06),
-    0 18px 40px -22px rgba(0,0,0,0.85),
-    0 10px 36px -18px rgba(212,175,108,0.35);
+    inset 0 1px 0 rgba(255,255,255,0.07),
+    inset 0 -1px 0 rgba(0,0,0,0.6),
+    0 24px 50px -28px rgba(0,0,0,0.95),
+    0 14px 44px -22px rgba(212,175,108,0.42);
 }
 .hp-offer-2{
   box-shadow:
-    inset 0 1px 0 rgba(255,255,255,0.06),
-    0 18px 40px -22px rgba(0,0,0,0.85),
-    0 10px 36px -18px rgba(180,205,225,0.32);
+    inset 0 1px 0 rgba(255,255,255,0.07),
+    inset 0 -1px 0 rgba(0,0,0,0.6),
+    0 24px 50px -28px rgba(0,0,0,0.95),
+    0 14px 44px -22px rgba(180,205,225,0.38);
 }
 .hp-offer-1:hover{
-  transform: translateY(-2px);
+  transform: translateY(-3px);
   border-color: var(--hp-glass-border-strong);
   box-shadow:
-    inset 0 1px 0 rgba(255,255,255,0.08),
-    0 22px 48px -22px rgba(0,0,0,0.9),
-    0 14px 44px -14px rgba(212,175,108,0.55);
+    inset 0 1px 0 rgba(255,255,255,0.10),
+    inset 0 -1px 0 rgba(0,0,0,0.6),
+    0 30px 60px -28px rgba(0,0,0,0.98),
+    0 18px 52px -16px rgba(212,175,108,0.62);
 }
 .hp-offer-2:hover{
-  transform: translateY(-2px);
+  transform: translateY(-3px);
   border-color: var(--hp-glass-border-strong);
   box-shadow:
-    inset 0 1px 0 rgba(255,255,255,0.08),
-    0 22px 48px -22px rgba(0,0,0,0.9),
-    0 14px 44px -14px rgba(180,205,225,0.5);
+    inset 0 1px 0 rgba(255,255,255,0.10),
+    inset 0 -1px 0 rgba(0,0,0,0.6),
+    0 30px 60px -28px rgba(0,0,0,0.98),
+    0 18px 52px -16px rgba(180,205,225,0.55);
 }
 .hp-offer:active{ transform: scale(.985); }
 
 /* Hairline accent rim — variant 1 (warm gold) */
 .hp-offer-1::before{
   content:""; position:absolute; inset:0; border-radius:inherit; padding:1px;
-  background: linear-gradient(135deg, rgba(212,175,108,0.55), rgba(255,255,255,0) 45%, rgba(212,175,108,0.18));
+  background: linear-gradient(135deg, rgba(212,175,108,0.65), rgba(255,255,255,0) 45%, rgba(212,175,108,0.22));
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   -webkit-mask-composite: xor; mask-composite: exclude;
   pointer-events: none;
@@ -1190,7 +1194,7 @@
 /* Variant 2 (cool platinum) */
 .hp-offer-2::before{
   content:""; position:absolute; inset:0; border-radius:inherit; padding:1px;
-  background: linear-gradient(135deg, rgba(180,205,225,0.45), rgba(255,255,255,0) 50%, rgba(180,205,225,0.18));
+  background: linear-gradient(135deg, rgba(180,205,225,0.55), rgba(255,255,255,0) 50%, rgba(180,205,225,0.22));
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   -webkit-mask-composite: xor; mask-composite: exclude;
   pointer-events: none;
@@ -1198,36 +1202,57 @@
 
 /* Soft accent glow per variant */
 .hp-offer-1::after{
-  content:""; position:absolute; right:-50px; top:-50px; width:200px; height:200px; border-radius:50%;
-  background: radial-gradient(closest-side, rgba(212,175,108,0.28), transparent 72%);
+  content:""; position:absolute; right:-60px; top:-60px; width:230px; height:230px; border-radius:50%;
+  background: radial-gradient(closest-side, rgba(212,175,108,0.32), transparent 72%);
   z-index:0; pointer-events:none; filter: blur(2px);
+  transition: transform 600ms var(--hp-ease), opacity 400ms var(--hp-ease);
 }
 .hp-offer-2::after{
-  content:""; position:absolute; right:-50px; top:-50px; width:200px; height:200px; border-radius:50%;
-  background: radial-gradient(closest-side, rgba(180,205,225,0.24), transparent 72%);
+  content:""; position:absolute; right:-60px; top:-60px; width:230px; height:230px; border-radius:50%;
+  background: radial-gradient(closest-side, rgba(180,205,225,0.28), transparent 72%);
   z-index:0; pointer-events:none; filter: blur(2px);
+  transition: transform 600ms var(--hp-ease), opacity 400ms var(--hp-ease);
 }
+.hp-offer:hover::after{ transform: translate(-12px, 8px) scale(1.05); }
 
 .hp-offer-eyebrow{
-  font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase;
+  font-size: 10px; letter-spacing: 0.22em; text-transform: uppercase;
   color: rgba(255,255,255,0.55); font-weight: 600;
+  display: inline-flex; align-items: center; gap: 8px;
+}
+.hp-offer-eyebrow::before{
+  content:""; width: 14px; height: 1px; background: currentColor; opacity: .55;
 }
 .hp-offer-1 .hp-offer-eyebrow{ color: #d4af6c; }
 .hp-offer-2 .hp-offer-eyebrow{ color: #b4cde1; }
 
 .hp-offer-headline{
-  font-size: 26px; line-height: 1.05; font-weight: 700;
-  color: #f5f5f7; letter-spacing: -0.02em; margin-top: 8px;
+  font-size: 34px; line-height: 1; font-weight: 600;
+  letter-spacing: -0.035em; margin-top: 10px;
   font-feature-settings: "ss01", "tnum";
+  background: linear-gradient(180deg, #ffffff 0%, #d8d8dc 100%);
+  -webkit-background-clip: text; background-clip: text;
+  color: transparent;
+}
+.hp-offer-1 .hp-offer-headline{
+  background: linear-gradient(180deg, #fff7e3 0%, #d4af6c 100%);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.hp-offer-2 .hp-offer-headline{
+  background: linear-gradient(180deg, #ffffff 0%, #b4cde1 100%);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
 }
 .hp-offer-headline em{
-  font-style: normal; font-weight: 400; color: rgba(255,255,255,0.6);
-  font-size: 14px; letter-spacing: 0; margin-left: 4px;
+  font-style: normal; font-weight: 400; color: rgba(255,255,255,0.55);
+  font-size: 13px; letter-spacing: 0.04em; margin-left: 8px;
+  background: none; -webkit-text-fill-color: rgba(255,255,255,0.55);
+  text-transform: uppercase;
 }
 .hp-offer-sub{
-  margin-top: 6px; font-size: 12px; color: rgba(255,255,255,0.55);
-  letter-spacing: 0.01em;
+  margin-top: 8px; font-size: 12px; color: rgba(255,255,255,0.52);
+  letter-spacing: 0.01em; line-height: 1.4;
 }
+
 
 /* Universal Apply / Home CTA pill */
 .hp-offer-cta,
