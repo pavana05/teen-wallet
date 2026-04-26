@@ -302,9 +302,12 @@ export function Home() {
             ))}
           </div>
         ) : txns.length === 0 ? (
-          <div className="rounded-2xl bg-white/5 border border-white/10 p-6 text-center">
-            <p className="text-[13px] text-white/70">No transactions yet</p>
-            <p className="text-[11px] text-white/40 mt-1">Tap the scan button to make your first payment.</p>
+          <div className="hp-empty tw-slide-up">
+            <div className="hp-empty-illu">
+              <Inbox className="w-7 h-7 text-white/80" strokeWidth={1.6} />
+            </div>
+            <p className="text-[14px] font-semibold text-white">No transactions yet</p>
+            <p className="text-[12px] text-white/55 mt-1">Tap the scan button to make your first payment.</p>
           </div>
         ) : (
           <div className="space-y-2">
