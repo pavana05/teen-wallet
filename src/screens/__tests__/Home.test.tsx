@@ -40,12 +40,18 @@ describe("Home screen smoke test", () => {
     expect(screen.getByText("Profile")).toBeInTheDocument();
   });
 
-  it("opens the Scan & Pay screen when the scan FAB is tapped", () => {
-    render(<Home />);
-    const scanBtn = screen.getByRole("button", { name: /scan to pay/i });
-    fireEvent.click(scanBtn);
-    // ScanPay renders a back affordance; assert we left the home view.
-    expect(screen.queryByText(/Everything UPI/i)).not.toBeInTheDocument();
+  it("opens the Scan & Pay screen when the scan FAB is tapped", async () => {
+    vi.useFakeTimers();
+    try {
+      render(<Home />);
+      const scanBtn = screen.getByRole("button", { name: /scan to pay/i });
+      fireEvent.click(scanBtn);
+      // The FAB triggers a 420ms liquid-bloom transition before mounting ScanPay.
+      await act(async () => { vi.advanceTimersByTime(500); });
+      expect(screen.queryByText(/Everything UPI/i)).not.toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("opens the Profile panel when tapped from the expanded nav", async () => {
