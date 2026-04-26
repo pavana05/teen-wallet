@@ -106,6 +106,9 @@ export function Home() {
   const [shakeKey, setShakeKey] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
   const [pullY, setPullY] = useState(0);
+  const [navCollapsed, setNavCollapsed] = useState(false);
+  const [navMode, setNavMode] = useState<"full" | "profile-morph">("full");
+  const [scanLaunching, setScanLaunching] = useState(false);
   const touchStartY = useRef<number | null>(null);
   const scrollerRef = useRef<HTMLDivElement | null>(null);
   const loadStartRef = useRef<number>(performance.now());
@@ -192,6 +195,42 @@ export function Home() {
     setPullY(0);
     touchStartY.current = null;
   };
+
+  // Collapse the bottom nav as the user scrolls — at top, expanded with all tabs;
+  // beyond ~60px, collapses into a compact Home-only pill (with a smooth liquid morph).
+  useEffect(() => {
+    const el = scrollerRef.current;
+    if (!el) return;
+    const onScroll = () => {
+      const next = el.scrollTop > 60;
+      setNavCollapsed((prev) => (prev === next ? prev : next));
+    };
+    onScroll();
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => el.removeEventListener("scroll", onScroll);
+  }, []);
+
+  // Profile tap → fluid morph: nav contracts to a single Profile pill,
+  // then we open the Profile panel after the morph settles.
+  const openProfile = useCallback(() => {
+    setNavMode("profile-morph");
+    window.setTimeout(() => setShowProfile(true), 360);
+  }, []);
+
+  const closeProfile = useCallback(() => {
+    setShowProfile(false);
+    window.setTimeout(() => setNavMode("full"), 80);
+  }, []);
+
+  // Scan FAB → liquid expansion into ScanPay. The FAB grows into a circular
+  // overlay that fills the shell, then we mount ScanPay underneath.
+  const launchScan = useCallback(() => {
+    setScanLaunching(true);
+    window.setTimeout(() => {
+      setView("scan");
+      window.setTimeout(() => setScanLaunching(false), 50);
+    }, 420);
+  }, []);
 
   if (view === "scan") return <ScanPay onBack={() => { setView("home"); void fetchTxns(); }} />;
 
@@ -421,31 +460,45 @@ export function Home() {
       {/* trailing breathing room above floating nav */}
       <div className="h-6" />
 
-      {/* ===== FLOATING BOTTOM NAV ===== */}
+      {/* ===== FLOATING BOTTOM NAV (scroll-collapsing + liquid morph) ===== */}
       <nav
         aria-label="Primary"
-        className="fixed bottom-5 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-[400px] z-50"
+        data-mode={navMode}
+        data-collapsed={navCollapsed ? "true" : "false"}
+        className="hp-nav-shell fixed bottom-5 left-1/2 -translate-x-1/2 z-50"
       >
         <div className="flex items-center gap-3">
-          <div className="hp-nav flex-1" role="tablist">
+          <div className="hp-nav hp-nav-pill flex-1" role="tablist">
             <NavItem icon={HomeIcon} label="Home" active />
-            <NavItem icon={Gift} label="Shop" />
-            
-            <NavItem icon={User} label="Profile" onClick={() => setShowProfile(true)} />
+            <span className="hp-nav-tab" data-hidden={navCollapsed || navMode === "profile-morph" ? "true" : "false"}>
+              <NavItem icon={Gift} label="Shop" />
+            </span>
+            <span className="hp-nav-tab" data-hidden={navCollapsed && navMode !== "profile-morph" ? "true" : "false"}>
+              <NavItem icon={User} label="Profile" onClick={openProfile} />
+            </span>
           </div>
           <button
             type="button"
-            onClick={() => setView("scan")}
+            onClick={launchScan}
             className="hp-scan-fab"
             aria-label="Scan to pay"
+            data-launching={scanLaunching ? "true" : "false"}
           >
             <ScanLine className="w-6 h-6 text-black" strokeWidth={2.4} aria-hidden="true" />
           </button>
         </div>
       </nav>
+
+      {/* Liquid expansion overlay for the Scan FAB → ScanPay transition */}
+      {scanLaunching && (
+        <div className="hp-scan-launch" aria-hidden="true">
+          <span className="hp-scan-launch-bubble" />
+        </div>
+      )}
+
       {quickAction && <QuickActionsPanel kind={quickAction} onClose={() => setQuickAction(null)} />}
       {showNotifs && <NotificationsPanel onClose={() => setShowNotifs(false)} />}
-      {showProfile && <ProfilePanel onClose={() => setShowProfile(false)} />}
+      {showProfile && <ProfilePanel onClose={closeProfile} />}
     </div>
   );
 }

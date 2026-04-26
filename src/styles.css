@@ -1392,7 +1392,95 @@ button:focus-visible .hp-tile{
   box-shadow: 0 0 0 2px rgba(200,241,53,.35), 0 14px 32px -10px rgba(0,0,0,.8);
 }
 
-/* ===== Token-driven transaction row (replaces ad-hoc bg-white/5) ===== */
+/* ----- Floating nav shell: width morphs as it collapses / shifts to profile ----- */
+.hp-nav-shell{
+  width: calc(100% - 2rem);
+  max-width: 400px;
+  transition: width 480ms var(--hp-ease), max-width 480ms var(--hp-ease);
+  will-change: width, max-width;
+}
+.hp-nav-shell[data-collapsed="true"][data-mode="full"]{
+  width: calc(100% - 2rem);
+  max-width: 240px;
+}
+.hp-nav-shell[data-mode="profile-morph"]{
+  width: calc(100% - 2rem);
+  max-width: 220px;
+}
+
+/* ----- Liquid pill: animates as tabs are added/removed ----- */
+.hp-nav-pill{
+  transition:
+    border-color var(--hp-dur) var(--hp-ease),
+    box-shadow var(--hp-dur) var(--hp-ease),
+    padding 480ms var(--hp-ease);
+}
+.hp-nav-tab{
+  display: inline-flex;
+  flex: 1 1 0;
+  min-width: 0;
+  overflow: hidden;
+  opacity: 1;
+  transform: scale(1);
+  filter: blur(0);
+  transition:
+    flex 480ms var(--hp-ease),
+    max-width 480ms var(--hp-ease),
+    opacity 320ms var(--hp-ease),
+    transform 480ms var(--hp-ease),
+    filter 320ms var(--hp-ease),
+    margin 480ms var(--hp-ease);
+  max-width: 200px;
+}
+.hp-nav-tab > button{ width: 100%; }
+.hp-nav-tab[data-hidden="true"]{
+  flex: 0 0 0;
+  max-width: 0;
+  opacity: 0;
+  transform: scale(.7);
+  filter: blur(6px);
+  margin: 0 -1px;
+  pointer-events: none;
+}
+
+/* ----- Liquid expansion overlay for Scan FAB → ScanPay ----- */
+.hp-scan-launch{
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  pointer-events: none;
+  display: flex; align-items: flex-end; justify-content: flex-end;
+  /* Anchor the bubble near the FAB position (right edge, just above bottom). */
+  padding: 0 24px 28px 0;
+}
+.hp-scan-launch-bubble{
+  display: block;
+  width: 58px; height: 58px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 25%, #ffffff 0%, #ededed 60%, #d4d4d4 100%);
+  box-shadow: 0 0 60px rgba(255,255,255,.45), 0 0 0 1px rgba(255,255,255,.6);
+  transform-origin: center;
+  animation: hp-scan-bloom 420ms cubic-bezier(.2,.8,.2,1) forwards;
+}
+@keyframes hp-scan-bloom {
+  0%   { transform: scale(1); opacity: 1; filter: blur(0); }
+  60%  { opacity: 1; }
+  100% { transform: scale(28); opacity: .98; filter: blur(2px); }
+}
+
+/* FAB pulse while launching, so the press feels intentional */
+.hp-scan-fab[data-launching="true"]{
+  transform: scale(.92);
+  box-shadow: 0 0 36px rgba(255,255,255,.45), 0 14px 32px -10px rgba(0,0,0,.85);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hp-nav-shell,
+  .hp-nav-pill,
+  .hp-nav-tab,
+  .hp-scan-launch-bubble{ transition: none !important; animation: none !important; }
+}
+
 .hp-row{
   display:flex; align-items:center; gap: 12px;
   padding: 12px;
