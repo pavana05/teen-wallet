@@ -166,6 +166,10 @@ export function VirtualTable<T>({
                 <div
                   key={id}
                   className={`vt-row ${cls ?? ""}`}
+                  onPointerDown={onRowPointerDown ? () => onRowPointerDown(row, vRow.index) : undefined}
+                  onPointerUp={onRowPointerUp ? () => onRowPointerUp(row, vRow.index) : undefined}
+                  onPointerLeave={onRowPointerCancel ? () => onRowPointerCancel(row, vRow.index) : undefined}
+                  onPointerCancel={onRowPointerCancel ? () => onRowPointerCancel(row, vRow.index) : undefined}
                   style={{
                     position: "absolute",
                     top: 0,
@@ -176,6 +180,7 @@ export function VirtualTable<T>({
                     display: "grid",
                     gridTemplateColumns: totalGridTemplate,
                     alignItems: "center",
+                    cursor: onRowPointerUp ? "pointer" : undefined,
                     ...styleExtra,
                   }}
                 >
