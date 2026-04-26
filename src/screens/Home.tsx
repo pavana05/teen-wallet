@@ -411,28 +411,56 @@ export function Home() {
             role="list"
             aria-label="Available offers"
           >
-            <div className="hp-offer hp-offer-1 snap-start shrink-0" role="listitem">
-              <div className="relative z-10">
-                <p className="hp-offer-eyebrow">P2P UPI · Limited</p>
-                <p className="hp-offer-headline">20%<em>flat off</em></p>
-                <p className="hp-offer-sub">On every peer transfer this month</p>
-                <button type="button" onClick={() => void haptics.success()} className="hp-offer-cta" aria-label="Apply 20% flat off offer on peer transfers">
-                  <span>Apply offer</span>
-                  <ArrowUpRight className="w-3.5 h-3.5 hp-offer-cta-icon" strokeWidth={2.2} aria-hidden="true" />
-                </button>
-              </div>
-            </div>
-            <div className="hp-offer hp-offer-2 snap-start shrink-0" role="listitem">
-              <div className="relative z-10">
-                <p className="hp-offer-eyebrow">First recharge</p>
-                <p className="hp-offer-headline">40%<em>cashback</em></p>
-                <p className="hp-offer-sub">Credited instantly to your wallet</p>
-                <button type="button" onClick={() => void haptics.success()} className="hp-offer-cta" aria-label="Claim 40% cashback offer on your first recharge">
-                  <span>Claim now</span>
-                  <Sparkles className="w-3.5 h-3.5 hp-offer-cta-icon" strokeWidth={2.2} aria-hidden="true" />
-                </button>
-              </div>
-            </div>
+            {personaOffers.length > 0 ? (
+              personaOffers.map((o) => (
+                <div
+                  key={o.id}
+                  className="hp-offer hp-offer-persona snap-start shrink-0"
+                  role="listitem"
+                  data-accent={o.accent}
+                >
+                  <div className="relative z-10">
+                    <p className="hp-offer-eyebrow">{o.eyebrow}</p>
+                    <p className="hp-offer-headline">{o.headline}<em>{o.emphasis}</em></p>
+                    <p className="hp-offer-sub">{o.subtitle}</p>
+                    <button
+                      type="button"
+                      onClick={() => void haptics.success()}
+                      className="hp-offer-cta"
+                      aria-label={`${o.cta_label} — ${o.headline} ${o.emphasis}`}
+                    >
+                      <span>{o.cta_label}</span>
+                      <ArrowUpRight className="w-3.5 h-3.5 hp-offer-cta-icon" strokeWidth={2.2} aria-hidden="true" />
+                    </button>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <>
+                <div className="hp-offer hp-offer-1 snap-start shrink-0" role="listitem">
+                  <div className="relative z-10">
+                    <p className="hp-offer-eyebrow">P2P UPI · Limited</p>
+                    <p className="hp-offer-headline">20%<em>flat off</em></p>
+                    <p className="hp-offer-sub">On every peer transfer this month</p>
+                    <button type="button" onClick={() => void haptics.success()} className="hp-offer-cta" aria-label="Apply 20% flat off offer on peer transfers">
+                      <span>Apply offer</span>
+                      <ArrowUpRight className="w-3.5 h-3.5 hp-offer-cta-icon" strokeWidth={2.2} aria-hidden="true" />
+                    </button>
+                  </div>
+                </div>
+                <div className="hp-offer hp-offer-2 snap-start shrink-0" role="listitem">
+                  <div className="relative z-10">
+                    <p className="hp-offer-eyebrow">First recharge</p>
+                    <p className="hp-offer-headline">40%<em>cashback</em></p>
+                    <p className="hp-offer-sub">Credited instantly to your wallet</p>
+                    <button type="button" onClick={() => void haptics.success()} className="hp-offer-cta" aria-label="Claim 40% cashback offer on your first recharge">
+                      <span>Claim now</span>
+                      <Sparkles className="w-3.5 h-3.5 hp-offer-cta-icon" strokeWidth={2.2} aria-hidden="true" />
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         )}
       </section>
