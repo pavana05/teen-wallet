@@ -47,6 +47,7 @@ const SLIDES: Slide[] = [
         <span className="ob-accent ob-accent-pink">new gen champions.</span>
       </>
     ),
+    srTitle: "Payments for the new gen champions",
     sub: "Fast. Secure. Rewarding.",
     fallbackIcon: Wallet,
     fallbackGradient: "linear-gradient(135deg, #ff5d8f 0%, #c026d3 60%, #4f46e5 100%)",
@@ -60,6 +61,7 @@ const SLIDES: Slide[] = [
         <span className="ob-accent ob-accent-blue">payments</span>
       </>
     ),
+    srTitle: "Lightning fast payments",
     sub: "Send or receive money in seconds using UPI. No delays, just instant vibes.",
     fallbackIcon: Sparkles,
     fallbackGradient: "linear-gradient(135deg, #38bdf8 0%, #6366f1 60%, #1e1b4b 100%)",
@@ -73,6 +75,7 @@ const SLIDES: Slide[] = [
         <span className="ob-accent ob-accent-purple">limits</span>
       </>
     ),
+    srTitle: "Secure beyond limits",
     sub: "Bank-grade security keeps your money and data always protected.",
     fallbackIcon: ShieldCheck,
     fallbackGradient: "linear-gradient(135deg, #a855f7 0%, #6366f1 60%, #1e1b4b 100%)",
@@ -86,6 +89,7 @@ const SLIDES: Slide[] = [
         <span className="ob-accent ob-accent-orange">every time</span>
       </>
     ),
+    srTitle: "Earn rewards every time",
     sub: "Get TW Coins on every payment and unlock exciting rewards just for you.",
     fallbackIcon: Gift,
     fallbackGradient: "linear-gradient(135deg, #fb923c 0%, #f43f5e 60%, #7c2d12 100%)",
