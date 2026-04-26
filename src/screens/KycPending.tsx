@@ -53,13 +53,22 @@ export function KycPending({ onApproved, forceState, forceReason }: { onApproved
   // immediately on reopen — before the network round-trip completes.
   const persistedPending = forceState ? null : readPersisted();
 
+  // NOTE: Avoid `new Date()` in useState initializer — runs on both SSR and client
+  // and produces different timestamps → hydration mismatch. For forceState, start
+  // null and seed in a client-only effect below.
   const [latest, setLatest] = useState<LatestSubmission | null>(
     forceState
-      ? { submissionId: "preview", providerRef: "preview", status: forceState, submittedAt: new Date().toISOString(), reason: forceReason ?? persistedReason ?? null }
+      ? null
       : persistedPending
         ? { submissionId: persistedPending.submissionId ?? "cached", providerRef: null, status: "pending", submittedAt: persistedPending.submittedAt, reason: null }
         : null
   );
+  useEffect(() => {
+    if (forceState && !latest) {
+      setLatest({ submissionId: "preview", providerRef: "preview", status: forceState, submittedAt: new Date().toISOString(), reason: forceReason ?? persistedReason ?? null });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [forceState]);
   const [status, setStatus] = useState<Status>(forceState ?? "pending");
   const [pollMs, setPollMs] = useState(POLL_INTERVAL_MS);
   // Initial-load skeleton: only true until first fetch resolves (success or error).
