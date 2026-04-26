@@ -5,6 +5,7 @@ import { SelfieCapture, SELFIE_STORAGE_KEY, type SelfiePermState } from "@/compo
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { breadcrumb, captureError } from "@/lib/breadcrumbs";
+import { CopyableErrorId } from "@/components/CopyableErrorId";
 
 type Step = 1 | 2 | 3;
 type SelfiePayload = { dataUrl: string; width: number; height: number; bytes: number };
@@ -51,6 +52,7 @@ export function KycFlow({ onDone }: { onDone: () => void }) {
   const [aadhaarOtp, setAadhaarOtp] = useState("");
   const [aadhaarOtpSent, setAadhaarOtpSent] = useState(false);
   const [error, setError] = useState("");
+  const [errorId, setErrorId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [selfie, setSelfie] = useState<SelfiePayload | null>(null);
   const [docFront, setDocFront] = useState<DocState>(null);
@@ -510,6 +512,7 @@ export function KycFlow({ onDone }: { onDone: () => void }) {
     if (payload.bytes < 8 * 1024) return setError("Selfie image is too small — please retake");
 
     setError("");
+    setErrorId(null);
     setLastErrorTransient(false);
     setBusy(true);
     const startedAt = Date.now();
@@ -520,9 +523,13 @@ export function KycFlow({ onDone }: { onDone: () => void }) {
       hasDocFront: !!docFront,
       hasDocBack: !!docBack,
     });
+    // Client-generated correlation ID. The server also generates one and returns
+    // it in the response — we prefer the server's so it matches worker logs, and
+    // fall back to the client one (network drops, etc.) so the user always has an ID to share.
+    const clientCid = `tw_${(crypto.randomUUID?.() ?? Math.random().toString(16).slice(2)).replace(/-/g, "").slice(0, 8)}`;
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error("Session expired. Please sign in again.");
+      if (!session) { setErrorId(clientCid); throw new Error("Session expired. Please sign in again."); }
 
       const aadhaarLast4 = aadhaar.replace(/\s/g, "").slice(-4);
       let res: Response;
@@ -532,6 +539,7 @@ export function KycFlow({ onDone }: { onDone: () => void }) {
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${session.access_token}`,
+            "X-Correlation-Id": clientCid,
           },
           body: JSON.stringify({
             selfie: payload.dataUrl,
@@ -543,18 +551,21 @@ export function KycFlow({ onDone }: { onDone: () => void }) {
           }),
         });
       } catch (netErr) {
-        // Network failure — treat as transient.
+        // Network failure — treat as transient. No server cid yet, so use the client one.
         setLastErrorTransient(true);
+        setErrorId(clientCid);
         throw new Error(netErr instanceof Error ? `Network error: ${netErr.message}` : "Network error");
       }
 
       const json = (await res.json().catch(() => ({}))) as {
-        error?: string; status?: SubStatus; submissionId?: string; providerRef?: string; reason?: string;
+        error?: string; status?: SubStatus; submissionId?: string; providerRef?: string; reason?: string; correlationId?: string;
       };
+      const serverCid = json.correlationId ?? res.headers.get("X-Correlation-Id") ?? clientCid;
+
       if (!res.ok && res.status !== 202) {
         const msg = json.error || `Verification failed (${res.status})`;
-        // 5xx and known transient phrases ⇒ allow Try again without recapture.
         if (res.status >= 500 || isTransientError(msg)) setLastErrorTransient(true);
+        setErrorId(serverCid);
         throw new Error(msg);
       }
 
@@ -576,22 +587,19 @@ export function KycFlow({ onDone }: { onDone: () => void }) {
         submissionId: json.submissionId,
         providerRef: json.providerRef,
         reason: json.reason,
+        correlationId: serverCid,
         durationMs: Date.now() - startedAt,
       });
 
-      // Keep the selfie in localStorage until we have a non-pending status — lets the
-      // user re-check / resubmit on refresh during Step 3 without recapturing.
-      // Only clear text drafts (KYC is now in the provider's hands).
       try {
         localStorage.removeItem(KYC_DRAFT_KEY);
         localStorage.removeItem(KYC_DOCS_KEY);
       } catch { /* ignore */ }
 
       if (res.status === 202) {
-        // Provider unreachable — surface "Try again" but still progress to pending screen
-        // so realtime polling can pick up later results.
         setLastErrorTransient(true);
-        toast.message("Provider is busy — submitted to queue. You can try again.");
+        setErrorId(serverCid);
+        toast.message("Provider is busy — submitted to queue. You can try again.", { description: `ID: ${serverCid}` });
       } else {
         toast.success("Selfie submitted for verification");
       }
@@ -602,6 +610,7 @@ export function KycFlow({ onDone }: { onDone: () => void }) {
         where: "kyc.runVerification",
         step,
         durationMs: Date.now() - startedAt,
+        correlationId: errorId ?? clientCid,
       });
       setError(e instanceof Error ? e.message : "Could not submit verification");
     } finally {
@@ -826,12 +835,15 @@ export function KycFlow({ onDone }: { onDone: () => void }) {
           {error && (
             <div className="mt-4">
               <p className="text-destructive text-xs tw-shake">{error}</p>
-              {lastErrorTransient && (
-                <button onClick={retrySubmit} disabled={busy}
-                  className="mt-2 text-xs text-primary inline-flex items-center gap-1 hover:underline disabled:opacity-50">
-                  <RefreshCw className={`w-3 h-3 ${busy ? "animate-spin" : ""}`} /> Try again
-                </button>
-              )}
+              <div className="mt-2 flex items-center gap-3">
+                {lastErrorTransient && (
+                  <button onClick={retrySubmit} disabled={busy}
+                    className="text-xs text-primary inline-flex items-center gap-1 hover:underline disabled:opacity-50">
+                    <RefreshCw className={`w-3 h-3 ${busy ? "animate-spin" : ""}`} /> Try again
+                  </button>
+                )}
+                {errorId && <CopyableErrorId id={errorId} />}
+              </div>
             </div>
           )}
           <div className="flex-1" />

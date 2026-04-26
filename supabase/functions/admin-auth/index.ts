@@ -26,11 +26,27 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-function json(data: unknown, status = 200) {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { "Content-Type": "application/json", ...corsHeaders },
-  });
+function json(data: unknown, status = 200, cid?: string) {
+  // When a request-scoped correlation ID is supplied, attach it both as a header
+  // (machine readable, for log correlation) and merge it into the JSON body
+  // (UI can copy it). For success bodies it appears as `correlationId`; for error
+  // bodies the existing `error` key stays the user-safe code.
+  const headers: Record<string, string> = { "Content-Type": "application/json", ...corsHeaders };
+  let payload: unknown = data;
+  if (cid) {
+    headers["X-Correlation-Id"] = cid;
+    if (data && typeof data === "object") {
+      payload = { ...(data as Record<string, unknown>), correlationId: cid };
+    } else {
+      payload = { value: data, correlationId: cid };
+    }
+  }
+  return new Response(JSON.stringify(payload), { status, headers });
+}
+
+function newCid(): string {
+  const u = crypto.randomUUID().replace(/-/g, "").slice(0, 8);
+  return `tw_${u}`;
 }
 
 // -----------------------------------------------------------------
@@ -211,7 +227,9 @@ function rateCheck(key: string, max: number, windowMs: number, blockMs: number):
 // -----------------------------------------------------------------
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
-  if (req.method !== "POST") return json({ error: "method_not_allowed" }, 405);
+  // Per-request correlation ID. Generated up-front so even early validation
+  // failures (bad method, bad JSON) come back with an ID the user can copy.
+  const cid = newCid();
 
   const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
   const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -221,6 +239,26 @@ Deno.serve(async (req) => {
     ?? req.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
     ?? "unknown";
   const ua = req.headers.get("user-agent") ?? "unknown";
+
+  // Local helper that shadows the module `json`. Every existing `json(...)` call
+  // site inside this handler automatically gets the request correlation ID,
+  // and error responses are mirrored to console for log-grep correlation.
+  // Hoisted via function-declaration so the early POST guard below can use it.
+  function localJson(data: unknown, status = 200): Response {
+    if (status >= 400) {
+      const errCode = (data as { error?: string } | null)?.error ?? "?";
+      console.error(`[admin-auth] ${cid} error="${errCode}" status=${status} ip=${ip}`);
+    }
+    const headers: Record<string, string> = { "Content-Type": "application/json", ...corsHeaders, "X-Correlation-Id": cid };
+    const body = data && typeof data === "object"
+      ? { ...(data as Record<string, unknown>), correlationId: cid }
+      : { value: data, correlationId: cid };
+    return new Response(JSON.stringify(body), { status, headers });
+  }
+  // Alias as `json` so we don't have to rewrite ~30 existing call sites below.
+  const json = localJson;
+
+  if (req.method !== "POST") return json({ error: "method_not_allowed" }, 405);
 
   let body: Record<string, unknown> = {};
   try { body = await req.json(); } catch { return json({ error: "invalid_json" }, 400); }
@@ -234,9 +272,10 @@ Deno.serve(async (req) => {
       action_type: type,
       ip_address: ip,
       user_agent: ua,
-      new_value: extra as any,
+      new_value: { ...extra, correlationId: cid } as any,
     });
   }
+
 
   // ---------------------------------------------------------------
   // login_password

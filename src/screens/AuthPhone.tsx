@@ -14,6 +14,7 @@ import {
   saveOtpState,
   type OtpErrorKind,
 } from "@/lib/otpState";
+import { CopyableErrorId } from "@/components/CopyableErrorId";
 
 type Step = "phone" | "otp" | "verified";
 
@@ -24,6 +25,7 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
   const [phone, setPhone] = useState("");
   const [error, setError] = useState("");
   const [errorKind, setErrorKind] = useState<OtpErrorKind | null>(null);
+  const [errorId, setErrorId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const [resendIn, setResendIn] = useState(RESEND_COOLDOWN_S);
@@ -48,6 +50,7 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
       setOtp(persisted.digits.length === 6 ? persisted.digits : ["", "", "", "", "", ""]);
       setError(persisted.error || "");
       setErrorKind(persisted.errorKind);
+      setErrorId(persisted.correlationId);
       setResendBlockedUntil(persisted.resendBlockedUntil);
       setStep("otp");
     }
@@ -71,8 +74,8 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
   // Persist OTP UX state on every meaningful change so refresh doesn't lose progress.
   useEffect(() => {
     if (step !== "otp") return;
-    saveOtpState({ phone, digits: otp, error, errorKind, busy, resendBlockedUntil });
-  }, [step, phone, otp, error, errorKind, busy, resendBlockedUntil]);
+    saveOtpState({ phone, digits: otp, error, errorKind, correlationId: errorId, busy, resendBlockedUntil });
+  }, [step, phone, otp, error, errorKind, errorId, busy, resendBlockedUntil]);
 
   // Auto-focus first empty OTP slot when entering the OTP step.
   useEffect(() => {
@@ -88,7 +91,7 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
 
   async function handleSendOtp() {
     if (!valid) { setError("Enter a valid Indian mobile number"); return; }
-    setError(""); setErrorKind(null); setBusy(true);
+    setError(""); setErrorKind(null); setErrorId(null); setBusy(true);
     try {
       const r = await sendOtp(phone);
       setPendingPhone("+91" + phone);
@@ -97,18 +100,17 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
       setResendBlockedUntil(null);
       setStep("otp");
     } catch (e) {
-      const { message, kind } = classifyOtpError(e);
-      setError(message); setErrorKind(kind);
-      void logOtpErrorEvent(kind, e instanceof Error ? e.message : String(e), phone);
+      const { message, kind, correlationId } = classifyOtpError(e);
+      setError(message); setErrorKind(kind); setErrorId(correlationId);
+      void logOtpErrorEvent(kind, e instanceof Error ? e.message : String(e), phone, correlationId);
       if (kind === "rate_limited") {
-        // Block resend for 60s when rate-limited.
         setResendBlockedUntil(Date.now() + 60_000);
       }
     } finally { setBusy(false); }
   }
 
   async function handleVerify(code: string) {
-    setBusy(true); setError(""); setErrorKind(null);
+    setBusy(true); setError(""); setErrorKind(null); setErrorId(null);
     try {
       await verifyOtp(phone, code);
       const p = await fetchProfile();
@@ -129,10 +131,10 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
       clearOtpState();
       setStep("verified");
     } catch (e) {
-      const { message, kind } = classifyOtpError(e);
-      setError(message); setErrorKind(kind);
-      void logOtpErrorEvent(kind, e instanceof Error ? e.message : String(e), phone);
-      toast.error(kind === "network" ? "Network error" : "Verification failed", { description: message });
+      const { message, kind, correlationId } = classifyOtpError(e);
+      setError(message); setErrorKind(kind); setErrorId(correlationId);
+      void logOtpErrorEvent(kind, e instanceof Error ? e.message : String(e), phone, correlationId);
+      toast.error(kind === "network" ? "Network error" : "Verification failed", { description: `${message} (ID: ${correlationId})` });
 
       if (kind === "rate_limited") {
         setResendBlockedUntil(Date.now() + 60_000);
@@ -161,7 +163,7 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
     const d = v.replace(/\D/g, "").slice(-1);
     const next = [...otp]; next[i] = d; setOtp(next);
     // Editing any digit clears the prior error so the user gets immediate feedback.
-    if (error) { setError(""); setErrorKind(null); }
+    if (error) { setError(""); setErrorKind(null); setErrorId(null); }
     if (d && i < 5) inputs.current[i + 1]?.focus();
     if (next.every((x) => x)) handleVerify(next.join(""));
   }
@@ -295,14 +297,17 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
               <p className="text-destructive text-xs leading-relaxed">
                 {errorKind === "invalid" ? "Re-enter the 6-digit code — that one didn't match." : error}
               </p>
-              {!busy && (
-                <button
-                  onClick={retryVerify}
-                  className="text-primary text-xs font-semibold underline underline-offset-2"
-                >
-                  Try again
-                </button>
-              )}
+              <div className="flex items-center gap-3">
+                {!busy && (
+                  <button
+                    onClick={retryVerify}
+                    className="text-primary text-xs font-semibold underline underline-offset-2"
+                  >
+                    Try again
+                  </button>
+                )}
+                {errorId && <CopyableErrorId id={errorId} />}
+              </div>
             </div>
           )}
 

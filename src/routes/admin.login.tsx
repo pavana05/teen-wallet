@@ -1,8 +1,9 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import QRCode from "qrcode";
-import { callAdminFn, writeAdminSession, type AdminMe } from "@/admin/lib/adminAuth";
+import { callAdminFn, writeAdminSession, AdminFnError, type AdminMe } from "@/admin/lib/adminAuth";
 import { Shield, KeyRound, Loader2 } from "lucide-react";
+import { CopyableErrorId } from "@/components/CopyableErrorId";
 
 export const Route = createFileRoute("/admin/login")({
   component: AdminLogin,
@@ -22,48 +23,61 @@ function AdminLogin() {
   const [qrSrc, setQrSrc] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
+  const [errCid, setErrCid] = useState<string | null>(null);
+
+  function captureErr(e: unknown, fallback: string) {
+    if (e instanceof AdminFnError) {
+      setErrCid(e.correlationId);
+      return e.message || fallback;
+    }
+    setErrCid(null);
+    return e instanceof Error ? e.message || fallback : fallback;
+  }
 
   useEffect(() => {
     if (otpauthUrl) QRCode.toDataURL(otpauthUrl, { margin: 1, width: 220, color: { dark: "#0d0d0d", light: "#c8f135" } }).then(setQrSrc).catch(() => {});
   }, [otpauthUrl]);
 
   async function submitEmail(e: React.FormEvent) {
-    e.preventDefault(); setErr(""); setBusy(true);
+    e.preventDefault(); setErr(""); setErrCid(null); setBusy(true);
     try {
       const r = await callAdminFn<any>({ action: "login_password", email, password });
       if (r.stage === "set_password") setStage("set_password");
       else if (r.stage === "enroll_totp") {
         setChallengeToken(r.challengeToken); setOtpauthUrl(r.otpauthUrl); setSecret(r.secret); setStage("enroll_totp");
       } else if (r.stage === "totp") { setChallengeToken(r.challengeToken); setStage("totp"); }
-    } catch (e: any) { setErr(e.message || "Login failed"); }
+    } catch (e) { setErr(captureErr(e, "Login failed")); }
     finally { setBusy(false); }
   }
 
   async function submitSetPassword(e: React.FormEvent) {
-    e.preventDefault(); setErr(""); setBusy(true);
+    e.preventDefault(); setErr(""); setErrCid(null); setBusy(true);
     try {
       const r = await callAdminFn<any>({ action: "set_password", email, password });
       setChallengeToken(r.challengeToken); setOtpauthUrl(r.otpauthUrl); setSecret(r.secret); setStage("enroll_totp");
-    } catch (e: any) { setErr(e.message || "Could not set password"); }
+    } catch (e) { setErr(captureErr(e, "Could not set password")); }
     finally { setBusy(false); }
   }
 
   async function submitTotp(e: React.FormEvent) {
-    e.preventDefault(); setErr(""); setBusy(true);
+    e.preventDefault(); setErr(""); setErrCid(null); setBusy(true);
     try {
       const r = await callAdminFn<{ sessionToken: string; expiresAt: string; admin: AdminMe }>({
         action: "verify_totp", challengeToken, code,
       });
       writeAdminSession(r);
       nav({ to: "/admin" });
-    } catch (e: any) {
-      const raw = (e?.message || "").toLowerCase();
-      let friendly = e?.message || "Invalid code";
+    } catch (e) {
+      // Friendly translation of known TOTP error codes — preserve correlation ID.
+      const cid = e instanceof AdminFnError ? e.correlationId : null;
+      const raw = (e instanceof Error ? e.message : "").toLowerCase();
+      let friendly = e instanceof Error ? (e.message || "Invalid code") : "Invalid code";
       if (raw.includes("invalid_code")) friendly = "Invalid or expired code. Codes refresh every 30 seconds — please enter the current code from your authenticator app.";
       else if (raw.includes("challenge")) friendly = "Your login session expired. Please re-enter your password.";
       else if (raw.includes("locked")) friendly = "Account temporarily locked due to too many attempts. Try again later.";
       else if (raw.includes("failed to fetch")) friendly = "Couldn't reach the server. Check your connection and try again.";
       setErr(friendly);
+      setErrCid(cid);
       setCode("");
       if (raw.includes("challenge")) setStage("email");
     }
@@ -80,7 +94,12 @@ function AdminLogin() {
         <h1 style={{ fontSize: 22, fontWeight: 700, marginTop: 4 }}>Admin Console</h1>
         <p style={{ fontSize: 13, color: "var(--a-muted)", marginTop: 4 }}>Restricted access. All activity is logged.</p>
 
-        {err && <div style={{ marginTop: 16, padding: 10, borderRadius: 6, background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", color: "#fca5a5", fontSize: 13 }}>{err}</div>}
+        {err && (
+          <div style={{ marginTop: 16, padding: 10, borderRadius: 6, background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", color: "#fca5a5", fontSize: 13 }}>
+            <div>{err}</div>
+            {errCid && <div style={{ marginTop: 6 }}><CopyableErrorId id={errCid} /></div>}
+          </div>
+        )}
 
         {stage === "email" && (
           <form onSubmit={submitEmail} style={{ marginTop: 20, display: "grid", gap: 12 }}>
