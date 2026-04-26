@@ -213,22 +213,24 @@ export function Home() {
         {loading ? (
           <div className="flex gap-3 overflow-hidden pb-1">
             {[0, 1].map((i) => (
-              <div key={i} className="hp-offer snap-start shrink-0 tw-shimmer" style={{ minHeight: 140 }} />
+              <div key={i} className="hp-skeleton snap-start shrink-0" style={{ width: "84%", minHeight: 140 }} />
             ))}
           </div>
         ) : error ? (
-          <div key={shakeKey} className={`hp-empty hp-shake-error`}>
+          <div key={`offers-err-${shakeKey}`} className="hp-empty hp-shake-error tw-slide-up">
             <div className="hp-empty-illu">
-              <Sparkles className="w-7 h-7 text-white/80" strokeWidth={1.6} />
+              <Sparkles className="w-7 h-7 text-white/85" strokeWidth={1.6} />
             </div>
-            <p className="text-[14px] font-semibold text-white">Couldn't load offers</p>
-            <p className="text-[12px] text-white/55 mt-1">Pull to refresh or try again in a moment.</p>
+            <p className="hp-empty-title">Couldn't load offers</p>
+            <p className="hp-empty-sub">Check your connection and try again — your rewards will be right back.</p>
             <button
+              type="button"
               onClick={() => { setLoading(true); void fetchTxns(); }}
-              className="hp-offer-cta mt-3"
-              style={{ marginTop: 14 }}
+              className="hp-cta-pill"
+              aria-label="Retry loading offers"
             >
-              <RefreshCw className="w-3.5 h-3.5 hp-offer-cta-icon" /> Retry
+              <RefreshCw className="w-3.5 h-3.5" strokeWidth={2.2} />
+              <span>Retry</span>
             </button>
           </div>
         ) : (
@@ -311,19 +313,36 @@ export function Home() {
         {loading ? (
           <div className="space-y-2">
             {[0, 1, 2].map((i) => (
-              <div key={i} className="h-16 rounded-2xl bg-white/5 tw-shimmer" />
+              <div key={i} className="hp-skeleton-row" />
             ))}
+          </div>
+        ) : error ? (
+          <div key={`hist-err-${shakeKey}`} className="hp-empty hp-shake-error tw-slide-up">
+            <div className="hp-empty-illu">
+              <RefreshCw className="w-7 h-7 text-white/85" strokeWidth={1.6} />
+            </div>
+            <p className="hp-empty-title">Couldn't load payments</p>
+            <p className="hp-empty-sub">We hit a snag fetching your history. Tap retry — we'll fix it on the next try.</p>
+            <button
+              type="button"
+              onClick={() => { setLoading(true); void fetchTxns(); }}
+              className="hp-cta-pill"
+              aria-label="Retry loading payment history"
+            >
+              <RefreshCw className="w-3.5 h-3.5" strokeWidth={2.2} />
+              <span>Retry</span>
+            </button>
           </div>
         ) : txns.length === 0 ? (
           <div className="hp-empty tw-slide-up">
             <div className="hp-empty-illu">
-              <Inbox className="w-7 h-7 text-white/80" strokeWidth={1.6} />
+              <Inbox className="w-7 h-7 text-white/85" strokeWidth={1.6} />
             </div>
-            <p className="text-[14px] font-semibold text-white">No transactions yet</p>
-            <p className="text-[12px] text-white/55 mt-1">Tap the scan button to make your first payment.</p>
+            <p className="hp-empty-title">No transactions yet</p>
+            <p className="hp-empty-sub">Tap the scan button below to make your first payment — it'll show up here instantly.</p>
           </div>
         ) : (
-          <div className="space-y-2">
+          <div className="space-y-2 tw-slide-up">
             {txns.map((t) => <TxnRow key={t.id} txn={t} />)}
           </div>
         )}
