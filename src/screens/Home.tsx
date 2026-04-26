@@ -237,12 +237,14 @@ export function Home() {
   // kept reachable (never hidden) — and we briefly force-expand the nav so
   // the morph reads as a continuous liquid transition either way.
   const openProfile = useCallback(() => {
+    void haptics.bloom();
     setNavCollapsed(false);
     setNavMode("profile-morph");
     window.setTimeout(() => setShowProfile(true), 360);
   }, []);
 
   const closeProfile = useCallback(() => {
+    void haptics.swipe();
     setShowProfile(false);
     window.setTimeout(() => setNavMode("full"), 80);
     // Page-transition reset: bring Home back to the top so the user lands at
@@ -255,6 +257,7 @@ export function Home() {
   // Scan FAB → liquid expansion into ScanPay. The FAB grows into a circular
   // overlay that fills the shell, then we mount ScanPay underneath.
   const launchScan = useCallback(() => {
+    void haptics.bloom();
     setScanLaunching(true);
     window.setTimeout(() => {
       setView("scan");
