@@ -19,9 +19,15 @@ interface Txn {
 }
 
 function QuickAction({ icon: Icon, label, onClick }: { icon: React.ComponentType<{ className?: string; strokeWidth?: number }>; label: string; onClick?: () => void }) {
+  const accessibleLabel = label.replace(/\n/g, " ");
   return (
-    <button onClick={onClick} className="flex flex-col items-center gap-2 group">
-      <div className="hp-tile">
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={accessibleLabel}
+      className="flex flex-col items-center gap-2 group rounded-2xl focus:outline-none"
+    >
+      <div className="hp-tile" aria-hidden="true">
         <Icon className="w-6 h-6 text-white/90" strokeWidth={1.6} />
       </div>
       <span className="text-[11px] text-white/70 leading-tight text-center whitespace-pre-line">{label}</span>
@@ -31,8 +37,12 @@ function QuickAction({ icon: Icon, label, onClick }: { icon: React.ComponentType
 
 function RechargeTile({ icon: Icon, label, tint }: { icon: React.ComponentType<{ className?: string; strokeWidth?: number }>; label: string; tint: string }) {
   return (
-    <button className="flex flex-col items-center gap-2">
-      <div className={`hp-tile bg-gradient-to-br ${tint}`}>
+    <button
+      type="button"
+      aria-label={label}
+      className="flex flex-col items-center gap-2 rounded-2xl focus:outline-none"
+    >
+      <div className={`hp-tile bg-gradient-to-br ${tint}`} aria-hidden="true">
         <Icon className="w-6 h-6 text-white" strokeWidth={1.7} />
       </div>
       <span className="text-[11px] text-white/70 leading-tight text-center">{label}</span>
@@ -44,9 +54,15 @@ function TxnRow({ txn }: { txn: Txn }) {
   const date = new Date(txn.created_at);
   const time = date.toLocaleString("en-IN", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
   const failed = txn.status === "failed";
+  const amountStr = `−₹${Number(txn.amount).toFixed(2)}`;
   return (
-    <div className="flex items-center gap-3 rounded-2xl bg-white/5 border border-white/10 px-3 py-3">
-      <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${failed ? "bg-destructive/15" : "bg-primary/15"}`}>
+    <div
+      className="hp-row"
+      role="article"
+      aria-label={`Payment to ${txn.merchant_name}, ${amountStr}, status ${txn.status}, on ${time}`}
+      tabIndex={0}
+    >
+      <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${failed ? "bg-destructive/15" : "bg-primary/15"}`} aria-hidden="true">
         <ArrowDownLeft className={`w-5 h-5 ${failed ? "text-destructive" : "text-primary"}`} strokeWidth={2} />
       </div>
       <div className="flex-1 min-w-0">
@@ -54,7 +70,7 @@ function TxnRow({ txn }: { txn: Txn }) {
         <p className="text-[11px] text-white/50 truncate">{txn.note ? txn.note : txn.upi_id} · {time}</p>
       </div>
       <div className="text-right shrink-0">
-        <p className={`text-[14px] font-semibold num-mono ${failed ? "text-destructive line-through" : "text-white"}`}>−₹{Number(txn.amount).toFixed(2)}</p>
+        <p className={`text-[14px] font-semibold num-mono ${failed ? "text-destructive line-through" : "text-white"}`}>{amountStr}</p>
         <p className={`text-[10px] uppercase tracking-wider ${txn.status === "success" ? "text-primary/80" : txn.status === "pending" ? "text-yellow-400/80" : "text-destructive/80"}`}>{txn.status}</p>
       </div>
     </div>
@@ -63,8 +79,14 @@ function TxnRow({ txn }: { txn: Txn }) {
 
 function NavItem({ icon: Icon, label, active, onClick }: { icon: React.ComponentType<{ className?: string; strokeWidth?: number }>; label: string; active?: boolean; onClick?: () => void }) {
   return (
-    <button onClick={onClick} className={`flex-1 flex flex-col items-center py-2 rounded-full transition-colors ${active ? "hp-nav-active text-white" : "text-white/55 hover:text-white/80"}`}>
-      <Icon className="w-5 h-5" strokeWidth={active ? 2 : 1.6} />
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      aria-current={active ? "page" : undefined}
+      className={`flex-1 flex flex-col items-center py-2 rounded-full transition-colors focus:outline-none ${active ? "hp-nav-active text-white" : "text-white/55 hover:text-white/80"}`}
+    >
+      <Icon className="w-5 h-5" strokeWidth={active ? 2 : 1.6} aria-hidden="true" />
       <span className={`text-[11px] mt-0.5 ${active ? "font-semibold" : ""}`}>{label}</span>
     </button>
   );
@@ -86,15 +108,25 @@ export function Home() {
   const [pullY, setPullY] = useState(0);
   const touchStartY = useRef<number | null>(null);
   const scrollerRef = useRef<HTMLDivElement | null>(null);
+  const loadStartRef = useRef<number>(performance.now());
 
   const fetchTxns = useCallback(async () => {
     if (!userId) { setLoading(false); return; }
+    loadStartRef.current = performance.now();
     const { data, error: err } = await supabase
       .from("transactions")
       .select("id,amount,merchant_name,upi_id,note,status,created_at")
       .eq("user_id", userId)
       .order("created_at", { ascending: false })
       .limit(20);
+    // Anti-flicker: keep skeleton on screen for at least 480ms total so it
+    // never flashes briefly on instant network responses, then crossfades into
+    // the loaded content via the .hp-fade-in 400ms ease-out animation.
+    const elapsed = performance.now() - loadStartRef.current;
+    const minSkeletonMs = 480;
+    if (elapsed < minSkeletonMs) {
+      await new Promise((r) => setTimeout(r, minSkeletonMs - elapsed));
+    }
     if (err) {
       setError(err.message);
       setShakeKey((k) => k + 1);
@@ -172,10 +204,17 @@ export function Home() {
       className="hp-root flex-1 flex flex-col tw-slide-up pb-32 overflow-y-auto relative"
       style={{ transform: pullY ? `translateY(${pullY}px)` : undefined, transition: pullY ? "none" : "transform 220ms ease" }}
     >
+      {/* Keyboard skip-link to payment history */}
+      <a href="#hp-payment-history" className="hp-skip-link">Skip to payment history</a>
+
       {/* Pull-to-refresh indicator */}
       {(pullY > 0 || refreshing) && (
-        <div className="absolute top-2 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/60 backdrop-blur-md border border-white/10">
-          <RefreshCw className={`w-3.5 h-3.5 text-white ${refreshing ? "animate-spin" : ""}`} style={{ transform: !refreshing ? `rotate(${pullY * 4}deg)` : undefined }} />
+        <div
+          role="status"
+          aria-live="polite"
+          className="absolute top-2 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/60 backdrop-blur-md border border-white/10"
+        >
+          <RefreshCw className={`w-3.5 h-3.5 text-white ${refreshing ? "animate-spin" : ""}`} style={{ transform: !refreshing ? `rotate(${pullY * 4}deg)` : undefined }} aria-hidden="true" />
           <span className="text-[11px] text-white/80">{refreshing ? "Refreshing…" : pullY > 60 ? "Release to refresh" : "Pull to refresh"}</span>
         </div>
       )}
@@ -191,34 +230,49 @@ export function Home() {
             <p className="hp-greeting">Hey, {first}</p>
             <p className="hp-greeting-sub">Welcome back</p>
           </div>
-          <button onClick={() => setShowNotifs(true)} aria-label="Notifications" className="hp-bell">
-            <Bell className="w-[18px] h-[18px] text-white/90" strokeWidth={1.6} />
+          <button
+            type="button"
+            onClick={() => setShowNotifs(true)}
+            aria-label={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : "Notifications"}
+            className="hp-bell"
+          >
+            <Bell className="w-[18px] h-[18px] text-white/90" strokeWidth={1.6} aria-hidden="true" />
             {unreadCount > 0 && (
-              <span className="hp-bell-badge">{unreadCount > 9 ? "9+" : unreadCount}</span>
+              <span className="hp-bell-badge" aria-hidden="true">{unreadCount > 9 ? "9+" : unreadCount}</span>
             )}
           </button>
         </div>
 
         {/* Scan hero card */}
-        <button onClick={() => setView("scan")} className="hp-scan-card group" aria-label="Tap to scan">
-          <img src={heroScan} alt="Tap to scan and pay" className="hp-scan-img" />
+        <button
+          type="button"
+          onClick={() => setView("scan")}
+          className="hp-scan-card group"
+          aria-label="Open scanner to scan and pay"
+        >
+          <img src={heroScan} alt="" className="hp-scan-img" />
         </button>
 
         {/* Grass to black blend */}
-        <div className="hp-hero-fade" />
+        <div className="hp-hero-fade" aria-hidden="true" />
       </div>
 
       {/* ===== OFFERS CAROUSEL ===== */}
-      <div className="px-5 mt-4 -mt-2">
+      <section
+        aria-label="Offers"
+        aria-busy={loading}
+        aria-live="polite"
+        className="px-5 mt-4 -mt-2"
+      >
         {loading ? (
-          <div className="flex gap-3 overflow-hidden pb-1">
+          <div className="flex gap-3 overflow-hidden pb-1" aria-hidden="true">
             {[0, 1].map((i) => (
               <div key={i} className="hp-skeleton snap-start shrink-0" style={{ width: "84%", minHeight: 140 }} />
             ))}
           </div>
         ) : error ? (
-          <div key={`offers-err-${shakeKey}`} className="hp-empty hp-shake-error tw-slide-up">
-            <div className="hp-empty-illu">
+          <div key={`offers-err-${shakeKey}`} role="alert" className="hp-empty hp-shake-error hp-fade-in">
+            <div className="hp-empty-illu" aria-hidden="true">
               <Sparkles className="w-7 h-7 text-white/85" strokeWidth={1.6} />
             </div>
             <p className="hp-empty-title">Couldn't load offers</p>
@@ -229,37 +283,41 @@ export function Home() {
               className="hp-cta-pill"
               aria-label="Retry loading offers"
             >
-              <RefreshCw className="w-3.5 h-3.5" strokeWidth={2.2} />
+              <RefreshCw className="w-3.5 h-3.5" strokeWidth={2.2} aria-hidden="true" />
               <span>Retry</span>
             </button>
           </div>
         ) : (
-          <div className="flex gap-3 overflow-x-auto hp-scroll snap-x snap-mandatory pb-1 tw-slide-up">
-            <div className="hp-offer hp-offer-1 snap-start shrink-0">
+          <div
+            className="flex gap-3 overflow-x-auto hp-scroll snap-x snap-mandatory pb-1 hp-fade-in"
+            role="list"
+            aria-label="Available offers"
+          >
+            <div className="hp-offer hp-offer-1 snap-start shrink-0" role="listitem">
               <div className="relative z-10">
                 <p className="hp-offer-eyebrow">P2P UPI · Limited</p>
                 <p className="hp-offer-headline">20%<em>flat off</em></p>
                 <p className="hp-offer-sub">On every peer transfer this month</p>
-                <button type="button" className="hp-offer-cta" aria-label="Apply 20% off offer">
+                <button type="button" className="hp-offer-cta" aria-label="Apply 20% flat off offer on peer transfers">
                   <span>Apply offer</span>
-                  <ArrowUpRight className="w-3.5 h-3.5 hp-offer-cta-icon" strokeWidth={2.2} />
+                  <ArrowUpRight className="w-3.5 h-3.5 hp-offer-cta-icon" strokeWidth={2.2} aria-hidden="true" />
                 </button>
               </div>
             </div>
-            <div className="hp-offer hp-offer-2 snap-start shrink-0">
+            <div className="hp-offer hp-offer-2 snap-start shrink-0" role="listitem">
               <div className="relative z-10">
                 <p className="hp-offer-eyebrow">First recharge</p>
                 <p className="hp-offer-headline">40%<em>cashback</em></p>
                 <p className="hp-offer-sub">Credited instantly to your wallet</p>
-                <button type="button" className="hp-offer-cta" aria-label="Claim 40% cashback offer">
+                <button type="button" className="hp-offer-cta" aria-label="Claim 40% cashback offer on your first recharge">
                   <span>Claim now</span>
-                  <Sparkles className="w-3.5 h-3.5 hp-offer-cta-icon" strokeWidth={2.2} />
+                  <Sparkles className="w-3.5 h-3.5 hp-offer-cta-icon" strokeWidth={2.2} aria-hidden="true" />
                 </button>
               </div>
             </div>
           </div>
         )}
-      </div>
+      </section>
 
       {/* ===== EVERYTHING UPI ===== */}
       <div className="px-5 mt-8">
@@ -300,25 +358,37 @@ export function Home() {
       <div className="hp-divider mt-8" />
 
       {/* ===== PAYMENT HISTORY ===== */}
-      <div className="px-5 mt-8">
+      <section
+        id="hp-payment-history"
+        aria-label="Payment history"
+        aria-busy={loading}
+        aria-live="polite"
+        tabIndex={-1}
+        className="px-5 mt-8 scroll-mt-4"
+      >
         <div className="hp-section-head">
           <div>
             <span className="hp-section-eyebrow">Activity</span>
             <h3 className="hp-section-title">Payment history</h3>
           </div>
-          <button onClick={handleRefresh} className="hp-section-link inline-flex items-center gap-1.5">
-            <RefreshCw className={`w-3 h-3 ${refreshing ? "animate-spin" : ""}`} /> Refresh
+          <button
+            type="button"
+            onClick={handleRefresh}
+            aria-label={refreshing ? "Refreshing payment history" : "Refresh payment history"}
+            className="hp-section-link inline-flex items-center gap-1.5"
+          >
+            <RefreshCw className={`w-3 h-3 ${refreshing ? "animate-spin" : ""}`} aria-hidden="true" /> Refresh
           </button>
         </div>
         {loading ? (
-          <div className="space-y-2">
+          <div className="space-y-2" aria-hidden="true">
             {[0, 1, 2].map((i) => (
               <div key={i} className="hp-skeleton-row" />
             ))}
           </div>
         ) : error ? (
-          <div key={`hist-err-${shakeKey}`} className="hp-empty hp-shake-error tw-slide-up">
-            <div className="hp-empty-illu">
+          <div key={`hist-err-${shakeKey}`} role="alert" className="hp-empty hp-shake-error hp-fade-in">
+            <div className="hp-empty-illu" aria-hidden="true">
               <RefreshCw className="w-7 h-7 text-white/85" strokeWidth={1.6} />
             </div>
             <p className="hp-empty-title">Couldn't load payments</p>
@@ -329,42 +399,50 @@ export function Home() {
               className="hp-cta-pill"
               aria-label="Retry loading payment history"
             >
-              <RefreshCw className="w-3.5 h-3.5" strokeWidth={2.2} />
+              <RefreshCw className="w-3.5 h-3.5" strokeWidth={2.2} aria-hidden="true" />
               <span>Retry</span>
             </button>
           </div>
         ) : txns.length === 0 ? (
-          <div className="hp-empty tw-slide-up">
-            <div className="hp-empty-illu">
+          <div className="hp-empty hp-fade-in">
+            <div className="hp-empty-illu" aria-hidden="true">
               <Inbox className="w-7 h-7 text-white/85" strokeWidth={1.6} />
             </div>
             <p className="hp-empty-title">No transactions yet</p>
             <p className="hp-empty-sub">Tap the scan button below to make your first payment — it'll show up here instantly.</p>
           </div>
         ) : (
-          <div className="space-y-2 tw-slide-up">
+          <div className="space-y-2 hp-fade-in" role="list" aria-label="Recent transactions">
             {txns.map((t) => <TxnRow key={t.id} txn={t} />)}
           </div>
         )}
-      </div>
+      </section>
 
       {/* trailing breathing room above floating nav */}
       <div className="h-6" />
 
       {/* ===== FLOATING BOTTOM NAV ===== */}
-      <div className="fixed bottom-5 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-[400px] z-50">
+      <nav
+        aria-label="Primary"
+        className="fixed bottom-5 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-[400px] z-50"
+      >
         <div className="flex items-center gap-3">
-          <div className="hp-nav flex-1">
+          <div className="hp-nav flex-1" role="tablist">
             <NavItem icon={HomeIcon} label="Home" active />
             <NavItem icon={Gift} label="Shop" />
             <NavItem icon={CreditCard} label="Card" />
             <NavItem icon={User} label="Profile" onClick={() => setShowProfile(true)} />
           </div>
-          <button onClick={() => setView("scan")} className="hp-scan-fab" aria-label="Scan">
-            <ScanLine className="w-6 h-6 text-black" strokeWidth={2.4} />
+          <button
+            type="button"
+            onClick={() => setView("scan")}
+            className="hp-scan-fab"
+            aria-label="Scan to pay"
+          >
+            <ScanLine className="w-6 h-6 text-black" strokeWidth={2.4} aria-hidden="true" />
           </button>
         </div>
-      </div>
+      </nav>
       {quickAction && <QuickActionsPanel kind={quickAction} onClose={() => setQuickAction(null)} />}
       {showNotifs && <NotificationsPanel onClose={() => setShowNotifs(false)} />}
       {showProfile && <ProfilePanel onClose={() => setShowProfile(false)} />}
