@@ -248,7 +248,15 @@ export function KycPending({ onApproved, forceState, forceReason }: { onApproved
   if (status === "rejected") {
     // Prefer fresh reason; fall back to persisted reason from a previous session.
     const shownReason = latest?.reason ?? persistedReason ?? null;
-    return <RejectedView reason={shownReason} onRetake={goBackToAadhaarKyc} onClose={goBackToAadhaarKyc} />;
+    const providerRef = latest?.providerRef ?? null;
+    return (
+      <RejectedView
+        reason={shownReason}
+        providerRef={providerRef}
+        onRetake={goBackToAadhaarKyc}
+        onClose={goBackToAadhaarKyc}
+      />
+    );
   }
 
   // Pending / unknown — premium dark luxury layout (matches reference mock)
