@@ -416,7 +416,30 @@ export function Home() {
           </div>
           <button className="hp-section-link">View all</button>
         </div>
-        <div className="grid grid-cols-4 gap-3">
+
+        {/* Primary P2P CTA — phone or UPI ID, instant transfer */}
+        <button
+          type="button"
+          onClick={() => { void haptics.bloom(); setQuickAction("send-money"); }}
+          aria-label="Send money to anyone using a phone number or UPI ID"
+          className="hp-send-cta group"
+        >
+          <span className="hp-send-cta-glow" aria-hidden="true" />
+          <span className="hp-send-cta-icon" aria-hidden="true">
+            <Send className="w-5 h-5 text-black" strokeWidth={2.4} />
+          </span>
+          <span className="flex-1 text-left min-w-0">
+            <span className="block text-[14px] font-semibold text-white leading-tight">
+              Send money instantly
+            </span>
+            <span className="block text-[11px] text-white/65 mt-0.5 truncate">
+              Phone number or UPI ID · End-to-end secure
+            </span>
+          </span>
+          <ArrowUpRight className="w-4 h-4 text-white/70 group-hover:text-white shrink-0" strokeWidth={2} aria-hidden="true" />
+        </button>
+
+        <div className="grid grid-cols-4 gap-3 mt-4">
           <QuickAction icon={ArrowUpRight} label={"Pay\nfriends"} onClick={() => setQuickAction("pay-friends")} />
           <QuickAction icon={Building2} label={"To bank &\nself a/c"} onClick={() => setQuickAction("to-bank")} />
           <QuickAction icon={Wallet} label={"Check\nbalance"} onClick={() => setQuickAction("balance")} />
