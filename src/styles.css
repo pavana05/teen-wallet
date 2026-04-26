@@ -978,11 +978,11 @@
 .hp-hero-bg{
   position:absolute; inset:0;
   background:
-    radial-gradient(120% 80% at 50% -20%, rgba(255,150,80,0.22) 0%, rgba(120,55,20,0.10) 36%, rgba(15,12,10,0.4) 70%, #08090B 100%),
-    linear-gradient(180deg, #0b0a09 0%, #08090B 100%);
+    radial-gradient(110% 70% at 50% -10%, rgba(255,170,90,0.10) 0%, rgba(80,40,15,0.06) 38%, rgba(15,12,10,0.25) 70%, #08090B 100%),
+    linear-gradient(180deg, #0a0a0c 0%, #08090B 100%);
 }
 .hp-hero-pattern{
-  position:absolute; inset:0; opacity:.06; mix-blend-mode: overlay;
+  position:absolute; inset:0; opacity:.035; mix-blend-mode: overlay;
   background-image:
     linear-gradient(rgba(255,255,255,.5) 1px, transparent 1px),
     linear-gradient(90deg, rgba(255,255,255,.5) 1px, transparent 1px);
@@ -991,13 +991,13 @@
           mask-image: radial-gradient(120% 70% at 50% 18%, #000 18%, transparent 72%);
 }
 .hp-hero-spot{
-  position:absolute; left:50%; top:-160px; transform:translateX(-50%);
-  width:560px; height:380px; border-radius:50%;
-  background: radial-gradient(closest-side, rgba(255,210,160,.22), transparent 70%);
-  filter: blur(28px); pointer-events:none;
+  position:absolute; left:50%; top:-200px; transform:translateX(-50%);
+  width:520px; height:360px; border-radius:50%;
+  background: radial-gradient(closest-side, rgba(255,200,140,.10), transparent 70%);
+  filter: blur(40px); pointer-events:none;
 }
 .hp-hero-fade{
-  position:absolute; left:0; right:0; bottom:-1px; height:140px;
+  position:absolute; left:0; right:0; bottom:-1px; height:120px;
   background: linear-gradient(180deg, transparent, #08090B 92%);
   pointer-events:none;
 }
