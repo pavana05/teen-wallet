@@ -227,9 +227,9 @@ export function ProfilePanel({ onClose }: Props) {
                   </button>
                 </div>
                 <p className="text-[12px] text-white/60 mt-0.5">{phone}</p>
-                <div className={`mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border ${kycMeta.border} ${kycMeta.bg}`}>
+                <div className={`pp-kyc-badge mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border ${kycMeta.border} ${kycMeta.bg}`}>
                   <kycMeta.icon className={`w-3.5 h-3.5 ${kycMeta.color}`} strokeWidth={2.2} />
-                  <span className={`text-[10.5px] font-medium ${kycMeta.color} tracking-wide`}>{kycMeta.label}</span>
+                  <span className={`text-[10.5px] font-semibold ${kycMeta.color} tracking-wide`}>{kycMeta.label}</span>
                 </div>
               </div>
             </div>
