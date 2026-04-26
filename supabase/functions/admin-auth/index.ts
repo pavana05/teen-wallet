@@ -793,11 +793,32 @@ Deno.serve(async (req) => {
     const { data: sub } = await sb.from("kyc_submissions").select("*").eq("id", submissionId).maybeSingle();
     if (!sub) return json({ error: "not_found" }, 404);
 
+    // Idempotency guard — repeated taps on Approve/Reject should be a no-op once
+    // a terminal decision is recorded. Prevents duplicate notifications, duplicate
+    // audit rows, and accidental reason overwrites.
+    const currentStatus = String((sub as any).status ?? "");
+    if (currentStatus === "approved" || currentStatus === "rejected") {
+      if (currentStatus === decision) {
+        return json({ ok: true, idempotent: true, status: currentStatus });
+      }
+      // A different terminal decision was already recorded — refuse to flip.
+      return json({ error: "already_decided", status: currentStatus }, 409);
+    }
+
     const nowIso = new Date().toISOString();
-    const { error: e1 } = await sb.from("kyc_submissions")
+    // Conditional update — only flip from non-terminal status. If a concurrent
+    // request reached the row first, this update affects 0 rows and we bail.
+    const { data: updatedRows, error: e1 } = await sb.from("kyc_submissions")
       .update({ status: decision as any, reason: reason || null, updated_at: nowIso })
-      .eq("id", submissionId);
+      .eq("id", submissionId)
+      .not("status", "in", "(approved,rejected)")
+      .select("id");
     if (e1) return json({ error: e1.message }, 500);
+    if (!updatedRows || updatedRows.length === 0) {
+      // Lost the race — fetch the now-terminal status and return idempotent.
+      const { data: latest } = await sb.from("kyc_submissions").select("status").eq("id", submissionId).maybeSingle();
+      return json({ ok: true, idempotent: true, status: (latest as any)?.status ?? currentStatus });
+    }
 
     const { data: beforeProfile } = await sb.from("profiles").select("kyc_status,onboarding_stage").eq("id", (sub as any).user_id).maybeSingle();
     const profileUpdate: Record<string, unknown> = { kyc_status: decision as any, updated_at: nowIso };
@@ -899,16 +920,25 @@ Deno.serve(async (req) => {
     if (userIds.length > 200) return json({ error: "too_many" }, 400);
 
     const nowIso = new Date().toISOString();
-    let ok = 0; let fail = 0;
+    let ok = 0; let fail = 0; let skipped = 0;
     for (const uid of userIds) {
       try {
         // Find latest pending submission, if any
         const { data: sub } = await sb.from("kyc_submissions")
           .select("id,status").eq("user_id", uid).order("created_at", { ascending: false }).limit(1).maybeSingle();
+        // Idempotency — skip users whose latest submission is already in this state
+        if (sub && (sub as any).status === decision) { skipped += 1; continue; }
+        if (sub && ((sub as any).status === "approved" || (sub as any).status === "rejected")) {
+          // Already at a different terminal state — don't flip, count as skipped.
+          skipped += 1; continue;
+        }
         if (sub) {
-          await sb.from("kyc_submissions")
+          const { data: updatedRows } = await sb.from("kyc_submissions")
             .update({ status: decision as any, reason: reason || null, updated_at: nowIso })
-            .eq("id", (sub as any).id);
+            .eq("id", (sub as any).id)
+            .not("status", "in", "(approved,rejected)")
+            .select("id");
+          if (!updatedRows || updatedRows.length === 0) { skipped += 1; continue; }
         }
         const profileUpdate: Record<string, unknown> = { kyc_status: decision as any, updated_at: nowIso };
         if (decision === "approved") profileUpdate.onboarding_stage = "STAGE_5";
@@ -928,7 +958,7 @@ Deno.serve(async (req) => {
         ok += 1;
       } catch { fail += 1; }
     }
-    return json({ ok: true, success: ok, failed: fail });
+    return json({ ok: true, success: ok, failed: fail, skipped });
   }
 
   // ----- Fraud list -----
