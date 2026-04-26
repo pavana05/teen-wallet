@@ -403,6 +403,10 @@ export type Database = {
       profiles: {
         Row: {
           aadhaar_last4: string | null
+          address_city: string | null
+          address_line1: string | null
+          address_pincode: string | null
+          address_state: string | null
           balance: number
           created_at: string
           dob: string | null
@@ -414,10 +418,15 @@ export type Database = {
           notif_prefs: Json
           onboarding_stage: Database["public"]["Enums"]["onboarding_stage"]
           phone: string | null
+          school_name: string | null
           updated_at: string
         }
         Insert: {
           aadhaar_last4?: string | null
+          address_city?: string | null
+          address_line1?: string | null
+          address_pincode?: string | null
+          address_state?: string | null
           balance?: number
           created_at?: string
           dob?: string | null
@@ -429,10 +438,15 @@ export type Database = {
           notif_prefs?: Json
           onboarding_stage?: Database["public"]["Enums"]["onboarding_stage"]
           phone?: string | null
+          school_name?: string | null
           updated_at?: string
         }
         Update: {
           aadhaar_last4?: string | null
+          address_city?: string | null
+          address_line1?: string | null
+          address_pincode?: string | null
+          address_state?: string | null
           balance?: number
           created_at?: string
           dob?: string | null
@@ -444,6 +458,7 @@ export type Database = {
           notif_prefs?: Json
           onboarding_stage?: Database["public"]["Enums"]["onboarding_stage"]
           phone?: string | null
+          school_name?: string | null
           updated_at?: string
         }
         Relationships: []
