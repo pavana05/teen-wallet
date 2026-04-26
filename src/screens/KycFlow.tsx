@@ -774,11 +774,49 @@ export function KycFlow({ onDone }: { onDone: () => void }) {
                 <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Speeds up review</span>
               </div>
               <p className="text-xs text-muted-foreground mt-1">Image or PDF, up to 5 MB each. You can skip and add later.</p>
+
+              {/* RLS / bucket-access preflight banner — surfaces a clear,
+                  actionable message BEFORE the user wastes time picking a file. */}
+              {bucketAccessOk === false && (
+                <div className="mt-3 rounded-xl glass border border-destructive/40 p-3 flex items-start gap-2 text-xs">
+                  <ShieldAlert className="w-4 h-4 text-destructive shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-medium text-destructive">Document uploads are blocked</p>
+                    <p className="text-muted-foreground mt-0.5">
+                      {bucketAccessReason ?? "We couldn't verify access to secure storage."}
+                    </p>
+                  </div>
+                </div>
+              )}
+
               <div className="grid grid-cols-2 gap-3 mt-3">
-                <DocSlot side="front" label="Front" doc={docFront} uploading={uploading === "front"}
-                  onPick={(f) => uploadDoc("front", f)} onRemove={() => removeDoc("front")} />
-                <DocSlot side="back" label="Back" doc={docBack} uploading={uploading === "back"}
-                  onPick={(f) => uploadDoc("back", f)} onRemove={() => removeDoc("back")} />
+                <DocSlot
+                  side="front"
+                  label="Front"
+                  doc={docFront}
+                  uploading={uploading === "front"}
+                  progress={uploadProgress.front}
+                  retryAvailable={retryAvailable.front}
+                  // Disable the OTHER slot while this one is mid-upload to
+                  // prevent racing duplicate uploads; also disable when the
+                  // bucket preflight failed.
+                  disabled={uploading !== null && uploading !== "front" || bucketAccessOk === false}
+                  onPick={(f) => uploadDoc("front", f)}
+                  onRetry={() => retryUpload("front")}
+                  onRemove={() => removeDoc("front")}
+                />
+                <DocSlot
+                  side="back"
+                  label="Back"
+                  doc={docBack}
+                  uploading={uploading === "back"}
+                  progress={uploadProgress.back}
+                  retryAvailable={retryAvailable.back}
+                  disabled={uploading !== null && uploading !== "back" || bucketAccessOk === false}
+                  onPick={(f) => uploadDoc("back", f)}
+                  onRetry={() => retryUpload("back")}
+                  onRemove={() => removeDoc("back")}
+                />
               </div>
             </div>
           )}
