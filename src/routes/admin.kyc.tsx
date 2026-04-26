@@ -6,6 +6,7 @@ import {
   Loader2, ShieldCheck, ShieldX, RefreshCw, Clock,
   Copy, Check, ExternalLink, ImageOff, FileImage, User as UserIcon,
 } from "lucide-react";
+import { PermissionBanner, ErrorState } from "@/admin/components/AdminFeedback";
 import { toast } from "sonner";
 import { VirtualTable, type Column } from "@/admin/components/VirtualTable";
 import { usePersistedState } from "@/admin/lib/usePersistedState";
