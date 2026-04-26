@@ -281,14 +281,21 @@ export function Home() {
           </button>
         </div>
 
-        {/* Scan hero card */}
+        {/* Premium scan card — minimal, no busy image */}
         <button
           type="button"
-          onClick={() => setView("scan")}
+          onClick={launchScan}
           className="hp-scan-card group"
           aria-label="Open scanner to scan and pay"
         >
-          <img src={heroScan} alt="" className="hp-scan-img" />
+          <div className="hp-scan-card-text">
+            <p className="hp-scan-card-eyebrow">Pay anyone</p>
+            <p className="hp-scan-card-title">Scan & pay</p>
+            <p className="hp-scan-card-sub">Point at any UPI QR · earn rewards</p>
+          </div>
+          <span className="hp-scan-card-icon" aria-hidden="true">
+            <ScanLine className="w-6 h-6 text-black" strokeWidth={2.4} />
+          </span>
         </button>
 
         {/* Grass to black blend */}
