@@ -72,11 +72,12 @@ export const Route = createFileRoute("/api/kyc/verify")({
       OPTIONS: async () => new Response(null, { status: 204, headers: CORS }),
 
       POST: async ({ request }) => {
+        const cid = newCid();
         try {
           // 1) Authenticate the caller via their Supabase JWT
           const auth = request.headers.get("authorization") ?? "";
           const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
-          if (!token) return json({ error: "Missing auth token" }, 401);
+          if (!token) return errJson(cid, "Missing auth token", 401);
 
           const SUPABASE_URL = process.env.SUPABASE_URL!;
           const SUPABASE_PUBLISHABLE_KEY = process.env.SUPABASE_PUBLISHABLE_KEY!;
@@ -85,7 +86,7 @@ export const Route = createFileRoute("/api/kyc/verify")({
             auth: { persistSession: false, autoRefreshToken: false },
           });
           const { data: userData, error: userErr } = await userClient.auth.getUser();
-          if (userErr || !userData.user) return json({ error: "Unauthorized" }, 401);
+          if (userErr || !userData.user) return errJson(cid, "Unauthorized", 401, { detail: userErr?.message });
           const userId = userData.user.id;
 
           // 2) Validate body
@@ -99,17 +100,17 @@ export const Route = createFileRoute("/api/kyc/verify")({
                 docBackPath?: string | null;
               }
             | null;
-          if (!body) return json({ error: "Invalid JSON" }, 400);
-          if (!body.selfie) return json({ error: "Missing selfie" }, 400);
+          if (!body) return errJson(cid, "Invalid JSON", 400);
+          if (!body.selfie) return errJson(cid, "Missing selfie", 400);
           if (typeof body.width !== "number" || typeof body.height !== "number")
-            return json({ error: "Missing canvas dimensions" }, 400);
+            return errJson(cid, "Missing canvas dimensions", 400);
           if (body.width < 240 || body.height < 240)
-            return json({ error: "Selfie resolution too low" }, 400);
+            return errJson(cid, "Selfie resolution too low", 400);
           if (!body.aadhaarLast4 || !/^\d{4}$/.test(body.aadhaarLast4))
-            return json({ error: "Missing Aadhaar reference" }, 400);
+            return errJson(cid, "Missing Aadhaar reference", 400);
 
           const v = validateSelfieDataUrl(body.selfie);
-          if (!v.ok) return json({ error: v.reason }, 400);
+          if (!v.ok) return errJson(cid, v.reason, 400);
 
           // 2b) Persist selfie image to private storage so admins can review it.
           let selfiePath: string | null = null;
@@ -124,8 +125,9 @@ export const Route = createFileRoute("/api/kyc/verify")({
               .from("kyc-docs")
               .upload(path, bin, { upsert: true, contentType: mime });
             if (!upErr) selfiePath = path;
-          } catch {
-            // Non-fatal — keep submission going even if storage upload fails.
+            else console.error(`[kyc.verify] ${cid} selfie upload failed:`, upErr.message);
+          } catch (e) {
+            console.error(`[kyc.verify] ${cid} selfie upload threw:`, e);
           }
 
           // 3) Insert pending submission row
@@ -144,7 +146,7 @@ export const Route = createFileRoute("/api/kyc/verify")({
             })
             .select("id")
             .single();
-          if (insErr || !row) return json({ error: "Failed to record submission" }, 500);
+          if (insErr || !row) return errJson(cid, "Failed to record submission", 500, { detail: insErr?.message });
 
           // 4) Call provider (simulated). On error keep status=pending and surface message.
           let provider;
@@ -155,15 +157,20 @@ export const Route = createFileRoute("/api/kyc/verify")({
               selfieBytes: v.bytes,
             });
           } catch (e) {
+            const reason = e instanceof Error ? e.message : "Provider unreachable";
+            console.error(`[kyc.verify] ${cid} provider call failed:`, reason);
             await supabaseAdmin
               .from("kyc_submissions")
               .update({
                 status: "pending",
-                reason: e instanceof Error ? e.message : "Provider unreachable",
+                reason: `${reason} [${cid}]`,
                 updated_at: new Date().toISOString(),
               })
               .eq("id", row.id);
-            return json({ submissionId: row.id, status: "pending", reason: "Provider unreachable" }, 202);
+            return new Response(
+              JSON.stringify({ submissionId: row.id, status: "pending", reason: "Provider unreachable", correlationId: cid }),
+              { status: 202, headers: { "Content-Type": "application/json", "X-Correlation-Id": cid, ...CORS } },
+            );
           }
 
           await supabaseAdmin
@@ -182,14 +189,18 @@ export const Route = createFileRoute("/api/kyc/verify")({
             .update({ kyc_status: provider.status })
             .eq("id", userId);
 
-          return json({
-            submissionId: row.id,
-            providerRef: provider.providerRef,
-            status: provider.status,
-            matchScore: provider.matchScore,
-          });
+          return new Response(
+            JSON.stringify({
+              submissionId: row.id,
+              providerRef: provider.providerRef,
+              status: provider.status,
+              matchScore: provider.matchScore,
+              correlationId: cid,
+            }),
+            { status: 200, headers: { "Content-Type": "application/json", "X-Correlation-Id": cid, ...CORS } },
+          );
         } catch (e) {
-          return json({ error: e instanceof Error ? e.message : "Server error" }, 500);
+          return errJson(cid, e instanceof Error ? e.message : "Server error", 500);
         }
       },
     },
