@@ -104,8 +104,8 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
       return;
     }
 
-    // Minimum visible processing window for premium feel
-    await new Promise((r) => setTimeout(r, 900));
+    // Minimum visible processing window so the premium animation has time to play.
+    await new Promise((r) => setTimeout(r, 1800));
 
     // ── Server-side payment ──
     // Calls the authenticated `payUpi` server function which re-runs fraud
@@ -1226,22 +1226,96 @@ function SlideToPay({ disabled, onComplete }: { disabled: boolean; onComplete: (
    ============================================================ */
 
 function ProcessingView({ amount }: { amount: number }) {
+  // Premium "perspective floor + glowing orb + sine ribbons" payment animation.
+  // The floor grid is rendered in CSS (perspective transform on a tiled gradient
+  // panel). The colored ribbons are SVG sine paths animated via stroke-dashoffset
+  // so they appear to draw across the floor in a smooth, hand-drawn motion.
   return (
-    <div className="sp-process-root">
-      {Array.from({ length: 6 }).map((_, i) => (
-        <span
-          key={i}
-          className="sp-streak"
-          style={{ left: `${20 + i * 12}%`, animationDelay: `${i * 0.25}s` }}
-        />
-      ))}
-      <div className="relative">
-        <div className="sp-orb-ring-2" />
-        <div className="sp-orb-ring" />
-        <div className="sp-orb" />
+    <div className="sp-pay-root" role="status" aria-live="polite" aria-label={`Processing payment of ${amount} rupees`}>
+      {/* Soft top vignette to add depth */}
+      <div className="sp-pay-vignette" aria-hidden />
+
+      {/* Perspective grid floor */}
+      <div className="sp-pay-floor" aria-hidden>
+        <div className="sp-pay-floor-grid" />
+        <div className="sp-pay-floor-fade" />
       </div>
-      <p className="mt-12 text-[13px] tracking-[0.22em] uppercase text-white/65">Processing payment</p>
-      <p className="mt-2 text-2xl num-mono font-bold text-white">₹{amount.toFixed(2)}</p>
+
+      {/* Colored sine ribbons drifting across the floor */}
+      <svg className="sp-pay-ribbons" viewBox="0 0 400 220" preserveAspectRatio="none" aria-hidden>
+        <defs>
+          <linearGradient id="sp-rib-y" x1="0" x2="1">
+            <stop offset="0" stopColor="#facc15" stopOpacity="0" />
+            <stop offset=".25" stopColor="#facc15" stopOpacity=".95" />
+            <stop offset=".75" stopColor="#fde68a" stopOpacity=".95" />
+            <stop offset="1" stopColor="#fde68a" stopOpacity="0" />
+          </linearGradient>
+          <linearGradient id="sp-rib-w" x1="0" x2="1">
+            <stop offset="0" stopColor="#ffffff" stopOpacity="0" />
+            <stop offset=".5" stopColor="#ffffff" stopOpacity=".95" />
+            <stop offset="1" stopColor="#ffffff" stopOpacity="0" />
+          </linearGradient>
+          <linearGradient id="sp-rib-b" x1="0" x2="1">
+            <stop offset="0" stopColor="#3b82f6" stopOpacity="0" />
+            <stop offset=".5" stopColor="#60a5fa" stopOpacity=".95" />
+            <stop offset="1" stopColor="#3b82f6" stopOpacity="0" />
+          </linearGradient>
+        </defs>
+        <path
+          className="sp-rib sp-rib-y"
+          d="M -40 110 Q 60 70, 140 110 T 320 110 T 460 110"
+          stroke="url(#sp-rib-y)"
+        />
+        <path
+          className="sp-rib sp-rib-w"
+          d="M -40 130 Q 70 95, 150 130 T 330 130 T 470 130"
+          stroke="url(#sp-rib-w)"
+        />
+        <path
+          className="sp-rib sp-rib-b"
+          d="M -40 150 Q 80 120, 160 150 T 340 150 T 480 150"
+          stroke="url(#sp-rib-b)"
+        />
+      </svg>
+
+      {/* The hero: glowing white orb with halo + reflection */}
+      <div className="sp-pay-stage">
+        <div className="sp-pay-halo" aria-hidden />
+        <div className="sp-pay-halo sp-pay-halo-2" aria-hidden />
+        <div className="sp-pay-orb-wrap">
+          <span className="sp-pay-orb-ring" aria-hidden />
+          <span className="sp-pay-orb-ring sp-pay-orb-ring-2" aria-hidden />
+          <div className="sp-pay-orb" aria-hidden>
+            <span className="sp-pay-orb-spec" />
+          </div>
+          <div className="sp-pay-orb-shadow" aria-hidden />
+        </div>
+
+        {/* Floating particles near the orb for extra premium feel */}
+        {Array.from({ length: 10 }).map((_, i) => (
+          <span
+            key={i}
+            className="sp-pay-mote"
+            style={{
+              ["--mx" as string]: `${(i * 37) % 200 - 100}px`,
+              ["--my" as string]: `${-30 - (i * 17) % 60}px`,
+              animationDelay: `${(i * 0.18).toFixed(2)}s`,
+            } as React.CSSProperties}
+          />
+        ))}
+      </div>
+
+      {/* Status copy */}
+      <div className="sp-pay-copy">
+        <p className="sp-pay-eyebrow">
+          <span className="sp-pay-dot" />
+          Securely processing
+        </p>
+        <p className="sp-pay-amount num-mono">
+          <span className="sp-pay-rupee">₹</span>{amount.toFixed(2)}
+        </p>
+        <p className="sp-pay-hint">Encrypted end-to-end · Bank grade security</p>
+      </div>
     </div>
   );
 }
