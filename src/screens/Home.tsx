@@ -337,9 +337,9 @@ export function Home() {
             className="hp-greeting-tap text-left"
           >
             <p key={greetingPulse} className="hp-greeting hp-greeting-pulse">
-              Hey, {first}{waveEnabled ? " 👋" : ""}
+              Hey, {first}{waveEnabled ? ` ${persona.emoji}` : ""}
             </p>
-            <p className="hp-greeting-sub">Welcome back</p>
+            <p className="hp-greeting-sub">{persona.subtitle}</p>
             <span
               role="status"
               aria-live="polite"
