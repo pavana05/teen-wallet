@@ -227,9 +227,12 @@ export function ProfilePanel({ onClose }: Props) {
           </div>
         )}
 
-        {/* ── HERO CARD v3 (premium phone-centric) ── */}
+        {/* ── HERO CARD v3 (premium phone-centric) ──
+            Render fallback hero (with safe defaults) when profile fetch fails so
+            the screen stays usable. Skeleton is only shown on the initial load,
+            not after an error — the error banner above already conveys the state. */}
         <div className="px-5 mt-3">
-          {profileLoading ? <HeroSkeleton /> : (
+          {profileLoading && !profileError ? <HeroSkeleton /> : (
           <div className="pp-hero pp-hero-v3">
             <div className="pp-hero-shine" />
             <div className="pp-hero-topglow" aria-hidden="true" />
