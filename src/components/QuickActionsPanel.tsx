@@ -25,7 +25,12 @@ import {
   Clock,
   Hash,
   FileText,
+  Download,
+  Share2,
+  Mail,
+  MessageCircle,
 } from "lucide-react";
+import { downloadReceiptPdf, shareReceiptPdf, buildReceiptSummary, type ReceiptData } from "@/lib/receipt";
 import { useApp } from "@/lib/store";
 import { supabase } from "@/integrations/supabase/client";
 import { payUpi } from "@/lib/payments.functions";
