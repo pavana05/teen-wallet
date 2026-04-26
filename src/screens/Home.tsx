@@ -6,6 +6,7 @@ import { ScanPay } from "@/screens/ScanPay";
 import { QuickActionsPanel, type QuickActionKind } from "@/components/QuickActionsPanel";
 import { NotificationsPanel } from "@/components/NotificationsPanel";
 import { ProfilePanel } from "@/components/ProfilePanel";
+import heroScan from "@/assets/home-hero-scan.jpg";
 
 interface Txn {
   id: string;
@@ -285,9 +286,11 @@ export function Home() {
         <button
           type="button"
           onClick={launchScan}
-          className="hp-scan-card group"
+          className="hp-scan-card hp-scan-card--image group"
+          style={{ backgroundImage: `url(${heroScan})` }}
           aria-label="Open scanner to scan and pay"
         >
+          <div className="hp-scan-card-overlay" aria-hidden="true" />
           <div className="hp-scan-card-text">
             <p className="hp-scan-card-eyebrow">Pay anyone</p>
             <p className="hp-scan-card-title">Scan & pay</p>
