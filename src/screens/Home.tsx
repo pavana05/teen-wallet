@@ -1,4 +1,4 @@
-import { Bell, Home as HomeIcon, ScanLine, ArrowUpRight, Building2, Wallet, History, Smartphone, Zap, MoreHorizontal, Gift, ArrowDownLeft, RefreshCw, User, Sparkles, Inbox, CreditCard } from "lucide-react";
+import { Bell, Home as HomeIcon, ScanLine, ShoppingBag, CreditCard, ArrowUpRight, Building2, Wallet, History, Smartphone, Zap, MoreHorizontal, Gift, ArrowDownLeft, RefreshCw, User, Sparkles, Inbox } from "lucide-react";
 import { useApp } from "@/lib/store";
 import { useEffect, useState, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -282,23 +282,14 @@ export function Home() {
           </button>
         </div>
 
-        {/* Premium scan card — minimal, no busy image */}
+        {/* Scan hero card */}
         <button
           type="button"
-          onClick={launchScan}
-          className="hp-scan-card hp-scan-card--image group"
-          style={{ backgroundImage: `url(${heroScan})` }}
+          onClick={() => setView("scan")}
+          className="hp-scan-card group"
           aria-label="Open scanner to scan and pay"
         >
-          <div className="hp-scan-card-overlay" aria-hidden="true" />
-          <div className="hp-scan-card-text">
-            <p className="hp-scan-card-eyebrow">Pay anyone</p>
-            <p className="hp-scan-card-title">Scan & pay</p>
-            <p className="hp-scan-card-sub">Point at any UPI QR · earn rewards</p>
-          </div>
-          <span className="hp-scan-card-icon" aria-hidden="true">
-            <ScanLine className="w-6 h-6 text-black" strokeWidth={2.4} />
-          </span>
+          <img src={heroScan} alt="" className="hp-scan-img" />
         </button>
 
         {/* Grass to black blend */}

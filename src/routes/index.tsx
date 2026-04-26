@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useApp, type Stage } from "@/lib/store";
 import { fetchProfile } from "@/lib/auth";
 import { PhoneShell } from "@/components/PhoneShell";
+import { Splash } from "@/screens/Splash";
 
 const Onboarding = lazy(() => import("@/screens/Onboarding").then(m => ({ default: m.Onboarding })));
 const AuthPhone = lazy(() => import("@/screens/AuthPhone").then(m => ({ default: m.AuthPhone })));
@@ -33,8 +34,7 @@ function ScreenFallback() {
 }
 
 function Index() {
-  const { stage, setStage, hydrateFromProfile } = useApp();
-  const [authReady, setAuthReady] = useState(false);
+  const { stage, splashSeen, setStage, hydrateFromProfile } = useApp();
   const [permsSeen, setPermsSeen] = useState<boolean>(() => {
     if (typeof window === "undefined") return true;
     try { return localStorage.getItem(PERMISSIONS_DONE_KEY) === "1"; } catch { return true; }
@@ -49,18 +49,9 @@ function Index() {
     (async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
-        if (!mounted) return;
-        if (!session) {
-          // No session — surface onboarding/login by resetting any stale persisted stage.
-          if (useApp.getState().stage !== "STAGE_0") {
-            useApp.getState().reset();
-          }
-          setAuthReady(true);
-          return;
-        }
+        if (!session) return;
         const p = await fetchProfile();
-        if (!mounted) { setAuthReady(true); return; }
-        if (!p) { setAuthReady(true); return; }
+        if (!p || !mounted) return;
         const profileStage = (p.onboarding_stage as Stage) ?? "STAGE_0";
         const kyc = (p as { kyc_status?: string | null }).kyc_status ?? null;
 
@@ -89,8 +80,6 @@ function Index() {
         if (resolvedStage !== profileStage) setStage(resolvedStage);
       } catch (err) {
         console.error("[boot] hydrate failed", err);
-      } finally {
-        if (mounted) setAuthReady(true);
       }
     })();
     const { data: sub } = supabase.auth.onAuthStateChange((event) => {
@@ -100,9 +89,7 @@ function Index() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  if (!authReady) {
-    return <PhoneShell><ScreenFallback /></PhoneShell>;
-  }
+  if (!splashSeen) return <PhoneShell><Splash onDone={() => useApp.getState().setSplashSeen(true)} /></PhoneShell>;
 
   return (
     <PhoneShell>
