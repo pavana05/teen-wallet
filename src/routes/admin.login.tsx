@@ -23,6 +23,16 @@ function AdminLogin() {
   const [qrSrc, setQrSrc] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
+  const [errCid, setErrCid] = useState<string | null>(null);
+
+  function captureErr(e: unknown, fallback: string) {
+    if (e instanceof AdminFnError) {
+      setErrCid(e.correlationId);
+      return e.message || fallback;
+    }
+    setErrCid(null);
+    return e instanceof Error ? e.message || fallback : fallback;
+  }
 
   useEffect(() => {
     if (otpauthUrl) QRCode.toDataURL(otpauthUrl, { margin: 1, width: 220, color: { dark: "#0d0d0d", light: "#c8f135" } }).then(setQrSrc).catch(() => {});
