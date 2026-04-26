@@ -952,3 +952,24 @@ function StatSkeleton() {
   );
 }
 
+function SectionSkeleton({ title, rows = 4 }: { title: string; rows?: number }) {
+  return (
+    <section aria-busy="true" aria-live="polite" role="status">
+      <span className="sr-only">Loading {title}…</span>
+      <p className="pp-section-title">{title}</p>
+      <div className="pp-card divide-y divide-white/5">
+        {Array.from({ length: rows }).map((_, i) => (
+          <div key={i} className="px-3.5 py-3.5 flex items-center gap-3" aria-hidden="true">
+            <div className="w-9 h-9 rounded-xl pp-skel" />
+            <div className="flex-1 space-y-1.5">
+              <div className="pp-skel-line h-2 w-1/4" />
+              <div className="pp-skel-line w-2/3" />
+            </div>
+            <div className="h-6 w-12 rounded-full pp-skel" />
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
