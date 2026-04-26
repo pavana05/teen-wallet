@@ -189,7 +189,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
           ))}
         </div>
         <button
-          onClick={onDone}
+          onClick={finishOnboarding}
           className="text-[13px] font-medium text-white/70 hover:text-white transition-colors px-2 py-1"
         >
           Skip
@@ -211,19 +211,30 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
           </div>
         )}
 
-        {/* Hero image */}
+        {/* Hero image — with offline-safe fallback if asset fails to load */}
         <div className={`ob-hero-wrap ${i === 0 ? "mt-6" : "mt-8"}`}>
           <div className="ob-hero-glow" aria-hidden="true" />
-          <img
-            src={slide.hero}
-            alt=""
-            width={520}
-            height={520}
-            loading={i === 0 ? "eager" : "lazy"}
-            decoding="async"
-            className="ob-hero-img"
-            draggable={false}
-          />
+          {failedImages[i] ? (
+            <div
+              className="ob-hero-img ob-hero-fallback"
+              style={{ background: slide.fallbackGradient }}
+              aria-hidden="true"
+            >
+              <slide.fallbackIcon className="ob-hero-fallback-icon" strokeWidth={1.6} />
+            </div>
+          ) : (
+            <img
+              src={slide.hero}
+              alt=""
+              width={520}
+              height={520}
+              loading={i === 0 ? "eager" : "lazy"}
+              decoding="async"
+              className="ob-hero-img"
+              draggable={false}
+              onError={() => setFailedImages((prev) => ({ ...prev, [i]: true }))}
+            />
+          )}
         </div>
 
         {/* Optional small icon badge above title (slides 2-4) */}
