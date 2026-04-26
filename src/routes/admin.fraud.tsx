@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Loader2, RefreshCw, ShieldAlert, Check, AlertTriangle } from "lucide-react";
 import { VirtualTable, type Column } from "@/admin/components/VirtualTable";
 import { usePersistedState } from "@/admin/lib/usePersistedState";
+import { SavedViewsBar } from "@/admin/components/SavedViewsBar";
 import { recordPanelLoad, recordRealtime } from "@/admin/lib/perfBus";
 
 export const Route = createFileRoute("/admin/fraud")({
@@ -191,6 +192,15 @@ function FraudPage() {
             <button onClick={() => setFilters((f) => ({ ...f, rule: "" }))} style={{ marginLeft: 6, color: "var(--a-accent)", background: "none", border: "none", cursor: "pointer", fontSize: 12 }}>clear</button>
           </span>
         )}
+      </div>
+
+      <div className="a-surface" style={{ padding: "8px 12px", marginBottom: 12 }}>
+        <SavedViewsBar<Filters>
+          scope="fraud"
+          current={filters}
+          onApply={(f) => setFilters(f)}
+          isActive={(f) => f.status === filters.status && f.rule === filters.rule}
+        />
       </div>
 
       {err && <div style={{ marginBottom: 12, padding: 10, borderRadius: 6, background: "rgba(239,68,68,0.1)", color: "#fca5a5", fontSize: 13 }}>{err}</div>}
