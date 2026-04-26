@@ -30,6 +30,8 @@ interface Slide {
   hero: string;
   iconBadge?: React.ComponentType<{ className?: string; strokeWidth?: number }>;
   title: React.ReactNode;
+  /** Plain-text title used for screen-reader announcements (no JSX). */
+  srTitle: string;
   sub: string;
   // Offline-safe placeholder used when the hero image fails to load
   fallbackIcon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
