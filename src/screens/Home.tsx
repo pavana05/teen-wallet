@@ -108,15 +108,25 @@ export function Home() {
   const [pullY, setPullY] = useState(0);
   const touchStartY = useRef<number | null>(null);
   const scrollerRef = useRef<HTMLDivElement | null>(null);
+  const loadStartRef = useRef<number>(performance.now());
 
   const fetchTxns = useCallback(async () => {
     if (!userId) { setLoading(false); return; }
+    loadStartRef.current = performance.now();
     const { data, error: err } = await supabase
       .from("transactions")
       .select("id,amount,merchant_name,upi_id,note,status,created_at")
       .eq("user_id", userId)
       .order("created_at", { ascending: false })
       .limit(20);
+    // Anti-flicker: keep skeleton on screen for at least 480ms total so it
+    // never flashes briefly on instant network responses, then crossfades into
+    // the loaded content via the .hp-fade-in 400ms ease-out animation.
+    const elapsed = performance.now() - loadStartRef.current;
+    const minSkeletonMs = 480;
+    if (elapsed < minSkeletonMs) {
+      await new Promise((r) => setTimeout(r, minSkeletonMs - elapsed));
+    }
     if (err) {
       setError(err.message);
       setShakeKey((k) => k + 1);
