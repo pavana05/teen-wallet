@@ -697,7 +697,7 @@ Deno.serve(async (req) => {
     const sortKey = String(body.sortKey ?? "created_at");
     const sortDir = String(body.sortDir ?? "desc") === "asc";
 
-    let q = sb.from("profiles").select("id,full_name,phone,dob,kyc_status,onboarding_stage,balance,created_at,aadhaar_last4", { count: "exact" });
+    let q = sb.from("profiles").select("id,full_name,phone,dob,kyc_status,onboarding_stage,balance,created_at,aadhaar_last4,account_locked,account_tag", { count: "exact" });
     if (search) {
       const safe = search.replace(/[%,]/g, "");
       q = q.or(`full_name.ilike.%${safe}%,phone.ilike.%${safe}%,id.ilike.%${safe}%`);
@@ -1312,6 +1312,74 @@ Deno.serve(async (req) => {
     if (error) return json({ error: error.message }, 500);
     await audit(me.id, me.email, me.role, "report_note_added", { reportId: id });
     return json({ ok: true, note: data });
+  }
+
+  // ----- Users: bulk lock / unlock -----
+  // Toggles profiles.account_locked. Audit row per user with optional note.
+  if (action === "users_bulk_lock") {
+    if (!can(me.role, "manageUsers")) return json({ error: "forbidden" }, 403);
+    const userIds: string[] = Array.isArray(body.userIds) ? body.userIds.filter((x: unknown) => typeof x === "string") : [];
+    const lock = Boolean(body.lock);
+    const note = String(body.note ?? "").slice(0, 500);
+    if (!userIds.length) return json({ error: "invalid" }, 400);
+    if (userIds.length > 200) return json({ error: "too_many" }, 400);
+
+    let ok = 0; let fail = 0;
+    for (const uid of userIds) {
+      try {
+        const { data: before } = await sb.from("profiles").select("account_locked").eq("id", uid).maybeSingle();
+        if (!before) { fail += 1; continue; }
+        if ((before as any).account_locked === lock) { ok += 1; continue; } // idempotent
+        const { error: upErr } = await sb.from("profiles")
+          .update({ account_locked: lock, updated_at: new Date().toISOString() })
+          .eq("id", uid);
+        if (upErr) { fail += 1; continue; }
+        await sb.from("admin_audit_log").insert({
+          admin_id: me.id, admin_email: me.email, admin_role: me.role as any,
+          action_type: lock ? "user_lock" : "user_unlock",
+          target_entity: "profiles", target_id: uid,
+          old_value: { account_locked: (before as any).account_locked } as any,
+          new_value: { account_locked: lock, note } as any,
+          ip_address: ip, user_agent: ua,
+        });
+        ok += 1;
+      } catch { fail += 1; }
+    }
+    return json({ ok: true, success: ok, failed: fail });
+  }
+
+  // ----- Users: bulk set account tag (role-like grouping: standard | vip | watchlist) -----
+  if (action === "users_bulk_tag") {
+    if (!can(me.role, "manageUsers")) return json({ error: "forbidden" }, 403);
+    const userIds: string[] = Array.isArray(body.userIds) ? body.userIds.filter((x: unknown) => typeof x === "string") : [];
+    const tag = String(body.tag ?? "");
+    const note = String(body.note ?? "").slice(0, 500);
+    const ALLOWED = ["standard", "vip", "watchlist"];
+    if (!userIds.length || !ALLOWED.includes(tag)) return json({ error: "invalid" }, 400);
+    if (userIds.length > 200) return json({ error: "too_many" }, 400);
+
+    let ok = 0; let fail = 0;
+    for (const uid of userIds) {
+      try {
+        const { data: before } = await sb.from("profiles").select("account_tag").eq("id", uid).maybeSingle();
+        if (!before) { fail += 1; continue; }
+        if ((before as any).account_tag === tag) { ok += 1; continue; }
+        const { error: upErr } = await sb.from("profiles")
+          .update({ account_tag: tag, updated_at: new Date().toISOString() })
+          .eq("id", uid);
+        if (upErr) { fail += 1; continue; }
+        await sb.from("admin_audit_log").insert({
+          admin_id: me.id, admin_email: me.email, admin_role: me.role as any,
+          action_type: "user_tag_change",
+          target_entity: "profiles", target_id: uid,
+          old_value: { account_tag: (before as any).account_tag } as any,
+          new_value: { account_tag: tag, note } as any,
+          ip_address: ip, user_agent: ua,
+        });
+        ok += 1;
+      } catch { fail += 1; }
+    }
+    return json({ ok: true, success: ok, failed: fail });
   }
 
   return json({ error: "unknown_action" }, 400);

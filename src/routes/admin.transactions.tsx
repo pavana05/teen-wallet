@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Loader2, RefreshCw, Search, AlertTriangle, RotateCcw, ShieldCheck, Lock } from "lucide-react";
 import { VirtualTable, type Column } from "@/admin/components/VirtualTable";
 import { usePersistedState } from "@/admin/lib/usePersistedState";
+import { SavedViewsBar } from "@/admin/components/SavedViewsBar";
 import { recordPanelLoad, recordRealtime } from "@/admin/lib/perfBus";
 import { PermissionBanner, ErrorState } from "@/admin/components/AdminFeedback";
 
@@ -258,6 +259,18 @@ function TransactionsList() {
           <input type="checkbox" checked={filters.flagged} onChange={(e) => setFilters((f) => ({ ...f, flagged: e.target.checked }))} />
           Flagged only
         </label>
+      </div>
+
+      <div className="a-surface" style={{ padding: "8px 12px", marginBottom: 12 }}>
+        <SavedViewsBar<Filters>
+          scope="transactions"
+          current={filters}
+          onApply={(f) => { setFilters(f); setSearchInput(f.search); }}
+          isActive={(f) =>
+            f.search === filters.search && f.status === filters.status &&
+            f.flagged === filters.flagged && f.minAmount === filters.minAmount && f.maxAmount === filters.maxAmount
+          }
+        />
       </div>
 
       <ErrorState

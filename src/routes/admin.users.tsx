@@ -1,9 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { callAdminFn, readAdminSession, can } from "@/admin/lib/adminAuth";
-import { Search, Loader2, ShieldCheck, ShieldX, CheckSquare, Square } from "lucide-react";
+import { Search, Loader2, ShieldCheck, ShieldX, CheckSquare, Square, Lock, Unlock, Tag, Check } from "lucide-react";
 import { VirtualTable, type Column } from "@/admin/components/VirtualTable";
 import { usePersistedState } from "@/admin/lib/usePersistedState";
+import { SavedViewsBar } from "@/admin/components/SavedViewsBar";
 import { recordPanelLoad } from "@/admin/lib/perfBus";
 
 export const Route = createFileRoute("/admin/users")({
@@ -21,6 +22,8 @@ interface UserRow {
   created_at: string;
   aadhaar_last4: string | null;
   txn_count: number;
+  account_locked?: boolean;
+  account_tag?: string;
 }
 
 const KYC_BADGE: Record<string, string> = {
@@ -57,11 +60,15 @@ function UsersList() {
   const [err, setErr] = useState("");
 
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [bulkOpen, setBulkOpen] = useState<null | "approved" | "rejected">(null);
+  // Generalised bulk action sheet — `kind` decides which form is shown.
+  const [bulkOpen, setBulkOpen] = useState<null | { kind: "kyc"; decision: "approved" | "rejected" } | { kind: "lock"; lock: boolean } | { kind: "tag" }>(null);
   const [bulkReason, setBulkReason] = useState("");
+  const [bulkNote, setBulkNote] = useState("");
+  const [bulkTag, setBulkTag] = useState<"standard" | "vip" | "watchlist">("standard");
   const [bulkBusy, setBulkBusy] = useState(false);
 
   const canDecide = can(admin?.role, "decideKyc");
+  const canManage = can(admin?.role, "manageUsers");
 
   // Debounce search → filters.search
   useEffect(() => {
@@ -140,16 +147,32 @@ function UsersList() {
     setSelected((prev) => prev.size === rows.length ? new Set() : new Set(rows.map((r) => r.id)));
   }
 
-  async function bulkDecide() {
+  // Generic bulk runner — fans out to the right edge function action based on
+  // the open form. All variants require an admin note (audited) for traceability.
+  async function runBulk() {
     if (!bulkOpen) return;
     const s = readAdminSession(); if (!s) return;
     setBulkBusy(true); setErr("");
     try {
-      const r = await callAdminFn<{ success: number; failed: number }>({
-        action: "kyc_decide_bulk", sessionToken: s.sessionToken,
-        userIds: Array.from(selected), decision: bulkOpen, reason: bulkReason,
-      });
-      setBulkOpen(null); setBulkReason(""); setSelected(new Set());
+      const ids = Array.from(selected);
+      let r: { success: number; failed: number };
+      if (bulkOpen.kind === "kyc") {
+        r = await callAdminFn({
+          action: "kyc_decide_bulk", sessionToken: s.sessionToken,
+          userIds: ids, decision: bulkOpen.decision, reason: bulkReason,
+        });
+      } else if (bulkOpen.kind === "lock") {
+        r = await callAdminFn({
+          action: "users_bulk_lock", sessionToken: s.sessionToken,
+          userIds: ids, lock: bulkOpen.lock, note: bulkNote,
+        });
+      } else {
+        r = await callAdminFn({
+          action: "users_bulk_tag", sessionToken: s.sessionToken,
+          userIds: ids, tag: bulkTag, note: bulkNote,
+        });
+      }
+      setBulkOpen(null); setBulkReason(""); setBulkNote(""); setSelected(new Set());
       setPage(1); await fetchPage(1);
       alert(`Done: ${r.success} updated, ${r.failed} failed.`);
     } catch (e: any) { setErr(e.message || "Bulk action failed"); }
@@ -244,14 +267,45 @@ function UsersList() {
         {(initialLoading || loadingMore) && <Loader2 size={14} className="animate-spin" style={{ color: "var(--a-muted)" }} />}
       </div>
 
+      <div className="a-surface" style={{ padding: 12, marginBottom: 12, display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+        <div style={{ position: "relative", flex: "1 1 240px" }}>
+          <Search size={14} style={{ position: "absolute", left: 12, top: 12, color: "var(--a-muted)" }} />
+          <input className="a-input" placeholder="Search name, phone, ID…" value={searchInput} onChange={(e) => setSearchInput(e.target.value)} style={{ paddingLeft: 32 }} />
+        </div>
+        <select className="a-input" value={filters.kyc} onChange={(e) => setFilters((f) => ({ ...f, kyc: e.target.value }))} style={{ width: 180 }}>
+          <option value="">All KYC statuses</option>
+          <option value="not_started">Not started</option>
+          <option value="pending">Pending</option>
+          <option value="approved">Approved</option>
+          <option value="rejected">Rejected</option>
+        </select>
+        {(initialLoading || loadingMore) && <Loader2 size={14} className="animate-spin" style={{ color: "var(--a-muted)" }} />}
+      </div>
+
+      <div className="a-surface" style={{ padding: "8px 12px", marginBottom: 12 }}>
+        <SavedViewsBar<Filters>
+          scope="users"
+          current={filters}
+          onApply={(f) => { setFilters(f); setSearchInput(f.search); }}
+          isActive={(f) => f.kyc === filters.kyc && f.search === filters.search && f.sortKey === filters.sortKey && f.sortDir === filters.sortDir}
+        />
+      </div>
+
       {selected.size > 0 && (
-        <div className="a-surface" style={{ padding: 10, marginBottom: 12, display: "flex", justifyContent: "space-between", alignItems: "center", borderColor: "var(--a-accent)" }}>
+        <div className="a-surface" style={{ padding: 10, marginBottom: 12, display: "flex", justifyContent: "space-between", alignItems: "center", borderColor: "var(--a-accent)", flexWrap: "wrap", gap: 8 }}>
           <div style={{ fontSize: 13 }}>{selected.size} selected</div>
-          <div style={{ display: "flex", gap: 8 }}>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             {canDecide && (
               <>
-                <button className="a-btn" onClick={() => setBulkOpen("approved")}><ShieldCheck size={14} /> Approve KYC</button>
-                <button className="a-btn-ghost" style={{ color: "#fca5a5" }} onClick={() => setBulkOpen("rejected")}><ShieldX size={14} /> Reject KYC</button>
+                <button className="a-btn" onClick={() => setBulkOpen({ kind: "kyc", decision: "approved" })}><ShieldCheck size={14} /> Approve KYC</button>
+                <button className="a-btn-ghost" style={{ color: "#fca5a5" }} onClick={() => setBulkOpen({ kind: "kyc", decision: "rejected" })}><ShieldX size={14} /> Reject KYC</button>
+              </>
+            )}
+            {canManage && (
+              <>
+                <button className="a-btn-ghost" onClick={() => setBulkOpen({ kind: "lock", lock: true })}><Lock size={14} /> Lock</button>
+                <button className="a-btn-ghost" onClick={() => setBulkOpen({ kind: "lock", lock: false })}><Unlock size={14} /> Unlock</button>
+                <button className="a-btn-ghost" onClick={() => setBulkOpen({ kind: "tag" })}><Tag size={14} /> Change role</button>
               </>
             )}
             <button className="a-btn-ghost" onClick={() => setSelected(new Set())}>Clear</button>
@@ -275,41 +329,124 @@ function UsersList() {
         empty="No users found"
       />
 
-      {/* Bulk decide modal */}
+      {/* Bulk action sheet — KYC / Lock / Tag share the same shell */}
       {bulkOpen && (
-        <div onClick={() => !bulkBusy && setBulkOpen(null)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", display: "grid", placeItems: "center", zIndex: 50, padding: 16 }}>
-          <div onClick={(e) => e.stopPropagation()} className="a-surface" style={{ maxWidth: 460, width: "100%", padding: 24 }}>
-            <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 4 }}>
-              Bulk {bulkOpen === "approved" ? "approve" : "reject"} KYC
-            </h3>
-            <p style={{ fontSize: 13, color: "var(--a-muted)", marginBottom: 16 }}>
-              This will set KYC <b>{bulkOpen}</b> for <b>{selected.size}</b> users and notify each. Audit logged.
-            </p>
-            {bulkOpen === "rejected" && (
-              <>
-                <div className="a-label" style={{ marginBottom: 6 }}>Rejection reason (sent to users)</div>
-                <select className="a-input" value={bulkReason} onChange={(e) => setBulkReason(e.target.value)}>
-                  <option value="">Select…</option>
-                  <option value="Name mismatch">Name mismatch</option>
-                  <option value="Selfie unclear">Selfie unclear</option>
-                  <option value="Invalid Aadhaar">Invalid Aadhaar</option>
-                  <option value="Age below 13">Age below 13</option>
-                  <option value="Other">Other</option>
-                </select>
-              </>
-            )}
-            {err && <div style={{ marginTop: 10, padding: 8, borderRadius: 6, background: "rgba(239,68,68,0.1)", color: "#fca5a5", fontSize: 12 }}>{err}</div>}
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 16 }}>
-              <button className="a-btn-ghost" disabled={bulkBusy} onClick={() => setBulkOpen(null)}>Cancel</button>
-              <button className="a-btn" disabled={bulkBusy || (bulkOpen === "rejected" && !bulkReason)} onClick={() => void bulkDecide()}
-                style={bulkOpen === "rejected" ? { background: "#ef4444", color: "white" } : undefined}>
-                {bulkBusy ? <Loader2 size={14} className="animate-spin" /> : (bulkOpen === "approved" ? <ShieldCheck size={14} /> : <ShieldX size={14} />)}
-                Confirm {bulkOpen === "approved" ? "approve" : "reject"} ({selected.size})
-              </button>
-            </div>
-          </div>
-        </div>
+        <BulkSheet
+          bulkOpen={bulkOpen}
+          count={selected.size}
+          busy={bulkBusy}
+          err={err}
+          reason={bulkReason} setReason={setBulkReason}
+          note={bulkNote} setNote={setBulkNote}
+          tag={bulkTag} setTag={setBulkTag}
+          onCancel={() => setBulkOpen(null)}
+          onConfirm={() => void runBulk()}
+        />
       )}
+    </div>
+  );
+}
+
+// ── Bulk action confirmation sheet ────────────────────────────────────────────
+type BulkOpen =
+  | { kind: "kyc"; decision: "approved" | "rejected" }
+  | { kind: "lock"; lock: boolean }
+  | { kind: "tag" };
+
+function BulkSheet(props: {
+  bulkOpen: BulkOpen;
+  count: number;
+  busy: boolean;
+  err: string;
+  reason: string; setReason: (v: string) => void;
+  note: string; setNote: (v: string) => void;
+  tag: "standard" | "vip" | "watchlist"; setTag: (v: "standard" | "vip" | "watchlist") => void;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  const { bulkOpen, count, busy, err, reason, setReason, note, setNote, tag, setTag, onCancel, onConfirm } = props;
+
+  const title =
+    bulkOpen.kind === "kyc" ? `Bulk ${bulkOpen.decision === "approved" ? "approve" : "reject"} KYC`
+    : bulkOpen.kind === "lock" ? (bulkOpen.lock ? "Lock accounts" : "Unlock accounts")
+    : "Change account tag";
+
+  const intro =
+    bulkOpen.kind === "kyc" ? <>This will set KYC <b>{bulkOpen.decision}</b> for <b>{count}</b> users and notify each. Audit logged.</>
+    : bulkOpen.kind === "lock" ? <>This will mark <b>{count}</b> accounts as <b>{bulkOpen.lock ? "locked" : "unlocked"}</b>. Locked accounts can be later unlocked from this same screen. Audit logged.</>
+    : <>Apply a tag to <b>{count}</b> accounts. Tags are used as soft groupings for monitoring.</>;
+
+  const confirmDisabled =
+    busy ||
+    (bulkOpen.kind === "kyc" && bulkOpen.decision === "rejected" && !reason) ||
+    (bulkOpen.kind === "lock" && !note.trim()); // require justification for lock/unlock
+
+  return (
+    <div onClick={() => !busy && onCancel()} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", display: "grid", placeItems: "center", zIndex: 50, padding: 16 }}>
+      <div onClick={(e) => e.stopPropagation()} className="a-surface" style={{ maxWidth: 460, width: "100%", padding: 24 }}>
+        <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 4 }}>{title}</h3>
+        <p style={{ fontSize: 13, color: "var(--a-muted)", marginBottom: 16 }}>{intro}</p>
+
+        {bulkOpen.kind === "kyc" && bulkOpen.decision === "rejected" && (
+          <>
+            <div className="a-label" style={{ marginBottom: 6 }}>Rejection reason (sent to users)</div>
+            <select className="a-input" value={reason} onChange={(e) => setReason(e.target.value)}>
+              <option value="">Select…</option>
+              <option value="Name mismatch">Name mismatch</option>
+              <option value="Selfie unclear">Selfie unclear</option>
+              <option value="Invalid Aadhaar">Invalid Aadhaar</option>
+              <option value="Age below 13">Age below 13</option>
+              <option value="Other">Other</option>
+            </select>
+          </>
+        )}
+
+        {bulkOpen.kind === "tag" && (
+          <>
+            <div className="a-label" style={{ marginBottom: 6 }}>Tag</div>
+            <select className="a-input" value={tag} onChange={(e) => setTag(e.target.value as "standard" | "vip" | "watchlist")}>
+              <option value="standard">standard</option>
+              <option value="vip">vip</option>
+              <option value="watchlist">watchlist</option>
+            </select>
+          </>
+        )}
+
+        {(bulkOpen.kind === "lock" || bulkOpen.kind === "tag") && (
+          <>
+            <div className="a-label" style={{ marginTop: 12, marginBottom: 6 }}>
+              Audit note {bulkOpen.kind === "lock" ? "(required)" : "(optional)"}
+            </div>
+            <textarea
+              className="a-input"
+              rows={3}
+              value={note}
+              maxLength={500}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder="e.g. Suspected card-testing pattern; locking pending fraud review"
+              style={{ resize: "vertical", fontFamily: "inherit" }}
+            />
+          </>
+        )}
+
+        {err && <div style={{ marginTop: 10, padding: 8, borderRadius: 6, background: "rgba(239,68,68,0.1)", color: "#fca5a5", fontSize: 12 }}>{err}</div>}
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 16 }}>
+          <button className="a-btn-ghost" disabled={busy} onClick={onCancel}>Cancel</button>
+          <button
+            className="a-btn"
+            disabled={confirmDisabled}
+            onClick={onConfirm}
+            style={
+              bulkOpen.kind === "kyc" && bulkOpen.decision === "rejected" ? { background: "#ef4444", color: "white" }
+              : bulkOpen.kind === "lock" && bulkOpen.lock ? { background: "#ef4444", color: "white" }
+              : undefined
+            }
+          >
+            {busy ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+            Confirm ({count})
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
