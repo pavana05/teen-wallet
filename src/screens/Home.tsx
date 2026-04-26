@@ -397,7 +397,7 @@ export function Home() {
                 <p className="hp-offer-eyebrow">First recharge</p>
                 <p className="hp-offer-headline">40%<em>cashback</em></p>
                 <p className="hp-offer-sub">Credited instantly to your wallet</p>
-                <button type="button" className="hp-offer-cta" aria-label="Claim 40% cashback offer on your first recharge">
+                <button type="button" onClick={() => void haptics.success()} className="hp-offer-cta" aria-label="Claim 40% cashback offer on your first recharge">
                   <span>Claim now</span>
                   <Sparkles className="w-3.5 h-3.5 hp-offer-cta-icon" strokeWidth={2.2} aria-hidden="true" />
                 </button>
