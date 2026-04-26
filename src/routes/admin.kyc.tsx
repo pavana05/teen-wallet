@@ -477,12 +477,58 @@ function KycQueue() {
       cell: (r) => <StatusPill status={r.status} />,
     },
     {
-      key: "actions", header: "", width: "110px", align: "right",
+      key: "actions", header: "", width: "150px", align: "right",
       cell: (r) => (
-        <button className="a-btn-ghost" onClick={() => setReviewing(r)} style={{ padding: "6px 12px", fontSize: 12 }}>Review →</button>
+        <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
+          <button
+            className="a-btn-ghost"
+            onClick={(e) => { e.stopPropagation(); setQuickPreview(r); }}
+            style={{ padding: "6px 10px", fontSize: 11 }}
+            title="Quick preview (or click row / long-press)"
+          >
+            <Eye size={11} /> Quick
+          </button>
+          <button
+            className="a-btn-ghost"
+            onClick={(e) => { e.stopPropagation(); setReviewing(r); }}
+            style={{ padding: "6px 10px", fontSize: 11 }}
+          >
+            Review →
+          </button>
+        </div>
       ),
     },
   ], [sort]);
+
+  // Long-press / click handlers for the whole row. Long-press (≥450ms) opens
+  // the quick side panel; a plain click also opens it. The full review modal
+  // is reserved for the explicit "Review →" button so we don't take admins
+  // out of context unexpectedly.
+  const longPressTimer = useRef<number | null>(null);
+  const longPressFired = useRef(false);
+  const handleRowPointerDown = useCallback((row: KycRow) => {
+    longPressFired.current = false;
+    if (longPressTimer.current) window.clearTimeout(longPressTimer.current);
+    longPressTimer.current = window.setTimeout(() => {
+      longPressFired.current = true;
+      setQuickPreview(row);
+    }, 450);
+  }, []);
+  const handleRowPointerUp = useCallback((row: KycRow) => {
+    if (longPressTimer.current) {
+      window.clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+    // If the long-press already fired, the panel is open — don't re-open.
+    if (longPressFired.current) return;
+    setQuickPreview(row);
+  }, []);
+  const handleRowPointerCancel = useCallback(() => {
+    if (longPressTimer.current) {
+      window.clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  }, []);
 
   return (
     <div>
