@@ -4,7 +4,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { useApp, type Stage } from "@/lib/store";
 import { fetchProfile } from "@/lib/auth";
 import { PhoneShell } from "@/components/PhoneShell";
-import { Splash } from "@/screens/Splash";
 
 const Onboarding = lazy(() => import("@/screens/Onboarding").then(m => ({ default: m.Onboarding })));
 const AuthPhone = lazy(() => import("@/screens/AuthPhone").then(m => ({ default: m.AuthPhone })));
@@ -34,7 +33,7 @@ function ScreenFallback() {
 }
 
 function Index() {
-  const { stage, splashSeen, setStage, hydrateFromProfile } = useApp();
+  const { stage, setStage, hydrateFromProfile } = useApp();
   const [permsSeen, setPermsSeen] = useState<boolean>(() => {
     if (typeof window === "undefined") return true;
     try { return localStorage.getItem(PERMISSIONS_DONE_KEY) === "1"; } catch { return true; }
@@ -88,8 +87,6 @@ function Index() {
     return () => { mounted = false; sub.subscription.unsubscribe(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  if (!splashSeen) return <PhoneShell><Splash onDone={() => useApp.getState().setSplashSeen(true)} /></PhoneShell>;
 
   return (
     <PhoneShell>
