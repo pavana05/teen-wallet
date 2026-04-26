@@ -1275,11 +1275,11 @@ function SuccessView({
     payerPhone,
   }), [txn, payerName, payerPhone]);
 
-  const handleDownload = () => {
+  const handleDownload = async () => {
     try {
-      downloadReceiptPdf(receipt());
+      await downloadReceiptPdf(receipt());
       toast.success("Receipt downloaded");
-    } catch (e) {
+    } catch {
       toast.error("Couldn't generate receipt");
     }
   };
@@ -1291,6 +1291,24 @@ function SuccessView({
     } catch {
       toast.error("Share failed");
     }
+  };
+
+  // Open the device email composer with the receipt summary pre-filled.
+  // Most platforms can't attach a generated File via mailto:, so we lead
+  // with the readable summary and offer "Download PDF" alongside.
+  const handleEmail = () => {
+    const subject = encodeURIComponent(`Payment receipt · ₹${txn.amount.toFixed(2)} → ${txn.payee}`);
+    const body = encodeURIComponent(buildReceiptSummary(receipt()));
+    window.location.href = `mailto:?subject=${subject}&body=${body}`;
+  };
+
+  // SMS deep link: works on iOS / Android. We keep the body short to avoid
+  // forcing the carrier to split into multiple messages.
+  const handleSms = () => {
+    const body = encodeURIComponent(buildReceiptSummary(receipt()));
+    // iOS uses `&body=` after `&`; Android uses `?body=`. Both accept `?body=`
+    // with no recipient, so we use that.
+    window.location.href = `sms:?body=${body}`;
   };
 
   const copyRef = () => {
