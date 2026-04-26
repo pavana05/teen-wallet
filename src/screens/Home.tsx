@@ -375,7 +375,7 @@ export function Home() {
         </div>
       </div>
 
-      <div className="hp-divider mt-10" aria-hidden="true" />
+      <div className="hp-divider mt-14" aria-hidden="true" />
 
       {/* ===== RECHARGES AND BILLS ===== */}
       <div className="px-5 mt-10">
