@@ -514,6 +514,10 @@
   animation: kyc-exit-fade 520ms cubic-bezier(.4,0,.2,1) forwards;
   pointer-events: none;
 }
+@keyframes kyc-pending-slide {
+  0%   { left: -45%; }
+  100% { left: 100%; }
+}
 
 
 /* Top-left close button */
