@@ -6,7 +6,7 @@ import {
   Loader2, ShieldCheck, ShieldX, RefreshCw, Clock,
   Copy, Check, ExternalLink, ImageOff, FileImage, User as UserIcon,
   ZoomIn, X, SplitSquareHorizontal, History as HistoryIcon, AlertTriangle,
-  ChevronUp, ChevronDown, ChevronsUpDown,
+  ChevronUp, ChevronDown, ChevronsUpDown, Eye,
 } from "lucide-react";
 import { PermissionBanner, ShakeErrorPanel } from "@/admin/components/AdminFeedback";
 import { toast } from "sonner";
