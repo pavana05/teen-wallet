@@ -729,11 +729,18 @@ function EditProfileSheet({
   };
 
   return (
-    <div className="absolute inset-0 z-[80] flex items-end pp-sheet-backdrop" onClick={onClose}>
+    <div
+      className="absolute inset-0 z-[80] flex items-end pp-sheet-backdrop"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="pp-edit-title"
+      aria-describedby="pp-edit-desc"
+    >
       <div className="pp-sheet" onClick={(e) => e.stopPropagation()}>
         <div className="pp-sheet-grab" />
-        <p className="text-[15px] font-semibold text-white px-1">Edit profile</p>
-        <p className="text-[12px] text-white/55 px-1 mt-0.5 mb-4">Update your personal details</p>
+        <p id="pp-edit-title" className="text-[15px] font-semibold text-white px-1">Edit profile</p>
+        <p id="pp-edit-desc" className="text-[12px] text-white/55 px-1 mt-0.5 mb-4">Update your personal details</p>
 
         <label className="pp-field">
           <span>Full name</span>
