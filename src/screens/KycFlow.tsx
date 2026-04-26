@@ -42,6 +42,11 @@ export function KycFlow({ onDone }: { onDone: () => void }) {
   const [name, setName] = useState("");
   const [dob, setDob] = useState("");
   const [gender, setGender] = useState<"Male" | "Female" | "Non-binary" | "">("");
+  const [schoolName, setSchoolName] = useState("");
+  const [addrLine1, setAddrLine1] = useState("");
+  const [addrCity, setAddrCity] = useState("");
+  const [addrState, setAddrState] = useState("");
+  const [addrPincode, setAddrPincode] = useState("");
   const [aadhaar, setAadhaar] = useState("");
   const [aadhaarOtp, setAadhaarOtp] = useState("");
   const [aadhaarOtpSent, setAadhaarOtpSent] = useState(false);
@@ -73,12 +78,18 @@ export function KycFlow({ onDone }: { onDone: () => void }) {
       if (raw) {
         const d = JSON.parse(raw) as Partial<{
           name: string; dob: string; gender: typeof gender; aadhaar: string; step: Step;
+          schoolName: string; addrLine1: string; addrCity: string; addrState: string; addrPincode: string;
         }>;
         if (d.name) setName(d.name);
         if (d.dob) setDob(d.dob);
         if (d.gender) setGender(d.gender);
         if (d.aadhaar) setAadhaar(d.aadhaar);
         if (d.step) setStep(d.step);
+        if (d.schoolName) setSchoolName(d.schoolName);
+        if (d.addrLine1) setAddrLine1(d.addrLine1);
+        if (d.addrCity) setAddrCity(d.addrCity);
+        if (d.addrState) setAddrState(d.addrState);
+        if (d.addrPincode) setAddrPincode(d.addrPincode);
       }
       const docsRaw = localStorage.getItem(KYC_DOCS_KEY);
       if (docsRaw) {
@@ -97,13 +108,18 @@ export function KycFlow({ onDone }: { onDone: () => void }) {
         if (!u.user) return;
         const { data: p } = await supabase
           .from("profiles")
-          .select("full_name,dob,gender,aadhaar_last4,onboarding_stage")
+          .select("full_name,dob,gender,aadhaar_last4,onboarding_stage,school_name,address_line1,address_city,address_state,address_pincode")
           .eq("id", u.user.id)
           .maybeSingle();
         if (!p) return;
         // Only fill empty fields — never overwrite the user's in-progress edits.
         setName((cur) => cur || (p.full_name ?? ""));
         setGender((cur) => cur || ((p.gender as typeof gender) ?? ""));
+        setSchoolName((cur) => cur || (p.school_name ?? ""));
+        setAddrLine1((cur) => cur || (p.address_line1 ?? ""));
+        setAddrCity((cur) => cur || (p.address_city ?? ""));
+        setAddrState((cur) => cur || (p.address_state ?? ""));
+        setAddrPincode((cur) => cur || (p.address_pincode ?? ""));
         if (p.dob) {
           // Stored as YYYY-MM-DD; show as DD/MM/YYYY.
           const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(p.dob);
@@ -125,10 +141,10 @@ export function KycFlow({ onDone }: { onDone: () => void }) {
     try {
       localStorage.setItem(
         KYC_DRAFT_KEY,
-        JSON.stringify({ name, dob, gender, aadhaar, step }),
+        JSON.stringify({ name, dob, gender, aadhaar, step, schoolName, addrLine1, addrCity, addrState, addrPincode }),
       );
     } catch { /* ignore */ }
-  }, [name, dob, gender, aadhaar, step]);
+  }, [name, dob, gender, aadhaar, step, schoolName, addrLine1, addrCity, addrState, addrPincode]);
 
   useEffect(() => {
     try {
@@ -236,12 +252,22 @@ export function KycFlow({ onDone }: { onDone: () => void }) {
     if (age == null) return setError("Enter DOB as DD/MM/YYYY");
     if (age < 13 || age > 19) return setError("Teen Wallet is for ages 13–19");
     if (!gender) return setError("Select gender");
+    if (schoolName.trim().length < 2) return setError("Enter your school or college name");
+    if (addrLine1.trim().length < 4) return setError("Enter your home address");
+    if (addrCity.trim().length < 2) return setError("Enter your city");
+    if (addrState.trim().length < 2) return setError("Enter your state");
+    if (!/^[0-9]{6}$/.test(addrPincode)) return setError("Enter a valid 6-digit pincode");
     setBusy(true);
     const [d, m, y] = dob.split("/");
     await updateProfileFields({
       full_name: name.trim(),
       dob: `${y}-${m}-${d}`,
       gender,
+      school_name: schoolName.trim(),
+      address_line1: addrLine1.trim(),
+      address_city: addrCity.trim(),
+      address_state: addrState.trim(),
+      address_pincode: addrPincode,
       onboarding_stage: "STAGE_2",
     });
     setBusy(false);
@@ -476,6 +502,52 @@ export function KycFlow({ onDone }: { onDone: () => void }) {
                   </button>
                 ))}
               </div>
+            </div>
+
+            <div className="pt-2">
+              <p className="text-[10.5px] tracking-[0.18em] uppercase text-white/45 font-medium mb-3">Education & address</p>
+            </div>
+
+            <div>
+              <label className="text-xs text-muted-foreground uppercase tracking-wider">School / College Name</label>
+              <input value={schoolName}
+                onChange={(e) => setSchoolName(e.target.value.slice(0, 120))}
+                placeholder="Delhi Public School, RK Puram"
+                className="tw-input text-lg mt-1" />
+            </div>
+
+            <div>
+              <label className="text-xs text-muted-foreground uppercase tracking-wider">Home Address</label>
+              <input value={addrLine1}
+                onChange={(e) => setAddrLine1(e.target.value.slice(0, 160))}
+                placeholder="House no., Street, Locality"
+                className="tw-input text-base mt-1" />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-xs text-muted-foreground uppercase tracking-wider">City</label>
+                <input value={addrCity}
+                  onChange={(e) => setAddrCity(e.target.value.slice(0, 60))}
+                  placeholder="Bengaluru"
+                  className="tw-input text-base mt-1" />
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground uppercase tracking-wider">State</label>
+                <input value={addrState}
+                  onChange={(e) => setAddrState(e.target.value.slice(0, 60))}
+                  placeholder="Karnataka"
+                  className="tw-input text-base mt-1" />
+              </div>
+            </div>
+
+            <div>
+              <label className="text-xs text-muted-foreground uppercase tracking-wider">Pincode</label>
+              <input value={addrPincode}
+                onChange={(e) => setAddrPincode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                placeholder="560001"
+                inputMode="numeric"
+                className="tw-input text-lg mt-1 num-mono tracking-[0.2em]" />
             </div>
           </div>
 

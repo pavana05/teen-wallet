@@ -9,7 +9,10 @@ import { Onboarding } from "@/screens/Onboarding";
 import { AuthPhone } from "@/screens/AuthPhone";
 import { KycFlow } from "@/screens/KycFlow";
 import { KycPending } from "@/screens/KycPending";
+import { Permissions } from "@/screens/Permissions";
 import { Home } from "@/screens/Home";
+
+const PERMISSIONS_DONE_KEY = "tw_permissions_seen_v1";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -24,6 +27,14 @@ export const Route = createFileRoute("/")({
 function Index() {
   const { stage, splashSeen, setStage, hydrateFromProfile } = useApp();
   const [booting, setBooting] = useState(true);
+  const [permsSeen, setPermsSeen] = useState<boolean>(() => {
+    if (typeof window === "undefined") return true;
+    try { return localStorage.getItem(PERMISSIONS_DONE_KEY) === "1"; } catch { return true; }
+  });
+  const markPermsSeen = () => {
+    try { localStorage.setItem(PERMISSIONS_DONE_KEY, "1"); } catch { /* ignore */ }
+    setPermsSeen(true);
+  };
 
   useEffect(() => {
     let mounted = true;
@@ -108,6 +119,8 @@ function Index() {
             setStage("STAGE_3");
           }
         }} />
+      ) : stage === "STAGE_3" && !permsSeen ? (
+        <Permissions onDone={markPermsSeen} />
       ) : stage === "STAGE_3" ? (
         <KycFlow onDone={() => setStage("STAGE_4")} />
       ) : stage === "STAGE_4" ? (

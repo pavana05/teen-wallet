@@ -2908,3 +2908,245 @@
 .pp-inline-btn:hover { background: rgba(255,255,255,.08); }
 .pp-inline-ok     { color: #6ee7b7; border-color: rgba(16,185,129,.35); background: rgba(16,185,129,.1); }
 .pp-inline-cancel { color: rgba(255,255,255,.7); }
+
+/* ============================================================
+   Premium Phone Input (AuthPhone)
+   ============================================================ */
+.tw-phone-field {
+  display: flex; align-items: center; gap: 0;
+  border-radius: 16px;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.012)),
+    rgba(20,20,23,.55);
+  border: 1px solid rgba(255,255,255,.08);
+  padding: 6px 6px 6px 14px;
+  position: relative;
+  overflow: hidden;
+  transition: border-color .25s ease, box-shadow .25s ease, background .25s ease;
+}
+.tw-phone-field::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(120% 100% at 0% 0%, rgba(255,255,255,.06), transparent 55%);
+  border-radius: inherit;
+}
+.tw-phone-field:focus-within {
+  border-color: rgba(212,197,160,.55);
+  box-shadow:
+    0 0 0 3px rgba(212,197,160,.12),
+    0 14px 30px -18px rgba(212,197,160,.45);
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.07), rgba(255,255,255,.02)),
+    rgba(22,22,26,.7);
+}
+.tw-phone-field-error {
+  border-color: rgba(248,113,113,.55) !important;
+  box-shadow: 0 0 0 3px rgba(248,113,113,.10);
+}
+.tw-phone-field-valid:not(:focus-within) {
+  border-color: rgba(110,231,183,.30);
+}
+.tw-phone-cc {
+  display: inline-flex; align-items: center; gap: 8px;
+  color: #fff;
+  padding-right: 10px;
+}
+.tw-phone-divider {
+  width: 1px; align-self: stretch;
+  background: linear-gradient(180deg, transparent, rgba(255,255,255,.16) 35%, rgba(255,255,255,.16) 65%, transparent);
+  margin: 4px 12px 4px 0;
+}
+.tw-phone-input {
+  flex: 1; min-width: 0;
+  background: transparent; border: 0; outline: 0;
+  color: #fff;
+  font-size: 22px; line-height: 1.2;
+  letter-spacing: 0.01em;
+  padding: 14px 4px;
+}
+.tw-phone-input::placeholder { color: rgba(255,255,255,.28); }
+.tw-phone-check {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #34d399, #10b981);
+  color: #052e1c;
+  margin-left: 8px;
+  box-shadow: 0 6px 14px -6px rgba(16,185,129,.6);
+  animation: tw-phone-check-in .35s cubic-bezier(.2,.9,.25,1.2) both;
+}
+@keyframes tw-phone-check-in {
+  0% { transform: scale(.4); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* ============================================================
+   Permissions Screen
+   ============================================================ */
+.perm-root { position: relative; overflow: hidden; }
+.perm-aurora {
+  position: absolute; inset: -10% -20% auto -20%; height: 60%;
+  pointer-events: none; z-index: 0;
+  background:
+    radial-gradient(60% 60% at 50% 0%, rgba(110,231,183,.18), transparent 60%),
+    radial-gradient(40% 40% at 80% 10%, rgba(212,197,160,.12), transparent 60%);
+  filter: blur(28px);
+}
+.perm-hero-icon {
+  background: radial-gradient(120% 100% at 0% 0%, rgba(110,231,183,.25), transparent 60%),
+              linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.015));
+  border: 1px solid rgba(110,231,183,.30);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.18),
+    0 14px 30px -16px rgba(16,185,129,.55);
+}
+.perm-row {
+  display: flex; align-items: center; gap: 12px;
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.045), rgba(255,255,255,.012)),
+    rgba(20,20,23,.5);
+  border: 1px solid rgba(255,255,255,.07);
+  transition: transform .18s ease, border-color .25s ease, background .25s ease, box-shadow .25s ease;
+  text-align: left;
+}
+.perm-row:not(:disabled):hover {
+  transform: translateY(-1px);
+  border-color: rgba(255,255,255,.14);
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02)),
+    rgba(22,22,26,.6);
+}
+.perm-row:disabled { cursor: default; }
+.perm-row-on {
+  border-color: rgba(110,231,183,.32);
+  background:
+    linear-gradient(180deg, rgba(110,231,183,.10), rgba(110,231,183,.02)),
+    rgba(20,30,26,.55);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.06), 0 8px 22px -16px rgba(16,185,129,.5);
+}
+.perm-row-denied {
+  border-color: rgba(248,113,113,.30);
+  background:
+    linear-gradient(180deg, rgba(248,113,113,.08), rgba(248,113,113,.02)),
+    rgba(30,20,20,.55);
+}
+.perm-row-icon {
+  width: 38px; height: 38px; border-radius: 12px;
+  display: inline-flex; align-items: center; justify-content: center;
+  color: #fff;
+  background: linear-gradient(180deg, rgba(255,255,255,.07), rgba(255,255,255,.02));
+  border: 1px solid rgba(255,255,255,.08);
+  flex-shrink: 0;
+}
+.perm-row-on .perm-row-icon {
+  color: #6ee7b7;
+  background: linear-gradient(180deg, rgba(110,231,183,.18), rgba(110,231,183,.05));
+  border-color: rgba(110,231,183,.35);
+}
+.perm-row-state { flex-shrink: 0; display: inline-flex; align-items: center; }
+.perm-pill-on,
+.perm-pill-off,
+.perm-pill-na {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  font-size: 10.5px; font-weight: 600; letter-spacing: .04em;
+  text-transform: uppercase;
+}
+.perm-pill-on {
+  background: rgba(110,231,183,.16); color: #6ee7b7;
+  border: 1px solid rgba(110,231,183,.32);
+}
+.perm-pill-off {
+  background: rgba(248,113,113,.14); color: #fca5a5;
+  border: 1px solid rgba(248,113,113,.32);
+}
+.perm-pill-na {
+  background: rgba(255,255,255,.05); color: rgba(255,255,255,.5);
+  border: 1px solid rgba(255,255,255,.10);
+}
+
+/* ============================================================
+   Notification Prefs (premium polish)
+   ============================================================ */
+.np-card {
+  position: relative; overflow: hidden;
+  border-radius: 20px;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.045), rgba(255,255,255,.01)),
+    rgba(18,18,22,.65);
+  border: 1px solid rgba(255,255,255,.07);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.05),
+    0 12px 30px -20px rgba(0,0,0,.6);
+}
+.np-shine {
+  position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(120% 80% at 0% 0%, rgba(255,255,255,.05), transparent 55%);
+}
+.np-group { padding: 14px 16px; position: relative; }
+.np-group-divider::before {
+  content: ""; position: absolute; left: 16px; right: 16px; top: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.07) 20%, rgba(255,255,255,.07) 80%, transparent);
+}
+.np-group-icon {
+  width: 32px; height: 32px; border-radius: 10px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: linear-gradient(180deg, rgba(255,255,255,.07), rgba(255,255,255,.02));
+  border: 1px solid rgba(255,255,255,.09);
+  flex-shrink: 0;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.08);
+}
+.np-chip {
+  display: inline-flex; align-items: center; gap: 10px;
+  width: 100%;
+  padding: 9px 12px;
+  border-radius: 12px;
+  background: rgba(255,255,255,.025);
+  border: 1px solid rgba(255,255,255,.07);
+  color: rgba(255,255,255,.78);
+  transition: all .2s ease;
+  text-align: left;
+}
+.np-chip:hover:not(:disabled) {
+  border-color: rgba(255,255,255,.14);
+  background: rgba(255,255,255,.045);
+  color: #fff;
+}
+.np-chip-icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 24px; height: 24px; border-radius: 8px;
+  background: rgba(255,255,255,.05);
+  border: 1px solid rgba(255,255,255,.07);
+}
+.np-chip-state {
+  margin-left: auto;
+  font-size: 10px; font-weight: 700; letter-spacing: .12em;
+  padding: 3px 8px; border-radius: 999px;
+  background: rgba(255,255,255,.05);
+  color: rgba(255,255,255,.55);
+  border: 1px solid rgba(255,255,255,.08);
+}
+.np-chip-on {
+  background:
+    linear-gradient(180deg, rgba(212,197,160,.14), rgba(212,197,160,.04)),
+    rgba(28,26,22,.7);
+  border-color: rgba(212,197,160,.45);
+  color: #fff;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.10),
+    0 6px 14px -10px rgba(212,197,160,.45);
+}
+.np-chip-on .np-chip-icon {
+  background: linear-gradient(180deg, rgba(232,220,192,.30), rgba(160,138,100,.18));
+  border-color: rgba(232,220,192,.45);
+  color: #f5e9c8;
+}
+.np-chip-on .np-chip-state {
+  background: linear-gradient(135deg, #e8dcc0, #c9b896);
+  color: #3a2e15;
+  border-color: rgba(232,220,192,.6);
+  text-shadow: 0 1px 0 rgba(255,255,255,.25);
+}
