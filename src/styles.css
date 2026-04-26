@@ -1484,6 +1484,275 @@
 .pp-danger-confirm:focus { border-color: rgba(239,68,68,.85); }
 
 /* ============================================================
+ * Profile Panel — Premium v2 (additive overrides)
+ * Refined glass, hairline borders, layered depth, micro-motion.
+ * ============================================================ */
+
+/* Richer aurora with animated drift */
+.pp-aurora {
+  background:
+    radial-gradient(40% 28% at 12% 6%, rgba(255,140,60,.22), transparent 65%),
+    radial-gradient(38% 26% at 92% 14%, rgba(168,85,247,.20), transparent 65%),
+    radial-gradient(55% 32% at 50% 102%, rgba(34,197,94,.10), transparent 65%),
+    radial-gradient(70% 50% at 50% 50%, rgba(59,130,246,.06), transparent 70%);
+  animation: pp-aurora-drift 22s ease-in-out infinite alternate;
+  filter: saturate(1.1);
+}
+@keyframes pp-aurora-drift {
+  0%   { transform: translate3d(0,0,0) scale(1); }
+  100% { transform: translate3d(-2%, 1%, 0) scale(1.06); }
+}
+
+/* Premium hero — multi-layer glass with hairline highlight + soft inner glow */
+.pp-hero {
+  border-radius: 28px;
+  padding: 20px;
+  background:
+    radial-gradient(120% 80% at 0% 0%, rgba(249,115,22,.10), transparent 55%),
+    radial-gradient(120% 80% at 100% 0%, rgba(168,85,247,.10), transparent 55%),
+    linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.015) 60%),
+    rgba(18,18,21,.72);
+  border: 1px solid rgba(255,255,255,.09);
+  backdrop-filter: blur(18px) saturate(140%);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  box-shadow:
+    0 30px 60px -28px rgba(0,0,0,.75),
+    0 2px 0 rgba(255,255,255,.04) inset,
+    0 0 0 1px rgba(255,255,255,.02) inset;
+}
+.pp-hero::before {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  border-radius: inherit;
+  background: linear-gradient(180deg, rgba(255,255,255,.10), transparent 30%);
+  mask: linear-gradient(#000, #000) content-box, linear-gradient(#000, #000);
+  -webkit-mask: linear-gradient(#000, #000) content-box, linear-gradient(#000, #000);
+  mask-composite: exclude;
+  -webkit-mask-composite: xor;
+  padding: 1px;
+  opacity: .6;
+}
+
+/* Avatar — gradient conic ring + subtle pulse */
+.pp-avatar-wrap::before {
+  content: ""; position: absolute; inset: -3px;
+  border-radius: 26px;
+  background: conic-gradient(from 140deg, #f97316, #a855f7, #22d3ee, #f97316);
+  filter: blur(.5px);
+  opacity: .85;
+  z-index: 0;
+  animation: pp-ring-spin 8s linear infinite;
+}
+.pp-avatar-wrap > .pp-avatar { position: relative; z-index: 1; }
+.pp-avatar-wrap > .pp-avatar-cam { z-index: 2; }
+@keyframes pp-ring-spin { to { transform: rotate(360deg); } }
+
+.pp-avatar {
+  border-radius: 22px;
+  background:
+    radial-gradient(120% 100% at 0% 0%, rgba(255,255,255,.25), transparent 55%),
+    linear-gradient(135deg, #f97316, #a855f7 55%, #22d3ee);
+  box-shadow:
+    0 14px 36px -12px rgba(168,85,247,.55),
+    inset 0 1px 0 rgba(255,255,255,.25),
+    inset 0 -8px 18px rgba(0,0,0,.25);
+  letter-spacing: -0.02em;
+}
+.pp-avatar-cam {
+  width: 24px; height: 24px;
+  border: 2px solid #0a0a0a;
+  background: linear-gradient(180deg, #fff, #e5e5e5);
+  box-shadow: 0 4px 10px rgba(0,0,0,.35);
+}
+
+/* Stat tiles — glass with inner highlight + hover lift */
+.pp-stat {
+  border-radius: 16px;
+  padding: 12px 14px;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.015)),
+    rgba(255,255,255,.02);
+  border: 1px solid rgba(255,255,255,.08);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.05), 0 6px 18px -12px rgba(0,0,0,.5);
+  transition: transform .2s ease, border-color .2s ease, background .2s ease;
+}
+.pp-stat:hover { transform: translateY(-1px); border-color: rgba(255,255,255,.14); }
+
+/* Pills — premium glass with hairline + subtle shine on hover */
+.pp-pill {
+  position: relative;
+  padding: 11px 14px; border-radius: 14px;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.025)),
+    rgba(255,255,255,.02);
+  border: 1px solid rgba(255,255,255,.10);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.07), 0 8px 22px -14px rgba(0,0,0,.6);
+  font-weight: 600; letter-spacing: -0.01em;
+  overflow: hidden;
+}
+.pp-pill::after {
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(120deg, transparent 35%, rgba(255,255,255,.10) 50%, transparent 65%);
+  transform: translateX(-120%);
+  transition: transform .6s ease;
+}
+.pp-pill:hover::after { transform: translateX(120%); }
+.pp-pill:hover { border-color: rgba(255,255,255,.18); }
+
+/* Stat chips — refined gradient depth + hairline */
+.pp-statchip {
+  border-radius: 18px; padding: 13px;
+  border: 1px solid rgba(255,255,255,.08);
+  background-blend-mode: overlay, normal;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.07),
+    0 10px 28px -18px rgba(0,0,0,.7);
+  position: relative;
+  overflow: hidden;
+  transition: transform .22s cubic-bezier(.2,.8,.2,1), border-color .2s ease;
+}
+.pp-statchip::before {
+  content: ""; position: absolute; inset: 0;
+  background: radial-gradient(80% 60% at 100% 0%, rgba(255,255,255,.10), transparent 60%);
+  pointer-events: none;
+}
+.pp-statchip:hover { transform: translateY(-2px); border-color: rgba(255,255,255,.16); }
+
+/* Tabs — segmented pill, refined active state */
+.pp-tabs {
+  gap: 4px; padding: 5px;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.015)),
+    rgba(10,10,12,.5);
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 16px;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.04);
+}
+.pp-tab {
+  padding: 9px 14px; border-radius: 12px;
+  font-size: 12px; font-weight: 600; letter-spacing: -0.005em;
+  color: rgba(255,255,255,.55);
+  transition: color .18s ease, background .18s ease, transform .18s ease;
+}
+.pp-tab:hover { color: rgba(255,255,255,.85); }
+.pp-tab-active {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.18), rgba(255,255,255,.06));
+  color: white;
+  box-shadow:
+    0 6px 18px -8px rgba(0,0,0,.7),
+    inset 0 1px 0 rgba(255,255,255,.18),
+    inset 0 -1px 0 rgba(0,0,0,.2);
+}
+
+/* Section title — refined uppercase with leading dot */
+.pp-section-title {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: 10.5px; font-weight: 600; letter-spacing: .12em;
+  color: rgba(255,255,255,.5); text-transform: uppercase;
+  padding: 0 4px 8px;
+}
+.pp-section-title::before {
+  content: ""; width: 4px; height: 4px; border-radius: 999px;
+  background: linear-gradient(135deg, #f97316, #a855f7);
+  box-shadow: 0 0 8px rgba(168,85,247,.6);
+}
+
+/* List card — deeper glass */
+.pp-card {
+  border-radius: 20px;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.045), rgba(255,255,255,.012)),
+    rgba(14,14,16,.55);
+  border: 1px solid rgba(255,255,255,.08);
+  backdrop-filter: blur(10px);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.05),
+    0 12px 30px -22px rgba(0,0,0,.7);
+}
+
+/* Row icons — hairline gradient frame */
+.pp-row-icon {
+  width: 36px; height: 36px; border-radius: 12px;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.02));
+  border: 1px solid rgba(255,255,255,.08);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.06);
+  transition: transform .18s ease;
+}
+.pp-card button:hover .pp-row-icon,
+.pp-card > div:hover .pp-row-icon { transform: scale(1.05); }
+
+/* Switch — premium gradient + glow when on */
+.pp-switch {
+  width: 44px; height: 26px; border-radius: 999px;
+  background: rgba(255,255,255,.08);
+  border: 1px solid rgba(255,255,255,.10);
+  box-shadow: inset 0 1px 2px rgba(0,0,0,.4);
+  transition: background .25s ease, box-shadow .25s ease;
+}
+.pp-switch-on {
+  background: linear-gradient(135deg, #f97316, #a855f7);
+  box-shadow: 0 0 0 1px rgba(168,85,247,.4), 0 6px 16px -6px rgba(168,85,247,.6);
+}
+.pp-switch-knob {
+  width: 20px; height: 20px;
+  background: linear-gradient(180deg, #fff, #e5e5e5);
+  box-shadow: 0 2px 6px rgba(0,0,0,.35), inset 0 -1px 0 rgba(0,0,0,.08);
+}
+.pp-switch-on .pp-switch-knob { transform: translateX(18px); }
+
+/* Buttons — depth + sheen */
+.pp-btn-primary {
+  position: relative; overflow: hidden;
+  background: linear-gradient(135deg, #f97316, #a855f7);
+  box-shadow:
+    0 14px 30px -12px rgba(168,85,247,.6),
+    inset 0 1px 0 rgba(255,255,255,.25),
+    inset 0 -2px 0 rgba(0,0,0,.15);
+  letter-spacing: -0.01em;
+}
+.pp-btn-primary::after {
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(120deg, transparent 30%, rgba(255,255,255,.22) 50%, transparent 70%);
+  transform: translateX(-120%);
+  transition: transform .7s ease;
+}
+.pp-btn-primary:hover::after { transform: translateX(120%); }
+
+.pp-btn-ghost {
+  background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.02));
+  border: 1px solid rgba(255,255,255,.10);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.06);
+}
+
+/* KYC badge subtle shimmer */
+.pp-kyc-badge {
+  position: relative; overflow: hidden;
+}
+.pp-kyc-badge::after {
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(120deg, transparent 40%, rgba(255,255,255,.18) 50%, transparent 60%);
+  transform: translateX(-120%);
+  animation: pp-kyc-shine 4.5s ease-in-out infinite;
+}
+@keyframes pp-kyc-shine { 0%, 70% { transform: translateX(-120%); } 100% { transform: translateX(120%); } }
+
+/* Membership progress bar */
+.pp-progress {
+  position: relative; height: 6px; border-radius: 999px;
+  background: rgba(255,255,255,.06);
+  border: 1px solid rgba(255,255,255,.05);
+  overflow: hidden;
+}
+.pp-progress-fill {
+  position: absolute; inset: 0; right: auto;
+  background: linear-gradient(90deg, #f97316, #a855f7, #22d3ee);
+  border-radius: 999px;
+  box-shadow: 0 0 12px rgba(168,85,247,.5);
+  transition: width .6s cubic-bezier(.2,.8,.2,1);
+}
+
+/* ============================================================
  * Admin · VirtualTable · Skeletons · Perf Overlay
  * Neon-lime accent matches existing var(--a-accent).
  * ============================================================ */
