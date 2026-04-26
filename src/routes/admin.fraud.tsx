@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { callAdminFn, readAdminSession, can } from "@/admin/lib/adminAuth";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, RefreshCw, ShieldAlert, Check, AlertTriangle } from "lucide-react";
+import { Loader2, RefreshCw, ShieldAlert, Check, AlertTriangle, User as UserIcon, FileCheck2 } from "lucide-react";
 import { VirtualTable, type Column } from "@/admin/components/VirtualTable";
 import { usePersistedState } from "@/admin/lib/usePersistedState";
 import { SavedViewsBar } from "@/admin/components/SavedViewsBar";
@@ -150,10 +150,33 @@ function FraudPage() {
         : <span style={{ color: "var(--a-warn)", fontSize: 12 }}><AlertTriangle size={12} style={{ display: "inline", verticalAlign: "-2px" }} /> Open</span>,
     },
     {
-      key: "act", header: "Actions", width: "110px", align: "right",
-      cell: (r) => !r.resolution && canManage
-        ? <button className="a-btn-ghost" onClick={() => { setResolving(r); setResolution(""); }} style={{ fontSize: 12 }}>Resolve</button>
-        : null,
+      key: "act", header: "Actions", width: "200px", align: "right",
+      cell: (r) => (
+        <div style={{ display: "inline-flex", gap: 4, alignItems: "center" }}>
+          <Link
+            to="/admin/users/$id"
+            params={{ id: r.user_id }}
+            title="Open User 360"
+            className="a-btn-ghost"
+            style={{ fontSize: 11, padding: "4px 8px", display: "inline-flex", alignItems: "center", gap: 4, textDecoration: "none" }}
+          >
+            <UserIcon size={12} /> 360
+          </Link>
+          <Link
+            to="/admin/users/$id"
+            params={{ id: r.user_id }}
+            search={{ tab: "kyc" } as never}
+            title="Open user's KYC"
+            className="a-btn-ghost"
+            style={{ fontSize: 11, padding: "4px 8px", display: "inline-flex", alignItems: "center", gap: 4, textDecoration: "none" }}
+          >
+            <FileCheck2 size={12} /> KYC
+          </Link>
+          {!r.resolution && canManage && (
+            <button className="a-btn-ghost" onClick={() => { setResolving(r); setResolution(""); }} style={{ fontSize: 11, padding: "4px 8px" }}>Resolve</button>
+          )}
+        </div>
+      ),
     },
   ], [canManage]);
 

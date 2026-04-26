@@ -1,7 +1,10 @@
 import { createFileRoute, Link, useParams } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { callAdminFn, readAdminSession, useAdminSession, can } from "@/admin/lib/adminAuth";
-import { ArrowLeft, Loader2, ShieldCheck, ShieldX, RotateCcw } from "lucide-react";
+import {
+  ArrowLeft, Loader2, ShieldCheck, ShieldX, RotateCcw,
+  ShieldAlert, Activity as ActivityIcon, Wallet, FileCheck2, ScrollText,
+} from "lucide-react";
 
 export const Route = createFileRoute("/admin/users/$id")({
   component: UserDetail,
@@ -34,15 +37,22 @@ interface DetailData {
   audit: Audit[];
 }
 
-type Tab = "txn" | "kyc" | "fraud" | "audit";
+type Tab = "timeline" | "txn" | "kyc" | "fraud" | "audit";
 
 function UserDetail() {
   const { id } = useParams({ from: "/admin/users/$id" });
   const { admin } = useAdminSession();
   const [data, setData] = useState<DetailData | null>(null);
-  const [tab, setTab] = useState<Tab>("txn");
+  const [tab, setTab] = useState<Tab>("timeline");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
+
+  // Deep-link: ?tab=kyc|fraud|txn|audit|timeline (one-shot on mount).
+  useEffect(() => {
+    const sp = new URLSearchParams(window.location.search);
+    const t = sp.get("tab");
+    if (t && ["timeline", "txn", "kyc", "fraud", "audit"].includes(t)) setTab(t as Tab);
+  }, []);
 
   async function load() {
     const s = readAdminSession();
@@ -68,7 +78,9 @@ function UserDetail() {
     finally { setBusy(false); }
   }
 
-  if (!data) {
+  const risk = useMemo(() => (data ? computeRisk(data) : null), [data]);
+
+  if (!data || !risk) {
     return (
       <div style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--a-muted)" }}>
         <Loader2 size={14} className="animate-spin" /> Loading…
@@ -86,6 +98,9 @@ function UserDetail() {
       </Link>
 
       {err && <div style={{ padding: 12, marginBottom: 12, borderRadius: 8, background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", color: "#fca5a5", fontSize: 13 }}>{err}</div>}
+
+      {/* ── Risk score header ───────────────────────────────────── */}
+      <RiskHeader risk={risk} profile={p} txnCount={data.transactions.length} fraudCount={data.fraud.length} />
 
       <div style={{ display: "grid", gridTemplateColumns: "320px 1fr", gap: 16 }}>
         {/* Left panel: profile */}
@@ -128,14 +143,16 @@ function UserDetail() {
 
         {/* Right panel: tabs */}
         <div>
-          <div className="a-surface" style={{ display: "flex", borderBottom: "1px solid var(--a-border)", padding: "0 8px" }}>
+          <div className="a-surface" style={{ display: "flex", borderBottom: "1px solid var(--a-border)", padding: "0 8px", flexWrap: "wrap" }}>
+            <TabBtn id="timeline" cur={tab} onClick={setTab}>Timeline</TabBtn>
             <TabBtn id="txn" cur={tab} onClick={setTab}>Transactions ({data.transactions.length})</TabBtn>
-            <TabBtn id="kyc" cur={tab} onClick={setTab}>KYC Timeline ({data.kyc.length})</TabBtn>
+            <TabBtn id="kyc" cur={tab} onClick={setTab}>KYC ({data.kyc.length})</TabBtn>
             <TabBtn id="fraud" cur={tab} onClick={setTab}>Fraud ({data.fraud.length})</TabBtn>
             <TabBtn id="audit" cur={tab} onClick={setTab}>Audit ({data.audit.length})</TabBtn>
           </div>
 
           <div className="a-surface" style={{ padding: 16, marginTop: -1, borderTop: "none", borderTopLeftRadius: 0, borderTopRightRadius: 0 }}>
+            {tab === "timeline" && <MergedTimeline data={data} />}
             {tab === "txn" && <TxnTable rows={data.transactions} />}
             {tab === "kyc" && <KycTimeline rows={data.kyc} />}
             {tab === "fraud" && <FraudTable rows={data.fraud} />}
@@ -143,6 +160,144 @@ function UserDetail() {
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ── Risk scoring ─────────────────────────────────────────────────────────────
+interface RiskResult { score: number; band: "low" | "medium" | "high"; reasons: string[]; openFraud: number }
+
+function computeRisk(d: DetailData): RiskResult {
+  const reasons: string[] = [];
+  let score = 0;
+  const openFraud = d.fraud.filter((f) => !f.resolution).length;
+  if (openFraud > 0) { score += Math.min(openFraud * 25, 60); reasons.push(`${openFraud} open fraud alert${openFraud > 1 ? "s" : ""}`); }
+  const resolvedFraud = d.fraud.length - openFraud;
+  if (resolvedFraud > 0) { score += Math.min(resolvedFraud * 5, 15); reasons.push(`${resolvedFraud} resolved fraud event${resolvedFraud > 1 ? "s" : ""}`); }
+  if (d.profile.kyc_status === "rejected") { score += 25; reasons.push("KYC rejected"); }
+  else if (d.profile.kyc_status === "not_started") { score += 10; reasons.push("KYC not started"); }
+  else if (d.profile.kyc_status === "pending") { score += 5; reasons.push("KYC pending"); }
+  const failed = d.transactions.filter((t) => t.status === "failed").length;
+  if (failed >= 3) { score += 10; reasons.push(`${failed} failed transactions`); }
+  if (d.transactions.length === 0 && d.profile.kyc_status === "approved") { score += 5; reasons.push("No transactions yet"); }
+  score = Math.min(score, 100);
+  const band: RiskResult["band"] = score >= 60 ? "high" : score >= 25 ? "medium" : "low";
+  if (!reasons.length) reasons.push("No risk signals");
+  return { score, band, reasons, openFraud };
+}
+
+function RiskHeader({ risk, profile, txnCount, fraudCount }: { risk: RiskResult; profile: Profile; txnCount: number; fraudCount: number }) {
+  const colors = {
+    low: { bg: "rgba(34,197,94,0.1)", fg: "#86efac", border: "rgba(34,197,94,0.3)" },
+    medium: { bg: "rgba(245,158,11,0.1)", fg: "#fcd34d", border: "rgba(245,158,11,0.3)" },
+    high: { bg: "rgba(239,68,68,0.1)", fg: "#fca5a5", border: "rgba(239,68,68,0.3)" },
+  }[risk.band];
+
+  return (
+    <div className="a-surface" style={{ padding: 16, marginBottom: 16, display: "grid", gridTemplateColumns: "180px 1fr repeat(4, auto)", gap: 16, alignItems: "center" }}>
+      <div style={{ background: colors.bg, border: `1px solid ${colors.border}`, borderRadius: 12, padding: "12px 16px", textAlign: "center" }}>
+        <div className="a-label" style={{ marginBottom: 4 }}>Risk Score</div>
+        <div style={{ fontSize: 32, fontWeight: 800, color: colors.fg, lineHeight: 1 }}>{risk.score}</div>
+        <div style={{ fontSize: 11, color: colors.fg, textTransform: "uppercase", letterSpacing: "0.08em", marginTop: 4 }}>{risk.band}</div>
+      </div>
+      <div style={{ minWidth: 0 }}>
+        <div className="a-label" style={{ marginBottom: 6 }}>Risk signals</div>
+        <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexWrap: "wrap", gap: 6 }}>
+          {risk.reasons.map((r) => (
+            <li key={r} style={{ fontSize: 11, padding: "3px 8px", borderRadius: 4, background: "var(--a-elevated)", color: "var(--a-fg)", border: "1px solid var(--a-border)" }}>{r}</li>
+          ))}
+        </ul>
+      </div>
+      <RiskStat icon={<FileCheck2 size={14} />} label="KYC" value={profile.kyc_status} />
+      <RiskStat icon={<Wallet size={14} />} label="Txns" value={String(txnCount)} />
+      <RiskStat icon={<ShieldAlert size={14} />} label="Fraud" value={String(fraudCount)} accent={risk.openFraud > 0 ? "var(--a-warn)" : undefined} />
+      <RiskStat icon={<ActivityIcon size={14} />} label="Open" value={String(risk.openFraud)} accent={risk.openFraud > 0 ? "#fca5a5" : undefined} />
+    </div>
+  );
+}
+
+function RiskStat({ icon, label, value, accent }: { icon: React.ReactNode; label: string; value: string; accent?: string }) {
+  return (
+    <div style={{ textAlign: "center", padding: "0 8px" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 4, justifyContent: "center", color: "var(--a-muted)" }}>{icon}<span className="a-label">{label}</span></div>
+      <div style={{ fontSize: 14, fontWeight: 700, marginTop: 2, color: accent || "var(--a-fg)" }}>{value}</div>
+    </div>
+  );
+}
+
+// ── Merged Timeline ──────────────────────────────────────────────────────────
+type EventKind = "kyc" | "txn" | "fraud" | "audit";
+interface TimelineEvent { ts: string; kind: EventKind; title: string; subtitle?: string; tone?: "ok" | "warn" | "err" | "muted" }
+
+function buildEvents(d: DetailData): TimelineEvent[] {
+  const ev: TimelineEvent[] = [];
+  d.kyc.forEach((k) => ev.push({
+    ts: k.updated_at || k.created_at, kind: "kyc",
+    title: `KYC ${k.status}`,
+    subtitle: [k.provider, k.match_score != null ? `match ${k.match_score}` : null, k.reason].filter(Boolean).join(" · "),
+    tone: k.status === "approved" ? "ok" : k.status === "rejected" ? "err" : "warn",
+  }));
+  d.transactions.forEach((t) => ev.push({
+    ts: t.created_at, kind: "txn",
+    title: `₹${Number(t.amount).toFixed(2)} · ${t.merchant_name}`,
+    subtitle: `${t.upi_id} · ${t.status}`,
+    tone: t.status === "success" ? "ok" : t.status === "failed" ? "err" : "warn",
+  }));
+  d.fraud.forEach((f) => ev.push({
+    ts: f.created_at, kind: "fraud",
+    title: `Fraud rule: ${f.rule_triggered}`,
+    subtitle: f.resolution ? `Resolved — ${f.resolution}` : "Open",
+    tone: f.resolution ? "muted" : "err",
+  }));
+  d.audit.forEach((a) => ev.push({
+    ts: a.created_at, kind: "audit",
+    title: a.action_type,
+    subtitle: `${a.admin_email || "system"}${a.admin_role ? ` · ${a.admin_role}` : ""}`,
+    tone: "muted",
+  }));
+  ev.sort((a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime());
+  return ev;
+}
+
+function MergedTimeline({ data }: { data: DetailData }) {
+  const [filter, setFilter] = useState<EventKind | "all">("all");
+  const events = useMemo(() => buildEvents(data), [data]);
+  const visible = filter === "all" ? events : events.filter((e) => e.kind === filter);
+  if (!events.length) return <Empty msg="No activity recorded yet" />;
+
+  const toneColor = (t?: string) =>
+    t === "ok" ? "var(--a-success)" : t === "warn" ? "var(--a-warn)" : t === "err" ? "#f87171" : "var(--a-muted)";
+  const kindIcon = (k: EventKind) =>
+    k === "kyc" ? <FileCheck2 size={12} /> : k === "txn" ? <Wallet size={12} /> : k === "fraud" ? <ShieldAlert size={12} /> : <ScrollText size={12} />;
+
+  return (
+    <div>
+      <div style={{ display: "flex", gap: 6, marginBottom: 12, flexWrap: "wrap" }}>
+        {(["all", "kyc", "txn", "fraud", "audit"] as const).map((k) => (
+          <button key={k} onClick={() => setFilter(k)}
+            className={filter === k ? "a-btn" : "a-btn-ghost"}
+            style={{ fontSize: 11, padding: "4px 10px", textTransform: "capitalize" }}>
+            {k} {k !== "all" && <span style={{ opacity: 0.6 }}>({events.filter((e) => e.kind === k).length})</span>}
+          </button>
+        ))}
+      </div>
+      <ol style={{ listStyle: "none", padding: 0, margin: 0, position: "relative" }}>
+        <div style={{ position: "absolute", left: 11, top: 6, bottom: 6, width: 1, background: "var(--a-border)" }} />
+        {visible.map((e, i) => (
+          <li key={i} style={{ display: "grid", gridTemplateColumns: "24px 1fr", gap: 10, padding: "8px 0" }}>
+            <div style={{ width: 24, height: 24, borderRadius: "50%", background: "var(--a-elevated)", border: `1px solid ${toneColor(e.tone)}`, color: toneColor(e.tone), display: "grid", placeItems: "center", zIndex: 1 }}>
+              {kindIcon(e.kind)}
+            </div>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+                <span style={{ fontSize: 13, fontWeight: 600 }}>{e.title}</span>
+                <span className="a-mono" style={{ fontSize: 10, color: "var(--a-muted)", whiteSpace: "nowrap" }}>{new Date(e.ts).toLocaleString()}</span>
+              </div>
+              {e.subtitle && <div style={{ fontSize: 11, color: "var(--a-muted)", marginTop: 2 }}>{e.subtitle}</div>}
+            </div>
+          </li>
+        ))}
+      </ol>
     </div>
   );
 }

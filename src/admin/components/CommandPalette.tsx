@@ -2,19 +2,27 @@ import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import {
   LayoutDashboard, Users, FileCheck2, Wallet, ShieldAlert, Activity, Settings,
-  Search, ArrowRight, User as UserIcon, Receipt, LogOut, Copy, Command,
+  Search, ArrowRight, User as UserIcon, Receipt, LogOut, Copy, Command, Flame,
 } from "lucide-react";
 import { callAdminFn, readAdminSession, clearAdminSession } from "@/admin/lib/adminAuth";
+import { toast } from "sonner";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 type CmdItem = {
   id: string;
-  group: "Navigate" | "Users" | "Transactions" | "Actions";
+  group: "Navigate" | "Users" | "Transactions" | "Actions" | "KYC Queue";
   label: string;
   hint?: string;
   icon: React.ComponentType<{ size?: number }>;
   onRun: () => void | Promise<void>;
+  /** Optional secondary action: produce a string to copy to clipboard. */
+  copy?: () => string;
 };
+
+async function copyText(text: string, what: string) {
+  try { await navigator.clipboard.writeText(text); toast.success(`Copied ${what}`); }
+  catch { toast.error("Copy failed"); }
+}
 
 interface UserRow { id: string; full_name: string | null; phone: string | null; kyc_status: string }
 interface TxnRow  { id: string; amount: number; merchant_name: string; upi_id: string; status: string; created_at: string }
@@ -161,6 +169,7 @@ export function CommandPalette() {
       hint: u.phone ? `${u.phone} · ${u.kyc_status}` : u.kyc_status,
       icon: UserIcon,
       onRun: () => { nav({ to: `/admin/users/${u.id}` as never }); setOpen(false); },
+      copy: () => `${u.full_name || "(no name)"} · ${u.phone || "no phone"} · KYC ${u.kyc_status} · id ${u.id}`,
     }));
 
     // Transactions
@@ -173,13 +182,57 @@ export function CommandPalette() {
       onRun: () => {
         nav({ to: "/admin/transactions" });
         setOpen(false);
-        // Surface the txn id in URL hash so the txn page can scroll/highlight if it wants.
         setTimeout(() => { window.location.hash = `txn-${t.id}`; }, 50);
       },
+      copy: () => `₹${Number(t.amount).toFixed(2)} · ${t.merchant_name} · ${t.upi_id} · ${t.status} · ${new Date(t.created_at).toLocaleString()} · ref ${t.id}`,
     }));
+
+    // KYC quick-jump filters (always shown when no search term, or when matching)
+    const kycJumps: Array<{ status: "pending" | "approved" | "rejected" | "all"; label: string }> = [
+      { status: "pending", label: "Jump to KYC: Pending" },
+      { status: "approved", label: "Jump to KYC: Approved" },
+      { status: "rejected", label: "Jump to KYC: Rejected" },
+      { status: "all", label: "Jump to KYC: All" },
+    ];
+    kycJumps
+      .filter((k) => !term || k.label.toLowerCase().includes(term) || "kyc".includes(term))
+      .forEach((k) => out.push({
+        id: `kyc:${k.status}`,
+        group: "KYC Queue",
+        label: k.label,
+        hint: `/admin/kyc?status=${k.status}`,
+        icon: FileCheck2,
+        onRun: () => {
+          nav({ to: "/admin/kyc", search: { status: k.status } as never });
+          setOpen(false);
+        },
+      }));
 
     // Actions (always available)
     const actions: Array<Pick<CmdItem, "label" | "hint" | "icon" | "onRun"> & { id: string }> = [
+      {
+        id: "act:open-latest-suspicious",
+        label: "Open latest suspicious item",
+        hint: "Most recent open fraud alert",
+        icon: Flame,
+        onRun: async () => {
+          const s = readAdminSession();
+          if (!s) return;
+          try {
+            const r = await callAdminFn<{ rows: Array<{ id: string; user_id: string; rule_triggered: string }> }>({
+              action: "fraud_list", sessionToken: s.sessionToken, status: "open", rule: "", page: 1, pageSize: 1,
+            });
+            const top = r.rows?.[0];
+            if (!top) { toast.info("No open fraud alerts"); setOpen(false); return; }
+            toast.success(`Opening ${top.rule_triggered}`);
+            nav({ to: `/admin/users/${top.user_id}` as never, search: { tab: "fraud" } as never });
+          } catch (e: any) {
+            toast.error(e?.message || "Failed to fetch latest alert");
+          } finally {
+            setOpen(false);
+          }
+        },
+      },
       {
         id: "act:copy-token",
         label: "Copy session token",
@@ -187,7 +240,7 @@ export function CommandPalette() {
         icon: Copy,
         onRun: async () => {
           const s = readAdminSession();
-          if (s) await navigator.clipboard.writeText(s.sessionToken);
+          if (s) await copyText(s.sessionToken, "session token");
           setOpen(false);
         },
       },
@@ -215,11 +268,18 @@ export function CommandPalette() {
   // Reset cursor when item set shrinks
   useEffect(() => { setActive(0); }, [items.length]);
 
-  // Arrow / Enter handlers on input
+  // Arrow / Enter / Cmd+C handlers on input
   const onInputKey = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "ArrowDown") { e.preventDefault(); setActive((i) => Math.min(i + 1, items.length - 1)); }
     else if (e.key === "ArrowUp") { e.preventDefault(); setActive((i) => Math.max(i - 1, 0)); }
     else if (e.key === "Enter") { e.preventDefault(); items[active]?.onRun(); }
+    else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "c") {
+      const it = items[active];
+      if (it?.copy) {
+        e.preventDefault();
+        void copyText(it.copy(), it.group === "Users" ? "user details" : it.group === "Transactions" ? "transaction details" : "details");
+      }
+    }
   }, [items, active]);
 
   if (!open) return null;
@@ -229,7 +289,7 @@ export function CommandPalette() {
     (acc[it.group] ||= []).push(it);
     return acc;
   }, {});
-  const groupOrder: CmdItem["group"][] = ["Navigate", "Users", "Transactions", "Actions"];
+  const groupOrder: CmdItem["group"][] = ["Navigate", "KYC Queue", "Users", "Transactions", "Actions"];
   let runningIndex = 0;
 
   return (
@@ -290,24 +350,38 @@ export function CommandPalette() {
                   const idx = runningIndex++;
                   const isActive = idx === active;
                   return (
-                    <button
+                    <div
                       key={it.id}
-                      type="button"
+                      role="button"
+                      tabIndex={-1}
                       onMouseEnter={() => setActive(idx)}
                       onClick={() => it.onRun()}
                       style={{
                         width: "100%", display: "flex", alignItems: "center", gap: 10,
-                        padding: "9px 12px", borderRadius: 8, border: "none", textAlign: "left",
+                        padding: "9px 12px", borderRadius: 8, textAlign: "left",
                         background: isActive ? "var(--a-elevated)" : "transparent",
                         color: "var(--a-text)", cursor: "pointer",
                         borderLeft: isActive ? "2px solid var(--a-accent)" : "2px solid transparent",
                       }}
                     >
                       <it.icon size={14} />
-                      <span style={{ flex: 1, fontSize: 13 }}>{it.label}</span>
+                      <span style={{ flex: 1, fontSize: 13, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{it.label}</span>
                       {it.hint && <span className="a-mono" style={{ fontSize: 11, color: "var(--a-muted)" }}>{it.hint}</span>}
+                      {it.copy && (
+                        <button
+                          type="button"
+                          title="Copy details (⌘C)"
+                          onClick={(e) => { e.stopPropagation(); void copyText(it.copy!(), "details"); }}
+                          style={{
+                            background: "transparent", border: "1px solid var(--a-border)", color: "var(--a-muted)",
+                            borderRadius: 4, padding: "2px 6px", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 3, fontSize: 10,
+                          }}
+                        >
+                          <Copy size={10} />
+                        </button>
+                      )}
                       {isActive && <ArrowRight size={12} style={{ color: "var(--a-accent)" }} />}
-                    </button>
+                    </div>
                   );
                 })}
               </div>
@@ -316,9 +390,10 @@ export function CommandPalette() {
         </div>
 
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 14px", borderTop: "1px solid var(--a-border)", fontSize: 11, color: "var(--a-muted)" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
             <span><kbd style={kbdStyle}>↑↓</kbd> navigate</span>
             <span><kbd style={kbdStyle}>↵</kbd> select</span>
+            <span><kbd style={kbdStyle}>⌘C</kbd> copy</span>
             <span><kbd style={kbdStyle}>g</kbd> + <kbd style={kbdStyle}>u/t/k/f/d</kbd> jump</span>
           </div>
           <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
