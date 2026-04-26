@@ -400,12 +400,60 @@ export function ProfilePanel({ onClose }: Props) {
         >
           {tab === "overview" && (
             <>
+              {/* Rewards group — claimed cashback + vouchers */}
+              <p className="pp-group-label">Rewards</p>
+              <div className="pp-card divide-y divide-white/5">
+                <Row
+                  icon={IndianRupee}
+                  label="Claimed Cashback"
+                  hint={
+                    <span className="text-emerald-300 num-mono font-semibold">
+                      ₹{Math.round(stats.totalSpent * 0.01).toLocaleString("en-IN")}
+                    </span>
+                  }
+                  onClick={() => toast.success("Cashback wallet", { description: `You've earned ₹${Math.round(stats.totalSpent * 0.01).toLocaleString("en-IN")} so far. Keep paying to unlock more.` })}
+                />
+                <Row
+                  icon={Ticket}
+                  label="My Vouchers"
+                  hint={<span className="text-amber-300 font-semibold">3 active</span>}
+                  onClick={() => toast("Vouchers", { description: "Amazon ₹100 · Zomato 20% off · Myntra ₹250" })}
+                />
+              </div>
+
               {/* UPI group */}
               <p className="pp-group-label">UPI</p>
               <div className="pp-card divide-y divide-white/5">
                 <Row icon={Settings} label="Account management" />
                 <Row icon={Receipt} label="Transaction history" onClick={() => { onClose(); toast("Tap History on home", { description: "We took you back so you can open Transactions." }); }} />
                 <Row icon={Wallet} label="Everything UPI" />
+              </div>
+
+              {/* Education & Social */}
+              <p className="pp-group-label">About you</p>
+              <div className="pp-card divide-y divide-white/5">
+                <Row
+                  icon={GraduationCap}
+                  label="School / College"
+                  hint={
+                    <span className="text-white/70 truncate max-w-[140px] inline-block">
+                      {profile?.school_name || "Add"}
+                    </span>
+                  }
+                  onClick={() => setSchoolOpen(true)}
+                />
+                <Row
+                  icon={Instagram}
+                  label="Connect Instagram"
+                  hint={
+                    instagram ? (
+                      <span className="text-pink-300 font-medium">@{instagram}</span>
+                    ) : (
+                      <span className="text-white/55">Not linked</span>
+                    )
+                  }
+                  onClick={() => setIgOpen(true)}
+                />
               </div>
 
               {/* Shop group */}
@@ -436,13 +484,19 @@ export function ProfilePanel({ onClose }: Props) {
                 <Row icon={Gift} label="Rewards" hint={<span className="text-emerald-300">New</span>} />
               </div>
 
+              {/* Settings shortcuts */}
+              <p className="pp-group-label">Settings</p>
+              <div className="pp-card divide-y divide-white/5">
+                <Row icon={Bell} label="Notifications" hint="Manage" onClick={() => setTab("preferences")} />
+                <Row icon={Lock} label="Privacy Policy" onClick={() => window.open("https://teen-wallet.lovable.app/privacy", "_blank", "noopener,noreferrer")} />
+                <Row icon={FileText} label="Terms & Conditions" onClick={() => toast("Terms & Conditions", { description: "Opening soon." })} />
+              </div>
+
               {/* Others */}
               <p className="pp-group-label">Others</p>
               <div className="pp-card divide-y divide-white/5">
-                <Row icon={HelpCircle} label="Help & Support" />
-                <Row icon={FileText} label="Terms & Conditions" />
-                <Row icon={Lock} label="Privacy Policy" />
-                <Row icon={Star} label="Rate us" />
+                <Row icon={HelpCircle} label="Help & Support" onClick={() => { onClose(); window.location.assign("/preview/profile-help"); }} />
+                <Row icon={Star} label="Rate us" onClick={() => toast.success("Thanks for the love! ❤️")} />
                 <Row icon={LogOut} label="Logout" onClick={() => setConfirmLogout(true)} />
               </div>
 
