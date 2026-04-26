@@ -94,7 +94,12 @@ function AdminLogin() {
         <h1 style={{ fontSize: 22, fontWeight: 700, marginTop: 4 }}>Admin Console</h1>
         <p style={{ fontSize: 13, color: "var(--a-muted)", marginTop: 4 }}>Restricted access. All activity is logged.</p>
 
-        {err && <div style={{ marginTop: 16, padding: 10, borderRadius: 6, background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", color: "#fca5a5", fontSize: 13 }}>{err}</div>}
+        {err && (
+          <div style={{ marginTop: 16, padding: 10, borderRadius: 6, background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", color: "#fca5a5", fontSize: 13 }}>
+            <div>{err}</div>
+            {errCid && <div style={{ marginTop: 6 }}><CopyableErrorId id={errCid} /></div>}
+          </div>
+        )}
 
         {stage === "email" && (
           <form onSubmit={submitEmail} style={{ marginTop: 20, display: "grid", gap: 12 }}>
