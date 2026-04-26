@@ -437,66 +437,6 @@ export function ProfilePanel({ onClose }: Props) {
               </div>
 
               <p className="text-center text-[10.5px] text-white/35 pt-3 pb-1">v1.0.6</p>
-
-                id="ov-quick-actions"
-                title="Quick actions"
-                defaultOpen
-                isOpen={isOpen("ov-quick-actions", true)}
-                onToggle={() => toggleSection("ov-quick-actions", true)}
-              >
-                <div className="px-3.5 py-3.5">
-                  <QuickActions
-                    onUpdatePhone={() => setEditPhoneOpen(true)}
-                    onManageKyc={() => setTab("account")}
-                    onViewTransactions={() => { onClose(); /* HomeScreen owns the txn list */ toast("Tap History on home", { description: "We took you back so you can open Transactions." }); }}
-                  />
-                </div>
-              </CollapsibleSection>
-
-              <CollapsibleSection
-                id="ov-quick-links"
-                title="Quick links"
-                defaultOpen
-                isOpen={isOpen("ov-quick-links", true)}
-                onToggle={() => toggleSection("ov-quick-links", true)}
-              >
-                <Row icon={Wallet} label="Wallet & balance" hint={`₹${Number(balance).toLocaleString("en-IN")}`} />
-                <Row icon={CreditCard} label="Virtual Card" hint={<span className="text-amber-300">Coming soon</span>} onClick={() => setVcardOpen(true)} />
-                <Row icon={Building2} label="Bank accounts" hint="Linked" />
-                <Row icon={Gift} label="Rewards & cashback" hint={<span className="text-emerald-300">New</span>} />
-                <Row icon={Users} label="Refer & earn" hint="₹100" />
-              </CollapsibleSection>
-
-              <CollapsibleSection
-                id="ov-membership"
-                title="Membership"
-                defaultOpen={false}
-                isOpen={isOpen("ov-membership", false)}
-                onToggle={() => toggleSection("ov-membership", false)}
-              >
-                <div className="px-3.5 py-3.5">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="pp-row-icon"><Star className="w-4 h-4 text-amber-300" strokeWidth={2} /></div>
-                      <div>
-                        <p className="text-[13px] text-white font-medium">Gold member</p>
-                        <p className="text-[11px] text-white/50">Since {memberSince}</p>
-                      </div>
-                    </div>
-                    <span className="text-[10px] font-bold tracking-wider text-amber-300 px-2 py-0.5 rounded-full bg-amber-400/10 border border-amber-400/25">GOLD</span>
-                  </div>
-                  <div className="mt-3.5">
-                    <div className="flex items-center justify-between mb-1.5">
-                      <span className="text-[10.5px] text-white/55 uppercase tracking-wider">Progress to Platinum</span>
-                      <span className="text-[10.5px] text-white/70 num-mono">{Math.min(100, Math.round((stats.txnCount / 50) * 100))}%</span>
-                    </div>
-                    <div className="pp-progress">
-                      <div className="pp-progress-fill" style={{ width: `${Math.min(100, Math.round((stats.txnCount / 50) * 100))}%` }} />
-                    </div>
-                    <p className="text-[10.5px] text-white/45 mt-1.5">{Math.max(0, 50 - stats.txnCount)} more transactions to unlock Platinum perks</p>
-                  </div>
-                </div>
-              </CollapsibleSection>
             </>
           )}
 
