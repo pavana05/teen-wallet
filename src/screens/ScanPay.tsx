@@ -47,18 +47,19 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
   // The actual transaction returned from the API after a successful insert.
   // Drives the success screen's reference ID + receipt PDF.
   const [savedTxn, setSavedTxn] = useState<SavedTxn | null>(null);
-  const [note, setNote] = useState<string>("");
+  const [note, setNote] = useState<string>(persisted?.note ?? "");
   // Bump this to force-remount the ScannerView and dispose its camera + Html5Qrcode instance.
   const [scannerKey, setScannerKey] = useState(0);
 
-  // Keep persistence in sync; clear on terminal states.
+  // Keep persistence in sync; clear on terminal states. Including `note` so a
+  // user-typed memo survives accidental nav-away mid-flow.
   useEffect(() => {
     if (phase === "scanning" || phase === "confirm") {
-      writePersisted({ phase, payload, amount });
+      writePersisted({ phase, payload, amount, note });
     } else {
       clearPersisted();
     }
-  }, [phase, payload, amount]);
+  }, [phase, payload, amount, note]);
 
   const navLockRef = useRef(false);
   const handleDecoded = useCallback((parsed: UpiPayload) => {
