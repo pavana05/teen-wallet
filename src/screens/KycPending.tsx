@@ -82,6 +82,11 @@ export function KycPending({ onApproved, forceState, forceReason }: { onApproved
   const [initialLoading, setInitialLoading] = useState<boolean>(!forceState && !persistedPending);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [retrying, setRetrying] = useState(false);
+  // Track last successful fetch — used by the progress bar to refine its estimate
+  // (and seeded from persisted state so reload doesn't reset freshness).
+  const [lastFetchAt, setLastFetchAt] = useState<string | null>(
+    persistedPending?.lastSeenAt ?? null
+  );
   const stoppedRef = useRef(!!forceState);
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const redirectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
