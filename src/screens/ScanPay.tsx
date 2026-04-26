@@ -16,6 +16,7 @@ interface PersistedFlow {
   phase: Phase;
   payload: UpiPayload | null;
   amount: number;
+  note?: string;
 }
 
 type Phase = "scanning" | "confirm" | "processing" | "success" | "failed";
