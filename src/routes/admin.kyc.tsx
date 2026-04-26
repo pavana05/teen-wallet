@@ -159,6 +159,17 @@ function KycQueue() {
   const [filters, setFilters] = usePersistedState<Filters>("tw_admin_kyc_v2", {
     status: "pending",
   });
+
+  // Deep-link: apply ?status=... from the URL on mount (one-shot).
+  useEffect(() => {
+    const sp = new URLSearchParams(window.location.search);
+    const s = sp.get("status");
+    if (s && ["pending", "approved", "rejected", "all"].includes(s) && s !== filters.status) {
+      setFilters((f) => ({ ...f, status: s as Filters["status"] }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const [sort, setSort] = usePersistedState<{ key: SortKey; dir: SortDir }>(
     "tw_admin_kyc_sort_v1",
     { key: "submitted", dir: "asc" },
