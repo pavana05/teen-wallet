@@ -320,7 +320,7 @@ export function Home() {
       </section>
 
       {/* ===== EVERYTHING UPI ===== */}
-      <div className="px-5 mt-8">
+      <div className="px-5 mt-10">
         <div className="hp-section-head">
           <div>
             <span className="hp-section-eyebrow">Quick actions</span>
