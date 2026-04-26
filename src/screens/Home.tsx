@@ -320,7 +320,7 @@ export function Home() {
           </button>
           <button
             type="button"
-            onClick={() => setShowNotifs(true)}
+            onClick={() => { void haptics.tap(); setShowNotifs(true); }}
             aria-label={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : "Notifications"}
             className="hp-bell"
           >
