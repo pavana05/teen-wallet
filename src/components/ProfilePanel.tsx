@@ -78,7 +78,7 @@ export function ProfilePanel({ onClose }: Props) {
     const [{ data: p, error: pErr }, { data: txns, error: tErr }] = await Promise.all([
       supabase
         .from("profiles")
-        .select("full_name,phone,dob,gender,email,aadhaar_last4,kyc_status,notif_prefs,created_at")
+        .select("full_name,phone,dob,gender,email,aadhaar_last4,school_name,kyc_status,notif_prefs,created_at")
         .eq("id", userId)
         .maybeSingle(),
       supabase
