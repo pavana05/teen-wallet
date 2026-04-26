@@ -697,7 +697,7 @@ Deno.serve(async (req) => {
     const sortKey = String(body.sortKey ?? "created_at");
     const sortDir = String(body.sortDir ?? "desc") === "asc";
 
-    let q = sb.from("profiles").select("id,full_name,phone,dob,kyc_status,onboarding_stage,balance,created_at,aadhaar_last4", { count: "exact" });
+    let q = sb.from("profiles").select("id,full_name,phone,dob,kyc_status,onboarding_stage,balance,created_at,aadhaar_last4,account_locked,account_tag", { count: "exact" });
     if (search) {
       const safe = search.replace(/[%,]/g, "");
       q = q.or(`full_name.ilike.%${safe}%,phone.ilike.%${safe}%,id.ilike.%${safe}%`);
