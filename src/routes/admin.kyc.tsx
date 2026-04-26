@@ -590,6 +590,10 @@ function KycQueue() {
           loadingMore={loadingMore}
           hasMore={hasMore}
           onLoadMore={loadMore}
+          onRowPointerDown={handleRowPointerDown}
+          onRowPointerUp={handleRowPointerUp}
+          onRowPointerCancel={handleRowPointerCancel}
+          rowClass={(r) => (quickPreview?.id === r.id ? "kyc-row-pressing" : undefined)}
           empty={
             <div style={{ padding: 48, textAlign: "center", color: "var(--a-muted)" }}>
               <ShieldCheck size={28} style={{ opacity: 0.4, display: "block", margin: "0 auto 8px" }} />
