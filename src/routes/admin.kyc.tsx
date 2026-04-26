@@ -5,6 +5,8 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   Loader2, ShieldCheck, ShieldX, RefreshCw, Clock,
   Copy, Check, ExternalLink, ImageOff, FileImage, User as UserIcon,
+  ZoomIn, X, SplitSquareHorizontal, History as HistoryIcon, AlertTriangle,
+  ChevronUp, ChevronDown, ChevronsUpDown,
 } from "lucide-react";
 import { PermissionBanner, ErrorState } from "@/admin/components/AdminFeedback";
 import { toast } from "sonner";
@@ -41,6 +43,20 @@ interface KycRow {
   } | null;
 }
 
+interface HistoryEvent {
+  id: string;
+  actionType: string;
+  adminId: string | null;
+  adminEmail: string | null;
+  adminName: string | null;
+  adminRole: string | null;
+  decision: string | null;
+  reason: string | null;
+  previousStatus: string | null;
+  ip: string | null;
+  at: string;
+}
+
 const STATUS_BADGE: Record<string, string> = {
   pending: "kyc-pill kyc-pill-pending",
   approved: "kyc-pill kyc-pill-approved",
@@ -48,11 +64,29 @@ const STATUS_BADGE: Record<string, string> = {
   not_started: "kyc-pill kyc-pill-muted",
 };
 
+// Curated list of common reject reasons. "Other" forces the admin to write
+// a custom note. Keep terse — these strings are sent to users.
+const REJECT_REASONS = [
+  "Selfie unclear or low quality",
+  "Selfie does not match Aadhaar photo",
+  "Aadhaar document unreadable",
+  "Aadhaar number mismatch with profile",
+  "Name on document does not match profile",
+  "Date of birth mismatch (under 13)",
+  "Suspected fraudulent submission",
+  "Document expired or tampered",
+  "Other (write below)",
+] as const;
+type RejectReason = (typeof REJECT_REASONS)[number];
+
 const PAGE_SIZE = 50;
 
 interface Filters {
   status: "pending" | "approved" | "rejected" | "all";
 }
+
+type SortKey = "submitted" | "wait" | "match" | "status" | "name";
+type SortDir = "asc" | "desc";
 
 function timeAgo(iso: string): string {
   const ms = Date.now() - new Date(iso).getTime();
@@ -78,14 +112,30 @@ function ageFromDob(dob: string | null | undefined): number | null {
 function MatchGauge({ score }: { score: number | null }) {
   if (score == null) return <span className="a-mono" style={{ color: "var(--a-muted)" }}>—</span>;
   const pct = score <= 1 ? score * 100 : score;
-  const color = pct >= 90 ? "var(--a-success)" : pct >= 75 ? "var(--a-warn)" : "var(--a-danger)";
+  const tier =
+    pct >= 90 ? { color: "var(--a-success)", label: "high" }
+    : pct >= 75 ? { color: "var(--a-warn)", label: "med" }
+    : { color: "var(--a-danger)", label: "low" };
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+    <div style={{ display: "flex", alignItems: "center", gap: 8 }} title={`Match confidence: ${tier.label}`}>
       <div style={{ width: 80, height: 6, borderRadius: 999, background: "var(--a-elevated)", overflow: "hidden" }}>
-        <div style={{ width: `${Math.min(100, pct)}%`, height: "100%", background: color, transition: "width 300ms" }} />
+        <div style={{ width: `${Math.min(100, pct)}%`, height: "100%", background: tier.color, transition: "width 300ms" }} />
       </div>
-      <span className="a-mono" style={{ fontSize: 12, color }}>{pct.toFixed(1)}%</span>
+      <span className="a-mono" style={{ fontSize: 12, color: tier.color, fontWeight: 600 }}>{pct.toFixed(1)}%</span>
     </div>
+  );
+}
+
+function StatusPill({ status }: { status: KycRow["status"] }) {
+  const Icon = status === "approved" ? ShieldCheck
+    : status === "rejected" ? ShieldX
+    : status === "pending" ? Clock
+    : AlertTriangle;
+  return (
+    <span className={STATUS_BADGE[status]} style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+      <Icon size={10} />
+      {status}
+    </span>
   );
 }
 
@@ -98,11 +148,21 @@ function StatCard({ label, value, accent }: { label: string; value: string | num
   );
 }
 
+function SortIcon({ dir }: { dir: SortDir | undefined }) {
+  if (dir === "asc") return <ChevronUp size={11} style={{ display: "inline-block", verticalAlign: "-1px" }} />;
+  if (dir === "desc") return <ChevronDown size={11} style={{ display: "inline-block", verticalAlign: "-1px" }} />;
+  return <ChevronsUpDown size={11} style={{ display: "inline-block", verticalAlign: "-1px", opacity: 0.4 }} />;
+}
+
 function KycQueue() {
   const admin = useMemo(() => readAdminSession()?.admin, []);
   const [filters, setFilters] = usePersistedState<Filters>("tw_admin_kyc_v2", {
     status: "pending",
   });
+  const [sort, setSort] = usePersistedState<{ key: SortKey; dir: SortDir }>(
+    "tw_admin_kyc_sort_v1",
+    { key: "submitted", dir: "asc" },
+  );
 
   const [rows, setRows] = useState<KycRow[]>([]);
   const [total, setTotal] = useState(0);
@@ -112,12 +172,17 @@ function KycQueue() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [reviewing, setReviewing] = useState<KycRow | null>(null);
-  const [rejectReason, setRejectReason] = useState("");
+  const [rejectReason, setRejectReason] = useState<RejectReason | "">("");
+  const [rejectNote, setRejectNote] = useState("");
   const [showReject, setShowReject] = useState(false);
   const [err, setErr] = useState("");
   const [urls, setUrls] = useState<{ selfieUrl: string | null; docFrontUrl: string | null; docBackUrl: string | null } | null>(null);
   const [urlsLoading, setUrlsLoading] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [zoomUrl, setZoomUrl] = useState<{ url: string; label: string } | null>(null);
+  const [compareOpen, setCompareOpen] = useState(false);
+  const [history, setHistory] = useState<HistoryEvent[] | null>(null);
+  const [historyLoading, setHistoryLoading] = useState(false);
 
   const canDecide = can(admin?.role, "decideKyc");
   const canView = can(admin?.role, "viewKyc") || canDecide;
@@ -187,11 +252,13 @@ function KycQueue() {
 
   // Fetch signed URLs whenever opening a review
   useEffect(() => {
-    if (!reviewing) { setUrls(null); return; }
+    if (!reviewing) { setUrls(null); setHistory(null); return; }
     const s = readAdminSession();
     if (!s) return;
     setUrlsLoading(true);
     setUrls(null);
+    setHistory(null);
+    setHistoryLoading(true);
     const t0 = performance.now();
     callAdminFn<{ selfieUrl: string | null; docFrontUrl: string | null; docBackUrl: string | null }>({
       action: "kyc_signed_urls", sessionToken: s.sessionToken, submissionId: reviewing.id,
@@ -202,7 +269,32 @@ function KycQueue() {
       })
       .catch(() => setUrls({ selfieUrl: null, docFrontUrl: null, docBackUrl: null }))
       .finally(() => setUrlsLoading(false));
+
+    callAdminFn<{ rows: HistoryEvent[] }>({
+      action: "kyc_history", sessionToken: s.sessionToken, submissionId: reviewing.id,
+    })
+      .then((r) => setHistory(r.rows))
+      .catch(() => setHistory([]))
+      .finally(() => setHistoryLoading(false));
   }, [reviewing]);
+
+  // Reset reject form whenever review modal changes target.
+  useEffect(() => {
+    setShowReject(false);
+    setRejectReason("");
+    setRejectNote("");
+  }, [reviewing?.id]);
+
+  // Compose final reject reason from the dropdown + custom note.
+  // When "Other" is chosen, the note alone is the reason.
+  // Otherwise reason = "<preset> — <note>" (note required for audit clarity).
+  function composeRejectReason(): string {
+    if (!rejectReason) return "";
+    const note = rejectNote.trim();
+    if (rejectReason === "Other (write below)") return note;
+    return note ? `${rejectReason} — ${note}` : rejectReason;
+  }
+  const rejectValid = rejectReason !== "" && rejectNote.trim().length >= 4;
 
   async function decide(submissionId: string, decision: "approved" | "rejected", reason?: string) {
     const s = readAdminSession();
@@ -215,6 +307,7 @@ function KycQueue() {
       setReviewing(null);
       setShowReject(false);
       setRejectReason("");
+      setRejectNote("");
       setPage(1);
       await fetchPage(1);
     } catch (e: any) {
@@ -234,10 +327,49 @@ function KycQueue() {
 
   const pendingCount = filters.status === "pending" ? total : rows.filter((r) => r.status === "pending").length;
 
+  // Client-side sort over loaded rows. Server returns ordered by created_at ASC,
+  // so this re-sort is purely a UX layer over what's already loaded.
+  const sortedRows = useMemo(() => {
+    const copy = [...rows];
+    const dir = sort.dir === "asc" ? 1 : -1;
+    copy.sort((a, b) => {
+      switch (sort.key) {
+        case "name": {
+          const an = (a.profile?.full_name || "").toLowerCase();
+          const bn = (b.profile?.full_name || "").toLowerCase();
+          return an.localeCompare(bn) * dir;
+        }
+        case "match": {
+          const av = a.match_score == null ? -1 : (a.match_score <= 1 ? a.match_score * 100 : a.match_score);
+          const bv = b.match_score == null ? -1 : (b.match_score <= 1 ? b.match_score * 100 : b.match_score);
+          return (av - bv) * dir;
+        }
+        case "status":
+          return a.status.localeCompare(b.status) * dir;
+        case "wait":
+        case "submitted":
+        default:
+          return (new Date(a.created_at).getTime() - new Date(b.created_at).getTime()) * dir;
+      }
+    });
+    return copy;
+  }, [rows, sort]);
+
+  function toggleSort(key: SortKey) {
+    setSort((cur) => {
+      if (cur.key !== key) return { key, dir: "asc" };
+      return { key, dir: cur.dir === "asc" ? "desc" : "asc" };
+    });
+  }
+  const sortDirFor = (key: SortKey): SortDir | undefined => (sort.key === key ? sort.dir : undefined);
+
   // Build columns for VirtualTable
   const columns: Column<KycRow>[] = useMemo(() => [
     {
-      key: "user", header: "User", width: "minmax(220px, 1.5fr)",
+      key: "user", header: <span>User <SortIcon dir={sortDirFor("name")} /></span>,
+      width: "minmax(220px, 1.5fr)",
+      onSort: () => toggleSort("name"),
+      sortDir: sortDirFor("name"),
       cell: (r) => {
         const age = ageFromDob(r.profile?.dob);
         return (
@@ -263,11 +395,17 @@ function KycQueue() {
       cell: (r) => <span className="a-mono">{r.profile?.aadhaar_last4 ? `XXXX-XXXX-${r.profile.aadhaar_last4}` : "—"}</span>,
     },
     {
-      key: "submitted", header: "Submitted", width: "180px",
+      key: "submitted", header: <span>Submitted <SortIcon dir={sortDirFor("submitted")} /></span>,
+      width: "180px",
+      onSort: () => toggleSort("submitted"),
+      sortDir: sortDirFor("submitted"),
       cell: (r) => <span style={{ color: "var(--a-muted)" }}>{new Date(r.created_at).toLocaleString()}</span>,
     },
     {
-      key: "wait", header: "Wait", width: "120px",
+      key: "wait", header: <span>Wait <SortIcon dir={sortDirFor("wait")} /></span>,
+      width: "120px",
+      onSort: () => toggleSort("wait"),
+      sortDir: sortDirFor("wait"),
       cell: (r) => {
         const overdue = Date.now() - new Date(r.created_at).getTime() > 60 * 60 * 1000 && r.status === "pending";
         return (
@@ -279,12 +417,18 @@ function KycQueue() {
       },
     },
     {
-      key: "match", header: "Match", width: "160px",
+      key: "match", header: <span>Match <SortIcon dir={sortDirFor("match")} /></span>,
+      width: "160px",
+      onSort: () => toggleSort("match"),
+      sortDir: sortDirFor("match"),
       cell: (r) => <MatchGauge score={r.match_score} />,
     },
     {
-      key: "status", header: "Status", width: "120px",
-      cell: (r) => <span className={STATUS_BADGE[r.status]}>{r.status}</span>,
+      key: "status", header: <span>Status <SortIcon dir={sortDirFor("status")} /></span>,
+      width: "120px",
+      onSort: () => toggleSort("status"),
+      sortDir: sortDirFor("status"),
+      cell: (r) => <StatusPill status={r.status} />,
     },
     {
       key: "actions", header: "", width: "110px", align: "right",
@@ -292,7 +436,7 @@ function KycQueue() {
         <button className="a-btn-ghost" onClick={() => setReviewing(r)} style={{ padding: "6px 12px", fontSize: 12 }}>Review →</button>
       ),
     },
-  ], []);
+  ], [sort]);
 
   return (
     <div>
@@ -344,7 +488,7 @@ function KycQueue() {
 
       <div style={{ marginTop: 12 }}>
         <VirtualTable<KycRow>
-          rows={rows}
+          rows={sortedRows}
           columns={columns}
           rowId={(r) => r.id}
           height={620}
@@ -388,18 +532,46 @@ function KycQueue() {
                   </button>
                 </div>
               </div>
-              <span className={STATUS_BADGE[reviewing.status]}>{reviewing.status}</span>
+              <StatusPill status={reviewing.status} />
             </div>
 
             {/* Selfie + Docs grid */}
             <div className="kyc-media-grid">
-              <MediaTile label="Selfie" url={urls?.selfieUrl ?? null} loading={urlsLoading}
+              <MediaTile
+                label="Selfie"
+                url={urls?.selfieUrl ?? null}
+                loading={urlsLoading}
+                onZoom={(u) => setZoomUrl({ url: u, label: "Selfie" })}
                 meta={reviewing.selfie_width && reviewing.selfie_height
                   ? `${reviewing.selfie_width}×${reviewing.selfie_height}${reviewing.selfie_size_bytes ? ` · ${Math.round(reviewing.selfie_size_bytes / 1024)} KB` : ""}`
-                  : null} />
-              <MediaTile label="Aadhaar front" url={urls?.docFrontUrl ?? null} loading={urlsLoading} />
-              <MediaTile label="Aadhaar back" url={urls?.docBackUrl ?? null} loading={urlsLoading} />
+                  : null}
+              />
+              <MediaTile
+                label="Aadhaar front"
+                url={urls?.docFrontUrl ?? null}
+                loading={urlsLoading}
+                onZoom={(u) => setZoomUrl({ url: u, label: "Aadhaar front" })}
+              />
+              <MediaTile
+                label="Aadhaar back"
+                url={urls?.docBackUrl ?? null}
+                loading={urlsLoading}
+                onZoom={(u) => setZoomUrl({ url: u, label: "Aadhaar back" })}
+              />
             </div>
+
+            {/* Compare front/back trigger */}
+            {(urls?.docFrontUrl || urls?.docBackUrl) && (
+              <button
+                className="a-btn-ghost"
+                style={{ marginBottom: 16, fontSize: 12 }}
+                onClick={() => setCompareOpen(true)}
+                disabled={!urls?.docFrontUrl || !urls?.docBackUrl}
+                title={!urls?.docFrontUrl || !urls?.docBackUrl ? "Both Aadhaar sides required to compare" : "Open side-by-side compare"}
+              >
+                <SplitSquareHorizontal size={13} /> Compare front vs back
+              </button>
+            )}
 
             {/* Details */}
             <div className="kyc-details-grid">
@@ -434,68 +606,57 @@ function KycQueue() {
                     </dd>
                   </div>
                   <div><dt>Match score</dt><dd><MatchGauge score={reviewing.match_score} /></dd></div>
-                  <div><dt>Status</dt><dd><span className={STATUS_BADGE[reviewing.status]}>{reviewing.status}</span></dd></div>
+                  <div><dt>Status</dt><dd><StatusPill status={reviewing.status} /></dd></div>
                   <div><dt>Submitted</dt><dd>{new Date(reviewing.created_at).toLocaleString()}</dd></div>
                   <div><dt>Updated</dt><dd>{new Date(reviewing.updated_at).toLocaleString()} <span style={{ color: "var(--a-muted)" }}>· {timeAgo(reviewing.updated_at)}</span></dd></div>
-                </dl>
-                <div className="a-label" style={{ marginTop: 14, marginBottom: 8 }}>Selfie metadata</div>
-                <dl className="kyc-dl">
-                  <div>
-                    <dt>Dimensions</dt>
-                    <dd className="a-mono">
-                      {reviewing.selfie_width && reviewing.selfie_height
-                        ? `${reviewing.selfie_width} × ${reviewing.selfie_height}`
-                        : "—"}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt>File size</dt>
-                    <dd className="a-mono">
-                      {reviewing.selfie_size_bytes
-                        ? `${Math.round(reviewing.selfie_size_bytes / 1024)} KB`
-                        : "—"}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt>Storage path</dt>
-                    <dd className="a-mono" style={{ fontSize: 11, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 220 }}>
-                      {reviewing.selfie_path || "—"}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt>Doc front</dt>
-                    <dd className="a-mono" style={{ fontSize: 11 }}>
-                      {reviewing.doc_front_path ? "✓ uploaded" : <span style={{ color: "var(--a-muted)" }}>not uploaded</span>}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt>Doc back</dt>
-                    <dd className="a-mono" style={{ fontSize: 11 }}>
-                      {reviewing.doc_back_path ? "✓ uploaded" : <span style={{ color: "var(--a-muted)" }}>not uploaded</span>}
-                    </dd>
-                  </div>
                 </dl>
               </div>
             </div>
 
+            {/* Action timeline */}
+            <ActionTimeline events={history} loading={historyLoading} />
+
             {reviewing.reason && (
               <div className="kyc-reason">
-                <div className="a-label" style={{ marginBottom: 4 }}>Reason</div>{reviewing.reason}
+                <div className="a-label" style={{ marginBottom: 4 }}>Latest reason on record</div>{reviewing.reason}
               </div>
             )}
 
             {showReject && (
-              <div style={{ marginTop: 12 }}>
+              <div className="kyc-reject-form">
                 <div className="a-label" style={{ marginBottom: 6 }}>Rejection reason (sent to user)</div>
-                <select className="a-input" value={rejectReason} onChange={(e) => setRejectReason(e.target.value)}>
-                  <option value="">Select reason…</option>
-                  <option value="Name mismatch">Name mismatch</option>
-                  <option value="Selfie unclear">Selfie unclear</option>
-                  <option value="Invalid Aadhaar">Invalid Aadhaar</option>
-                  <option value="Age below 13">Age below 13</option>
-                  <option value="Document unreadable">Document unreadable</option>
-                  <option value="Other">Other</option>
+                <select
+                  className="a-input"
+                  value={rejectReason}
+                  onChange={(e) => setRejectReason(e.target.value as RejectReason)}
+                >
+                  <option value="">Select a common reason…</option>
+                  {REJECT_REASONS.map((r) => (
+                    <option key={r} value={r}>{r}</option>
+                  ))}
                 </select>
+                <div className="a-label" style={{ marginTop: 12, marginBottom: 6 }}>
+                  Reviewer note <span style={{ color: "var(--a-danger)" }}>*</span>
+                </div>
+                <textarea
+                  className="a-input"
+                  rows={3}
+                  value={rejectNote}
+                  onChange={(e) => setRejectNote(e.target.value)}
+                  placeholder={
+                    rejectReason === "Other (write below)"
+                      ? "Describe the issue in your own words (min 4 chars)…"
+                      : "Add reviewer-specific detail (min 4 chars)…"
+                  }
+                  maxLength={500}
+                />
+                <div style={{ fontSize: 11, color: "var(--a-muted)", marginTop: 6, display: "flex", justifyContent: "space-between" }}>
+                  <span>
+                    {rejectValid ? "✓ Will send: " : "Pick a reason and add a note. "}
+                    {rejectValid && <em style={{ color: "var(--a-text)" }}>{composeRejectReason()}</em>}
+                  </span>
+                  <span>{rejectNote.length}/500</span>
+                </div>
               </div>
             )}
 
@@ -520,9 +681,12 @@ function KycQueue() {
                 </>
               )}
               {canDecide && showReject && (
-                <button className="kyc-btn-reject-confirm"
-                  disabled={!rejectReason || !!busyId}
-                  onClick={() => decide(reviewing.id, "rejected", rejectReason)}>
+                <button
+                  className="kyc-btn-reject-confirm"
+                  disabled={!rejectValid || !!busyId}
+                  onClick={() => decide(reviewing.id, "rejected", composeRejectReason())}
+                  title={!rejectValid ? "Pick a reason and add a note (min 4 chars)" : "Confirm rejection"}
+                >
                   {busyId === reviewing.id ? <Loader2 size={14} className="animate-spin" /> : <ShieldX size={14} />} Confirm reject
                 </button>
               )}
@@ -530,30 +694,226 @@ function KycQueue() {
           </div>
         </div>
       )}
+
+      {/* Selfie / doc zoom modal */}
+      {zoomUrl && (
+        <ZoomModal url={zoomUrl.url} label={zoomUrl.label} onClose={() => setZoomUrl(null)} />
+      )}
+
+      {/* Aadhaar front-vs-back compare */}
+      {compareOpen && urls?.docFrontUrl && urls?.docBackUrl && (
+        <CompareModal
+          frontUrl={urls.docFrontUrl}
+          backUrl={urls.docBackUrl}
+          onClose={() => setCompareOpen(false)}
+        />
+      )}
     </div>
   );
 }
 
-function MediaTile({ label, url, loading, meta }: { label: string; url: string | null; loading: boolean; meta?: string | null }) {
+function MediaTile({
+  label, url, loading, meta, onZoom,
+}: {
+  label: string;
+  url: string | null;
+  loading: boolean;
+  meta?: string | null;
+  onZoom?: (url: string) => void;
+}) {
   return (
     <div className="kyc-media">
       <div className="kyc-media-label">
         <span>{label}</span>
-        {url && <a href={url} target="_blank" rel="noreferrer" className="kyc-copy" title="Open original"><ExternalLink size={11} /></a>}
+        <div style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>
+          {url && onZoom && (
+            <button onClick={() => onZoom(url)} className="kyc-copy" title="Tap to zoom">
+              <ZoomIn size={11} />
+            </button>
+          )}
+          {url && (
+            <a href={url} target="_blank" rel="noreferrer" className="kyc-copy" title="Open original in new tab">
+              <ExternalLink size={11} />
+            </a>
+          )}
+        </div>
       </div>
-      <div className="kyc-media-frame">
+      <button
+        type="button"
+        className="kyc-media-frame"
+        onClick={() => url && onZoom?.(url)}
+        disabled={!url || !onZoom}
+        style={{
+          all: "unset",
+          aspectRatio: "1",
+          borderRadius: 10,
+          border: "1px solid var(--a-border)",
+          background: "var(--a-surface-2)",
+          display: "grid",
+          placeItems: "center",
+          overflow: "hidden",
+          cursor: url && onZoom ? "zoom-in" : "default",
+        }}
+        title={url ? "Tap to zoom" : undefined}
+      >
         {loading ? (
           <Loader2 size={20} className="animate-spin" style={{ color: "var(--a-muted)" }} />
         ) : url ? (
-          <img src={url} alt={label} loading="lazy" />
+          <img src={url} alt={label} loading="lazy" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
         ) : (
           <div className="kyc-media-empty">
             {label === "Selfie" ? <FileImage size={22} /> : <ImageOff size={22} />}
             <span>Not available</span>
           </div>
         )}
-      </div>
+      </button>
       {meta && <div className="kyc-media-meta a-mono">{meta}</div>}
+    </div>
+  );
+}
+
+/** Full-screen image zoom with "Open in new tab" affordance. ESC closes. */
+function ZoomModal({ url, label, onClose }: { url: string; label: string; onClose: () => void }) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  return (
+    <div className="kyc-zoom-overlay" onClick={onClose} role="dialog" aria-label={`${label} preview`}>
+      <div className="kyc-zoom-toolbar" onClick={(e) => e.stopPropagation()}>
+        <span style={{ fontSize: 13, fontWeight: 600 }}>{label}</span>
+        <div style={{ flex: 1 }} />
+        <a href={url} target="_blank" rel="noreferrer" className="a-btn-ghost" style={{ fontSize: 12 }}>
+          <ExternalLink size={13} /> Open in new tab
+        </a>
+        <button onClick={onClose} className="a-btn-ghost" style={{ fontSize: 12 }} aria-label="Close preview">
+          <X size={13} /> Close
+        </button>
+      </div>
+      <img
+        src={url}
+        alt={label}
+        onClick={(e) => e.stopPropagation()}
+        className="kyc-zoom-image"
+      />
+    </div>
+  );
+}
+
+/** Side-by-side Aadhaar front/back compare with shared zoom controls. */
+function CompareModal({
+  frontUrl, backUrl, onClose,
+}: { frontUrl: string; backUrl: string; onClose: () => void }) {
+  const [zoom, setZoom] = useState(1);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+      if (e.key === "+" || e.key === "=") setZoom((z) => Math.min(3, z + 0.25));
+      if (e.key === "-" || e.key === "_") setZoom((z) => Math.max(0.5, z - 0.25));
+      if (e.key === "0") setZoom(1);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  return (
+    <div className="kyc-zoom-overlay" onClick={onClose} role="dialog" aria-label="Aadhaar compare">
+      <div className="kyc-zoom-toolbar" onClick={(e) => e.stopPropagation()}>
+        <span style={{ fontSize: 13, fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 6 }}>
+          <SplitSquareHorizontal size={14} /> Aadhaar front vs back
+        </span>
+        <div style={{ flex: 1 }} />
+        <button onClick={() => setZoom((z) => Math.max(0.5, z - 0.25))} className="a-btn-ghost" style={{ fontSize: 12 }} aria-label="Zoom out">−</button>
+        <span className="a-mono" style={{ fontSize: 12, minWidth: 44, textAlign: "center" }}>{Math.round(zoom * 100)}%</span>
+        <button onClick={() => setZoom((z) => Math.min(3, z + 0.25))} className="a-btn-ghost" style={{ fontSize: 12 }} aria-label="Zoom in">+</button>
+        <button onClick={() => setZoom(1)} className="a-btn-ghost" style={{ fontSize: 12 }}>Reset</button>
+        <button onClick={onClose} className="a-btn-ghost" style={{ fontSize: 12 }}>
+          <X size={13} /> Close
+        </button>
+      </div>
+      <div className="kyc-compare-grid" onClick={(e) => e.stopPropagation()}>
+        <div className="kyc-compare-pane">
+          <div className="kyc-compare-label">Front</div>
+          <div className="kyc-compare-frame">
+            <img src={frontUrl} alt="Aadhaar front" style={{ transform: `scale(${zoom})`, transformOrigin: "center center", transition: "transform 120ms" }} />
+          </div>
+          <a href={frontUrl} target="_blank" rel="noreferrer" className="a-btn-ghost" style={{ fontSize: 11, marginTop: 6 }}>
+            <ExternalLink size={11} /> Open original
+          </a>
+        </div>
+        <div className="kyc-compare-pane">
+          <div className="kyc-compare-label">Back</div>
+          <div className="kyc-compare-frame">
+            <img src={backUrl} alt="Aadhaar back" style={{ transform: `scale(${zoom})`, transformOrigin: "center center", transition: "transform 120ms" }} />
+          </div>
+          <a href={backUrl} target="_blank" rel="noreferrer" className="a-btn-ghost" style={{ fontSize: 11, marginTop: 6 }}>
+            <ExternalLink size={11} /> Open original
+          </a>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Reviewer action timeline. Reads admin_audit_log via the kyc_history action. */
+function ActionTimeline({ events, loading }: { events: HistoryEvent[] | null; loading: boolean }) {
+  return (
+    <div className="kyc-timeline">
+      <div className="a-label" style={{ marginBottom: 8, display: "inline-flex", alignItems: "center", gap: 6 }}>
+        <HistoryIcon size={11} /> Admin action history
+      </div>
+      {loading ? (
+        <div style={{ fontSize: 12, color: "var(--a-muted)", display: "inline-flex", alignItems: "center", gap: 6 }}>
+          <Loader2 size={12} className="animate-spin" /> Loading history…
+        </div>
+      ) : !events || events.length === 0 ? (
+        <div style={{ fontSize: 12, color: "var(--a-muted)" }}>No admin actions recorded for this submission yet.</div>
+      ) : (
+        <ul className="kyc-timeline-list">
+          {events.map((e) => {
+            const tone =
+              e.decision === "approved" ? "approve"
+              : e.decision === "rejected" ? "reject"
+              : "neutral";
+            return (
+              <li key={e.id} className={`kyc-timeline-item kyc-timeline-${tone}`}>
+                <div className="kyc-timeline-dot" />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
+                    <strong style={{ fontSize: 13 }}>
+                      {e.decision === "approved" ? "Approved" : e.decision === "rejected" ? "Rejected" : e.actionType}
+                    </strong>
+                    <span style={{ fontSize: 12, color: "var(--a-muted)" }}>
+                      by {e.adminName ?? e.adminEmail ?? "unknown"}
+                      {e.adminRole ? ` · ${e.adminRole}` : ""}
+                    </span>
+                    <span className="a-mono" style={{ fontSize: 11, color: "var(--a-muted)" }}>
+                      {new Date(e.at).toLocaleString()} · {timeAgo(e.at)}
+                    </span>
+                  </div>
+                  {e.previousStatus && e.decision && (
+                    <div style={{ fontSize: 11, color: "var(--a-muted)", marginTop: 2 }}>
+                      {e.previousStatus} → {e.decision}
+                    </div>
+                  )}
+                  {e.reason && (
+                    <div style={{ fontSize: 12, marginTop: 4, color: "var(--a-text)" }}>
+                      "{e.reason}"
+                    </div>
+                  )}
+                  {e.adminId && (
+                    <div className="a-mono" style={{ fontSize: 10, color: "var(--a-muted)", marginTop: 2 }}>
+                      reviewer id {e.adminId.slice(0, 8)}…
+                    </div>
+                  )}
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
     </div>
   );
 }
