@@ -1062,3 +1062,37 @@ function Row({
     </div>
   );
 }
+
+// Map a row from the transactions table to the receipt PDF shape.
+function toReceipt(t: Txn): ReceiptData {
+  return {
+    txnId: t.id,
+    amount: Number(t.amount),
+    payee: t.merchant_name,
+    upiId: t.upi_id,
+    note: t.note,
+    status: t.status,
+    createdAt: t.created_at,
+  };
+}
+
+function ReceiptBtn({
+  icon: Icon,
+  label,
+  onClick,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className="flex items-center justify-center gap-1.5 rounded-2xl bg-white/5 border border-white/10 px-3 py-2.5 text-[12px] font-medium text-white hover:bg-white/[.08] transition"
+    >
+      <Icon className="w-3.5 h-3.5" />
+      {label}
+    </button>
+  );
+}
+
