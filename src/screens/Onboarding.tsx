@@ -1,10 +1,30 @@
 import { useEffect, useRef, useState } from "react";
-import { ArrowRight, ArrowLeft, Zap, ShieldCheck, Gift } from "lucide-react";
+import { ArrowRight, ArrowLeft, Zap, ShieldCheck, Gift, Wallet, Sparkles } from "lucide-react";
 import walletImg from "@/assets/onboarding-wallet.jpg";
 import paymentImg from "@/assets/onboarding-payment.jpg";
 import shieldImg from "@/assets/onboarding-shield.jpg";
 import giftImg from "@/assets/onboarding-gift.jpg";
 import { TWLogo } from "@/components/TWLogo";
+
+const ONBOARDING_STATE_KEY = "tw-onboarding-state-v1";
+interface PersistedOnboarding { slide: number; completed: boolean; updatedAt: string; }
+function readOnboardingState(): PersistedOnboarding | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(ONBOARDING_STATE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw) as PersistedOnboarding;
+  } catch { return null; }
+}
+function writeOnboardingState(s: PersistedOnboarding) {
+  if (typeof window === "undefined") return;
+  try { localStorage.setItem(ONBOARDING_STATE_KEY, JSON.stringify(s)); } catch { /* ignore */ }
+}
+
+// Swipe tuning — distance OR velocity must exceed thresholds for a slide change.
+const SWIPE_MIN_DISTANCE = 48;       // px
+const SWIPE_MIN_VELOCITY = 0.35;     // px/ms — fast flicks shorter than 48px still count
+const SWIPE_MAX_DURATION = 600;      // ms — anything slower is treated as a drag, not a swipe
 
 interface Slide {
   hero: string;
