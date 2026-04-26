@@ -4,7 +4,8 @@ import {
   ShieldAlert, BadgeCheck, Wallet, CreditCard, Building2, Bell, Lock, Smartphone,
   Eye, EyeOff, Languages, Moon, HelpCircle, FileText, LogOut, Star, Gift, Users,
   Settings, Sparkles, IndianRupee, Activity, Mail, Cake,
-  TrendingUp, Trash2, Share2, Download, AlertTriangle, Receipt,
+  TrendingUp, Trash2, Share2, Download, AlertTriangle, Receipt, GraduationCap,
+  Instagram, Ticket, Loader2,
 } from "lucide-react";
 import QRCode from "qrcode";
 import { toast } from "sonner";
@@ -47,6 +48,7 @@ export function ProfilePanel({ onClose }: Props) {
     gender: string | null;
     email: string | null;
     aadhaar_last4: string | null;
+    school_name: string | null;
     kyc_status: "not_started" | "pending" | "approved" | "rejected";
     notif_prefs: NotifPrefs;
     created_at: string;
@@ -70,13 +72,18 @@ export function ProfilePanel({ onClose }: Props) {
     biometric: true, darkMode: true, lang: "English", sounds: true,
   });
 
+  // Connected Instagram handle (persisted locally — server hookup is future work)
+  const [instagram, setInstagram] = usePersistentState<string>("tw-profile-instagram", "");
+  const [igOpen, setIgOpen] = useState(false);
+  const [schoolOpen, setSchoolOpen] = useState(false);
+
   const refetch = async () => {
     if (!userId) return;
     setProfileLoading(true); setStatsLoading(true); setProfileError(false);
     const [{ data: p, error: pErr }, { data: txns, error: tErr }] = await Promise.all([
       supabase
         .from("profiles")
-        .select("full_name,phone,dob,gender,email,aadhaar_last4,kyc_status,notif_prefs,created_at")
+        .select("full_name,phone,dob,gender,email,aadhaar_last4,school_name,kyc_status,notif_prefs,created_at")
         .eq("id", userId)
         .maybeSingle(),
       supabase
@@ -393,12 +400,60 @@ export function ProfilePanel({ onClose }: Props) {
         >
           {tab === "overview" && (
             <>
+              {/* Rewards group — claimed cashback + vouchers */}
+              <p className="pp-group-label">Rewards</p>
+              <div className="pp-card divide-y divide-white/5">
+                <Row
+                  icon={IndianRupee}
+                  label="Claimed Cashback"
+                  hint={
+                    <span className="text-emerald-300 num-mono font-semibold">
+                      ₹{Math.round(stats.totalSpent * 0.01).toLocaleString("en-IN")}
+                    </span>
+                  }
+                  onClick={() => toast.success("Cashback wallet", { description: `You've earned ₹${Math.round(stats.totalSpent * 0.01).toLocaleString("en-IN")} so far. Keep paying to unlock more.` })}
+                />
+                <Row
+                  icon={Ticket}
+                  label="My Vouchers"
+                  hint={<span className="text-amber-300 font-semibold">3 active</span>}
+                  onClick={() => toast("Vouchers", { description: "Amazon ₹100 · Zomato 20% off · Myntra ₹250" })}
+                />
+              </div>
+
               {/* UPI group */}
               <p className="pp-group-label">UPI</p>
               <div className="pp-card divide-y divide-white/5">
                 <Row icon={Settings} label="Account management" />
                 <Row icon={Receipt} label="Transaction history" onClick={() => { onClose(); toast("Tap History on home", { description: "We took you back so you can open Transactions." }); }} />
                 <Row icon={Wallet} label="Everything UPI" />
+              </div>
+
+              {/* Education & Social */}
+              <p className="pp-group-label">About you</p>
+              <div className="pp-card divide-y divide-white/5">
+                <Row
+                  icon={GraduationCap}
+                  label="School / College"
+                  hint={
+                    <span className="text-white/70 truncate max-w-[140px] inline-block">
+                      {profile?.school_name || "Add"}
+                    </span>
+                  }
+                  onClick={() => setSchoolOpen(true)}
+                />
+                <Row
+                  icon={Instagram}
+                  label="Connect Instagram"
+                  hint={
+                    instagram ? (
+                      <span className="text-pink-300 font-medium">@{instagram}</span>
+                    ) : (
+                      <span className="text-white/55">Not linked</span>
+                    )
+                  }
+                  onClick={() => setIgOpen(true)}
+                />
               </div>
 
               {/* Shop group */}
@@ -429,13 +484,19 @@ export function ProfilePanel({ onClose }: Props) {
                 <Row icon={Gift} label="Rewards" hint={<span className="text-emerald-300">New</span>} />
               </div>
 
+              {/* Settings shortcuts */}
+              <p className="pp-group-label">Settings</p>
+              <div className="pp-card divide-y divide-white/5">
+                <Row icon={Bell} label="Notifications" hint="Manage" onClick={() => setTab("preferences")} />
+                <Row icon={Lock} label="Privacy Policy" onClick={() => window.open("https://teen-wallet.lovable.app/privacy", "_blank", "noopener,noreferrer")} />
+                <Row icon={FileText} label="Terms & Conditions" onClick={() => toast("Terms & Conditions", { description: "Opening soon." })} />
+              </div>
+
               {/* Others */}
               <p className="pp-group-label">Others</p>
               <div className="pp-card divide-y divide-white/5">
-                <Row icon={HelpCircle} label="Help & Support" />
-                <Row icon={FileText} label="Terms & Conditions" />
-                <Row icon={Lock} label="Privacy Policy" />
-                <Row icon={Star} label="Rate us" />
+                <Row icon={HelpCircle} label="Help & Support" onClick={() => { onClose(); window.location.assign("/preview/profile-help"); }} />
+                <Row icon={Star} label="Rate us" onClick={() => toast.success("Thanks for the love! ❤️")} />
                 <Row icon={LogOut} label="Logout" onClick={() => setConfirmLogout(true)} />
               </div>
 
@@ -625,6 +686,21 @@ export function ProfilePanel({ onClose }: Props) {
         />
       )}
       {vcardOpen && <VirtualCardModal onClose={() => setVcardOpen(false)} />}
+      {igOpen && (
+        <InstagramSheet
+          initial={instagram}
+          onClose={() => setIgOpen(false)}
+          onSaved={(handle) => { setInstagram(handle); setIgOpen(false); toast.success(handle ? `Connected @${handle}` : "Instagram unlinked"); }}
+        />
+      )}
+      {schoolOpen && (
+        <SchoolSheet
+          initial={profile?.school_name ?? ""}
+          userId={userId}
+          onClose={() => setSchoolOpen(false)}
+          onSaved={(name) => { setProfile((prev) => prev ? { ...prev, school_name: name } : prev); setSchoolOpen(false); }}
+        />
+      )}
     </div>
   );
 }
@@ -1031,5 +1107,138 @@ function SectionSkeleton({ title, rows = 4 }: { title: string; rows?: number }) 
         ))}
       </div>
     </section>
+  );
+}
+
+/* ───────── Instagram connect sheet ───────── */
+function InstagramSheet({
+  initial, onClose, onSaved,
+}: {
+  initial: string;
+  onClose: () => void;
+  onSaved: (handle: string) => void;
+}) {
+  const [handle, setHandle] = useState(initial);
+  const [err, setErr] = useState<string | null>(null);
+  const save = () => {
+    const clean = handle.trim().replace(/^@/, "");
+    if (clean && !/^[a-zA-Z0-9._]{1,30}$/.test(clean)) {
+      setErr("Letters, numbers, dot and underscore only");
+      return;
+    }
+    onSaved(clean);
+  };
+  return (
+    <div
+      className="absolute inset-0 z-[80] flex items-end pp-sheet-backdrop"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="pp-ig-title"
+    >
+      <div className="pp-sheet" onClick={(e) => e.stopPropagation()}>
+        <div className="pp-sheet-grab" />
+        <div className="flex items-center gap-2.5 px-1 mb-2">
+          <div className="w-9 h-9 rounded-full flex items-center justify-center bg-gradient-to-br from-pink-500/30 via-fuchsia-500/30 to-amber-400/30 border border-pink-300/30">
+            <Instagram className="w-4 h-4 text-pink-200" strokeWidth={2.2} />
+          </div>
+          <div>
+            <p id="pp-ig-title" className="text-[15px] font-semibold text-white">Connect Instagram</p>
+            <p className="text-[11.5px] text-white/55 mt-0.5">Show off your handle on your TeenWallet card.</p>
+          </div>
+        </div>
+        <label className="pp-field">
+          <span>Instagram handle</span>
+          <input
+            value={handle}
+            onChange={(e) => { setHandle(e.target.value); setErr(null); }}
+            placeholder="yourhandle"
+            autoCapitalize="off"
+            autoCorrect="off"
+            maxLength={32}
+            autoFocus
+            inputMode="text"
+          />
+          {err && <p className="pp-field-err">{err}</p>}
+        </label>
+        <div className="flex gap-2 mt-5">
+          {initial && (
+            <button onClick={() => onSaved("")} className="pp-btn-ghost flex-1">Unlink</button>
+          )}
+          <button onClick={onClose} className="pp-btn-ghost flex-1">Cancel</button>
+          <button onClick={save} className="pp-btn-primary flex-1">Save</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ───────── School / College edit sheet ───────── */
+function SchoolSheet({
+  initial, userId, onClose, onSaved,
+}: {
+  initial: string;
+  userId: string | null;
+  onClose: () => void;
+  onSaved: (name: string) => void;
+}) {
+  const [name, setName] = useState(initial);
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  const save = async () => {
+    setErr(null);
+    const clean = name.trim().slice(0, 120);
+    if (clean && clean.length < 2) { setErr("Enter at least 2 characters"); return; }
+    if (!userId) { setErr("Please sign in again"); return; }
+    setSaving(true);
+    const { error } = await supabase
+      .from("profiles")
+      .update({ school_name: clean || null })
+      .eq("id", userId);
+    setSaving(false);
+    if (error) { setErr(error.message); toast.error("Couldn't save", { description: error.message }); return; }
+    toast.success(clean ? "School updated" : "School cleared");
+    onSaved(clean);
+  };
+
+  return (
+    <div
+      className="absolute inset-0 z-[80] flex items-end pp-sheet-backdrop"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="pp-school-title"
+    >
+      <div className="pp-sheet" onClick={(e) => e.stopPropagation()}>
+        <div className="pp-sheet-grab" />
+        <div className="flex items-center gap-2.5 px-1 mb-2">
+          <div className="w-9 h-9 rounded-full flex items-center justify-center bg-sky-400/15 border border-sky-300/30">
+            <GraduationCap className="w-4 h-4 text-sky-200" strokeWidth={2.2} />
+          </div>
+          <div>
+            <p id="pp-school-title" className="text-[15px] font-semibold text-white">School / College</p>
+            <p className="text-[11.5px] text-white/55 mt-0.5">Helps unlock student-only rewards.</p>
+          </div>
+        </div>
+        <label className="pp-field">
+          <span>Institution name</span>
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Delhi Public School, RK Puram"
+            maxLength={120}
+            autoFocus
+          />
+          {err && <p className="pp-field-err">{err}</p>}
+        </label>
+        <div className="flex gap-2 mt-5">
+          <button onClick={onClose} className="pp-btn-ghost flex-1">Cancel</button>
+          <button onClick={save} disabled={saving} className="pp-btn-primary flex-1 disabled:opacity-60">
+            {saving ? <Loader2 className="w-4 h-4 inline animate-spin" /> : "Save"}
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
