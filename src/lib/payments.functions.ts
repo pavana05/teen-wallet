@@ -14,9 +14,10 @@
 // implementation later without touching callers.
 
 import { createServerFn } from "@tanstack/react-start";
+import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { buildUpiDeepLink } from "@/lib/upi";
+import type { Database } from "@/integrations/supabase/types";
 
 const PayInput = z.object({
   amount: z.number().positive().max(100_000),
