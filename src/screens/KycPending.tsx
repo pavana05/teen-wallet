@@ -300,22 +300,79 @@ function PendingView({
     return () => clearInterval(t);
   }, [latest?.submittedAt]);
 
-  // Smooth time-based progress that survives reloads.
-  // Math: ease-out curve (1 - (1 - x)^2) where x = elapsed / ESTIMATED_VERIFY_MS,
-  // clamped at PROGRESS_CEILING so the bar visibly "waits" for the real result.
+  // Smooth time-based progress that survives reloads + app-background pauses.
+  // Math:
+  //   x = elapsed_active / ESTIMATED_VERIFY_MS   (eased: 1 - (1-x)^2)
+  //   When the tab is hidden, we freeze elapsed; on visibility resume we recompute
+  //   from submittedAt so the bar never jumps backward (ratchet via Math.max).
+  //   lastFetchAt is used as a freshness hint — if no successful poll has happened
+  //   recently, we cap the bar slightly lower (≤ 0.85) so it visibly "waits" for
+  //   the next refresh rather than asymptoting close to the ceiling on stale data.
   useEffect(() => {
     if (!latest?.submittedAt) { setProgress(0); return; }
     const submittedAtMs = new Date(latest.submittedAt).getTime();
+    const lastFetchMs = lastFetchAt ? new Date(lastFetchAt).getTime() : Date.now();
+    const STALE_AFTER_MS = 20_000;
+
+    let cancelled = false;
+
     const compute = () => {
       const elapsed = Math.max(0, Date.now() - submittedAtMs);
       const x = Math.min(1, elapsed / ESTIMATED_VERIFY_MS);
       const eased = 1 - (1 - x) * (1 - x);
-      return Math.min(PROGRESS_CEILING, eased * PROGRESS_CEILING + 0.04);
+      const base = eased * PROGRESS_CEILING + 0.04;
+      // Stale-data cap — fade ceiling down toward 0.85 if we haven't heard back recently
+      const sinceFetch = Math.max(0, Date.now() - lastFetchMs);
+      const stalePenalty = sinceFetch > STALE_AFTER_MS
+        ? Math.min(0.10, ((sinceFetch - STALE_AFTER_MS) / 60_000) * 0.10)
+        : 0;
+      const ceiling = PROGRESS_CEILING - stalePenalty;
+      return Math.min(ceiling, base);
     };
-    setProgress(compute());
-    const id = setInterval(() => setProgress(compute()), 500);
-    return () => clearInterval(id);
-  }, [latest?.submittedAt]);
+
+    // Ratchet — never let the bar move backward visually
+    setProgress((prev) => Math.max(prev, compute()));
+
+    let intervalId: ReturnType<typeof setInterval> | null = null;
+    const start = () => {
+      if (intervalId != null) return;
+      intervalId = setInterval(() => {
+        if (cancelled) return;
+        setProgress((prev) => Math.max(prev, compute()));
+      }, 500);
+    };
+    const stop = () => {
+      if (intervalId != null) { clearInterval(intervalId); intervalId = null; }
+    };
+
+    if (typeof document !== "undefined" && document.visibilityState === "hidden") {
+      // Don't start the ticker yet; wait for visibility
+    } else {
+      start();
+    }
+
+    const onVis = () => {
+      if (typeof document === "undefined") return;
+      if (document.visibilityState === "hidden") {
+        stop();
+      } else {
+        // Recompute immediately from real elapsed time so we catch up after background
+        setProgress((prev) => Math.max(prev, compute()));
+        start();
+      }
+    };
+    if (typeof document !== "undefined") {
+      document.addEventListener("visibilitychange", onVis);
+    }
+
+    return () => {
+      cancelled = true;
+      stop();
+      if (typeof document !== "undefined") {
+        document.removeEventListener("visibilitychange", onVis);
+      }
+    };
+  }, [latest?.submittedAt, lastFetchAt]);
 
   const handleContinue = () => {
     if (exiting) return;
