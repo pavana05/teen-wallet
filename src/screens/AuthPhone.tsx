@@ -267,7 +267,13 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
             Sent to +91 {formatted} — <button onClick={() => setStep("phone")} className="text-primary underline">Edit number</button>
           </p>
 
-          <div className={`mt-12 flex gap-3 ${error ? "tw-shake" : ""}`}>
+          <div
+            ref={otpRowRef}
+            onClick={focusOtp}
+            role="group"
+            aria-label="6-digit OTP"
+            className={`mt-12 flex gap-3 ${error ? "tw-shake" : ""}`}
+          >
             {otp.map((v, i) => (
               <input
                 key={i}
@@ -275,16 +281,21 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
                 inputMode="numeric"
                 maxLength={1}
                 value={v}
+                disabled={busy}
+                aria-invalid={!!error}
+                aria-describedby={error ? "tw-otp-error" : undefined}
                 onChange={(e) => onOtpChange(i, e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Backspace" && !v && i > 0) inputs.current[i - 1]?.focus(); }}
-                className="w-12 h-14 text-center text-2xl font-bold rounded-2xl glass focus:outline-none focus:ring-2 focus:ring-primary num-mono"
+                className="w-12 h-14 text-center text-2xl font-bold rounded-2xl glass focus:outline-none focus:ring-2 focus:ring-primary num-mono disabled:opacity-60"
               />
             ))}
           </div>
           {error && (
-            <div className="mt-3 space-y-2">
-              <p className="text-destructive text-xs leading-relaxed">{error}</p>
-              {!busy && otp.every((d) => d) && (
+            <div id="tw-otp-error" className="mt-3 space-y-2" role="alert">
+              <p className="text-destructive text-xs leading-relaxed">
+                {errorKind === "invalid" ? "Re-enter the 6-digit code — that one didn't match." : error}
+              </p>
+              {!busy && (
                 <button
                   onClick={retryVerify}
                   className="text-primary text-xs font-semibold underline underline-offset-2"
@@ -296,10 +307,16 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
           )}
 
           <div className="mt-6 text-sm">
-            {resendIn > 0 ? (
+            {errorKind === "rate_limited" && resendBlocked ? (
+              <span className="text-amber-400/90">
+                Too many requests. Resend available in {resendIn}s.
+              </span>
+            ) : resendBlocked ? (
               <span className="text-muted-foreground">Resend OTP in {resendIn}s</span>
             ) : (
-              <button onClick={handleSendOtp} className="text-primary font-medium">Resend OTP</button>
+              <button onClick={handleSendOtp} disabled={busy} className="text-primary font-medium disabled:opacity-50">
+                Resend OTP
+              </button>
             )}
           </div>
 
