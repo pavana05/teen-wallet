@@ -48,6 +48,7 @@ export function ProfilePanel({ onClose }: Props) {
     gender: string | null;
     email: string | null;
     aadhaar_last4: string | null;
+    school_name: string | null;
     kyc_status: "not_started" | "pending" | "approved" | "rejected";
     notif_prefs: NotifPrefs;
     created_at: string;
