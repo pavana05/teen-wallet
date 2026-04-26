@@ -442,7 +442,7 @@ export function Home() {
             <ScanLine className="w-6 h-6 text-black" strokeWidth={2.4} aria-hidden="true" />
           </button>
         </div>
-      </div>
+      </nav>
       {quickAction && <QuickActionsPanel kind={quickAction} onClose={() => setQuickAction(null)} />}
       {showNotifs && <NotificationsPanel onClose={() => setShowNotifs(false)} />}
       {showProfile && <ProfilePanel onClose={() => setShowProfile(false)} />}
