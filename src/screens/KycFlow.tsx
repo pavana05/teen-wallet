@@ -377,31 +377,107 @@ export function KycFlow({ onDone }: { onDone: () => void }) {
     setStep(3);
   }
 
+  /**
+   * Upload an Aadhaar doc (front or back) to private `kyc-docs` storage.
+   *
+   * Notes on the implementation:
+   * - We bypass `supabase.storage.from(...).upload()` and use raw XHR so we get
+   *   `progress` events for a real progress bar (the JS SDK's upload helper
+   *   doesn't expose progress on the browser).
+   * - On network failure we stash the original `File` in `pendingRetryRef`
+   *   so the user can retry with one tap — without re-picking the file and,
+   *   crucially, WITHOUT having to recapture the selfie they already took.
+   * - We refuse to start if the bucket-access preflight failed.
+   * - File metadata is implicitly persisted to Supabase the moment the upload
+   *   completes (the object exists in storage), and is also mirrored locally
+   *   via the existing KYC_DOCS_KEY effect so progress survives a refresh.
+   */
   async function uploadDoc(side: DocSide, file: File) {
     setError("");
+    if (bucketAccessOk === false) {
+      return setError(bucketAccessReason ?? "Document uploads are currently blocked.");
+    }
     if (!file.type.startsWith("image/") && file.type !== "application/pdf") {
       return setError("Document must be an image or PDF");
     }
     if (file.size > MAX_DOC_BYTES) return setError("File too large (max 5 MB)");
+
+    setUploading(side);
+    setUploadProgress((p) => ({ ...p, [side]: 0 }));
+    setRetryAvailable((r) => ({ ...r, [side]: false }));
+
     try {
-      setUploading(side);
-      const { data: u } = await supabase.auth.getUser();
-      if (!u.user) throw new Error("Session expired");
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Session expired");
       const ext = file.name.split(".").pop()?.toLowerCase() || "bin";
-      const path = `${u.user.id}/aadhaar-${side}-${Date.now()}.${ext}`;
-      const { error: upErr } = await supabase.storage
-        .from("kyc-docs")
-        .upload(path, file, { upsert: true, contentType: file.type });
-      if (upErr) throw upErr;
+      const path = `${session.user.id}/aadhaar-${side}-${Date.now()}.${ext}`;
+
+      // Build the Storage REST URL for direct PUT with progress reporting.
+      const url = `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/kyc-docs/${path}`;
+
+      await new Promise<void>((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open("POST", url, true);
+        xhr.setRequestHeader("Authorization", `Bearer ${session.access_token}`);
+        xhr.setRequestHeader("x-upsert", "true");
+        xhr.setRequestHeader("Content-Type", file.type || "application/octet-stream");
+        xhr.upload.onprogress = (ev) => {
+          if (!ev.lengthComputable) return;
+          const pct = Math.min(99, Math.round((ev.loaded / ev.total) * 100));
+          setUploadProgress((p) => ({ ...p, [side]: pct }));
+        };
+        xhr.onload = () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            setUploadProgress((p) => ({ ...p, [side]: 100 }));
+            resolve();
+          } else {
+            // Surface RLS / auth failures clearly so the user knows it's
+            // NOT a network problem and a retry won't help.
+            let msg = `Upload failed (${xhr.status})`;
+            try {
+              const j = JSON.parse(xhr.responseText) as { message?: string; error?: string };
+              if (j.message) msg = j.message;
+              else if (j.error) msg = j.error;
+            } catch { /* ignore */ }
+            reject(new Error(msg));
+          }
+        };
+        xhr.onerror = () => reject(new Error("network"));
+        xhr.ontimeout = () => reject(new Error("timeout"));
+        xhr.send(file);
+      });
+
       const state: DocState = { path, name: file.name, size: file.size };
       if (side === "front") setDocFront(state); else setDocBack(state);
+      pendingRetryRef.current[side] = null;
+      setRetryAvailable((r) => ({ ...r, [side]: false }));
       toast.success(`Aadhaar ${side} uploaded`);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Upload failed");
+      const msg = e instanceof Error ? e.message : "Upload failed";
+      // Network / timeout / 5xx → make the file retryable in-place.
+      const transient = /network|timeout|fetch|503|502|504/i.test(msg);
+      if (transient) {
+        pendingRetryRef.current[side] = file;
+        setRetryAvailable((r) => ({ ...r, [side]: true }));
+        setError(`Network problem uploading Aadhaar ${side}. Tap Retry to try again.`);
+      } else {
+        // Hard failure (RLS, file rejected, auth) — don't bait the user with retry.
+        pendingRetryRef.current[side] = null;
+        setRetryAvailable((r) => ({ ...r, [side]: false }));
+        setError(msg);
+      }
     } finally {
       setUploading(null);
     }
   }
+
+  /** Re-attempt the most recently failed upload for a side, reusing the cached File. */
+  function retryUpload(side: DocSide) {
+    const f = pendingRetryRef.current[side];
+    if (!f) return;
+    void uploadDoc(side, f);
+  }
+
 
   async function removeDoc(side: DocSide) {
     const cur = side === "front" ? docFront : docBack;
