@@ -4,7 +4,8 @@ import {
   ShieldAlert, BadgeCheck, Wallet, CreditCard, Building2, Bell, Lock, Smartphone,
   Eye, EyeOff, Languages, Moon, HelpCircle, FileText, LogOut, Star, Gift, Users,
   Settings, Sparkles, IndianRupee, Activity, Mail, Cake,
-  TrendingUp, Trash2, Share2, Download, AlertTriangle, Receipt,
+  TrendingUp, Trash2, Share2, Download, AlertTriangle, Receipt, GraduationCap,
+  Instagram, Ticket, Loader2,
 } from "lucide-react";
 import QRCode from "qrcode";
 import { toast } from "sonner";
