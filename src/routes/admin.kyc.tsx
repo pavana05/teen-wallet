@@ -8,7 +8,7 @@ import {
   ZoomIn, X, SplitSquareHorizontal, History as HistoryIcon, AlertTriangle,
   ChevronUp, ChevronDown, ChevronsUpDown,
 } from "lucide-react";
-import { PermissionBanner, ErrorState } from "@/admin/components/AdminFeedback";
+import { PermissionBanner, ShakeErrorPanel } from "@/admin/components/AdminFeedback";
 import { toast } from "sonner";
 import { VirtualTable, type Column } from "@/admin/components/VirtualTable";
 import { usePersistedState } from "@/admin/lib/usePersistedState";
