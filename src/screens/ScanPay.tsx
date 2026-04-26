@@ -1057,12 +1057,54 @@ function ConfirmView({
         <div className="sp2-method-bal">₹{balance.toFixed(2)}</div>
       </div>
 
+      {/* ── Review & Continue gate ──
+          Surfaces fraud preflight flags BEFORE the slide. Block flags fully
+          disable payment and show the final block reason. Warn flags require
+          an explicit acknowledge tick before the slide unlocks. */}
+      {(isBlocked || warnFlags.length > 0) && (
+        <div
+          className={`sp2-fraud-panel ${isBlocked ? "sp2-fraud-blocked" : "sp2-fraud-warn"}`}
+          role={isBlocked ? "alert" : "status"}
+          aria-live="polite"
+        >
+          <div className="sp2-fraud-head">
+            {isBlocked ? <X className="w-4 h-4" strokeWidth={2.6} /> : <AlertTriangle className="w-4 h-4" strokeWidth={2.4} />}
+            <span className="sp2-fraud-title">
+              {isBlocked ? "Payment will be blocked" : `${warnFlags.length} warning${warnFlags.length > 1 ? "s" : ""} — review before paying`}
+            </span>
+          </div>
+          <ul className="sp2-fraud-list">
+            {(isBlocked ? blockFlags : warnFlags).map((f) => (
+              <li key={f.rule}>
+                <Info className="w-3 h-3 mt-0.5 shrink-0 opacity-70" />
+                <span>{f.message}</span>
+              </li>
+            ))}
+          </ul>
+          {!isBlocked && (
+            <label className="sp2-fraud-ack">
+              <input
+                type="checkbox"
+                checked={acknowledged}
+                onChange={(e) => setAcknowledged(e.target.checked)}
+                aria-label="Acknowledge warnings and confirm paying"
+              />
+              <span>I've reviewed the warnings and want to continue</span>
+            </label>
+          )}
+        </div>
+      )}
+
       {/* Slide to pay */}
       <div className="relative z-10 px-4 pt-4 pb-6 safe-bottom">
         <SlideToPay disabled={!canPay} onComplete={onConfirm} />
         <p className="text-center text-[10px] text-white/35 mt-3 tracking-wider">
-          <UserIcon className="w-3 h-3 inline-block mr-1 align-[-2px]" />
-          Secured by Teen Wallet · UPI
+          {fraudLoading ? "Checking payment safety…" : (
+            <>
+              <UserIcon className="w-3 h-3 inline-block mr-1 align-[-2px]" />
+              Secured by Teen Wallet · UPI
+            </>
+          )}
         </p>
       </div>
     </div>
