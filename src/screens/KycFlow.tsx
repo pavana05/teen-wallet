@@ -335,6 +335,7 @@ export function KycFlow({ onDone }: { onDone: () => void }) {
       hasDocFront: !!docFront,
       hasDocBack: !!docBack,
     });
+    try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error("Session expired. Please sign in again.");
 
