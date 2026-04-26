@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { setStage as persistStageRemote } from "./auth";
+import { breadcrumb, captureError, setBreadcrumbUser } from "./breadcrumbs";
 
 export type Stage = "STAGE_0" | "STAGE_1" | "STAGE_2" | "STAGE_3" | "STAGE_4" | "STAGE_5";
 
