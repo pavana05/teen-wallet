@@ -1,7 +1,10 @@
 import { createFileRoute, Link, useParams } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { callAdminFn, readAdminSession, useAdminSession, can } from "@/admin/lib/adminAuth";
-import { ArrowLeft, Loader2, ShieldCheck, ShieldX, RotateCcw } from "lucide-react";
+import {
+  ArrowLeft, Loader2, ShieldCheck, ShieldX, RotateCcw,
+  ShieldAlert, Activity as ActivityIcon, Wallet, FileCheck2, ScrollText,
+} from "lucide-react";
 
 export const Route = createFileRoute("/admin/users/$id")({
   component: UserDetail,
@@ -34,15 +37,22 @@ interface DetailData {
   audit: Audit[];
 }
 
-type Tab = "txn" | "kyc" | "fraud" | "audit";
+type Tab = "timeline" | "txn" | "kyc" | "fraud" | "audit";
 
 function UserDetail() {
   const { id } = useParams({ from: "/admin/users/$id" });
   const { admin } = useAdminSession();
   const [data, setData] = useState<DetailData | null>(null);
-  const [tab, setTab] = useState<Tab>("txn");
+  const [tab, setTab] = useState<Tab>("timeline");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
+
+  // Deep-link: ?tab=kyc|fraud|txn|audit|timeline (one-shot on mount).
+  useEffect(() => {
+    const sp = new URLSearchParams(window.location.search);
+    const t = sp.get("tab");
+    if (t && ["timeline", "txn", "kyc", "fraud", "audit"].includes(t)) setTab(t as Tab);
+  }, []);
 
   async function load() {
     const s = readAdminSession();
