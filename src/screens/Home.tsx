@@ -19,9 +19,15 @@ interface Txn {
 }
 
 function QuickAction({ icon: Icon, label, onClick }: { icon: React.ComponentType<{ className?: string; strokeWidth?: number }>; label: string; onClick?: () => void }) {
+  const accessibleLabel = label.replace(/\n/g, " ");
   return (
-    <button onClick={onClick} className="flex flex-col items-center gap-2 group">
-      <div className="hp-tile">
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={accessibleLabel}
+      className="flex flex-col items-center gap-2 group rounded-2xl focus:outline-none"
+    >
+      <div className="hp-tile" aria-hidden="true">
         <Icon className="w-6 h-6 text-white/90" strokeWidth={1.6} />
       </div>
       <span className="text-[11px] text-white/70 leading-tight text-center whitespace-pre-line">{label}</span>
@@ -31,8 +37,12 @@ function QuickAction({ icon: Icon, label, onClick }: { icon: React.ComponentType
 
 function RechargeTile({ icon: Icon, label, tint }: { icon: React.ComponentType<{ className?: string; strokeWidth?: number }>; label: string; tint: string }) {
   return (
-    <button className="flex flex-col items-center gap-2">
-      <div className={`hp-tile bg-gradient-to-br ${tint}`}>
+    <button
+      type="button"
+      aria-label={label}
+      className="flex flex-col items-center gap-2 rounded-2xl focus:outline-none"
+    >
+      <div className={`hp-tile bg-gradient-to-br ${tint}`} aria-hidden="true">
         <Icon className="w-6 h-6 text-white" strokeWidth={1.7} />
       </div>
       <span className="text-[11px] text-white/70 leading-tight text-center">{label}</span>
@@ -44,9 +54,15 @@ function TxnRow({ txn }: { txn: Txn }) {
   const date = new Date(txn.created_at);
   const time = date.toLocaleString("en-IN", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
   const failed = txn.status === "failed";
+  const amountStr = `−₹${Number(txn.amount).toFixed(2)}`;
   return (
-    <div className="flex items-center gap-3 rounded-2xl bg-white/5 border border-white/10 px-3 py-3">
-      <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${failed ? "bg-destructive/15" : "bg-primary/15"}`}>
+    <div
+      className="hp-row"
+      role="article"
+      aria-label={`Payment to ${txn.merchant_name}, ${amountStr}, status ${txn.status}, on ${time}`}
+      tabIndex={0}
+    >
+      <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${failed ? "bg-destructive/15" : "bg-primary/15"}`} aria-hidden="true">
         <ArrowDownLeft className={`w-5 h-5 ${failed ? "text-destructive" : "text-primary"}`} strokeWidth={2} />
       </div>
       <div className="flex-1 min-w-0">
@@ -54,7 +70,7 @@ function TxnRow({ txn }: { txn: Txn }) {
         <p className="text-[11px] text-white/50 truncate">{txn.note ? txn.note : txn.upi_id} · {time}</p>
       </div>
       <div className="text-right shrink-0">
-        <p className={`text-[14px] font-semibold num-mono ${failed ? "text-destructive line-through" : "text-white"}`}>−₹{Number(txn.amount).toFixed(2)}</p>
+        <p className={`text-[14px] font-semibold num-mono ${failed ? "text-destructive line-through" : "text-white"}`}>{amountStr}</p>
         <p className={`text-[10px] uppercase tracking-wider ${txn.status === "success" ? "text-primary/80" : txn.status === "pending" ? "text-yellow-400/80" : "text-destructive/80"}`}>{txn.status}</p>
       </div>
     </div>
@@ -63,8 +79,14 @@ function TxnRow({ txn }: { txn: Txn }) {
 
 function NavItem({ icon: Icon, label, active, onClick }: { icon: React.ComponentType<{ className?: string; strokeWidth?: number }>; label: string; active?: boolean; onClick?: () => void }) {
   return (
-    <button onClick={onClick} className={`flex-1 flex flex-col items-center py-2 rounded-full transition-colors ${active ? "hp-nav-active text-white" : "text-white/55 hover:text-white/80"}`}>
-      <Icon className="w-5 h-5" strokeWidth={active ? 2 : 1.6} />
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      aria-current={active ? "page" : undefined}
+      className={`flex-1 flex flex-col items-center py-2 rounded-full transition-colors focus:outline-none ${active ? "hp-nav-active text-white" : "text-white/55 hover:text-white/80"}`}
+    >
+      <Icon className="w-5 h-5" strokeWidth={active ? 2 : 1.6} aria-hidden="true" />
       <span className={`text-[11px] mt-0.5 ${active ? "font-semibold" : ""}`}>{label}</span>
     </button>
   );
