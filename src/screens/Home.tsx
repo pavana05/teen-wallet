@@ -89,13 +89,19 @@ export function Home() {
 
   const fetchTxns = useCallback(async () => {
     if (!userId) { setLoading(false); return; }
-    const { data } = await supabase
+    const { data, error: err } = await supabase
       .from("transactions")
       .select("id,amount,merchant_name,upi_id,note,status,created_at")
       .eq("user_id", userId)
       .order("created_at", { ascending: false })
       .limit(20);
-    setTxns((data ?? []) as Txn[]);
+    if (err) {
+      setError(err.message);
+      setShakeKey((k) => k + 1);
+    } else {
+      setError(null);
+      setTxns((data ?? []) as Txn[]);
+    }
     setLoading(false);
   }, [userId]);
 
