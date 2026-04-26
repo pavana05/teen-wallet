@@ -7,6 +7,7 @@ import { QuickActionsPanel, type QuickActionKind } from "@/components/QuickActio
 import { NotificationsPanel } from "@/components/NotificationsPanel";
 import { ProfilePanel } from "@/components/ProfilePanel";
 import heroScan from "@/assets/home-hero-scan.jpg";
+import { haptics } from "@/lib/haptics";
 
 interface Txn {
   id: string;
