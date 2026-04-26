@@ -196,6 +196,42 @@ export function Home() {
     touchStartY.current = null;
   };
 
+  // Collapse the bottom nav as the user scrolls — at top, expanded with all tabs;
+  // beyond ~60px, collapses into a compact Home-only pill (with a smooth liquid morph).
+  useEffect(() => {
+    const el = scrollerRef.current;
+    if (!el) return;
+    const onScroll = () => {
+      const next = el.scrollTop > 60;
+      setNavCollapsed((prev) => (prev === next ? prev : next));
+    };
+    onScroll();
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => el.removeEventListener("scroll", onScroll);
+  }, []);
+
+  // Profile tap → fluid morph: nav contracts to a single Profile pill,
+  // then we open the Profile panel after the morph settles.
+  const openProfile = useCallback(() => {
+    setNavMode("profile-morph");
+    window.setTimeout(() => setShowProfile(true), 360);
+  }, []);
+
+  const closeProfile = useCallback(() => {
+    setShowProfile(false);
+    window.setTimeout(() => setNavMode("full"), 80);
+  }, []);
+
+  // Scan FAB → liquid expansion into ScanPay. The FAB grows into a circular
+  // overlay that fills the shell, then we mount ScanPay underneath.
+  const launchScan = useCallback(() => {
+    setScanLaunching(true);
+    window.setTimeout(() => {
+      setView("scan");
+      window.setTimeout(() => setScanLaunching(false), 50);
+    }, 420);
+  }, []);
+
   if (view === "scan") return <ScanPay onBack={() => { setView("home"); void fetchTxns(); }} />;
 
   return (
