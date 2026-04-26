@@ -159,48 +159,121 @@ export function KycPending({ onApproved, forceState, forceReason }: { onApproved
     return <RejectedView reason={shownReason} onRetake={goBackToAadhaarKyc} onClose={goBackToAadhaarKyc} />;
   }
 
-  // Pending / unknown
+  // Pending / unknown — premium dark luxury layout (matches reference mock)
+  return <PendingView pollMs={pollMs} latest={latest} onRetry={retryNow} onClose={onApproved} />;
+}
+
+/* ----------------------------- Pending View ----------------------------- */
+
+function PendingView({
+  pollMs,
+  latest,
+  onRetry,
+  onClose,
+}: {
+  pollMs: number;
+  latest: LatestSubmission | null;
+  onRetry: () => void;
+  onClose: () => void;
+}) {
+  // Render submission timestamp on client only — avoids SSR/CSR locale + timezone hydration mismatch.
+  const [submittedLabel, setSubmittedLabel] = useState<string | null>(null);
+  useEffect(() => {
+    if (!latest?.submittedAt) { setSubmittedLabel(null); return; }
+    setSubmittedLabel(new Date(latest.submittedAt).toLocaleString());
+  }, [latest?.submittedAt]);
+
   return (
-    <div className="flex-1 flex flex-col items-center justify-center p-8 text-center tw-slide-up">
-      <div className="relative mb-8">
-        <div className="absolute inset-0 rounded-full blur-3xl opacity-60" style={{ background: "radial-gradient(circle, oklch(0.92 0.21 122 / 0.6), transparent 70%)" }} />
-        <div className="relative w-24 h-24 rounded-full bg-primary flex items-center justify-center lime-glow">
-          <Clock className="w-12 h-12 text-primary-foreground" strokeWidth={2.4} />
+    <div className="kyc-result-root kyc-pending-stage">
+      <div className="kyc-result-glow yellow" />
+      <div className="kyc-pending-rays" aria-hidden="true" />
+
+      <button className="kyc-close-btn" onClick={onClose} aria-label="Close">
+        <X className="w-6 h-6" strokeWidth={2.2} />
+      </button>
+
+      <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-6 -mt-12">
+        {/* Soft ripple wave behind badge */}
+        <div className="kyc-pending-ripple" aria-hidden="true">
+          <span /><span /><span />
         </div>
-      </div>
 
-      <h1 className="text-[28px] font-bold">You're almost there!</h1>
-      <p className="text-[#888] text-sm mt-3 max-w-[280px]">We're verifying your details with UIDAI. This usually takes under 2 minutes.</p>
+        <div className="kyc-seal-bounce">
+          <ClockBadge />
+        </div>
 
-      <div className="mt-10 w-full max-w-[280px] h-1 rounded-full bg-white/10 overflow-hidden">
-        <div className="h-full w-1/3 bg-primary rounded-full" style={{ animation: "tw-shimmer 1.4s linear infinite" }} />
-      </div>
+        {/* Shimmer that sweeps once over the badge */}
+        <div className="kyc-pending-shimmer" aria-hidden="true" />
 
-      <p className="mt-6 text-xs text-muted-foreground">
-        Auto-refreshing every {Math.round(pollMs / 1000)}s. We'll notify you the moment your account is ready.
-      </p>
+        <h1 className="kyc-approved-title mt-10 text-white text-[24px] font-semibold tracking-tight text-center">
+          Verifying your KYC
+        </h1>
+        <p className="kyc-approved-sub mt-2 text-white/60 text-sm text-center max-w-[280px]">
+          Hang tight — this usually takes under 2 minutes.
+        </p>
 
-      {latest && (
-        <div className="mt-8 w-full max-w-[300px] glass rounded-2xl p-4 text-left">
-          <div className="flex items-center gap-2 mb-2">
-            <Clock className="w-3.5 h-3.5 text-muted-foreground" />
-            <h3 className="text-xs font-semibold">Latest submission</h3>
-          </div>
-          <div className="text-[11px] text-muted-foreground space-y-0.5">
-            <p>Status: <span className="text-foreground uppercase tracking-wider">{latest.status}</span></p>
-            <p>Submitted: {new Date(latest.submittedAt).toLocaleString()}</p>
-            <p className="truncate">ID: <span className="num-mono">{latest.submissionId.slice(0, 8)}…</span></p>
-            {latest.providerRef && (
-              <p className="truncate">Provider ref: <span className="num-mono">{latest.providerRef}</span></p>
+        <div className="kyc-pending-progress mt-8 w-full max-w-[260px]">
+          <div className="kyc-pending-progress-fill" />
+        </div>
+
+        {latest && (
+          <div className="mt-7 text-[11px] text-white/45 text-center space-y-0.5">
+            <p>Auto-refreshing every {Math.round(pollMs / 1000)}s</p>
+            {submittedLabel && (
+              <p suppressHydrationWarning>Submitted: {submittedLabel}</p>
             )}
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
-      <button onClick={retryNow} className="mt-4 text-xs text-primary inline-flex items-center gap-1 hover:underline">
-        <RefreshCw className="w-3 h-3" /> Refresh now
-      </button>
+      <div className="relative z-10 px-6 pb-8 safe-bottom flex flex-col items-center gap-3">
+        <button onClick={onRetry} className="text-[12px] text-white/55 inline-flex items-center gap-1.5 hover:text-white transition-colors">
+          <RefreshCw className="w-3 h-3" /> Refresh now
+        </button>
+        <button className="kyc-continue-btn" onClick={onClose}>
+          Continue in background
+        </button>
+      </div>
     </div>
+  );
+}
+
+/* ----------------------------- Clock Badge ----------------------------- */
+
+function ClockBadge() {
+  return (
+    <svg className="kyc-seal yellow" viewBox="0 0 140 140" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <radialGradient id="seal-yellow-glow" cx="50%" cy="50%" r="55%">
+          <stop offset="0%" stopColor="rgba(255,221,87,0.55)" />
+          <stop offset="60%" stopColor="rgba(255,180,30,0.18)" />
+          <stop offset="100%" stopColor="rgba(255,180,30,0)" />
+        </radialGradient>
+        <linearGradient id="seal-yellow-stroke" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#ffd84a" />
+          <stop offset="100%" stopColor="#f59e0b" />
+        </linearGradient>
+      </defs>
+      {/* Inner soft glow fill */}
+      <circle cx="70" cy="70" r="58" fill="url(#seal-yellow-glow)" />
+      {/* Scalloped neon ring — 12 bumps */}
+      <path
+        d="M70 8
+           c5 0 9 5 14 5 s9-4 14-2 6 7 10 9 9 1 12 4 3 9 5 12 7 5 8 9 -1 9 1 12 6 6 6 10 -4 8 -4 12 4 8 4 12 -4 8 -6 12 -3 8 -6 10 -8 1 -12 4 -6 7 -10 9 -9-2 -14 0 -9 5 -14 5 -9-5 -14-5 -9 4 -14 2 -6-7 -10-9 -9-1 -12-4 -3-9 -5-12 -7-5 -8-9 1-9 -1-12 -6-6 -6-10 4-8 4-12 -4-8 -4-12 4-8 6-12 3-8 6-10 8-1 12-4 6-7 10-9 9 2 14 0 9-5 14-5z"
+        fill="none"
+        stroke="url(#seal-yellow-stroke)"
+        strokeWidth="3.5"
+        strokeLinejoin="round"
+      />
+      {/* Clock face */}
+      <circle cx="70" cy="70" r="22" fill="none" stroke="#fff" strokeWidth="3.2" />
+      {/* Hour hand — animated rotation */}
+      <line className="kyc-clock-hand-hour" x1="70" y1="70" x2="70" y2="56" stroke="#fff" strokeWidth="3.2" strokeLinecap="round" />
+      {/* Minute hand — animated rotation */}
+      <line className="kyc-clock-hand-min" x1="70" y1="70" x2="82" y2="70" stroke="#fff" strokeWidth="3.2" strokeLinecap="round" />
+      {/* Center dot */}
+      <circle cx="70" cy="70" r="2" fill="#fff" />
+    </svg>
   );
 }
 
