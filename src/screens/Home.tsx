@@ -473,7 +473,7 @@ export function Home() {
             <span className="hp-nav-tab" data-hidden={navCollapsed || navMode === "profile-morph" ? "true" : "false"}>
               <NavItem icon={Gift} label="Shop" />
             </span>
-            <span className="hp-nav-tab" data-hidden={navCollapsed && navMode !== "profile-morph" ? "true" : "false"}>
+            <span className="hp-nav-tab" data-hidden="false">
               <NavItem icon={User} label="Profile" onClick={openProfile} />
             </span>
           </div>
