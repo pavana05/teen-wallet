@@ -224,6 +224,11 @@ export function Home() {
   const closeProfile = useCallback(() => {
     setShowProfile(false);
     window.setTimeout(() => setNavMode("full"), 80);
+    // Page-transition reset: bring Home back to the top so the user lands at
+    // the hero instead of wherever they had scrolled before opening Profile.
+    requestAnimationFrame(() => {
+      scrollerRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+    });
   }, []);
 
   // Scan FAB → liquid expansion into ScanPay. The FAB grows into a circular
