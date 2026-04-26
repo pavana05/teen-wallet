@@ -503,6 +503,52 @@ export function KycFlow({ onDone }: { onDone: () => void }) {
                 ))}
               </div>
             </div>
+
+            <div className="pt-2">
+              <p className="text-[10.5px] tracking-[0.18em] uppercase text-white/45 font-medium mb-3">Education & address</p>
+            </div>
+
+            <div>
+              <label className="text-xs text-muted-foreground uppercase tracking-wider">School / College Name</label>
+              <input value={schoolName}
+                onChange={(e) => setSchoolName(e.target.value.slice(0, 120))}
+                placeholder="Delhi Public School, RK Puram"
+                className="tw-input text-lg mt-1" />
+            </div>
+
+            <div>
+              <label className="text-xs text-muted-foreground uppercase tracking-wider">Home Address</label>
+              <input value={addrLine1}
+                onChange={(e) => setAddrLine1(e.target.value.slice(0, 160))}
+                placeholder="House no., Street, Locality"
+                className="tw-input text-base mt-1" />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-xs text-muted-foreground uppercase tracking-wider">City</label>
+                <input value={addrCity}
+                  onChange={(e) => setAddrCity(e.target.value.slice(0, 60))}
+                  placeholder="Bengaluru"
+                  className="tw-input text-base mt-1" />
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground uppercase tracking-wider">State</label>
+                <input value={addrState}
+                  onChange={(e) => setAddrState(e.target.value.slice(0, 60))}
+                  placeholder="Karnataka"
+                  className="tw-input text-base mt-1" />
+              </div>
+            </div>
+
+            <div>
+              <label className="text-xs text-muted-foreground uppercase tracking-wider">Pincode</label>
+              <input value={addrPincode}
+                onChange={(e) => setAddrPincode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                placeholder="560001"
+                inputMode="numeric"
+                className="tw-input text-lg mt-1 num-mono tracking-[0.2em]" />
+            </div>
           </div>
 
           {error && <p className="text-destructive text-xs mt-4 tw-shake">{error}</p>}
