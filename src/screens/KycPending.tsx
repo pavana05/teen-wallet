@@ -261,9 +261,32 @@ export function KycPending({ onApproved, forceState, forceReason }: { onApproved
       initialLoading={initialLoading}
       fetchError={fetchError}
       retrying={retrying}
+      lastFetchAt={lastFetchAt}
     />
   );
 }
+
+/* ----------------------------- Pending View ----------------------------- */
+
+function PendingView({
+  pollMs,
+  latest,
+  onRetry,
+  onClose,
+  initialLoading,
+  fetchError,
+  retrying,
+  lastFetchAt,
+}: {
+  pollMs: number;
+  latest: LatestSubmission | null;
+  onRetry: () => void | Promise<void>;
+  onClose: () => void;
+  initialLoading: boolean;
+  fetchError: string | null;
+  retrying: boolean;
+  lastFetchAt: string | null;
+}) {
 
 /* ----------------------------- Pending View ----------------------------- */
 
