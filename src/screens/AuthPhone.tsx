@@ -139,20 +139,40 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
           <h1 className="text-[32px] font-bold leading-tight">What's your<br/>number?</h1>
           <p className="text-[#888] mt-3 text-sm">We'll send a 6-digit OTP to verify it's really you.</p>
 
-          <div className="mt-12 flex items-end gap-3">
-            <div className="px-4 py-3 rounded-full glass flex items-center gap-2 text-sm font-medium">🇮🇳 +91</div>
-            <div className="flex-1">
+          <div className="mt-12">
+            <label htmlFor="tw-phone" className="text-[10.5px] tracking-[0.18em] uppercase text-white/55 font-medium">
+              Mobile number
+            </label>
+            <div className={`tw-phone-field mt-2 ${error ? "tw-phone-field-error" : ""} ${valid ? "tw-phone-field-valid" : ""}`}>
+              <div className="tw-phone-cc">
+                <span className="text-base leading-none">🇮🇳</span>
+                <span className="text-[13px] font-semibold tracking-tight">+91</span>
+              </div>
+              <div className="tw-phone-divider" aria-hidden="true" />
               <input
+                id="tw-phone"
                 inputMode="numeric"
                 value={formatted}
                 onChange={(e) => { setError(""); setPhone(e.target.value.replace(/\D/g, "").slice(0, 10)); }}
                 placeholder="98765 43210"
-                className="tw-input text-2xl num-mono"
+                className="tw-phone-input num-mono"
+                aria-invalid={!!error}
+                aria-describedby={error ? "tw-phone-error" : undefined}
                 autoFocus
               />
+              {valid && (
+                <span className="tw-phone-check" aria-hidden="true">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                </span>
+              )}
             </div>
+            <p className="mt-2 text-[11px] text-white/45 tracking-wide">
+              We'll never share your number. SMS rates may apply.
+            </p>
           </div>
-          {error && <p className={`text-destructive text-xs mt-3 ${error ? "tw-shake" : ""}`}>{error}</p>}
+          {error && <p id="tw-phone-error" className={`text-destructive text-xs mt-3 ${error ? "tw-shake" : ""}`}>{error}</p>}
 
           <p className="text-[11px] text-muted-foreground mt-6 leading-relaxed">
             By continuing, you agree to our <span className="text-white/80 underline">Terms</span> & <span className="text-white/80 underline">Privacy Policy</span>.
