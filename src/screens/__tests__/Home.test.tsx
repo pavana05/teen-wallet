@@ -31,7 +31,7 @@ describe("Home screen smoke test", () => {
 
   it("opens the Scan & Pay screen when the scan FAB is tapped", () => {
     render(<Home />);
-    const scanBtn = screen.getByRole("button", { name: "Scan" });
+    const scanBtn = screen.getByRole("button", { name: /scan to pay/i });
     fireEvent.click(scanBtn);
     // ScanPay renders a back affordance; assert we left the home view.
     expect(screen.queryByText(/Everything UPI!/i)).not.toBeInTheDocument();
