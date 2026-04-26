@@ -1824,6 +1824,14 @@ button:focus-visible .hp-tile{
   animation: sp-success-burst 1.4s cubic-bezier(.2,.8,.2,1) 600ms forwards;
 }
 
+/* Send Money — trust strip pills under the CTA */
+.qa-trust-pill {
+  padding: 10px 8px;
+  border-radius: 14px;
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(255,255,255,.07);
+}
+
 
 /* ============= Quick Actions Panel ============= */
 .qa-root { animation: qa-in 360ms cubic-bezier(.2,.8,.2,1) both; }
