@@ -45,7 +45,7 @@ describe("Home screen smoke test", () => {
     const scanBtn = screen.getByRole("button", { name: /scan to pay/i });
     fireEvent.click(scanBtn);
     // ScanPay renders a back affordance; assert we left the home view.
-    expect(screen.queryByText(/Everything UPI!/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Everything UPI/i)).not.toBeInTheDocument();
   });
 
   it("opens the Profile panel when tapped from the expanded nav", async () => {
