@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { callAdminFn, readAdminSession, can } from "@/admin/lib/adminAuth";
-import { Search, Loader2, ShieldCheck, ShieldX, CheckSquare, Square, Lock, Unlock, Tag } from "lucide-react";
+import { Search, Loader2, ShieldCheck, ShieldX, CheckSquare, Square, Lock, Unlock, Tag, Check } from "lucide-react";
 import { VirtualTable, type Column } from "@/admin/components/VirtualTable";
 import { usePersistedState } from "@/admin/lib/usePersistedState";
 import { SavedViewsBar } from "@/admin/components/SavedViewsBar";
