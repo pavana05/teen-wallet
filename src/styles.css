@@ -4023,3 +4023,72 @@
 @media (prefers-reduced-motion: reduce) {
   .sp2-recover, .sp2-fraud-panel { animation: none !important; }
 }
+
+/* ===========================================================
+   Phone Verified — reduced-motion + visual cue
+   =========================================================== */
+
+/* When the user opts out of motion (OS setting), strip every infinite
+   animation on this screen but keep the layout/visual identity intact.
+   We rely on a static badge with a short, single pulse instead of the
+   ripple/streak/particles. */
+@media (prefers-reduced-motion: reduce) {
+  .pv-spotlight,
+  .pv-particle,
+  .pv-spark,
+  .pv-ripple,
+  .pv-ring,
+  .pv-streak,
+  .pv-btn-shine {
+    animation: none !important;
+  }
+  .pv-particle, .pv-spark, .pv-ripple, .pv-ring, .pv-streak, .pv-btn-shine {
+    /* Hide the now-static decorative elements so they don't read as broken. */
+    display: none !important;
+  }
+  .pv-badge svg path {
+    /* Render the check without the stroke-draw animation. */
+    stroke-dasharray: none !important;
+    stroke-dashoffset: 0 !important;
+    animation: none !important;
+  }
+}
+
+/* Belt-and-suspenders — when JS detected reduced motion before the media
+   query fired (rare race on first render), the same suppression applies. */
+.pv-reduced-motion .pv-spotlight,
+.pv-reduced-motion .pv-particle,
+.pv-reduced-motion .pv-spark,
+.pv-reduced-motion .pv-ripple,
+.pv-reduced-motion .pv-ring,
+.pv-reduced-motion .pv-streak,
+.pv-reduced-motion .pv-btn-shine {
+  animation: none !important;
+}
+.pv-reduced-motion .pv-particle,
+.pv-reduced-motion .pv-spark,
+.pv-reduced-motion .pv-ripple,
+.pv-reduced-motion .pv-ring,
+.pv-reduced-motion .pv-streak,
+.pv-reduced-motion .pv-btn-shine {
+  display: none !important;
+}
+.pv-reduced-motion .pv-badge svg path {
+  stroke-dasharray: none !important;
+  stroke-dashoffset: 0 !important;
+  animation: none !important;
+}
+
+/* Subtle visual-only success cue — a single, short pulse on the badge wrap
+   that runs once and stops. Disabled under reduced motion. */
+.pv-badge-wrap-pulse .pv-badge {
+  animation: pv-badge-pulse 700ms ease-out 1 both;
+}
+@keyframes pv-badge-pulse {
+  0%   { transform: scale(1); box-shadow: 0 0 0 0 rgba(74,222,128,.45); }
+  50%  { transform: scale(1.04); box-shadow: 0 0 0 14px rgba(74,222,128,.0); }
+  100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(74,222,128,0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pv-badge-wrap-pulse .pv-badge { animation: none !important; }
+}
