@@ -66,6 +66,9 @@ export function VirtualTable<T>({
   hasMore = false,
   onLoadMore,
   empty,
+  onRowPointerDown,
+  onRowPointerUp,
+  onRowPointerCancel,
 }: VirtualTableProps<T>) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
