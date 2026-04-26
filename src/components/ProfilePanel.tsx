@@ -288,27 +288,40 @@ export function ProfilePanel({ onClose }: Props) {
         </div>
 
         {/* ── STATS STRIP ── */}
-        <div className="px-5 mt-4 grid grid-cols-3 gap-2.5">
+        <section
+          aria-label="Account statistics"
+          aria-busy={statsLoading}
+          className="px-5 mt-4 grid grid-cols-3 gap-2.5"
+        >
           {statsLoading ? (
             <>
-              <div className="pp-statchip pp-skel" />
-              <div className="pp-statchip pp-skel" />
-              <div className="pp-statchip pp-skel" />
+              <StatSkeleton />
+              <StatSkeleton />
+              <StatSkeleton />
             </>
           ) : (
             <>
-              <StatChip icon={IndianRupee} label="This month" value={`₹${stats.monthSpent.toLocaleString("en-IN")}`} tint="from-orange-500/30 to-amber-500/10" />
-              <StatChip icon={Activity} label="Transactions" value={String(stats.txnCount)} tint="from-violet-500/30 to-fuchsia-500/10" />
-              <StatChip icon={TrendingUp} label="Success" value={`${stats.successRate}%`} tint="from-emerald-500/30 to-teal-500/10" />
+              <StatChip icon={IndianRupee} label="This month" value={`₹${stats.monthSpent.toLocaleString("en-IN")}`} tint="from-white/10 to-white/[.02]" />
+              <StatChip icon={Activity} label="Transactions" value={String(stats.txnCount)} tint="from-white/10 to-white/[.02]" />
+              <StatChip icon={TrendingUp} label="Success" value={`${stats.successRate}%`} tint="from-white/10 to-white/[.02]" />
             </>
           )}
-        </div>
+        </section>
 
         {/* ── TABS ── */}
         <div className="px-5 mt-5">
-          <div className="pp-tabs">
+          <div className="pp-tabs" role="tablist" aria-label="Profile sections">
             {(["overview", "account", "security", "preferences", "support"] as Tab[]).map((t) => (
-              <button key={t} onClick={() => setTab(t)} className={`pp-tab ${tab === t ? "pp-tab-active" : ""}`}>
+              <button
+                key={t}
+                role="tab"
+                id={`pp-tab-${t}`}
+                aria-controls={`pp-panel-${t}`}
+                aria-selected={tab === t}
+                tabIndex={tab === t ? 0 : -1}
+                onClick={() => setTab(t)}
+                className={`pp-tab ${tab === t ? "pp-tab-active" : ""}`}
+              >
                 {t[0].toUpperCase() + t.slice(1)}
               </button>
             ))}
@@ -316,7 +329,12 @@ export function ProfilePanel({ onClose }: Props) {
         </div>
 
         {/* ── TAB CONTENT ── */}
-        <div className="px-5 mt-4 space-y-3">
+        <div
+          className="px-5 mt-4 space-y-3"
+          role="tabpanel"
+          id={`pp-panel-${tab}`}
+          aria-labelledby={`pp-tab-${tab}`}
+        >
           {tab === "overview" && (
             <>
               <Section title="Quick links">
