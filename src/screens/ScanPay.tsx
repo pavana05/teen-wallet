@@ -755,6 +755,62 @@ function ScannerView({ onBack, onDecoded }: { onBack: () => void; onDecoded: (p:
         </div>
       )}
 
+      {/* ── QR scan recovery panel ──
+          Shown when the user has hit 3+ invalid QR decodes, has done 2+ soft
+          resets without locking, OR the camera failed to start. Offers a one-
+          tap retry of the camera AND a one-tap fallback to gallery upload so
+          a frustrated user is never stuck on the scanner. */}
+      {(invalidDecodeCount >= 3 || softResetCount >= 2 || cameraStartError) && scanState !== "locked" && (
+        <div className="sp2-recover" role="alertdialog" aria-live="polite" aria-label="Trouble scanning">
+          <div className="sp2-recover-icon" aria-hidden="true">
+            <AlertTriangle className="w-4 h-4" strokeWidth={2.4} />
+          </div>
+          <div className="sp2-recover-text">
+            <p className="sp2-recover-title">
+              {cameraStartError ? "Camera couldn't start" : "Trouble scanning?"}
+            </p>
+            <p className="sp2-recover-sub">
+              {cameraStartError
+                ? cameraStartError
+                : invalidDecodeCount >= 3
+                  ? "We're seeing QRs that aren't UPI payments. Try a clearer angle or upload a photo."
+                  : "The camera is having trouble. Re-tune or pick a QR photo from your gallery."}
+            </p>
+          </div>
+          <div className="sp2-recover-actions">
+            <button
+              type="button"
+              onClick={manualSoftReset}
+              className="sp2-recover-btn ghost"
+              aria-label="Retry camera"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              Retry
+            </button>
+            <button
+              type="button"
+              onClick={openGalleryPicker}
+              className="sp2-recover-btn primary"
+              aria-label="Use gallery instead"
+            >
+              <ImageIcon className="w-3.5 h-3.5" />
+              Use gallery
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Hidden file input used by the recovery panel's "Use gallery" CTA. */}
+      <input
+        ref={fallbackInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={handleUpload}
+        aria-hidden="true"
+        tabIndex={-1}
+      />
+
       {/* Bottom action dock — GPay/PhonePe style */}
       <div className="sp2-dock safe-bottom">
         <div className="sp2-dock-row">
