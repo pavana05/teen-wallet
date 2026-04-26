@@ -4,6 +4,7 @@ import { updateProfileFields, setStage as persistStage } from "@/lib/auth";
 import { SelfieCapture, SELFIE_STORAGE_KEY, type SelfiePermState } from "@/components/SelfieCapture";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { breadcrumb, captureError } from "@/lib/breadcrumbs";
 
 type Step = 1 | 2 | 3;
 type SelfiePayload = { dataUrl: string; width: number; height: number; bytes: number };
