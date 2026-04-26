@@ -14,7 +14,7 @@ export function Splash({ onDone }: { onDone: () => void }) {
         <h1 className="text-white font-light text-sm" style={{ letterSpacing: "0.5em" }}>
           TEEN WALLET
         </h1>
-        <p className="text-[11px] italic text-[#888] mt-3">by Pavan</p>
+        
       </div>
       <div className="absolute bottom-10 flex gap-2">
         {[0, 1, 2].map((i) => (
