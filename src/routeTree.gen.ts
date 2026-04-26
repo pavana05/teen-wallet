@@ -15,6 +15,7 @@ import { Route as PreviewIndexRouteImport } from './routes/preview.index'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as PreviewSplashRouteImport } from './routes/preview.splash'
 import { Route as PreviewScanPayRouteImport } from './routes/preview.scan-pay'
+import { Route as PreviewProfileHelpRouteImport } from './routes/preview.profile-help'
 import { Route as PreviewPhoneVerifiedRouteImport } from './routes/preview.phone-verified'
 import { Route as PreviewPermissionsRouteImport } from './routes/preview.permissions'
 import { Route as PreviewOnboardingRouteImport } from './routes/preview.onboarding'
@@ -63,6 +64,11 @@ const PreviewSplashRoute = PreviewSplashRouteImport.update({
 const PreviewScanPayRoute = PreviewScanPayRouteImport.update({
   id: '/preview/scan-pay',
   path: '/preview/scan-pay',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PreviewProfileHelpRoute = PreviewProfileHelpRouteImport.update({
+  id: '/preview/profile-help',
+  path: '/preview/profile-help',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PreviewPhoneVerifiedRoute = PreviewPhoneVerifiedRouteImport.update({
@@ -181,6 +187,7 @@ export interface FileRoutesByFullPath {
   '/preview/onboarding': typeof PreviewOnboardingRoute
   '/preview/permissions': typeof PreviewPermissionsRoute
   '/preview/phone-verified': typeof PreviewPhoneVerifiedRoute
+  '/preview/profile-help': typeof PreviewProfileHelpRoute
   '/preview/scan-pay': typeof PreviewScanPayRoute
   '/preview/splash': typeof PreviewSplashRoute
   '/admin/': typeof AdminIndexRoute
@@ -207,6 +214,7 @@ export interface FileRoutesByTo {
   '/preview/onboarding': typeof PreviewOnboardingRoute
   '/preview/permissions': typeof PreviewPermissionsRoute
   '/preview/phone-verified': typeof PreviewPhoneVerifiedRoute
+  '/preview/profile-help': typeof PreviewProfileHelpRoute
   '/preview/scan-pay': typeof PreviewScanPayRoute
   '/preview/splash': typeof PreviewSplashRoute
   '/admin': typeof AdminIndexRoute
@@ -235,6 +243,7 @@ export interface FileRoutesById {
   '/preview/onboarding': typeof PreviewOnboardingRoute
   '/preview/permissions': typeof PreviewPermissionsRoute
   '/preview/phone-verified': typeof PreviewPhoneVerifiedRoute
+  '/preview/profile-help': typeof PreviewProfileHelpRoute
   '/preview/scan-pay': typeof PreviewScanPayRoute
   '/preview/splash': typeof PreviewSplashRoute
   '/admin/': typeof AdminIndexRoute
@@ -264,6 +273,7 @@ export interface FileRouteTypes {
     | '/preview/onboarding'
     | '/preview/permissions'
     | '/preview/phone-verified'
+    | '/preview/profile-help'
     | '/preview/scan-pay'
     | '/preview/splash'
     | '/admin/'
@@ -290,6 +300,7 @@ export interface FileRouteTypes {
     | '/preview/onboarding'
     | '/preview/permissions'
     | '/preview/phone-verified'
+    | '/preview/profile-help'
     | '/preview/scan-pay'
     | '/preview/splash'
     | '/admin'
@@ -317,6 +328,7 @@ export interface FileRouteTypes {
     | '/preview/onboarding'
     | '/preview/permissions'
     | '/preview/phone-verified'
+    | '/preview/profile-help'
     | '/preview/scan-pay'
     | '/preview/splash'
     | '/admin/'
@@ -337,6 +349,7 @@ export interface RootRouteChildren {
   PreviewOnboardingRoute: typeof PreviewOnboardingRoute
   PreviewPermissionsRoute: typeof PreviewPermissionsRoute
   PreviewPhoneVerifiedRoute: typeof PreviewPhoneVerifiedRoute
+  PreviewProfileHelpRoute: typeof PreviewProfileHelpRoute
   PreviewScanPayRoute: typeof PreviewScanPayRoute
   PreviewSplashRoute: typeof PreviewSplashRoute
   PreviewIndexRoute: typeof PreviewIndexRoute
@@ -385,6 +398,13 @@ declare module '@tanstack/react-router' {
       path: '/preview/scan-pay'
       fullPath: '/preview/scan-pay'
       preLoaderRoute: typeof PreviewScanPayRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/preview/profile-help': {
+      id: '/preview/profile-help'
+      path: '/preview/profile-help'
+      fullPath: '/preview/profile-help'
+      preLoaderRoute: typeof PreviewProfileHelpRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/preview/phone-verified': {
@@ -573,6 +593,7 @@ const rootRouteChildren: RootRouteChildren = {
   PreviewOnboardingRoute: PreviewOnboardingRoute,
   PreviewPermissionsRoute: PreviewPermissionsRoute,
   PreviewPhoneVerifiedRoute: PreviewPhoneVerifiedRoute,
+  PreviewProfileHelpRoute: PreviewProfileHelpRoute,
   PreviewScanPayRoute: PreviewScanPayRoute,
   PreviewSplashRoute: PreviewSplashRoute,
   PreviewIndexRoute: PreviewIndexRoute,

@@ -561,7 +561,12 @@ export function ProfilePanel({ onClose }: Props) {
                 isOpen={isOpen("su-help", true)}
                 onToggle={() => toggleSection("su-help", true)}
               >
-                <Row icon={HelpCircle} label="Help center" hint="FAQs & guides" />
+                <Row
+                  icon={HelpCircle}
+                  label="Help center"
+                  hint="My reports & shake settings"
+                  onClick={() => { onClose(); window.location.assign("/preview/profile-help"); }}
+                />
                 <Row icon={FileText} label="Terms of service" />
                 <Row icon={FileText} label="Privacy policy" />
                 <Row icon={Settings} label="App version" hint="v1.0.6" />
