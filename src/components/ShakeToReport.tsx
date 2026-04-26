@@ -217,7 +217,7 @@ export function ShakeToReport() {
         cameraPath = await uploadAttachment(userId, cameraFile, "camera");
       }
 
-      const { error } = await supabase.from("issue_reports").insert({
+      const { error } = await supabase.from("issue_reports").insert([{
         user_id: userId,
         category,
         message: trimmed,
@@ -228,7 +228,7 @@ export function ShakeToReport() {
         stack_trace: stackTrace,
         screenshot_path: screenshotPath,
         camera_photo_path: cameraPath,
-      });
+      }]);
       if (error) throw error;
       toast.success("Report sent — thank you!");
       setOpen(false);
