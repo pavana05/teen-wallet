@@ -275,7 +275,7 @@ export function Home() {
         {/* Header */}
         <div className="relative z-10 flex items-center justify-between px-6 pt-8">
           <div>
-            <p className="hp-greeting">Hey, {first}</p>
+            <p className="hp-greeting">Hey, {first} 👋</p>
             <p className="hp-greeting-sub">Welcome back</p>
           </div>
           <button
