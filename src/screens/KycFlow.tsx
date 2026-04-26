@@ -5,6 +5,7 @@ import { SelfieCapture, SELFIE_STORAGE_KEY, type SelfiePermState } from "@/compo
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { breadcrumb, captureError } from "@/lib/breadcrumbs";
+import { CopyableErrorId } from "@/components/CopyableErrorId";
 
 type Step = 1 | 2 | 3;
 type SelfiePayload = { dataUrl: string; width: number; height: number; bytes: number };
