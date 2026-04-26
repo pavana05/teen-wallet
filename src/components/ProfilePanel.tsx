@@ -391,19 +391,23 @@ export function ProfilePanel({ onClose }: Props) {
           )}
 
           {tab === "account" && (
-            <>
-              <Section title="Personal details">
-                <DetailRow icon={Pencil} label="Full name" value={profile?.full_name ?? "—"} onEdit={() => setEditOpen(true)} />
-                <DetailRow icon={Smartphone} label="Phone" value={phone} />
-                <DetailRow icon={Cake} label="Date of birth" value={profile?.dob ?? "—"} onEdit={() => setEditOpen(true)} />
-                <DetailRow icon={Mail} label="Email" value="—" onEdit={() => setEditOpen(true)} />
-                <DetailRow icon={MapPin} label="Address" value="—" onEdit={() => setEditOpen(true)} />
-              </Section>
-              <Section title="Identity">
-                <DetailRow icon={ShieldCheck} label="Aadhaar" value={profile?.aadhaar_last4 ? `XXXX XXXX ${profile.aadhaar_last4}` : "Not added"} />
-                <DetailRow icon={BadgeCheck} label="KYC status" value={kycMeta.label} />
-              </Section>
-            </>
+            profileLoading ? (
+              <SectionSkeleton title="Personal details" rows={5} />
+            ) : (
+              <>
+                <Section title="Personal details">
+                  <DetailRow icon={Pencil} label="Full name" value={profile?.full_name ?? "—"} onEdit={() => setEditOpen(true)} />
+                  <DetailRow icon={Smartphone} label="Phone" value={phone} />
+                  <DetailRow icon={Cake} label="Date of birth" value={profile?.dob ?? "—"} onEdit={() => setEditOpen(true)} />
+                  <DetailRow icon={Mail} label="Email" value="—" onEdit={() => setEditOpen(true)} />
+                  <DetailRow icon={MapPin} label="Address" value="—" onEdit={() => setEditOpen(true)} />
+                </Section>
+                <Section title="Identity">
+                  <DetailRow icon={ShieldCheck} label="Aadhaar" value={profile?.aadhaar_last4 ? `XXXX XXXX ${profile.aadhaar_last4}` : "Not added"} />
+                  <DetailRow icon={BadgeCheck} label="KYC status" value={kycMeta.label} />
+                </Section>
+              </>
+            )
           )}
 
           {tab === "security" && (
