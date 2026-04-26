@@ -385,6 +385,15 @@ export function KycFlow({ onDone }: { onDone: () => void }) {
         setLastSubmission(next);
       }
 
+      breadcrumb("kyc.submit_response", {
+        status: res.status,
+        kycStatus: json.status,
+        submissionId: json.submissionId,
+        providerRef: json.providerRef,
+        reason: json.reason,
+        durationMs: Date.now() - startedAt,
+      });
+
       // Keep the selfie in localStorage until we have a non-pending status — lets the
       // user re-check / resubmit on refresh during Step 3 without recapturing.
       // Only clear text drafts (KYC is now in the provider's hands).
@@ -404,6 +413,11 @@ export function KycFlow({ onDone }: { onDone: () => void }) {
       await persistStage("STAGE_4");
       onDone();
     } catch (e) {
+      captureError(e, {
+        where: "kyc.runVerification",
+        step,
+        durationMs: Date.now() - startedAt,
+      });
       setError(e instanceof Error ? e.message : "Could not submit verification");
     } finally {
       setBusy(false);
