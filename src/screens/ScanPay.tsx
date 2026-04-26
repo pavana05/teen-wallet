@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { downloadReceiptPdf, shareReceiptPdf, type ReceiptData } from "@/lib/receipt";
 import { payUpi } from "@/lib/payments.functions";
+import { breadcrumb, captureError } from "@/lib/breadcrumbs";
 
 const SCANPAY_PERSIST_KEY = "tw-scanpay-flow-v1";
 
