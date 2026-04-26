@@ -169,6 +169,7 @@ export function CommandPalette() {
       hint: u.phone ? `${u.phone} · ${u.kyc_status}` : u.kyc_status,
       icon: UserIcon,
       onRun: () => { nav({ to: `/admin/users/${u.id}` as never }); setOpen(false); },
+      copy: () => `${u.full_name || "(no name)"} · ${u.phone || "no phone"} · KYC ${u.kyc_status} · id ${u.id}`,
     }));
 
     // Transactions
@@ -181,13 +182,57 @@ export function CommandPalette() {
       onRun: () => {
         nav({ to: "/admin/transactions" });
         setOpen(false);
-        // Surface the txn id in URL hash so the txn page can scroll/highlight if it wants.
         setTimeout(() => { window.location.hash = `txn-${t.id}`; }, 50);
       },
+      copy: () => `₹${Number(t.amount).toFixed(2)} · ${t.merchant_name} · ${t.upi_id} · ${t.status} · ${new Date(t.created_at).toLocaleString()} · ref ${t.id}`,
     }));
+
+    // KYC quick-jump filters (always shown when no search term, or when matching)
+    const kycJumps: Array<{ status: "pending" | "approved" | "rejected" | "all"; label: string }> = [
+      { status: "pending", label: "Jump to KYC: Pending" },
+      { status: "approved", label: "Jump to KYC: Approved" },
+      { status: "rejected", label: "Jump to KYC: Rejected" },
+      { status: "all", label: "Jump to KYC: All" },
+    ];
+    kycJumps
+      .filter((k) => !term || k.label.toLowerCase().includes(term) || "kyc".includes(term))
+      .forEach((k) => out.push({
+        id: `kyc:${k.status}`,
+        group: "KYC Queue",
+        label: k.label,
+        hint: `/admin/kyc?status=${k.status}`,
+        icon: FileCheck2,
+        onRun: () => {
+          nav({ to: "/admin/kyc", search: { status: k.status } as never });
+          setOpen(false);
+        },
+      }));
 
     // Actions (always available)
     const actions: Array<Pick<CmdItem, "label" | "hint" | "icon" | "onRun"> & { id: string }> = [
+      {
+        id: "act:open-latest-suspicious",
+        label: "Open latest suspicious item",
+        hint: "Most recent open fraud alert",
+        icon: Flame,
+        onRun: async () => {
+          const s = readAdminSession();
+          if (!s) return;
+          try {
+            const r = await callAdminFn<{ rows: Array<{ id: string; user_id: string; rule_triggered: string }> }>({
+              action: "fraud_list", sessionToken: s.sessionToken, status: "open", rule: "", page: 1, pageSize: 1,
+            });
+            const top = r.rows?.[0];
+            if (!top) { toast.info("No open fraud alerts"); setOpen(false); return; }
+            toast.success(`Opening ${top.rule_triggered}`);
+            nav({ to: `/admin/users/${top.user_id}` as never, search: { tab: "fraud" } as never });
+          } catch (e: any) {
+            toast.error(e?.message || "Failed to fetch latest alert");
+          } finally {
+            setOpen(false);
+          }
+        },
+      },
       {
         id: "act:copy-token",
         label: "Copy session token",
@@ -195,7 +240,7 @@ export function CommandPalette() {
         icon: Copy,
         onRun: async () => {
           const s = readAdminSession();
-          if (s) await navigator.clipboard.writeText(s.sessionToken);
+          if (s) await copyText(s.sessionToken, "session token");
           setOpen(false);
         },
       },
