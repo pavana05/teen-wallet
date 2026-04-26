@@ -835,12 +835,15 @@ export function KycFlow({ onDone }: { onDone: () => void }) {
           {error && (
             <div className="mt-4">
               <p className="text-destructive text-xs tw-shake">{error}</p>
-              {lastErrorTransient && (
-                <button onClick={retrySubmit} disabled={busy}
-                  className="mt-2 text-xs text-primary inline-flex items-center gap-1 hover:underline disabled:opacity-50">
-                  <RefreshCw className={`w-3 h-3 ${busy ? "animate-spin" : ""}`} /> Try again
-                </button>
-              )}
+              <div className="mt-2 flex items-center gap-3">
+                {lastErrorTransient && (
+                  <button onClick={retrySubmit} disabled={busy}
+                    className="text-xs text-primary inline-flex items-center gap-1 hover:underline disabled:opacity-50">
+                    <RefreshCw className={`w-3 h-3 ${busy ? "animate-spin" : ""}`} /> Try again
+                  </button>
+                )}
+                {errorId && <CopyableErrorId id={errorId} />}
+              </div>
             </div>
           )}
           <div className="flex-1" />
