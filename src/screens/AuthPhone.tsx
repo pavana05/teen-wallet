@@ -308,7 +308,7 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
 
           <div className="mt-6 text-sm">
             {errorKind === "rate_limited" && resendBlocked ? (
-              <span className="text-amber-400/90">
+              <span className="text-warning">
                 Too many requests. Resend available in {resendIn}s.
               </span>
             ) : resendBlocked ? (
