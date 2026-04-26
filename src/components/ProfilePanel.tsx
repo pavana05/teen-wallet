@@ -1,17 +1,21 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
-  ArrowLeft, X, QrCode, Copy, Check, ChevronRight, Pencil, Camera, ShieldCheck,
+  ArrowLeft, X, QrCode, Copy, Check, ChevronRight, ChevronDown, Pencil, Camera, ShieldCheck,
   ShieldAlert, BadgeCheck, Wallet, CreditCard, Building2, Bell, Lock, Smartphone,
   Eye, EyeOff, Languages, Moon, HelpCircle, FileText, LogOut, Star, Gift, Users,
-  Settings, Sparkles, IndianRupee, Activity, Mail, MapPin, Cake,
-  TrendingUp, Trash2, Share2, Download, AlertTriangle,
+  Settings, Sparkles, IndianRupee, Activity, Mail, Cake,
+  TrendingUp, Trash2, Share2, Download, AlertTriangle, Receipt,
 } from "lucide-react";
-import { z } from "zod";
 import QRCode from "qrcode";
 import { toast } from "sonner";
 import { useApp } from "@/lib/store";
 import { supabase } from "@/integrations/supabase/client";
 import { logout } from "@/lib/auth";
+import { usePersistentState } from "./profile/usePersistentState";
+import { NotificationPrefs, DEFAULT_NOTIF_PREFS, type NotifPrefs } from "./profile/NotificationPrefs";
+import { KycTimeline } from "./profile/KycTimeline";
+import { QuickActions } from "./profile/QuickActions";
+import { InlineEditCard } from "./profile/InlineEditCard";
 
 interface Props {
   onClose: () => void;
