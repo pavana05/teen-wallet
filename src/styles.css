@@ -3433,3 +3433,206 @@
   border-color: rgba(232,220,192,.6);
   text-shadow: 0 1px 0 rgba(255,255,255,.25);
 }
+
+/* ============================================================
+ * Profile Panel — Hero v3 (phone-centric premium card)
+ * ============================================================ */
+
+.pp-hero-v3 {
+  position: relative;
+  padding: 18px 18px 18px;
+  border-radius: 26px;
+  background:
+    radial-gradient(120% 70% at 50% -10%, rgba(255,255,255,.10), transparent 55%),
+    radial-gradient(80% 60% at 100% 100%, rgba(168,85,247,.10), transparent 60%),
+    linear-gradient(180deg, rgba(28,28,32,.92), rgba(14,14,16,.92));
+  border: 1px solid rgba(255,255,255,.10);
+  box-shadow:
+    0 24px 60px -28px rgba(0,0,0,.85),
+    inset 0 1px 0 rgba(255,255,255,.07);
+  overflow: hidden;
+}
+
+.pp-hero-topglow {
+  position: absolute;
+  top: -40px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 70%;
+  height: 110px;
+  background: radial-gradient(ellipse at center, rgba(255,255,255,.18), transparent 70%);
+  pointer-events: none;
+  filter: blur(8px);
+}
+
+.pp-hero-phone {
+  font-size: 18px;
+  font-weight: 700;
+  color: white;
+  letter-spacing: -0.01em;
+  text-shadow: 0 1px 0 rgba(0,0,0,.4);
+}
+
+.pp-hero-since {
+  font-size: 10.5px;
+  color: rgba(255,255,255,.5);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+/* XL avatar */
+.pp-avatar-xl-wrap {
+  position: relative;
+  width: 84px; height: 84px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform .2s ease;
+}
+.pp-avatar-xl-wrap:active { transform: scale(.97); }
+
+.pp-avatar-xl {
+  width: 84px; height: 84px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 30px; font-weight: 700; color: white;
+  background:
+    radial-gradient(120% 100% at 0% 0%, rgba(255,255,255,.30), transparent 55%),
+    linear-gradient(135deg, #f97316, #ea580c 50%, #c2410c);
+  box-shadow:
+    0 16px 40px -12px rgba(249,115,22,.6),
+    inset 0 2px 0 rgba(255,255,255,.30),
+    inset 0 -10px 22px rgba(0,0,0,.30),
+    0 0 0 3px rgba(255,255,255,.06),
+    0 0 0 4px rgba(0,0,0,.5);
+}
+
+.pp-avatar-xl-cam {
+  position: absolute;
+  right: -2px; bottom: -2px;
+  width: 26px; height: 26px;
+  border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: linear-gradient(180deg, #ffffff, #e2e2e2);
+  border: 2px solid #0a0a0a;
+  box-shadow: 0 4px 10px rgba(0,0,0,.45);
+}
+
+/* Info block (UPI / Phone rows inside hero) */
+.pp-info-block {
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(255,255,255,.06);
+  border-radius: 14px;
+  padding: 4px 12px;
+}
+.pp-info-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 0;
+  min-height: 38px;
+}
+.pp-info-label {
+  font-size: 10px;
+  color: rgba(255,255,255,.45);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  width: 70px;
+  flex-shrink: 0;
+}
+.pp-info-value {
+  flex: 1;
+  font-size: 12.5px;
+  color: rgba(255,255,255,.92);
+  font-weight: 500;
+  min-width: 0;
+}
+.pp-info-action {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px;
+  flex-shrink: 0;
+}
+.pp-info-divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.06), transparent);
+}
+
+/* My QR centered button — dark glossy pill */
+.pp-myqr-btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 9px 18px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #2a2a2e, #161618);
+  border: 1px solid rgba(255,255,255,.10);
+  color: white;
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.10),
+    0 6px 16px -8px rgba(0,0,0,.7);
+  transition: transform .15s ease, border-color .2s ease;
+}
+.pp-myqr-btn:not(:disabled):hover { border-color: rgba(255,255,255,.18); }
+.pp-myqr-btn:not(:disabled):active { transform: scale(.97); }
+
+/* ============================================================
+ * Big stat tiles (Points / Cashback)
+ * ============================================================ */
+
+.pp-bigstat {
+  position: relative;
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 14px;
+  border-radius: 18px;
+  border: 1px solid rgba(255,255,255,.10);
+  box-shadow:
+    0 12px 28px -16px rgba(0,0,0,.7),
+    inset 0 1px 0 rgba(255,255,255,.12);
+  overflow: hidden;
+  transition: transform .2s ease;
+}
+.pp-bigstat:hover { transform: translateY(-1px); }
+
+.pp-bigstat-orange {
+  background:
+    radial-gradient(120% 100% at 0% 0%, rgba(255,255,255,.22), transparent 55%),
+    linear-gradient(135deg, #f97316, #c2410c 70%, #7c2d12);
+}
+.pp-bigstat-green {
+  background:
+    radial-gradient(120% 100% at 0% 0%, rgba(255,255,255,.22), transparent 55%),
+    linear-gradient(135deg, #16a34a, #15803d 70%, #14532d);
+}
+
+.pp-bigstat-shine {
+  position: absolute; inset: 0;
+  background: linear-gradient(120deg, transparent 35%, rgba(255,255,255,.10) 50%, transparent 65%);
+  transform: translateX(-120%);
+  transition: transform .8s ease;
+  pointer-events: none;
+}
+.pp-bigstat:hover .pp-bigstat-shine { transform: translateX(120%); }
+
+.pp-bigstat-icon {
+  width: 30px; height: 30px;
+  border-radius: 10px;
+  display: inline-flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  border: 1px solid rgba(255,255,255,.20);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.18);
+}
+.pp-bigstat-icon-orange { background: rgba(0,0,0,.25); }
+.pp-bigstat-icon-green { background: rgba(0,0,0,.25); }
+
+/* ============================================================
+ * Group labels (UPI / Shop / Recharges & Bills / Others)
+ * ============================================================ */
+
+.pp-group-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(255,255,255,.55);
+  letter-spacing: -0.005em;
+  padding: 14px 4px 6px;
+}
