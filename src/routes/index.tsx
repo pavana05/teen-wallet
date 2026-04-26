@@ -82,8 +82,20 @@ function Index() {
         console.error("[boot] hydrate failed", err);
       }
     })();
-    const { data: sub } = supabase.auth.onAuthStateChange((event) => {
-      if (event === "SIGNED_OUT") useApp.getState().reset();
+    const { data: sub } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event !== "SIGNED_OUT") return;
+      // Defensive: only reset local stage if there is truly no session. A transient
+      // SIGNED_OUT event (e.g. token refresh blip) with a still-valid session shouldn't
+      // wipe locally persisted onboarding progress.
+      if (session) return;
+      try {
+        const { data } = await supabase.auth.getSession();
+        if (data.session) return;
+      } catch {
+        // If we can't even check the session (network failure), don't destroy local state.
+        return;
+      }
+      useApp.getState().reset();
     });
     return () => { mounted = false; sub.subscription.unsubscribe(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
