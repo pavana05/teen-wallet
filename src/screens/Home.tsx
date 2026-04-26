@@ -24,7 +24,7 @@ function QuickAction({ icon: Icon, label, onClick }: { icon: React.ComponentType
   return (
     <button
       type="button"
-      onClick={onClick}
+      onClick={() => { void haptics.tap(); onClick?.(); }}
       aria-label={accessibleLabel}
       className="flex flex-col items-center gap-2 group rounded-2xl focus:outline-none"
     >
@@ -40,6 +40,7 @@ function RechargeTile({ icon: Icon, label, tint }: { icon: React.ComponentType<{
   return (
     <button
       type="button"
+      onClick={() => { void haptics.tap(); }}
       aria-label={label}
       className="flex flex-col items-center gap-2 rounded-2xl focus:outline-none"
     >
