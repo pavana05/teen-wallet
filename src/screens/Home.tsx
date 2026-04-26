@@ -83,7 +83,7 @@ function NavItem({ icon: Icon, label, active, onClick }: { icon: React.Component
   return (
     <button
       type="button"
-      onClick={onClick}
+      onClick={() => { void haptics.select(); onClick?.(); }}
       aria-label={label}
       aria-current={active ? "page" : undefined}
       className={`flex-1 flex flex-col items-center py-2 rounded-full transition-colors focus:outline-none ${active ? "hp-nav-active text-white" : "text-white/55 hover:text-white/80"}`}
