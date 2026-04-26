@@ -4581,3 +4581,20 @@
   .nf-orb, .nf-zero-ring, .nf-zero-core, .nf-digit-1, .nf-digit-2,
   .nf-dot, .nf-content { animation: none !important; }
 }
+
+/* Shake-to-report: attachment rows */
+.str-attach { display: flex; flex-direction: column; gap: 8px; margin: 12px 0; }
+.str-attach-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px; border-radius: 10px;
+  background: rgba(255,255,255,0.04); border: 1px solid rgba(212,197,160,0.18);
+  font-size: 13px; color: #e8dcc0; cursor: pointer;
+}
+.str-attach-row:hover { background: rgba(212,197,160,0.08); }
+.str-attach-btn { width: 100%; }
+.str-chip-ok {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 11px; padding: 2px 8px; border-radius: 999px;
+  background: rgba(120,200,140,0.14); color: #9adcb0;
+  border: 1px solid rgba(120,200,140,0.3);
+}
