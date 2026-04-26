@@ -336,9 +336,10 @@ export function Home() {
         </div>
       </div>
 
+      <div className="hp-divider mt-10" aria-hidden="true" />
 
       {/* ===== RECHARGES AND BILLS ===== */}
-      <div className="px-5 mt-8">
+      <div className="px-5 mt-10">
         <div className="hp-section-head">
           <div>
             <span className="hp-section-eyebrow">Pay bills</span>
@@ -354,6 +355,7 @@ export function Home() {
         </div>
       </div>
 
+      <div className="hp-divider mt-10" aria-hidden="true" />
 
       {/* ===== PAYMENT HISTORY ===== */}
       <section
