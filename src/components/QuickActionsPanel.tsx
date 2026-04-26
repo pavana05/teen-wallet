@@ -975,6 +975,53 @@ function TxnDetailSheet({
           </ol>
         </div>
 
+
+        {/* Receipt actions — available for any non-pending payment */}
+        {!pending && (
+          <div className="mt-5">
+            <p className="text-[11px] uppercase tracking-[0.14em] text-white/45 mb-2">Receipt</p>
+            <div className="grid grid-cols-2 gap-2">
+              <ReceiptBtn
+                icon={Download}
+                label="Download PDF"
+                onClick={async () => {
+                  try {
+                    await downloadReceiptPdf(toReceipt(txn));
+                    toast.success("Receipt downloaded");
+                  } catch { toast.error("Couldn't generate receipt"); }
+                }}
+              />
+              <ReceiptBtn
+                icon={Share2}
+                label="Share"
+                onClick={async () => {
+                  try {
+                    const shared = await shareReceiptPdf(toReceipt(txn));
+                    if (!shared) toast.success("Receipt downloaded");
+                  } catch { toast.error("Share failed"); }
+                }}
+              />
+              <ReceiptBtn
+                icon={Mail}
+                label="Email"
+                onClick={() => {
+                  const subject = encodeURIComponent(`Payment receipt · ₹${Number(txn.amount).toFixed(2)} → ${txn.merchant_name}`);
+                  const body = encodeURIComponent(buildReceiptSummary(toReceipt(txn)));
+                  window.location.href = `mailto:?subject=${subject}&body=${body}`;
+                }}
+              />
+              <ReceiptBtn
+                icon={MessageCircle}
+                label="SMS"
+                onClick={() => {
+                  const body = encodeURIComponent(buildReceiptSummary(toReceipt(txn)));
+                  window.location.href = `sms:?body=${body}`;
+                }}
+              />
+            </div>
+          </div>
+        )}
+
         {/* Pay again — only for completed UPI payments */}
         {!pending && (
           <button
