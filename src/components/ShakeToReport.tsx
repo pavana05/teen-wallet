@@ -224,7 +224,7 @@ export function ShakeToReport() {
         route,
         user_agent: ua,
         app_version: "tw-web-1.0",
-        console_errors: consoleErrors as unknown as object[],
+        console_errors: JSON.parse(JSON.stringify(consoleErrors)),
         stack_trace: stackTrace,
         screenshot_path: screenshotPath,
         camera_photo_path: cameraPath,
