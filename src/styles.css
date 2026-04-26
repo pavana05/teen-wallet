@@ -3711,6 +3711,22 @@
   box-shadow: 0 0 8px rgba(255,255,255,.45);
 }
 
+/* Focusable wrapper for tab-style dot pagination buttons */
+.ob-top-dot-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 2px;
+  background: transparent;
+  border: 0;
+  border-radius: 999px;
+  cursor: pointer;
+  outline: none;
+}
+.ob-top-dot-btn:focus-visible {
+  box-shadow: 0 0 0 2px rgba(190,255,120,.85), 0 0 0 4px rgba(190,255,120,.25);
+}
+
 /* Stage transitions */
 .ob-stage { will-change: transform, opacity; }
 @keyframes ob-enter-fwd {
