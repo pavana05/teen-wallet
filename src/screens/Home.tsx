@@ -258,16 +258,21 @@ export function Home() {
       </div>
 
       {/* ===== OFFERS CAROUSEL ===== */}
-      <div className="px-5 mt-4 -mt-2">
+      <section
+        aria-label="Offers"
+        aria-busy={loading}
+        aria-live="polite"
+        className="px-5 mt-4 -mt-2"
+      >
         {loading ? (
-          <div className="flex gap-3 overflow-hidden pb-1">
+          <div className="flex gap-3 overflow-hidden pb-1" aria-hidden="true">
             {[0, 1].map((i) => (
               <div key={i} className="hp-skeleton snap-start shrink-0" style={{ width: "84%", minHeight: 140 }} />
             ))}
           </div>
         ) : error ? (
-          <div key={`offers-err-${shakeKey}`} className="hp-empty hp-shake-error tw-slide-up">
-            <div className="hp-empty-illu">
+          <div key={`offers-err-${shakeKey}`} role="alert" className="hp-empty hp-shake-error hp-fade-in">
+            <div className="hp-empty-illu" aria-hidden="true">
               <Sparkles className="w-7 h-7 text-white/85" strokeWidth={1.6} />
             </div>
             <p className="hp-empty-title">Couldn't load offers</p>
@@ -278,37 +283,41 @@ export function Home() {
               className="hp-cta-pill"
               aria-label="Retry loading offers"
             >
-              <RefreshCw className="w-3.5 h-3.5" strokeWidth={2.2} />
+              <RefreshCw className="w-3.5 h-3.5" strokeWidth={2.2} aria-hidden="true" />
               <span>Retry</span>
             </button>
           </div>
         ) : (
-          <div className="flex gap-3 overflow-x-auto hp-scroll snap-x snap-mandatory pb-1 tw-slide-up">
-            <div className="hp-offer hp-offer-1 snap-start shrink-0">
+          <div
+            className="flex gap-3 overflow-x-auto hp-scroll snap-x snap-mandatory pb-1 hp-fade-in"
+            role="list"
+            aria-label="Available offers"
+          >
+            <div className="hp-offer hp-offer-1 snap-start shrink-0" role="listitem">
               <div className="relative z-10">
                 <p className="hp-offer-eyebrow">P2P UPI · Limited</p>
                 <p className="hp-offer-headline">20%<em>flat off</em></p>
                 <p className="hp-offer-sub">On every peer transfer this month</p>
-                <button type="button" className="hp-offer-cta" aria-label="Apply 20% off offer">
+                <button type="button" className="hp-offer-cta" aria-label="Apply 20% flat off offer on peer transfers">
                   <span>Apply offer</span>
-                  <ArrowUpRight className="w-3.5 h-3.5 hp-offer-cta-icon" strokeWidth={2.2} />
+                  <ArrowUpRight className="w-3.5 h-3.5 hp-offer-cta-icon" strokeWidth={2.2} aria-hidden="true" />
                 </button>
               </div>
             </div>
-            <div className="hp-offer hp-offer-2 snap-start shrink-0">
+            <div className="hp-offer hp-offer-2 snap-start shrink-0" role="listitem">
               <div className="relative z-10">
                 <p className="hp-offer-eyebrow">First recharge</p>
                 <p className="hp-offer-headline">40%<em>cashback</em></p>
                 <p className="hp-offer-sub">Credited instantly to your wallet</p>
-                <button type="button" className="hp-offer-cta" aria-label="Claim 40% cashback offer">
+                <button type="button" className="hp-offer-cta" aria-label="Claim 40% cashback offer on your first recharge">
                   <span>Claim now</span>
-                  <Sparkles className="w-3.5 h-3.5 hp-offer-cta-icon" strokeWidth={2.2} />
+                  <Sparkles className="w-3.5 h-3.5 hp-offer-cta-icon" strokeWidth={2.2} aria-hidden="true" />
                 </button>
               </div>
             </div>
           </div>
         )}
-      </div>
+      </section>
 
       {/* ===== EVERYTHING UPI ===== */}
       <div className="px-5 mt-8">
