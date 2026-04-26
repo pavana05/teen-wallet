@@ -136,16 +136,37 @@ function TransactionsList() {
     return () => { supabase.removeChannel(ch); };
   }, [fetchPage]);
 
-  async function reverse() {
-    if (!reversing) return;
-    const s = readAdminSession(); if (!s) return;
-    if (!reverseReason.trim()) { setErr("Reason required"); return; }
+  function closeReverseModal() {
+    setReversing(null);
+    setReverseReason("");
+    setReversePassword("");
+    setStepUpVerified(false);
+    setErr("");
+  }
+
+  async function verifyStepUp() {
     if (!reversePassword) { setErr("Password required"); return; }
-    setBusyId(reversing.id); setErr("");
+    setVerifying(true); setErr("");
     try {
       await callAdminFn({ action: "login_password", email: admin?.email, password: reversePassword });
+      setStepUpVerified(true);
+    } catch (e: any) {
+      setStepUpVerified(false);
+      setErr(e?.message || "Step-up verification failed");
+    } finally {
+      setVerifying(false);
+    }
+  }
+
+  async function commitReverse() {
+    if (!reversing) return;
+    const s = readAdminSession(); if (!s) return;
+    if (!stepUpVerified) { setErr("Re-verify your password before mutating"); return; }
+    if (!reverseReason.trim()) { setErr("Reason required"); return; }
+    setBusyId(reversing.id); setErr("");
+    try {
       await callAdminFn({ action: "transaction_reverse", sessionToken: s.sessionToken, txnId: reversing.id, reason: reverseReason });
-      setReversing(null); setReverseReason(""); setReversePassword("");
+      closeReverseModal();
       setPage(1); await fetchPage(1);
     } catch (e: any) { setErr(e.message || "Reverse failed"); }
     finally { setBusyId(null); }
