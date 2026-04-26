@@ -252,12 +252,22 @@ export function KycFlow({ onDone }: { onDone: () => void }) {
     if (age == null) return setError("Enter DOB as DD/MM/YYYY");
     if (age < 13 || age > 19) return setError("Teen Wallet is for ages 13–19");
     if (!gender) return setError("Select gender");
+    if (schoolName.trim().length < 2) return setError("Enter your school or college name");
+    if (addrLine1.trim().length < 4) return setError("Enter your home address");
+    if (addrCity.trim().length < 2) return setError("Enter your city");
+    if (addrState.trim().length < 2) return setError("Enter your state");
+    if (!/^[0-9]{6}$/.test(addrPincode)) return setError("Enter a valid 6-digit pincode");
     setBusy(true);
     const [d, m, y] = dob.split("/");
     await updateProfileFields({
       full_name: name.trim(),
       dob: `${y}-${m}-${d}`,
       gender,
+      school_name: schoolName.trim(),
+      address_line1: addrLine1.trim(),
+      address_city: addrCity.trim(),
+      address_state: addrState.trim(),
+      address_pincode: addrPincode,
       onboarding_stage: "STAGE_2",
     });
     setBusy(false);
