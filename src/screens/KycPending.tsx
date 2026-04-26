@@ -248,73 +248,137 @@ function PendingView({
   latest,
   onRetry,
   onClose,
+  initialLoading,
+  fetchError,
+  retrying,
 }: {
   pollMs: number;
   latest: LatestSubmission | null;
-  onRetry: () => void;
+  onRetry: () => void | Promise<void>;
   onClose: () => void;
+  initialLoading: boolean;
+  fetchError: string | null;
+  retrying: boolean;
 }) {
   // Render submission timestamp on client only — avoids SSR/CSR locale + timezone hydration mismatch.
   const [submittedLabel, setSubmittedLabel] = useState<string | null>(null);
+  const [exiting, setExiting] = useState(false);
+  // Re-trigger shake on each new error string by keying the banner on it.
+  const errorKey = fetchError ?? "";
+
   useEffect(() => {
     if (!latest?.submittedAt) { setSubmittedLabel(null); return; }
-    setSubmittedLabel(new Date(latest.submittedAt).toLocaleString());
+    const fmt = () => {
+      const d = new Date(latest.submittedAt);
+      const diffSec = Math.max(0, Math.round((Date.now() - d.getTime()) / 1000));
+      if (diffSec < 60) return `${diffSec}s ago`;
+      if (diffSec < 3600) return `${Math.round(diffSec / 60)}m ago`;
+      return d.toLocaleString();
+    };
+    setSubmittedLabel(fmt());
+    const t = setInterval(() => setSubmittedLabel(fmt()), 1000);
+    return () => clearInterval(t);
   }, [latest?.submittedAt]);
 
+  const handleContinue = () => {
+    if (exiting) return;
+    setExiting(true);
+    setTimeout(() => onClose(), CONTINUE_TRANSITION_MS);
+  };
+
   return (
-    <div className="kyc-result-root kyc-pending-stage">
+    <div className={`kyc-result-root kyc-pending-stage ${exiting ? "kyc-exit" : ""}`}>
       <div className="kyc-result-glow yellow" />
       <div className="kyc-pending-rays" aria-hidden="true" />
 
-      <button className="kyc-close-btn" onClick={onClose} aria-label="Close">
+      <button className="kyc-close-btn" onClick={handleContinue} aria-label="Close">
         <X className="w-6 h-6" strokeWidth={2.2} />
       </button>
 
       <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-6 -mt-12">
-        {/* Soft ripple wave behind badge */}
-        <div className="kyc-pending-ripple" aria-hidden="true">
-          <span /><span /><span />
-        </div>
+        {initialLoading ? (
+          <PendingSkeleton />
+        ) : (
+          <>
+            {/* Soft ripple wave behind badge */}
+            <div className="kyc-pending-ripple" aria-hidden="true">
+              <span /><span /><span />
+            </div>
 
-        <div className="kyc-seal-bounce">
-          <ClockBadge />
-        </div>
+            <div className="kyc-seal-bounce">
+              <ClockBadge />
+            </div>
 
-        {/* Shimmer that sweeps once over the badge */}
-        <div className="kyc-pending-shimmer" aria-hidden="true" />
+            {/* Shimmer that sweeps once over the badge */}
+            <div className="kyc-pending-shimmer" aria-hidden="true" />
 
-        <h1 className="kyc-approved-title mt-10 text-white text-[24px] font-semibold tracking-tight text-center">
-          Verifying your KYC
-        </h1>
-        <p className="kyc-approved-sub mt-2 text-white/60 text-sm text-center max-w-[280px]">
-          Hang tight — this usually takes under 2 minutes.
-        </p>
+            <h1 className="kyc-approved-title mt-10 text-white text-[24px] font-semibold tracking-tight text-center">
+              Verifying your KYC
+            </h1>
+            <p className="kyc-approved-sub mt-2 text-white/60 text-sm text-center max-w-[280px]">
+              Hang tight — this usually takes under 2 minutes.
+            </p>
 
-        <div className="kyc-pending-progress mt-8 w-full max-w-[260px]">
-          <div className="kyc-pending-progress-fill" />
-        </div>
+            <div className="kyc-pending-progress mt-8 w-full max-w-[260px]">
+              <div className="kyc-pending-progress-fill" />
+            </div>
 
-        {latest && (
-          <div className="mt-7 text-[11px] text-white/45 text-center space-y-0.5">
-            <p>Auto-refreshing every {Math.round(pollMs / 1000)}s</p>
-            {submittedLabel && (
-              <p suppressHydrationWarning>Submitted: {submittedLabel}</p>
+            {latest && (
+              <div className="mt-7 text-[11px] text-white/45 text-center space-y-0.5">
+                <p>Auto-refreshing every {Math.round(pollMs / 1000)}s</p>
+                {submittedLabel && (
+                  <p suppressHydrationWarning>Submitted {submittedLabel}</p>
+                )}
+              </div>
             )}
-          </div>
+
+            {fetchError && (
+              <div key={errorKey} className="kyc-error-banner mt-6" role="alert" aria-live="polite">
+                <AlertTriangle className="w-4 h-4 shrink-0" strokeWidth={2.2} />
+                <div className="flex-1 min-w-0">
+                  <p className="text-[12.5px] font-semibold text-red-100">Couldn't reach verification</p>
+                  <p className="text-[11px] text-red-200/75 truncate">{fetchError}</p>
+                </div>
+                <button
+                  onClick={onRetry}
+                  disabled={retrying}
+                  className="kyc-error-retry"
+                >
+                  {retrying ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+                  <span>Retry</span>
+                </button>
+              </div>
+            )}
+          </>
         )}
       </div>
 
       <div className="relative z-10 px-6 pb-8 safe-bottom flex flex-col items-center gap-3">
-        <button onClick={onRetry} className="text-[12px] text-white/55 inline-flex items-center gap-1.5 hover:text-white transition-colors">
-          <RefreshCw className="w-3 h-3" /> Refresh now
-        </button>
-        <button className="kyc-continue-btn" onClick={onClose}>
+        {!initialLoading && !fetchError && (
+          <button onClick={onRetry} disabled={retrying} className="text-[12px] text-white/55 inline-flex items-center gap-1.5 hover:text-white transition-colors disabled:opacity-50">
+            {retrying ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />} Refresh now
+          </button>
+        )}
+        <button className="kyc-continue-btn" onClick={handleContinue} disabled={initialLoading}>
           Continue in background
         </button>
       </div>
     </div>
   );
 }
+
+/* Neon-lime skeleton shown only during the very first fetch */
+function PendingSkeleton() {
+  return (
+    <div className="kyc-skeleton-wrap" aria-busy="true" aria-label="Loading verification status">
+      <div className="kyc-skel-badge" />
+      <div className="kyc-skel-line kyc-skel-line-1 mt-10" />
+      <div className="kyc-skel-line kyc-skel-line-2 mt-3" />
+      <div className="kyc-skel-line kyc-skel-line-3 mt-8" />
+    </div>
+  );
+}
+
 
 /* ----------------------------- Clock Badge ----------------------------- */
 
