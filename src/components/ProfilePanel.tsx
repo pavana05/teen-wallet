@@ -32,14 +32,23 @@ interface Stats {
 
 export function ProfilePanel({ onClose }: Props) {
   const { fullName, userId, balance, reset } = useApp();
-  const [tab, setTab] = useState<Tab>("overview");
+
+  // Persisted: which tab the user was on, and which collapsible sections were expanded.
+  const [tab, setTab] = usePersistentState<Tab>("tw-profile-tab", "overview");
+  const [expanded, setExpanded] = usePersistentState<Record<string, boolean>>("tw-profile-expanded", {});
+  const toggleSection = (id: string, defaultOpen: boolean) =>
+    setExpanded((p) => ({ ...p, [id]: !(p[id] ?? defaultOpen) }));
+  const isOpen = (id: string, defaultOpen: boolean) => expanded[id] ?? defaultOpen;
+
   const [profile, setProfile] = useState<{
     full_name: string | null;
     phone: string | null;
     dob: string | null;
     gender: string | null;
+    email: string | null;
     aadhaar_last4: string | null;
     kyc_status: "not_started" | "pending" | "approved" | "rejected";
+    notif_prefs: NotifPrefs;
     created_at: string;
   } | null>(null);
   const [stats, setStats] = useState<Stats>({ totalSpent: 0, txnCount: 0, monthSpent: 0, successRate: 100 });
@@ -48,23 +57,18 @@ export function ProfilePanel({ onClose }: Props) {
   const [profileError, setProfileError] = useState(false);
   const [hideBalance, setHideBalance] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
-  const [editOpen, setEditOpen] = useState(false);
   const [confirmLogout, setConfirmLogout] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [qrOpen, setQrOpen] = useState(false);
+  const [editPhoneOpen, setEditPhoneOpen] = useState(false);
   // Virtual Card is on the roadmap but not shipped yet. Tapping the section
   // opens a friendly "Under Construction" modal instead of dead-end clicks.
   const [vcardOpen, setVcardOpen] = useState(false);
 
-  // preferences (local)
-  const [prefs, setPrefs] = useState(() => {
-    if (typeof window === "undefined") return { notifs: true, biometric: true, darkMode: true, lang: "English", sounds: true };
-    try {
-      const raw = localStorage.getItem("tw-profile-prefs");
-      return raw ? JSON.parse(raw) : { notifs: true, biometric: true, darkMode: true, lang: "English", sounds: true };
-    } catch { return { notifs: true, biometric: true, darkMode: true, lang: "English", sounds: true }; }
+  // app-level preferences (toggles unrelated to notification channels)
+  const [prefs, setPrefs] = usePersistentState("tw-profile-prefs", {
+    biometric: true, darkMode: true, lang: "English", sounds: true,
   });
-  useEffect(() => { try { localStorage.setItem("tw-profile-prefs", JSON.stringify(prefs)); } catch {} }, [prefs]);
 
   const refetch = async () => {
     if (!userId) return;
@@ -72,7 +76,7 @@ export function ProfilePanel({ onClose }: Props) {
     const [{ data: p, error: pErr }, { data: txns, error: tErr }] = await Promise.all([
       supabase
         .from("profiles")
-        .select("full_name,phone,dob,gender,aadhaar_last4,kyc_status,created_at")
+        .select("full_name,phone,dob,gender,email,aadhaar_last4,kyc_status,notif_prefs,created_at")
         .eq("id", userId)
         .maybeSingle(),
       supabase
@@ -84,7 +88,10 @@ export function ProfilePanel({ onClose }: Props) {
       setProfileError(true);
       toast.error("Couldn't load your profile", { description: pErr.message });
     } else if (p) {
-      setProfile(p as typeof profile);
+      setProfile({
+        ...p,
+        notif_prefs: { ...DEFAULT_NOTIF_PREFS, ...((p.notif_prefs ?? {}) as Partial<NotifPrefs>) },
+      } as typeof profile extends infer T ? T : never);
     }
     setProfileLoading(false);
 
