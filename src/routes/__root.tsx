@@ -3,6 +3,7 @@ import { Outlet, Link, createRootRoute, HeadContent, Scripts } from "@tanstack/r
 import { Toaster } from "@/components/ui/sonner";
 import { ShakeToReport } from "@/components/ShakeToReport";
 import { initNative } from "@/lib/native";
+import { breadcrumb, captureError } from "@/lib/breadcrumbs";
 
 import appCss from "../styles.css?url";
 
