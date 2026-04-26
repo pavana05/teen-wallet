@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from "react";
-import { ArrowLeft, ArrowRight, ShieldCheck, Upload, Check, X, Loader2, Camera, AlertTriangle, RefreshCw, Clock } from "lucide-react";
+import { ArrowLeft, ArrowRight, ShieldCheck, Upload, Check, X, Loader2, Camera, AlertTriangle, RefreshCw, Clock, ShieldAlert } from "lucide-react";
 import { updateProfileFields, setStage as persistStage } from "@/lib/auth";
 import { SelfieCapture, SELFIE_STORAGE_KEY, type SelfiePermState } from "@/components/SelfieCapture";
 import { supabase } from "@/integrations/supabase/client";
@@ -56,6 +56,19 @@ export function KycFlow({ onDone }: { onDone: () => void }) {
   const [docFront, setDocFront] = useState<DocState>(null);
   const [docBack, setDocBack] = useState<DocState>(null);
   const [uploading, setUploading] = useState<DocSide | null>(null);
+  // Per-side upload progress (0–100). Reported via XHR's `progress` event so the
+  // user gets real feedback for slow networks instead of an indeterminate spinner.
+  const [uploadProgress, setUploadProgress] = useState<{ front: number; back: number }>({ front: 0, back: 0 });
+  // Per-side last failed File. Kept in memory so a network drop during an Aadhaar
+  // doc upload can be retried with one tap WITHOUT forcing the user to re-pick
+  // the file (or, critically, re-capture the selfie on Step 3).
+  const pendingRetryRef = useRef<{ front: File | null; back: File | null }>({ front: null, back: null });
+  const [retryAvailable, setRetryAvailable] = useState<{ front: boolean; back: boolean }>({ front: false, back: false });
+  // Result of the bucket-access preflight: null = not checked yet, true = OK,
+  // false = blocked (RLS / auth / network). We surface a clear banner when blocked
+  // so the user understands WHY uploads aren't working before they try one.
+  const [bucketAccessOk, setBucketAccessOk] = useState<boolean | null>(null);
+  const [bucketAccessReason, setBucketAccessReason] = useState<string | null>(null);
   const [autoSaveState, setAutoSaveState] = useState<"idle" | "saving" | "saved">("idle");
   const [camPerm, setCamPerm] = useState<SelfiePermState>("unknown");
   const [camSupported, setCamSupported] = useState(true);
@@ -135,6 +148,76 @@ export function KycFlow({ onDone }: { onDone: () => void }) {
       hydrated.current = true;
     })();
   }, []);
+
+  // ── Bucket access preflight + remote doc hydration ──
+  // Confirms the current user can READ from the private `kyc-docs` bucket
+  // (which implies their JWT + RLS policies are wired correctly), AND uses
+  // the same listing call to recover any previously uploaded Aadhaar files
+  // when localStorage was cleared (Incognito refresh, browser data wipe, new
+  // device). Storage is the canonical source of truth for doc paths because
+  // the `kyc_submissions` table has no client INSERT policy.
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const { data: u } = await supabase.auth.getUser();
+        if (!u.user) {
+          if (!cancelled) {
+            setBucketAccessOk(false);
+            setBucketAccessReason("You're signed out. Sign in to upload Aadhaar documents.");
+          }
+          return;
+        }
+        const { data: list, error: listErr } = await supabase.storage
+          .from("kyc-docs")
+          .list(u.user.id, { limit: 100, sortBy: { column: "created_at", order: "desc" } });
+        if (cancelled) return;
+        if (listErr) {
+          // Common cause: RLS policy missing/incorrect on storage.objects for this bucket.
+          setBucketAccessOk(false);
+          setBucketAccessReason(
+            /not authorized|permission|policy|row.?level/i.test(listErr.message)
+              ? "Uploads are blocked by access rules. Please contact support."
+              : `Couldn't reach storage: ${listErr.message}`,
+          );
+          return;
+        }
+        setBucketAccessOk(true);
+        setBucketAccessReason(null);
+
+        // Recover most recent front/back from storage if local state is empty.
+        // File names follow `aadhaar-{side}-{timestamp}.{ext}` (see uploadDoc).
+        const newest = (side: DocSide) =>
+          list?.find((f) => f.name.startsWith(`aadhaar-${side}-`)) ?? null;
+        const remoteFront = newest("front");
+        const remoteBack = newest("back");
+        setDocFront((cur) => {
+          if (cur) return cur;
+          if (!remoteFront) return cur;
+          return {
+            path: `${u.user.id}/${remoteFront.name}`,
+            name: remoteFront.name,
+            size: Number(remoteFront.metadata?.size ?? 0),
+          };
+        });
+        setDocBack((cur) => {
+          if (cur) return cur;
+          if (!remoteBack) return cur;
+          return {
+            path: `${u.user.id}/${remoteBack.name}`,
+            name: remoteBack.name,
+            size: Number(remoteBack.metadata?.size ?? 0),
+          };
+        });
+      } catch (e) {
+        if (cancelled) return;
+        setBucketAccessOk(false);
+        setBucketAccessReason(e instanceof Error ? e.message : "Storage check failed");
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
 
   // Persist draft locally on every change.
   useEffect(() => {
@@ -294,31 +377,107 @@ export function KycFlow({ onDone }: { onDone: () => void }) {
     setStep(3);
   }
 
+  /**
+   * Upload an Aadhaar doc (front or back) to private `kyc-docs` storage.
+   *
+   * Notes on the implementation:
+   * - We bypass `supabase.storage.from(...).upload()` and use raw XHR so we get
+   *   `progress` events for a real progress bar (the JS SDK's upload helper
+   *   doesn't expose progress on the browser).
+   * - On network failure we stash the original `File` in `pendingRetryRef`
+   *   so the user can retry with one tap — without re-picking the file and,
+   *   crucially, WITHOUT having to recapture the selfie they already took.
+   * - We refuse to start if the bucket-access preflight failed.
+   * - File metadata is implicitly persisted to Supabase the moment the upload
+   *   completes (the object exists in storage), and is also mirrored locally
+   *   via the existing KYC_DOCS_KEY effect so progress survives a refresh.
+   */
   async function uploadDoc(side: DocSide, file: File) {
     setError("");
+    if (bucketAccessOk === false) {
+      return setError(bucketAccessReason ?? "Document uploads are currently blocked.");
+    }
     if (!file.type.startsWith("image/") && file.type !== "application/pdf") {
       return setError("Document must be an image or PDF");
     }
     if (file.size > MAX_DOC_BYTES) return setError("File too large (max 5 MB)");
+
+    setUploading(side);
+    setUploadProgress((p) => ({ ...p, [side]: 0 }));
+    setRetryAvailable((r) => ({ ...r, [side]: false }));
+
     try {
-      setUploading(side);
-      const { data: u } = await supabase.auth.getUser();
-      if (!u.user) throw new Error("Session expired");
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Session expired");
       const ext = file.name.split(".").pop()?.toLowerCase() || "bin";
-      const path = `${u.user.id}/aadhaar-${side}-${Date.now()}.${ext}`;
-      const { error: upErr } = await supabase.storage
-        .from("kyc-docs")
-        .upload(path, file, { upsert: true, contentType: file.type });
-      if (upErr) throw upErr;
+      const path = `${session.user.id}/aadhaar-${side}-${Date.now()}.${ext}`;
+
+      // Build the Storage REST URL for direct PUT with progress reporting.
+      const url = `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/kyc-docs/${path}`;
+
+      await new Promise<void>((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open("POST", url, true);
+        xhr.setRequestHeader("Authorization", `Bearer ${session.access_token}`);
+        xhr.setRequestHeader("x-upsert", "true");
+        xhr.setRequestHeader("Content-Type", file.type || "application/octet-stream");
+        xhr.upload.onprogress = (ev) => {
+          if (!ev.lengthComputable) return;
+          const pct = Math.min(99, Math.round((ev.loaded / ev.total) * 100));
+          setUploadProgress((p) => ({ ...p, [side]: pct }));
+        };
+        xhr.onload = () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            setUploadProgress((p) => ({ ...p, [side]: 100 }));
+            resolve();
+          } else {
+            // Surface RLS / auth failures clearly so the user knows it's
+            // NOT a network problem and a retry won't help.
+            let msg = `Upload failed (${xhr.status})`;
+            try {
+              const j = JSON.parse(xhr.responseText) as { message?: string; error?: string };
+              if (j.message) msg = j.message;
+              else if (j.error) msg = j.error;
+            } catch { /* ignore */ }
+            reject(new Error(msg));
+          }
+        };
+        xhr.onerror = () => reject(new Error("network"));
+        xhr.ontimeout = () => reject(new Error("timeout"));
+        xhr.send(file);
+      });
+
       const state: DocState = { path, name: file.name, size: file.size };
       if (side === "front") setDocFront(state); else setDocBack(state);
+      pendingRetryRef.current[side] = null;
+      setRetryAvailable((r) => ({ ...r, [side]: false }));
       toast.success(`Aadhaar ${side} uploaded`);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Upload failed");
+      const msg = e instanceof Error ? e.message : "Upload failed";
+      // Network / timeout / 5xx → make the file retryable in-place.
+      const transient = /network|timeout|fetch|503|502|504/i.test(msg);
+      if (transient) {
+        pendingRetryRef.current[side] = file;
+        setRetryAvailable((r) => ({ ...r, [side]: true }));
+        setError(`Network problem uploading Aadhaar ${side}. Tap Retry to try again.`);
+      } else {
+        // Hard failure (RLS, file rejected, auth) — don't bait the user with retry.
+        pendingRetryRef.current[side] = null;
+        setRetryAvailable((r) => ({ ...r, [side]: false }));
+        setError(msg);
+      }
     } finally {
       setUploading(null);
     }
   }
+
+  /** Re-attempt the most recently failed upload for a side, reusing the cached File. */
+  function retryUpload(side: DocSide) {
+    const f = pendingRetryRef.current[side];
+    if (!f) return;
+    void uploadDoc(side, f);
+  }
+
 
   async function removeDoc(side: DocSide) {
     const cur = side === "front" ? docFront : docBack;
@@ -615,11 +774,49 @@ export function KycFlow({ onDone }: { onDone: () => void }) {
                 <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Speeds up review</span>
               </div>
               <p className="text-xs text-muted-foreground mt-1">Image or PDF, up to 5 MB each. You can skip and add later.</p>
+
+              {/* RLS / bucket-access preflight banner — surfaces a clear,
+                  actionable message BEFORE the user wastes time picking a file. */}
+              {bucketAccessOk === false && (
+                <div className="mt-3 rounded-xl glass border border-destructive/40 p-3 flex items-start gap-2 text-xs">
+                  <ShieldAlert className="w-4 h-4 text-destructive shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-medium text-destructive">Document uploads are blocked</p>
+                    <p className="text-muted-foreground mt-0.5">
+                      {bucketAccessReason ?? "We couldn't verify access to secure storage."}
+                    </p>
+                  </div>
+                </div>
+              )}
+
               <div className="grid grid-cols-2 gap-3 mt-3">
-                <DocSlot side="front" label="Front" doc={docFront} uploading={uploading === "front"}
-                  onPick={(f) => uploadDoc("front", f)} onRemove={() => removeDoc("front")} />
-                <DocSlot side="back" label="Back" doc={docBack} uploading={uploading === "back"}
-                  onPick={(f) => uploadDoc("back", f)} onRemove={() => removeDoc("back")} />
+                <DocSlot
+                  side="front"
+                  label="Front"
+                  doc={docFront}
+                  uploading={uploading === "front"}
+                  progress={uploadProgress.front}
+                  retryAvailable={retryAvailable.front}
+                  // Disable the OTHER slot while this one is mid-upload to
+                  // prevent racing duplicate uploads; also disable when the
+                  // bucket preflight failed.
+                  disabled={uploading !== null && uploading !== "front" || bucketAccessOk === false}
+                  onPick={(f) => uploadDoc("front", f)}
+                  onRetry={() => retryUpload("front")}
+                  onRemove={() => removeDoc("front")}
+                />
+                <DocSlot
+                  side="back"
+                  label="Back"
+                  doc={docBack}
+                  uploading={uploading === "back"}
+                  progress={uploadProgress.back}
+                  retryAvailable={retryAvailable.back}
+                  disabled={uploading !== null && uploading !== "back" || bucketAccessOk === false}
+                  onPick={(f) => uploadDoc("back", f)}
+                  onRetry={() => retryUpload("back")}
+                  onRemove={() => removeDoc("back")}
+                />
               </div>
             </div>
           )}
@@ -652,13 +849,23 @@ export function KycFlow({ onDone }: { onDone: () => void }) {
 }
 
 function DocSlot({
-  side, label, doc, uploading, onPick, onRemove,
+  side, label, doc, uploading, progress, retryAvailable, disabled, onPick, onRetry, onRemove,
 }: {
   side: DocSide;
   label: string;
   doc: DocState;
   uploading: boolean;
+  /** 0–100 upload progress; only meaningful while `uploading` is true. */
+  progress: number;
+  /** True when the previous upload attempt failed transiently and a one-tap
+   *  retry (using the cached File) is available. */
+  retryAvailable: boolean;
+  /** Disables BOTH the file picker and the retry button — used to prevent
+   *  duplicate concurrent uploads while the sibling slot is busy, and to
+   *  block uploads when the bucket-access preflight failed. */
+  disabled: boolean;
   onPick: (f: File) => void;
+  onRetry: () => void;
   onRemove: () => void;
 }) {
   const id = `kyc-doc-${side}`;
@@ -669,24 +876,64 @@ function DocSlot({
           <Check className="w-5 h-5 text-primary" />
           <p className="text-xs mt-1 truncate max-w-full">{doc.name}</p>
           <p className="text-[10px] text-muted-foreground">{(doc.size / 1024).toFixed(0)} KB</p>
-          <button onClick={onRemove} className="mt-1 text-[10px] text-muted-foreground hover:text-destructive flex items-center gap-1">
+          <button
+            onClick={onRemove}
+            disabled={disabled}
+            className="mt-1 text-[10px] text-muted-foreground hover:text-destructive disabled:opacity-50 flex items-center gap-1"
+          >
             <X className="w-3 h-3" /> Remove
           </button>
         </>
       ) : uploading ? (
         <>
           <Loader2 className="w-5 h-5 animate-spin text-primary" />
-          <p className="text-xs mt-1 text-muted-foreground">Uploading…</p>
+          <p className="text-xs mt-1 text-muted-foreground">Uploading… {progress}%</p>
+          {/* Determinate progress bar driven by XHR `progress` events. */}
+          <div className="w-full h-1 mt-2 rounded-full bg-white/10 overflow-hidden">
+            <div
+              className="h-full bg-primary transition-[width] duration-150"
+              style={{ width: `${progress}%` }}
+              role="progressbar"
+              aria-valuenow={progress}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-label={`Aadhaar ${label} upload progress`}
+            />
+          </div>
+        </>
+      ) : retryAvailable ? (
+        // Network failed mid-upload — offer one-tap retry without re-picking
+        // the file (and without disturbing the selfie state on Step 3).
+        <>
+          <AlertTriangle className="w-5 h-5 text-destructive" />
+          <p className="text-xs mt-1 font-medium">Upload failed</p>
+          <button
+            onClick={onRetry}
+            disabled={disabled}
+            className="mt-1 text-[11px] text-primary inline-flex items-center gap-1 hover:underline disabled:opacity-50"
+            aria-label={`Retry uploading Aadhaar ${label}`}
+          >
+            <RefreshCw className="w-3 h-3" /> Retry upload
+          </button>
         </>
       ) : (
         <>
-          <label htmlFor={id} className="cursor-pointer flex flex-col items-center">
+          <label
+            htmlFor={id}
+            className={`cursor-pointer flex flex-col items-center ${disabled ? "opacity-50 pointer-events-none" : ""}`}
+          >
             <Upload className="w-5 h-5 text-primary" />
             <p className="text-xs mt-1 font-medium">Aadhaar {label}</p>
             <p className="text-[10px] text-muted-foreground">Tap to upload</p>
           </label>
-          <input id={id} type="file" accept="image/*,application/pdf" className="hidden"
-            onChange={(e) => { const f = e.target.files?.[0]; if (f) onPick(f); e.currentTarget.value = ""; }} />
+          <input
+            id={id}
+            type="file"
+            accept="image/*,application/pdf"
+            className="hidden"
+            disabled={disabled}
+            onChange={(e) => { const f = e.target.files?.[0]; if (f) onPick(f); e.currentTarget.value = ""; }}
+          />
         </>
       )}
     </div>
