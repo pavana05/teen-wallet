@@ -839,7 +839,7 @@ function ScannerView({ onBack, onDecoded }: { onBack: () => void; onDecoded: (p:
    ============================================================ */
 
 function ConfirmView({
-  payload, amount, onAmountChange, note, onNoteChange, onConfirm, onBack, balance,
+  payload, amount, onAmountChange, note, onNoteChange, onConfirm, onBack, balance, userId,
 }: {
   payload: UpiPayload;
   amount: number;
@@ -849,10 +849,58 @@ function ConfirmView({
   onConfirm: () => void;
   onBack: () => void;
   balance: number;
+  userId: string | null;
 }) {
   const initial = (payload.payeeName || payload.upiId).trim().charAt(0).toUpperCase();
-  const canPay = amount > 0 && amount <= balance;
   const insufficient = amount > 0 && amount > balance;
+
+  // ── Fraud preview ──
+  // Run the SAME client-side rules used at submit, but BEFORE the user slides
+  // to pay, so they can see warnings (and any block reason) up front and either
+  // tweak the amount or explicitly acknowledge the warning before continuing.
+  const [fraud, setFraud] = useState<{ flags: FraudFlag[]; blocked: boolean } | null>(null);
+  const [fraudLoading, setFraudLoading] = useState(false);
+  const [acknowledged, setAcknowledged] = useState(false);
+
+  // Re-acknowledge whenever amount or merchant changes — silently consenting
+  // to a different payment than the one originally reviewed would be a footgun.
+  useEffect(() => {
+    setAcknowledged(false);
+  }, [amount, payload.upiId]);
+
+  // Debounced preflight on amount change. Skip when amount is invalid.
+  useEffect(() => {
+    if (!userId || amount <= 0 || amount > balance) {
+      setFraud(null);
+      return;
+    }
+    let cancelled = false;
+    setFraudLoading(true);
+    const t = setTimeout(async () => {
+      try {
+        const report = await scanTransaction({ userId, amount, upiId: payload.upiId });
+        if (cancelled) return;
+        setFraud({ flags: report.flags, blocked: report.blocked });
+      } catch {
+        if (!cancelled) setFraud(null);
+      } finally {
+        if (!cancelled) setFraudLoading(false);
+      }
+    }, 350);
+    return () => { cancelled = true; clearTimeout(t); };
+  }, [userId, amount, balance, payload.upiId]);
+
+  const warnFlags = fraud?.flags.filter((f) => f.severity === "warn") ?? [];
+  const blockFlags = fraud?.flags.filter((f) => f.severity === "block") ?? [];
+  const isBlocked = fraud?.blocked === true;
+  const needsAck = warnFlags.length > 0 && !isBlocked;
+
+  // Slide is gated on: valid amount + (no warnings OR user acknowledged) + not blocked.
+  const canPay =
+    amount > 0 &&
+    amount <= balance &&
+    !isBlocked &&
+    (!needsAck || acknowledged);
 
   // Smart quick-amount chips: show the QR amount if present, otherwise common values.
   const quickAmounts = payload.amount && payload.amount > 0
