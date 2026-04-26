@@ -14,6 +14,7 @@ import {
   saveOtpState,
   type OtpErrorKind,
 } from "@/lib/otpState";
+import { CopyableErrorId } from "@/components/CopyableErrorId";
 
 type Step = "phone" | "otp" | "verified";
 
