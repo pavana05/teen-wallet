@@ -390,7 +390,54 @@ export function ProfilePanel({ onClose }: Props) {
         >
           {tab === "overview" && (
             <>
-              <CollapsibleSection
+              {/* UPI group */}
+              <p className="pp-group-label">UPI</p>
+              <div className="pp-card divide-y divide-white/5">
+                <Row icon={Settings} label="Account management" />
+                <Row icon={Receipt} label="Transaction history" onClick={() => { onClose(); toast("Tap History on home", { description: "We took you back so you can open Transactions." }); }} />
+                <Row icon={Wallet} label="Everything UPI" />
+              </div>
+
+              {/* Shop group */}
+              <p className="pp-group-label">Shop</p>
+              <div className="pp-card divide-y divide-white/5">
+                <Row icon={Gift} label="Orders" />
+                <Row icon={Star} label="Wishlist" />
+                <Row icon={Building2} label="Saved address" />
+              </div>
+
+              {/* Promo card */}
+              <p className="pp-group-label">YES Bank POP RuPay credit card</p>
+              <div className="pp-card">
+                <button className="w-full px-3.5 py-3.5 flex items-center gap-3 hover:bg-white/[.02] transition-colors text-left">
+                  <div className="pp-row-icon"><CreditCard className="w-4 h-4 text-amber-300" strokeWidth={2} /></div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[13px] text-white font-medium">Apply now</p>
+                    <p className="text-[11px] text-amber-300/90 mt-0.5">⚡ Earn 5% TWPoints</p>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-white/30" />
+                </button>
+              </div>
+
+              {/* Recharges & Bills */}
+              <p className="pp-group-label">Recharges & Bills</p>
+              <div className="pp-card divide-y divide-white/5">
+                <Row icon={Receipt} label="Pay bills" />
+                <Row icon={Gift} label="Rewards" hint={<span className="text-emerald-300">New</span>} />
+              </div>
+
+              {/* Others */}
+              <p className="pp-group-label">Others</p>
+              <div className="pp-card divide-y divide-white/5">
+                <Row icon={HelpCircle} label="Help & Support" />
+                <Row icon={FileText} label="Terms & Conditions" />
+                <Row icon={Lock} label="Privacy Policy" />
+                <Row icon={Star} label="Rate us" />
+                <Row icon={LogOut} label="Logout" onClick={() => setConfirmLogout(true)} />
+              </div>
+
+              <p className="text-center text-[10.5px] text-white/35 pt-3 pb-1">v1.0.6</p>
+
                 id="ov-quick-actions"
                 title="Quick actions"
                 defaultOpen
