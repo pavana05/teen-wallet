@@ -805,7 +805,147 @@ function KycQueue() {
           onClose={() => setCompareOpen(false)}
         />
       )}
+
+      {/* Quick side-panel preview — opens on row click or long-press. */}
+      {quickPreview && (
+        <KycSidePanel
+          row={quickPreview}
+          onClose={() => setQuickPreview(null)}
+          onOpenFullReview={() => { setReviewing(quickPreview); setQuickPreview(null); }}
+          onZoom={(url, label) => setZoomUrl({ url, label })}
+        />
+      )}
     </div>
+  );
+}
+
+/**
+ * Quick side-panel preview that slides in from the right.
+ * - Loads its own signed URLs (independent of the full review modal so it's
+ *   instant whether or not the modal has been opened before).
+ * - Shows a compact summary, three thumbnails, and a single "Open full review"
+ *   button as the path to the heavyweight modal.
+ */
+function KycSidePanel({
+  row, onClose, onOpenFullReview, onZoom,
+}: {
+  row: KycRow;
+  onClose: () => void;
+  onOpenFullReview: () => void;
+  onZoom: (url: string, label: string) => void;
+}) {
+  const [urls, setUrls] = useState<{ selfieUrl: string | null; docFrontUrl: string | null; docBackUrl: string | null } | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    const s = readAdminSession();
+    if (!s) { setLoading(false); return; }
+    setLoading(true);
+    callAdminFn<{ selfieUrl: string | null; docFrontUrl: string | null; docBackUrl: string | null }>({
+      action: "kyc_signed_urls", sessionToken: s.sessionToken, submissionId: row.id,
+    })
+      .then((r) => { if (!cancelled) setUrls(r); })
+      .catch(() => { if (!cancelled) setUrls({ selfieUrl: null, docFrontUrl: null, docBackUrl: null }); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [row.id]);
+
+  // Close on ESC for keyboard-first admins.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  const thumbs: Array<{ key: string; label: string; url: string | null }> = [
+    { key: "selfie", label: "Selfie", url: urls?.selfieUrl ?? null },
+    { key: "front", label: "Aadhaar front", url: urls?.docFrontUrl ?? null },
+    { key: "back", label: "Aadhaar back", url: urls?.docBackUrl ?? null },
+  ];
+
+  return (
+    <>
+      <div className="kyc-side-overlay" onClick={onClose} />
+      <aside className="kyc-side-panel" role="dialog" aria-label="KYC quick preview">
+        <div className="kyc-side-head">
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="a-label" style={{ marginBottom: 2 }}>Quick preview</div>
+            <div style={{ fontSize: 15, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+              {row.profile?.full_name || "Unnamed user"}
+            </div>
+          </div>
+          <StatusPill status={row.status} />
+          <button onClick={onClose} className="a-btn-ghost" aria-label="Close" style={{ padding: 6 }}>
+            <X size={14} />
+          </button>
+        </div>
+
+        <div className="kyc-side-body">
+          <div className="kyc-side-thumbs">
+            {thumbs.map((t) => (
+              <div key={t.key}>
+                <button
+                  type="button"
+                  className="kyc-side-thumb"
+                  onClick={() => t.url && onZoom(t.url, t.label)}
+                  disabled={!t.url}
+                  title={t.url ? `Tap to zoom · ${t.label}` : "Not available"}
+                >
+                  {loading ? (
+                    <Loader2 size={16} className="animate-spin" style={{ color: "var(--a-muted)" }} />
+                  ) : t.url ? (
+                    <img src={t.url} alt={t.label} loading="lazy" />
+                  ) : t.key === "selfie" ? (
+                    <FileImage size={18} style={{ color: "var(--a-muted)" }} />
+                  ) : (
+                    <ImageOff size={18} style={{ color: "var(--a-muted)" }} />
+                  )}
+                </button>
+                <div className="kyc-side-thumb-label">{t.label}</div>
+              </div>
+            ))}
+          </div>
+
+          <dl className="kyc-dl">
+            <div><dt>Phone</dt><dd className="a-mono">{row.profile?.phone || "—"}</dd></div>
+            <div><dt>DOB</dt><dd>{row.profile?.dob || "—"}{ageFromDob(row.profile?.dob) ? ` (${ageFromDob(row.profile?.dob)} yrs)` : ""}</dd></div>
+            <div><dt>Aadhaar</dt><dd className="a-mono">{row.profile?.aadhaar_last4 ? `XXXX-XXXX-${row.profile.aadhaar_last4}` : "—"}</dd></div>
+            <div><dt>Match</dt><dd><MatchGauge score={row.match_score} /></dd></div>
+            <div><dt>Submitted</dt><dd>{timeAgo(row.created_at)}</dd></div>
+            <div><dt>Provider</dt><dd>{row.provider}</dd></div>
+          </dl>
+
+          {row.reason && (
+            <div style={{ marginTop: 12, padding: 10, borderRadius: 6, background: "var(--a-surface-2)", border: "1px solid var(--a-border)", fontSize: 12 }}>
+              <div className="a-label" style={{ marginBottom: 4 }}>Latest reason</div>
+              {row.reason}
+            </div>
+          )}
+        </div>
+
+        <div className="kyc-side-foot">
+          <Link
+            to="/admin/users/$id"
+            params={{ id: row.user_id }}
+            className="a-btn-ghost"
+            onClick={onClose}
+            style={{ fontSize: 12 }}
+          >
+            <ExternalLink size={12} /> Open user
+          </Link>
+          <div style={{ flex: 1 }} />
+          <button
+            type="button"
+            className="a-btn-ghost"
+            onClick={onOpenFullReview}
+            style={{ fontSize: 12, fontWeight: 600 }}
+          >
+            Open full review →
+          </button>
+        </div>
+      </aside>
+    </>
   );
 }
 
