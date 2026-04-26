@@ -1,4 +1,4 @@
-import { Bell, Home as HomeIcon, ScanLine, ShoppingBag, CreditCard, ArrowUpRight, Building2, Wallet, History, Smartphone, Zap, MoreHorizontal, Gift, ArrowDownLeft, RefreshCw, User, Sparkles, Inbox } from "lucide-react";
+import { Bell, Home as HomeIcon, ScanLine, ArrowUpRight, Building2, Wallet, History, Smartphone, Zap, MoreHorizontal, Gift, ArrowDownLeft, RefreshCw, User, Sparkles, Inbox, CreditCard } from "lucide-react";
 import { useApp } from "@/lib/store";
 import { useEffect, useState, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -6,7 +6,6 @@ import { ScanPay } from "@/screens/ScanPay";
 import { QuickActionsPanel, type QuickActionKind } from "@/components/QuickActionsPanel";
 import { NotificationsPanel } from "@/components/NotificationsPanel";
 import { ProfilePanel } from "@/components/ProfilePanel";
-import heroScan from "@/assets/home-hero-scan.jpg";
 
 interface Txn {
   id: string;
