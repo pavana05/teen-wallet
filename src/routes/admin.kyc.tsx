@@ -413,12 +413,67 @@ function KycQueue() {
                 </dl>
               </div>
               <div>
-                <div className="a-label" style={{ marginBottom: 8 }}>Provider response</div>
+                <div className="a-label" style={{ marginBottom: 8 }}>Provider & verification</div>
                 <dl className="kyc-dl">
                   <div><dt>Provider</dt><dd>{reviewing.provider}</dd></div>
-                  <div><dt>Ref</dt><dd className="a-mono" style={{ fontSize: 11 }}>{reviewing.provider_ref || "—"}</dd></div>
-                  <div><dt>Match</dt><dd><MatchGauge score={reviewing.match_score} /></dd></div>
+                  <div>
+                    <dt>Provider ref</dt>
+                    <dd className="a-mono" style={{ fontSize: 11, display: "flex", alignItems: "center", gap: 6 }}>
+                      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 180 }}>
+                        {reviewing.provider_ref || "—"}
+                      </span>
+                      {reviewing.provider_ref && (
+                        <button
+                          onClick={() => copy(reviewing.provider_ref!, "pref")}
+                          className="kyc-copy"
+                          title="Copy provider ref"
+                        >
+                          {copiedId === "pref" ? <Check size={11} /> : <Copy size={11} />}
+                        </button>
+                      )}
+                    </dd>
+                  </div>
+                  <div><dt>Match score</dt><dd><MatchGauge score={reviewing.match_score} /></dd></div>
+                  <div><dt>Status</dt><dd><span className={STATUS_BADGE[reviewing.status]}>{reviewing.status}</span></dd></div>
                   <div><dt>Submitted</dt><dd>{new Date(reviewing.created_at).toLocaleString()}</dd></div>
+                  <div><dt>Updated</dt><dd>{new Date(reviewing.updated_at).toLocaleString()} <span style={{ color: "var(--a-muted)" }}>· {timeAgo(reviewing.updated_at)}</span></dd></div>
+                </dl>
+                <div className="a-label" style={{ marginTop: 14, marginBottom: 8 }}>Selfie metadata</div>
+                <dl className="kyc-dl">
+                  <div>
+                    <dt>Dimensions</dt>
+                    <dd className="a-mono">
+                      {reviewing.selfie_width && reviewing.selfie_height
+                        ? `${reviewing.selfie_width} × ${reviewing.selfie_height}`
+                        : "—"}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>File size</dt>
+                    <dd className="a-mono">
+                      {reviewing.selfie_size_bytes
+                        ? `${Math.round(reviewing.selfie_size_bytes / 1024)} KB`
+                        : "—"}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Storage path</dt>
+                    <dd className="a-mono" style={{ fontSize: 11, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 220 }}>
+                      {reviewing.selfie_path || "—"}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Doc front</dt>
+                    <dd className="a-mono" style={{ fontSize: 11 }}>
+                      {reviewing.doc_front_path ? "✓ uploaded" : <span style={{ color: "var(--a-muted)" }}>not uploaded</span>}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Doc back</dt>
+                    <dd className="a-mono" style={{ fontSize: 11 }}>
+                      {reviewing.doc_back_path ? "✓ uploaded" : <span style={{ color: "var(--a-muted)" }}>not uploaded</span>}
+                    </dd>
+                  </div>
                 </dl>
               </div>
             </div>
