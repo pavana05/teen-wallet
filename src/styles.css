@@ -2739,10 +2739,7 @@
     inset 0 1px 0 rgba(255,255,255,.35),
     inset 0 -8px 18px rgba(0,0,0,.18);
 }
-.pp-avatar-wrap::before {
-  background: conic-gradient(from 140deg, #e8dcc0, #c9b896, #a08a64, #e8dcc0);
-  opacity: .65;
-}
+/* premium override: avatar ring removed */
 .pp-section-title::before {
   background: var(--premium-grad);
   box-shadow: 0 0 8px var(--premium-accent-glow);
