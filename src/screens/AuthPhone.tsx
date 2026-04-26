@@ -24,6 +24,7 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
   const [phone, setPhone] = useState("");
   const [error, setError] = useState("");
   const [errorKind, setErrorKind] = useState<OtpErrorKind | null>(null);
+  const [errorId, setErrorId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const [resendIn, setResendIn] = useState(RESEND_COOLDOWN_S);
