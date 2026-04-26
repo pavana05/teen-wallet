@@ -1238,5 +1238,81 @@ Deno.serve(async (req) => {
     return json({ ok: true });
   }
 
+  // ===============================================================
+  // Issue reports (shake-to-report inbox)
+  // ===============================================================
+  if (action === "reports_list") {
+    if (!can(me.role, "viewReports")) return json({ error: "forbidden" }, 403);
+    const status = String(body.status ?? "all");           // all | open | resolved
+    const category = String(body.category ?? "all");       // all | bug | feature | feedback | general
+    const route = String(body.route ?? "").trim();
+    const limit = Math.min(200, Math.max(10, Number(body.limit ?? 50)));
+
+    let q = sb.from("issue_reports")
+      .select("id,user_id,category,status,message,route,user_agent,app_version,screenshot_path,camera_photo_path,console_errors,stack_trace,resolved_at,resolved_by_email,created_at", { count: "exact" })
+      .order("created_at", { ascending: false })
+      .limit(limit);
+
+    if (status !== "all") q = q.eq("status", status);
+    if (category !== "all") q = q.eq("category", category);
+    if (route) q = q.ilike("route", `%${route}%`);
+
+    const { data, count, error } = await q;
+    if (error) return json({ error: error.message }, 500);
+    return json({ rows: data ?? [], total: count ?? 0 });
+  }
+
+  if (action === "reports_get") {
+    if (!can(me.role, "viewReports")) return json({ error: "forbidden" }, 403);
+    const id = String(body.id ?? "");
+    if (!id) return json({ error: "invalid" }, 400);
+    const { data: report, error } = await sb.from("issue_reports").select("*").eq("id", id).maybeSingle();
+    if (error || !report) return json({ error: "not_found" }, 404);
+
+    const { data: notes } = await sb.from("issue_report_notes")
+      .select("id,admin_email,body,created_at")
+      .eq("report_id", id)
+      .order("created_at", { ascending: true });
+
+    const sign = async (p: string | null) => {
+      if (!p) return null;
+      const { data } = await sb.storage.from("issue-attachments").createSignedUrl(p, 60 * 10);
+      return data?.signedUrl ?? null;
+    };
+    const screenshotUrl = await sign((report as any).screenshot_path);
+    const cameraPhotoUrl = await sign((report as any).camera_photo_path);
+
+    return json({ report, notes: notes ?? [], screenshotUrl, cameraPhotoUrl });
+  }
+
+  if (action === "reports_resolve") {
+    if (!can(me.role, "manageReports")) return json({ error: "forbidden" }, 403);
+    const id = String(body.id ?? "");
+    const resolved = body.resolved !== false;  // default true
+    if (!id) return json({ error: "invalid" }, 400);
+    const update: Record<string, unknown> = resolved
+      ? { status: "resolved", resolved_at: new Date().toISOString(), resolved_by_email: me.email }
+      : { status: "open", resolved_at: null, resolved_by_email: null };
+    const { error } = await sb.from("issue_reports").update(update).eq("id", id);
+    if (error) return json({ error: error.message }, 500);
+    await audit(me.id, me.email, me.role, resolved ? "report_resolved" : "report_reopened", { reportId: id });
+    return json({ ok: true });
+  }
+
+  if (action === "reports_add_note") {
+    if (!can(me.role, "manageReports")) return json({ error: "forbidden" }, 403);
+    const id = String(body.id ?? "");
+    const text = String(body.body ?? "").trim();
+    if (!id || !text) return json({ error: "invalid" }, 400);
+    if (text.length > 2000) return json({ error: "too_long" }, 400);
+    const { data, error } = await sb.from("issue_report_notes")
+      .insert({ report_id: id, admin_email: me.email, body: text })
+      .select("id,admin_email,body,created_at")
+      .single();
+    if (error) return json({ error: error.message }, 500);
+    await audit(me.id, me.email, me.role, "report_note_added", { reportId: id });
+    return json({ ok: true, note: data });
+  }
+
   return json({ error: "unknown_action" }, 400);
 });
