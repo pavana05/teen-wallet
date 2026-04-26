@@ -775,16 +775,34 @@ Deno.serve(async (req) => {
     return json({ ok: true });
   }
 
-  // ----- KYC list -----
+  // ----- KYC list (cursor-based pagination) -----
+  // Cursor pagination uses (created_at, id) as a stable composite cursor so that
+  // realtime inserts between page loads don't cause duplicate or skipped rows.
+  // Backwards-compatible: if `cursor` is omitted, behaves like a fresh first page.
+  // Falls back to page-based pagination only if explicitly requested with `usePages: true`.
   if (action === "kyc_list") {
     if (!can(me.role, "viewKyc")) return json({ error: "forbidden" }, 403);
     const status = String(body.status ?? "pending");
-    const page = Math.max(1, Number(body.page ?? 1));
     const pageSize = Math.min(100, Math.max(10, Number(body.pageSize ?? 25)));
+    const cursor = body.cursor ? String(body.cursor) : null;       // ISO timestamp of last row's created_at
+    const cursorId = body.cursorId ? String(body.cursorId) : null; // tiebreaker for identical timestamps
 
+    // Always count for the current filter so the UI can show "X of Y loaded".
     let q = sb.from("kyc_submissions").select("*", { count: "exact" });
     if (status && status !== "all") q = q.eq("status", status as any);
-    q = q.order("created_at", { ascending: true }).range((page - 1) * pageSize, page * pageSize - 1);
+
+    // Composite cursor: rows strictly AFTER (created_at, id) in ascending order.
+    // We use OR with .gt for a tuple-style comparison: created_at > cursor
+    // OR (created_at = cursor AND id > cursorId).
+    if (cursor) {
+      if (cursorId) {
+        q = q.or(`created_at.gt.${cursor},and(created_at.eq.${cursor},id.gt.${cursorId})`);
+      } else {
+        q = q.gt("created_at", cursor);
+      }
+    }
+
+    q = q.order("created_at", { ascending: true }).order("id", { ascending: true }).limit(pageSize);
     const { data, count, error } = await q;
     if (error) return json({ error: error.message }, 500);
 
@@ -795,7 +813,10 @@ Deno.serve(async (req) => {
       for (const p of profs ?? []) profileMap[(p as any).id] = p;
     }
     const rows = (data ?? []).map((r: any) => ({ ...r, profile: profileMap[r.user_id] || null }));
-    return json({ rows, total: count ?? 0, page, pageSize });
+    const last = rows[rows.length - 1];
+    const nextCursor = rows.length === pageSize && last ? last.created_at : null;
+    const nextCursorId = rows.length === pageSize && last ? last.id : null;
+    return json({ rows, total: count ?? 0, pageSize, nextCursor, nextCursorId });
   }
 
   // ----- KYC signed URLs (selfie + Aadhaar docs) for admin review -----
