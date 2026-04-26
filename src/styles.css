@@ -779,6 +779,86 @@
 .admin-shell .kyc-timeline-approve .kyc-timeline-dot { background: var(--a-success); opacity: 1; }
 .admin-shell .kyc-timeline-reject .kyc-timeline-dot { background: var(--a-danger); opacity: 1; }
 
+/* Red shake error panel — used for unrecoverable list-load failures. */
+.admin-shell .a-shake-panel {
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 14px 16px; margin-bottom: 12px; border-radius: 10px;
+  border: 1px solid color-mix(in oklab, var(--a-danger) 55%, transparent);
+  background: color-mix(in oklab, var(--a-danger) 12%, transparent);
+  color: var(--a-danger);
+  box-shadow: 0 4px 18px -8px color-mix(in oklab, var(--a-danger) 60%, transparent);
+  animation: a-shake 520ms cubic-bezier(.36,.07,.19,.97) both;
+}
+.admin-shell .a-shake-icon {
+  flex-shrink: 0; width: 32px; height: 32px; border-radius: 50%;
+  display: grid; place-items: center;
+  background: color-mix(in oklab, var(--a-danger) 22%, transparent);
+}
+.admin-shell .a-shake-retry {
+  flex-shrink: 0; display: inline-flex; align-items: center; gap: 6px;
+  padding: 7px 12px; border-radius: 8px; font-size: 12px; font-weight: 600;
+  cursor: pointer; transition: transform 80ms, background 120ms;
+  background: var(--a-danger); color: var(--a-bg);
+  border: 1px solid var(--a-danger);
+}
+.admin-shell .a-shake-retry:hover:not(:disabled) { transform: translateY(-1px); }
+.admin-shell .a-shake-retry:disabled { opacity: 0.7; cursor: not-allowed; }
+@keyframes a-shake {
+  10%, 90% { transform: translate3d(-1px, 0, 0); }
+  20%, 80% { transform: translate3d(2px, 0, 0); }
+  30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+  40%, 60% { transform: translate3d(4px, 0, 0); }
+}
+
+/* KYC quick side-panel preview — slides in from the right, dimmed backdrop. */
+.admin-shell .kyc-side-overlay {
+  position: fixed; inset: 0; z-index: 55;
+  background: rgba(0, 0, 0, 0.45); backdrop-filter: blur(2px);
+  animation: a-fade-in 140ms ease-out;
+}
+.admin-shell .kyc-side-panel {
+  position: fixed; top: 0; right: 0; bottom: 0; z-index: 56;
+  width: min(420px, 92vw);
+  background: var(--a-surface); border-left: 1px solid var(--a-border);
+  box-shadow: -16px 0 40px -12px rgba(0, 0, 0, 0.5);
+  display: flex; flex-direction: column;
+  animation: a-slide-in-right 220ms cubic-bezier(.2,.8,.2,1);
+  overflow: hidden;
+}
+.admin-shell .kyc-side-head {
+  display: flex; align-items: center; gap: 10px;
+  padding: 14px 16px; border-bottom: 1px solid var(--a-border);
+}
+.admin-shell .kyc-side-body { flex: 1; overflow-y: auto; padding: 14px 16px; }
+.admin-shell .kyc-side-foot {
+  display: flex; gap: 8px; padding: 12px 16px; border-top: 1px solid var(--a-border);
+  background: var(--a-surface-2);
+}
+.admin-shell .kyc-side-thumbs {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 14px;
+}
+.admin-shell .kyc-side-thumb {
+  all: unset; cursor: pointer; aspect-ratio: 1;
+  border-radius: 8px; border: 1px solid var(--a-border); background: var(--a-surface-2);
+  display: grid; place-items: center; overflow: hidden;
+}
+.admin-shell .kyc-side-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.admin-shell .kyc-side-thumb-label {
+  font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--a-muted); margin-top: 4px; text-align: center;
+}
+@keyframes a-slide-in-right {
+  from { transform: translateX(100%); opacity: 0.6; }
+  to { transform: translateX(0); opacity: 1; }
+}
+@keyframes a-fade-in { from { opacity: 0; } to { opacity: 1; } }
+
+/* Long-press visual hint on rows (subtle highlight to confirm gesture). */
+.admin-shell .vt-row.kyc-row-pressing {
+  background: color-mix(in oklab, var(--a-accent) 8%, transparent);
+  transition: background 120ms;
+}
+
 
 @media (max-width: 720px) {
   .admin-shell .kyc-media-grid { grid-template-columns: 1fr; }
