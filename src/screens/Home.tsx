@@ -230,21 +230,31 @@ export function Home() {
             <p className="hp-greeting">Hey, {first}</p>
             <p className="hp-greeting-sub">Welcome back</p>
           </div>
-          <button onClick={() => setShowNotifs(true)} aria-label="Notifications" className="hp-bell">
-            <Bell className="w-[18px] h-[18px] text-white/90" strokeWidth={1.6} />
+          <button
+            type="button"
+            onClick={() => setShowNotifs(true)}
+            aria-label={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : "Notifications"}
+            className="hp-bell"
+          >
+            <Bell className="w-[18px] h-[18px] text-white/90" strokeWidth={1.6} aria-hidden="true" />
             {unreadCount > 0 && (
-              <span className="hp-bell-badge">{unreadCount > 9 ? "9+" : unreadCount}</span>
+              <span className="hp-bell-badge" aria-hidden="true">{unreadCount > 9 ? "9+" : unreadCount}</span>
             )}
           </button>
         </div>
 
         {/* Scan hero card */}
-        <button onClick={() => setView("scan")} className="hp-scan-card group" aria-label="Tap to scan">
-          <img src={heroScan} alt="Tap to scan and pay" className="hp-scan-img" />
+        <button
+          type="button"
+          onClick={() => setView("scan")}
+          className="hp-scan-card group"
+          aria-label="Open scanner to scan and pay"
+        >
+          <img src={heroScan} alt="" className="hp-scan-img" />
         </button>
 
         {/* Grass to black blend */}
-        <div className="hp-hero-fade" />
+        <div className="hp-hero-fade" aria-hidden="true" />
       </div>
 
       {/* ===== OFFERS CAROUSEL ===== */}
