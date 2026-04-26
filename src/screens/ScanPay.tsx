@@ -104,8 +104,8 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
       return;
     }
 
-    // Minimum visible processing window for premium feel
-    await new Promise((r) => setTimeout(r, 900));
+    // Minimum visible processing window so the premium animation has time to play.
+    await new Promise((r) => setTimeout(r, 1800));
 
     // ── Server-side payment ──
     // Calls the authenticated `payUpi` server function which re-runs fraud
