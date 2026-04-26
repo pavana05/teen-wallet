@@ -26,7 +26,7 @@ describe("Home screen smoke test", () => {
     // NavItem labels — guards against the "NavItem is not defined" regression.
     expect(screen.getByText("Home")).toBeInTheDocument();
     expect(screen.getByText("Shop")).toBeInTheDocument();
-    expect(screen.getByText("Card")).toBeInTheDocument();
+    expect(screen.getByText("Profile")).toBeInTheDocument();
   });
 
   it("opens the Scan & Pay screen when the scan FAB is tapped", () => {
