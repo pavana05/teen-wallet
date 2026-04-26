@@ -260,7 +260,11 @@ function TransactionsList() {
         </label>
       </div>
 
-      {err && <div style={{ marginBottom: 12, padding: 10, borderRadius: 6, background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", color: "#fca5a5", fontSize: 13 }}>{err}</div>}
+      <ErrorState
+        error={err && !reversing ? err : null}
+        retrying={initialLoading}
+        onRetry={() => { setPage(1); void fetchPage(1); }}
+      />
 
       <VirtualTable<TxnRow>
         rows={rows}
