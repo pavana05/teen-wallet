@@ -91,17 +91,37 @@ const SLIDES: Slide[] = [
 ];
 
 export function Onboarding({ onDone }: { onDone: () => void }) {
-  const [i, setI] = useState(0);
+  // Resume on the last slide the user was viewing — but only if they hadn't completed.
+  // We initialize from a sync read so the first paint is already on the right slide.
+  const initialSlide = (() => {
+    const s = readOnboardingState();
+    if (!s || s.completed) return 0;
+    return Math.min(Math.max(0, s.slide), SLIDES.length - 1);
+  })();
+  const [i, setI] = useState(initialSlide);
   const [direction, setDirection] = useState<"forward" | "back">("forward");
   const [animKey, setAnimKey] = useState(0);
-  const touchStart = useRef<number | null>(null);
+  // Track failed image loads so we can swap in an offline-safe gradient + icon.
+  const [failedImages, setFailedImages] = useState<Record<number, boolean>>({});
+  // Touch state — record both x position and timestamp for velocity calculation
+  const touchStart = useRef<{ x: number; t: number } | null>(null);
 
   const isLast = i === SLIDES.length - 1;
   const isFirst = i === 0;
   const slide = SLIDES[i];
 
+  // Persist slide changes (debounced via state lifecycle, not interval).
+  useEffect(() => {
+    writeOnboardingState({ slide: i, completed: false, updatedAt: new Date().toISOString() });
+  }, [i]);
+
+  const finishOnboarding = () => {
+    writeOnboardingState({ slide: SLIDES.length - 1, completed: true, updatedAt: new Date().toISOString() });
+    onDone();
+  };
+
   const goNext = () => {
-    if (isLast) { onDone(); return; }
+    if (isLast) { finishOnboarding(); return; }
     setDirection("forward");
     setI((v) => v + 1);
     setAnimKey((k) => k + 1);
@@ -124,13 +144,23 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [i]);
 
-  const onTouchStart = (e: React.TouchEvent) => { touchStart.current = e.touches[0].clientX; };
+  // Tuned swipe — accept if either distance OR velocity threshold passes,
+  // and the gesture wasn't a slow drag (>600ms reads as scroll/hover intent).
+  const onTouchStart = (e: React.TouchEvent) => {
+    touchStart.current = { x: e.touches[0].clientX, t: Date.now() };
+  };
   const onTouchEnd = (e: React.TouchEvent) => {
-    if (touchStart.current == null) return;
-    const dx = e.changedTouches[0].clientX - touchStart.current;
+    const start = touchStart.current;
     touchStart.current = null;
-    if (dx < -40) goNext();
-    else if (dx > 40) goBack();
+    if (!start) return;
+    const dx = e.changedTouches[0].clientX - start.x;
+    const dt = Math.max(1, Date.now() - start.t);
+    if (dt > SWIPE_MAX_DURATION) return;
+    const velocity = Math.abs(dx) / dt; // px/ms
+    const passes = Math.abs(dx) >= SWIPE_MIN_DISTANCE || velocity >= SWIPE_MIN_VELOCITY;
+    if (!passes) return;
+    if (dx < 0) goNext();
+    else goBack();
   };
 
   const Badge = slide.iconBadge;
