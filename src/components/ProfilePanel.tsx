@@ -348,33 +348,43 @@ export function ProfilePanel({ onClose }: Props) {
         >
           {tab === "overview" && (
             <>
-              <Section title="Quick links">
+              <CollapsibleSection
+                id="ov-quick-actions"
+                title="Quick actions"
+                defaultOpen
+                isOpen={isOpen("ov-quick-actions", true)}
+                onToggle={() => toggleSection("ov-quick-actions", true)}
+              >
+                <div className="px-3.5 py-3.5">
+                  <QuickActions
+                    onUpdatePhone={() => setEditPhoneOpen(true)}
+                    onManageKyc={() => setTab("account")}
+                    onViewTransactions={() => { onClose(); /* HomeScreen owns the txn list */ toast("Tap History on home", { description: "We took you back so you can open Transactions." }); }}
+                  />
+                </div>
+              </CollapsibleSection>
+
+              <CollapsibleSection
+                id="ov-quick-links"
+                title="Quick links"
+                defaultOpen
+                isOpen={isOpen("ov-quick-links", true)}
+                onToggle={() => toggleSection("ov-quick-links", true)}
+              >
                 <Row icon={Wallet} label="Wallet & balance" hint={`₹${Number(balance).toLocaleString("en-IN")}`} />
                 <Row icon={CreditCard} label="Virtual Card" hint={<span className="text-amber-300">Coming soon</span>} onClick={() => setVcardOpen(true)} />
                 <Row icon={Building2} label="Bank accounts" hint="Linked" />
                 <Row icon={Gift} label="Rewards & cashback" hint={<span className="text-emerald-300">New</span>} />
                 <Row icon={Users} label="Refer & earn" hint="₹100" />
-              </Section>
+              </CollapsibleSection>
 
-              {/* Dedicated Virtual Card teaser — taps open the Under Construction modal */}
-              <Section title="Virtual Card">
-                <button
-                  type="button"
-                  onClick={() => setVcardOpen(true)}
-                  aria-label="Open Virtual Card details"
-                  className="w-full text-left px-3.5 py-3.5 flex items-center justify-between hover:bg-white/[0.03] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-2xl transition-colors"
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="pp-row-icon"><CreditCard className="w-4 h-4 text-primary" strokeWidth={2} /></div>
-                    <div className="min-w-0">
-                      <p className="text-[13px] text-white">Get your Virtual Card</p>
-                      <p className="text-[11px] text-white/50 truncate">Tap and pay anywhere — under construction</p>
-                    </div>
-                  </div>
-                  <span className="text-[10.5px] font-semibold text-amber-300 px-2 py-0.5 rounded-full bg-amber-400/10 border border-amber-400/25 shrink-0">SOON</span>
-                </button>
-              </Section>
-              <Section title="Membership">
+              <CollapsibleSection
+                id="ov-membership"
+                title="Membership"
+                defaultOpen={false}
+                isOpen={isOpen("ov-membership", false)}
+                onToggle={() => toggleSection("ov-membership", false)}
+              >
                 <div className="px-3.5 py-3.5">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
@@ -397,7 +407,7 @@ export function ProfilePanel({ onClose }: Props) {
                     <p className="text-[10.5px] text-white/45 mt-1.5">{Math.max(0, 50 - stats.txnCount)} more transactions to unlock Platinum perks</p>
                   </div>
                 </div>
-              </Section>
+              </CollapsibleSection>
             </>
           )}
 
@@ -406,56 +416,134 @@ export function ProfilePanel({ onClose }: Props) {
               <SectionSkeleton title="Personal details" rows={5} />
             ) : (
               <>
-                <Section title="Personal details">
-                  <DetailRow icon={Pencil} label="Full name" value={profile?.full_name ?? "—"} onEdit={() => setEditOpen(true)} />
-                  <DetailRow icon={Smartphone} label="Phone" value={phone} />
-                  <DetailRow icon={Cake} label="Date of birth" value={profile?.dob ?? "—"} onEdit={() => setEditOpen(true)} />
-                  <DetailRow icon={Mail} label="Email" value="—" onEdit={() => setEditOpen(true)} />
-                  <DetailRow icon={MapPin} label="Address" value="—" onEdit={() => setEditOpen(true)} />
-                </Section>
-                <Section title="Identity">
+                <CollapsibleSection
+                  id="ac-personal"
+                  title="Personal details"
+                  defaultOpen
+                  isOpen={isOpen("ac-personal", true)}
+                  onToggle={() => toggleSection("ac-personal", true)}
+                >
+                  {profile && (
+                    <InlineEditCard
+                      profile={{
+                        full_name: profile.full_name,
+                        email: profile.email,
+                        dob: profile.dob,
+                        gender: profile.gender,
+                      }}
+                      userId={userId}
+                      onSaved={(p) => setProfile((prev) => prev ? { ...prev, ...p } : prev)}
+                    />
+                  )}
+                </CollapsibleSection>
+
+                <CollapsibleSection
+                  id="ac-contact"
+                  title="Contact & identity"
+                  defaultOpen
+                  isOpen={isOpen("ac-contact", true)}
+                  onToggle={() => toggleSection("ac-contact", true)}
+                >
+                  <DetailRow icon={Smartphone} label="Phone" value={phone} onEdit={() => setEditPhoneOpen(true)} />
                   <DetailRow icon={ShieldCheck} label="Aadhaar" value={profile?.aadhaar_last4 ? `XXXX XXXX ${profile.aadhaar_last4}` : "Not added"} />
                   <DetailRow icon={BadgeCheck} label="KYC status" value={kycMeta.label} />
-                </Section>
+                </CollapsibleSection>
+
+                <CollapsibleSection
+                  id="ac-kyc-timeline"
+                  title="KYC timeline"
+                  defaultOpen
+                  isOpen={isOpen("ac-kyc-timeline", true)}
+                  onToggle={() => toggleSection("ac-kyc-timeline", true)}
+                >
+                  <div className="px-3.5 py-3.5">
+                    <KycTimeline userId={userId} currentStatus={kyc} />
+                  </div>
+                </CollapsibleSection>
               </>
             )
           )}
 
           {tab === "security" && (
             <>
-              <Section title="Security">
+              <CollapsibleSection
+                id="se-security"
+                title="Security"
+                defaultOpen
+                isOpen={isOpen("se-security", true)}
+                onToggle={() => toggleSection("se-security", true)}
+              >
                 <ToggleRow icon={Lock} label="App lock (PIN)" desc="Require PIN every time" value={true} onChange={() => {}} />
                 <ToggleRow icon={Sparkles} label="Biometric login" desc="Face / Fingerprint" value={prefs.biometric} onChange={(v) => setPrefs({ ...prefs, biometric: v })} />
                 <Row icon={Smartphone} label="Trusted devices" hint="2 active" />
                 <Row icon={Activity} label="Login activity" hint="Last 30 days" />
-              </Section>
-              <Section title="Limits">
+              </CollapsibleSection>
+              <CollapsibleSection
+                id="se-limits"
+                title="Limits"
+                defaultOpen={false}
+                isOpen={isOpen("se-limits", false)}
+                onToggle={() => toggleSection("se-limits", false)}
+              >
                 <DetailRow icon={IndianRupee} label="Daily limit" value="₹10,000" onEdit={() => {}} />
                 <DetailRow icon={IndianRupee} label="Per transaction" value="₹5,000" onEdit={() => {}} />
-              </Section>
+              </CollapsibleSection>
             </>
           )}
 
           {tab === "preferences" && (
             <>
-              <Section title="App preferences">
-                <ToggleRow icon={Bell} label="Push notifications" desc="Payments, offers & alerts" value={prefs.notifs} onChange={(v) => setPrefs({ ...prefs, notifs: v })} />
+              <CollapsibleSection
+                id="pr-notifs"
+                title="Notification preferences"
+                defaultOpen
+                isOpen={isOpen("pr-notifs", true)}
+                onToggle={() => toggleSection("pr-notifs", true)}
+              >
+                {profile && (
+                  <NotificationPrefs
+                    userId={userId}
+                    initial={profile.notif_prefs}
+                    email={profile.email}
+                  />
+                )}
+              </CollapsibleSection>
+
+              <CollapsibleSection
+                id="pr-app"
+                title="App preferences"
+                defaultOpen={false}
+                isOpen={isOpen("pr-app", false)}
+                onToggle={() => toggleSection("pr-app", false)}
+              >
                 <ToggleRow icon={Moon} label="Dark mode" desc="Follow app theme" value={prefs.darkMode} onChange={(v) => setPrefs({ ...prefs, darkMode: v })} />
                 <ToggleRow icon={Sparkles} label="Sounds & haptics" desc="Feedback on actions" value={prefs.sounds} onChange={(v) => setPrefs({ ...prefs, sounds: v })} />
                 <Row icon={Languages} label="Language" hint={prefs.lang} />
-              </Section>
+              </CollapsibleSection>
             </>
           )}
 
           {tab === "support" && (
             <>
-              <Section title="Help & support">
+              <CollapsibleSection
+                id="su-help"
+                title="Help & support"
+                defaultOpen
+                isOpen={isOpen("su-help", true)}
+                onToggle={() => toggleSection("su-help", true)}
+              >
                 <Row icon={HelpCircle} label="Help center" hint="FAQs & guides" />
                 <Row icon={FileText} label="Terms of service" />
                 <Row icon={FileText} label="Privacy policy" />
                 <Row icon={Settings} label="App version" hint="v1.0.6" />
-              </Section>
-              <Section title="Danger zone">
+              </CollapsibleSection>
+              <CollapsibleSection
+                id="su-danger"
+                title="Danger zone"
+                defaultOpen={false}
+                isOpen={isOpen("su-danger", false)}
+                onToggle={() => toggleSection("su-danger", false)}
+              >
                 <button onClick={() => setConfirmLogout(true)} className="w-full px-3.5 py-3.5 flex items-center gap-3 hover:bg-white/[.02] transition-colors">
                   <div className="pp-row-icon bg-red-400/10"><LogOut className="w-4 h-4 text-red-300" strokeWidth={2} /></div>
                   <span className="text-[13px] text-red-300 flex-1 text-left">Log out</span>
@@ -466,7 +554,7 @@ export function ProfilePanel({ onClose }: Props) {
                   <span className="text-[13px] text-red-300 flex-1 text-left">Delete account</span>
                   <ChevronRight className="w-4 h-4 text-white/30" />
                 </button>
-              </Section>
+              </CollapsibleSection>
             </>
           )}
         </div>
