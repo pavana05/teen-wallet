@@ -262,7 +262,7 @@ export function Home() {
         aria-label="Offers"
         aria-busy={loading}
         aria-live="polite"
-        className="px-5 mt-4 -mt-2"
+        className="px-5 mt-6"
       >
         {loading ? (
           <div className="flex gap-3 overflow-hidden pb-1" aria-hidden="true">
