@@ -162,7 +162,7 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
     const d = v.replace(/\D/g, "").slice(-1);
     const next = [...otp]; next[i] = d; setOtp(next);
     // Editing any digit clears the prior error so the user gets immediate feedback.
-    if (error) { setError(""); setErrorKind(null); }
+    if (error) { setError(""); setErrorKind(null); setErrorId(null); }
     if (d && i < 5) inputs.current[i + 1]?.focus();
     if (next.every((x) => x)) handleVerify(next.join(""));
   }
