@@ -14,9 +14,10 @@
 // implementation later without touching callers.
 
 import { createServerFn } from "@tanstack/react-start";
+import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { buildUpiDeepLink } from "@/lib/upi";
+import type { Database } from "@/integrations/supabase/types";
 
 const PayInput = z.object({
   amount: z.number().positive().max(100_000),
@@ -27,6 +28,10 @@ const PayInput = z.object({
     .regex(/^[a-zA-Z0-9._-]{2,256}@[a-zA-Z][a-zA-Z0-9.-]{1,64}$/, "Invalid UPI ID"),
   payeeName: z.string().min(1).max(120),
   note: z.string().max(80).nullable().optional(),
+  // Passed by callWithAuth. Keeping auth inside validated data avoids raw
+  // framework-level 401 Responses from middleware, which surfaced as
+  // `[object Response]` blank-screen runtime errors.
+  authToken: z.string().min(1).optional(),
 });
 
 export type PayUpiResult =
@@ -40,7 +45,7 @@ export type PayUpiResult =
     }
   | {
       ok: false;
-      reason: "blocked" | "insufficient" | "balance_changed" | "fetch_failed" | "insert_failed";
+      reason: "auth_required" | "blocked" | "insufficient" | "balance_changed" | "fetch_failed" | "insert_failed";
       message: string;
       newBalance?: number;
       flags?: { rule: string; severity: "block" | "warn" | "info"; message: string }[];
@@ -117,11 +122,45 @@ function runFraudRules(
   return { flags, blocked: flags.some((f) => f.severity === "block") };
 }
 
+type PayInputData = z.infer<typeof PayInput>;
+
+type UserClientResult =
+  | { ok: true; supabase: ReturnType<typeof createClient<Database>>; userId: string }
+  | { ok: false; message: string };
+
+async function createUserSupabaseClient(authToken?: string): Promise<UserClientResult> {
+  if (!authToken) {
+    return { ok: false, message: "Please sign in again before making a payment." };
+  }
+
+  const SUPABASE_URL = process.env.SUPABASE_URL;
+  const SUPABASE_PUBLISHABLE_KEY = process.env.SUPABASE_PUBLISHABLE_KEY;
+  if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
+    return { ok: false, message: "Payments are temporarily unavailable." };
+  }
+
+  const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+    global: { headers: { Authorization: `Bearer ${authToken}` } },
+    auth: { storage: undefined, persistSession: false, autoRefreshToken: false },
+  });
+
+  const { data, error } = await supabase.auth.getClaims(authToken);
+  const userId = data?.claims?.sub;
+  if (error || !userId) {
+    return { ok: false, message: "Your session expired. Please sign in again." };
+  }
+
+  return { ok: true, supabase, userId };
+}
+
 export const payUpi = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => PayInput.parse(input))
-  .handler(async ({ data, context }): Promise<PayUpiResult> => {
-    const { supabase, userId } = context;
+  .handler(async ({ data }: { data: PayInputData }): Promise<PayUpiResult> => {
+    const auth = await createUserSupabaseClient(data.authToken);
+    if (!auth.ok) {
+      return { ok: false, reason: "auth_required", message: auth.message };
+    }
+    const { supabase, userId } = auth;
 
     // 1. Pull recent history (RLS-scoped to this user)
     const { data: recent, error: recentErr } = await supabase
