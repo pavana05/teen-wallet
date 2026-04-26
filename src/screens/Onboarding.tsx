@@ -1,16 +1,39 @@
 import { useEffect, useRef, useState } from "react";
-import { ArrowRight, ArrowLeft, Zap, ShieldCheck, Gift } from "lucide-react";
+import { ArrowRight, ArrowLeft, Zap, ShieldCheck, Gift, Wallet, Sparkles } from "lucide-react";
 import walletImg from "@/assets/onboarding-wallet.jpg";
 import paymentImg from "@/assets/onboarding-payment.jpg";
 import shieldImg from "@/assets/onboarding-shield.jpg";
 import giftImg from "@/assets/onboarding-gift.jpg";
 import { TWLogo } from "@/components/TWLogo";
 
+const ONBOARDING_STATE_KEY = "tw-onboarding-state-v1";
+interface PersistedOnboarding { slide: number; completed: boolean; updatedAt: string; }
+function readOnboardingState(): PersistedOnboarding | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(ONBOARDING_STATE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw) as PersistedOnboarding;
+  } catch { return null; }
+}
+function writeOnboardingState(s: PersistedOnboarding) {
+  if (typeof window === "undefined") return;
+  try { localStorage.setItem(ONBOARDING_STATE_KEY, JSON.stringify(s)); } catch { /* ignore */ }
+}
+
+// Swipe tuning — distance OR velocity must exceed thresholds for a slide change.
+const SWIPE_MIN_DISTANCE = 48;       // px
+const SWIPE_MIN_VELOCITY = 0.35;     // px/ms — fast flicks shorter than 48px still count
+const SWIPE_MAX_DURATION = 600;      // ms — anything slower is treated as a drag, not a swipe
+
 interface Slide {
   hero: string;
   iconBadge?: React.ComponentType<{ className?: string; strokeWidth?: number }>;
   title: React.ReactNode;
   sub: string;
+  // Offline-safe placeholder used when the hero image fails to load
+  fallbackIcon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
+  fallbackGradient: string;
 }
 
 const SLIDES: Slide[] = [
@@ -23,6 +46,8 @@ const SLIDES: Slide[] = [
       </>
     ),
     sub: "Fast. Secure. Rewarding.",
+    fallbackIcon: Wallet,
+    fallbackGradient: "linear-gradient(135deg, #ff5d8f 0%, #c026d3 60%, #4f46e5 100%)",
   },
   {
     hero: paymentImg,
@@ -34,6 +59,8 @@ const SLIDES: Slide[] = [
       </>
     ),
     sub: "Send or receive money in seconds using UPI. No delays, just instant vibes.",
+    fallbackIcon: Sparkles,
+    fallbackGradient: "linear-gradient(135deg, #38bdf8 0%, #6366f1 60%, #1e1b4b 100%)",
   },
   {
     hero: shieldImg,
@@ -45,6 +72,8 @@ const SLIDES: Slide[] = [
       </>
     ),
     sub: "Bank-grade security keeps your money and data always protected.",
+    fallbackIcon: ShieldCheck,
+    fallbackGradient: "linear-gradient(135deg, #a855f7 0%, #6366f1 60%, #1e1b4b 100%)",
   },
   {
     hero: giftImg,
@@ -56,21 +85,43 @@ const SLIDES: Slide[] = [
       </>
     ),
     sub: "Get TW Coins on every payment and unlock exciting rewards just for you.",
+    fallbackIcon: Gift,
+    fallbackGradient: "linear-gradient(135deg, #fb923c 0%, #f43f5e 60%, #7c2d12 100%)",
   },
 ];
 
 export function Onboarding({ onDone }: { onDone: () => void }) {
-  const [i, setI] = useState(0);
+  // Resume on the last slide the user was viewing — but only if they hadn't completed.
+  // We initialize from a sync read so the first paint is already on the right slide.
+  const initialSlide = (() => {
+    const s = readOnboardingState();
+    if (!s || s.completed) return 0;
+    return Math.min(Math.max(0, s.slide), SLIDES.length - 1);
+  })();
+  const [i, setI] = useState(initialSlide);
   const [direction, setDirection] = useState<"forward" | "back">("forward");
   const [animKey, setAnimKey] = useState(0);
-  const touchStart = useRef<number | null>(null);
+  // Track failed image loads so we can swap in an offline-safe gradient + icon.
+  const [failedImages, setFailedImages] = useState<Record<number, boolean>>({});
+  // Touch state — record both x position and timestamp for velocity calculation
+  const touchStart = useRef<{ x: number; t: number } | null>(null);
 
   const isLast = i === SLIDES.length - 1;
   const isFirst = i === 0;
   const slide = SLIDES[i];
 
+  // Persist slide changes (debounced via state lifecycle, not interval).
+  useEffect(() => {
+    writeOnboardingState({ slide: i, completed: false, updatedAt: new Date().toISOString() });
+  }, [i]);
+
+  const finishOnboarding = () => {
+    writeOnboardingState({ slide: SLIDES.length - 1, completed: true, updatedAt: new Date().toISOString() });
+    onDone();
+  };
+
   const goNext = () => {
-    if (isLast) { onDone(); return; }
+    if (isLast) { finishOnboarding(); return; }
     setDirection("forward");
     setI((v) => v + 1);
     setAnimKey((k) => k + 1);
@@ -93,13 +144,23 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [i]);
 
-  const onTouchStart = (e: React.TouchEvent) => { touchStart.current = e.touches[0].clientX; };
+  // Tuned swipe — accept if either distance OR velocity threshold passes,
+  // and the gesture wasn't a slow drag (>600ms reads as scroll/hover intent).
+  const onTouchStart = (e: React.TouchEvent) => {
+    touchStart.current = { x: e.touches[0].clientX, t: Date.now() };
+  };
   const onTouchEnd = (e: React.TouchEvent) => {
-    if (touchStart.current == null) return;
-    const dx = e.changedTouches[0].clientX - touchStart.current;
+    const start = touchStart.current;
     touchStart.current = null;
-    if (dx < -40) goNext();
-    else if (dx > 40) goBack();
+    if (!start) return;
+    const dx = e.changedTouches[0].clientX - start.x;
+    const dt = Math.max(1, Date.now() - start.t);
+    if (dt > SWIPE_MAX_DURATION) return;
+    const velocity = Math.abs(dx) / dt; // px/ms
+    const passes = Math.abs(dx) >= SWIPE_MIN_DISTANCE || velocity >= SWIPE_MIN_VELOCITY;
+    if (!passes) return;
+    if (dx < 0) goNext();
+    else goBack();
   };
 
   const Badge = slide.iconBadge;
@@ -128,7 +189,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
           ))}
         </div>
         <button
-          onClick={onDone}
+          onClick={finishOnboarding}
           className="text-[13px] font-medium text-white/70 hover:text-white transition-colors px-2 py-1"
         >
           Skip
@@ -150,19 +211,30 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
           </div>
         )}
 
-        {/* Hero image */}
+        {/* Hero image — with offline-safe fallback if asset fails to load */}
         <div className={`ob-hero-wrap ${i === 0 ? "mt-6" : "mt-8"}`}>
           <div className="ob-hero-glow" aria-hidden="true" />
-          <img
-            src={slide.hero}
-            alt=""
-            width={520}
-            height={520}
-            loading={i === 0 ? "eager" : "lazy"}
-            decoding="async"
-            className="ob-hero-img"
-            draggable={false}
-          />
+          {failedImages[i] ? (
+            <div
+              className="ob-hero-img ob-hero-fallback"
+              style={{ background: slide.fallbackGradient }}
+              aria-hidden="true"
+            >
+              <slide.fallbackIcon className="ob-hero-fallback-icon" strokeWidth={1.6} />
+            </div>
+          ) : (
+            <img
+              src={slide.hero}
+              alt=""
+              width={520}
+              height={520}
+              loading={i === 0 ? "eager" : "lazy"}
+              decoding="async"
+              className="ob-hero-img"
+              draggable={false}
+              onError={() => setFailedImages((prev) => ({ ...prev, [i]: true }))}
+            />
+          )}
         </div>
 
         {/* Optional small icon badge above title (slides 2-4) */}

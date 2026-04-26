@@ -23,8 +23,15 @@ const CONTINUE_TRANSITION_MS = 520;
 interface PersistedPendingState {
   submittedAt: string;     // ISO — when submission first appeared
   lastSeenAt: string;      // ISO — last successful poll
+  lastFetchAt: string;     // ISO — last fetch attempt (success or fail)
   submissionId: string | null;
 }
+
+// Estimated time-to-verify used to drive the neon-lime progress bar.
+// Real verification usually completes in 30–120s; we asymptote toward 95% so the
+// bar never "completes" before the actual approval webhook lands.
+const ESTIMATED_VERIFY_MS = 120_000;
+const PROGRESS_CEILING = 0.95;
 
 function readPersisted(): PersistedPendingState | null {
   if (typeof window === "undefined") return null;
@@ -123,9 +130,11 @@ export function KycPending({ onApproved, forceState, forceReason }: { onApproved
 
       // Persist for cross-reload resume (only while still pending).
       if (next.status === "pending") {
+        const nowIso = new Date().toISOString();
         writePersisted({
           submittedAt: next.submittedAt,
-          lastSeenAt: new Date().toISOString(),
+          lastSeenAt: nowIso,
+          lastFetchAt: nowIso,
           submissionId: next.submissionId,
         });
       }
@@ -271,6 +280,8 @@ function PendingView({
 }) {
   // Render submission timestamp on client only — avoids SSR/CSR locale + timezone hydration mismatch.
   const [submittedLabel, setSubmittedLabel] = useState<string | null>(null);
+  // Time-based neon-lime progress (0..PROGRESS_CEILING) that resumes after reload.
+  const [progress, setProgress] = useState(0);
   const [exiting, setExiting] = useState(false);
   // Re-trigger shake on each new error string by keying the banner on it.
   const errorKey = fetchError ?? "";
@@ -287,6 +298,23 @@ function PendingView({
     setSubmittedLabel(fmt());
     const t = setInterval(() => setSubmittedLabel(fmt()), 1000);
     return () => clearInterval(t);
+  }, [latest?.submittedAt]);
+
+  // Smooth time-based progress that survives reloads.
+  // Math: ease-out curve (1 - (1 - x)^2) where x = elapsed / ESTIMATED_VERIFY_MS,
+  // clamped at PROGRESS_CEILING so the bar visibly "waits" for the real result.
+  useEffect(() => {
+    if (!latest?.submittedAt) { setProgress(0); return; }
+    const submittedAtMs = new Date(latest.submittedAt).getTime();
+    const compute = () => {
+      const elapsed = Math.max(0, Date.now() - submittedAtMs);
+      const x = Math.min(1, elapsed / ESTIMATED_VERIFY_MS);
+      const eased = 1 - (1 - x) * (1 - x);
+      return Math.min(PROGRESS_CEILING, eased * PROGRESS_CEILING + 0.04);
+    };
+    setProgress(compute());
+    const id = setInterval(() => setProgress(compute()), 500);
+    return () => clearInterval(id);
   }, [latest?.submittedAt]);
 
   const handleContinue = () => {
@@ -328,7 +356,14 @@ function PendingView({
               Hang tight — this usually takes under 2 minutes.
             </p>
 
-            <div className="kyc-pending-progress mt-8 w-full max-w-[260px]">
+            <div
+              className="kyc-pending-progress mt-8 w-full max-w-[260px]"
+              role="progressbar"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={Math.round(progress * 100)}
+              style={{ ["--kyc-progress" as never]: progress }}
+            >
               <div className="kyc-pending-progress-fill" />
             </div>
 
