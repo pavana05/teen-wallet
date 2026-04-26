@@ -91,6 +91,7 @@ export function QuickActionsPanel({ kind, onClose }: Props) {
         "to-bank": "To bank & self a/c",
         balance: "Check balance",
         history: "Transaction history",
+        "send-money": "Send money",
       })[kind],
     [kind],
   );
