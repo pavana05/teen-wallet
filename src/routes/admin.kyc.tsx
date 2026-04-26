@@ -120,6 +120,7 @@ function KycQueue() {
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const canDecide = can(admin?.role, "decideKyc");
+  const canView = can(admin?.role, "viewKyc") || canDecide;
 
   const reqId = useRef(0);
   const fetchPage = useCallback(async (pageNum: number) => {
