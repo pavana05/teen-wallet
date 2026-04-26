@@ -233,9 +233,8 @@ export function ProfilePanel({ onClose }: Props) {
           <div className="pp-hero">
             <div className="pp-hero-shine" />
             <div className="flex items-start gap-4">
-              <button onClick={() => setTab("account")} className="pp-avatar-wrap" aria-label="Edit profile photo and details">
+              <button onClick={() => setTab("account")} className="pp-avatar-wrap" aria-label="Edit profile details">
                 <div className="pp-avatar">{initials}</div>
-                <span className="pp-avatar-cam"><Camera className="w-3.5 h-3.5 text-black" strokeWidth={2.4} /></span>
               </button>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-1.5">
