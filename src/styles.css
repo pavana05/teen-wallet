@@ -4199,3 +4199,131 @@
 @media (prefers-reduced-motion: reduce) {
   .pv-badge-wrap-pulse .pv-badge { animation: none !important; }
 }
+
+/* =====================================================================
+ * PREMIUM THEME — FINAL OVERRIDES (cascade-wins)
+ * Removes every remaining neon-lime / acid-green accent across the app
+ * and admin dashboard, replacing it with the champagne / platinum
+ * tokens defined at :root (--premium-accent, --premium-grad, etc.).
+ * Appended last so source order beats every earlier neon rule.
+ * ===================================================================== */
+
+/* --- Admin: virtual-table skeleton shimmer (was neon-lime) --- */
+.admin-shell .vt-skeleton .vt-shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(255,255,255,0.03) 0%,
+    rgba(212,197,160,0.10) 40%,
+    rgba(212,197,160,0.20) 50%,
+    rgba(212,197,160,0.10) 60%,
+    rgba(255,255,255,0.03) 100%
+  );
+  box-shadow: 0 0 10px rgba(212,197,160,0.10);
+}
+.admin-shell .adm-skel-card::after {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(212,197,160,0.08) 50%,
+    transparent 100%
+  );
+}
+
+/* --- Admin: perf overlay (was neon-lime border + glow) --- */
+.perf-fab {
+  border-color: var(--premium-accent);
+  color: var(--premium-accent);
+  box-shadow: 0 0 14px rgba(212,197,160,0.20), 0 4px 12px rgba(0,0,0,0.45);
+}
+.perf-fab:hover {
+  box-shadow: 0 0 22px rgba(212,197,160,0.32), 0 6px 16px rgba(0,0,0,0.55);
+}
+.perf-overlay {
+  border-color: rgba(212,197,160,0.32);
+  box-shadow: 0 0 26px rgba(212,197,160,0.14), 0 12px 32px rgba(0,0,0,0.6);
+}
+.perf-icon-btn:hover {
+  color: var(--premium-accent);
+  background: rgba(212,197,160,0.06);
+}
+.perf-stat-value { color: var(--premium-accent); }
+
+/* --- Admin: red shake panel & accents already use semantic --a-danger,
+ *     and --a-accent inside .admin-shell is already remapped to champagne
+ *     in the earlier override block. Nothing more to do there. --- */
+
+/* --- Permissions: lime exit transition → champagne --- */
+.text-lime-300, .text-lime-200, .text-lime-400, .text-lime-500 {
+  color: var(--premium-accent) !important;
+}
+.bg-lime-300, .bg-lime-400, .bg-lime-500 {
+  background-color: var(--premium-accent) !important;
+}
+.border-lime-300, .border-lime-400, .border-lime-500 {
+  border-color: var(--premium-accent) !important;
+}
+
+/* --- KYC Pending: scallop ring, progress fill, skeleton, continue button.
+ *     Each of these used the lime oklch(0.78 0.22 145) value directly.
+ *     We override by class so we don't have to rewrite the original blocks. --- */
+.kyc-progress-fill,
+.kyc-progress-bar > span,
+.kyc-progress-bar::after {
+  background: var(--premium-grad) !important;
+  box-shadow: 0 0 10px var(--premium-accent-glow) !important;
+}
+.kyc-skel-shimmer,
+.kyc-skeleton .shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(255,255,255,0.03) 0%,
+    rgba(212,197,160,0.14) 50%,
+    rgba(255,255,255,0.03) 100%
+  ) !important;
+}
+.kyc-scallop-ring,
+.kyc-scallop-ring::before,
+.kyc-scallop-ring::after {
+  background: radial-gradient(circle at 50% 45%, rgba(212,197,160,0.40), transparent 55%) !important;
+}
+.kyc-continue-btn.primary {
+  background: var(--premium-grad) !important;
+  color: var(--premium-ink) !important;
+  box-shadow: 0 10px 28px -12px var(--premium-accent-glow) !important;
+}
+.kyc-continue-btn.primary:hover {
+  background: linear-gradient(135deg, #efe4cd 0%, #d4c2a0 100%) !important;
+}
+
+/* --- Yellow neon clock badge → champagne --- */
+.kyc-clock-badge,
+.tw-clock-badge {
+  background: var(--premium-accent-soft) !important;
+  color: var(--premium-accent) !important;
+  border-color: rgba(212,197,160,0.30) !important;
+  box-shadow: 0 0 12px rgba(212,197,160,0.18) !important;
+}
+
+/* --- Phone shell radial glow at the top (was lime) --- */
+.tw-grain::before {
+  background: radial-gradient(circle at 50% 45%, rgba(212,197,160,0.18), transparent 55%) !important;
+}
+
+/* --- Pending status pills / tinted callouts that used lime (180deg gradient) --- */
+.kyc-pending-callout,
+.tw-pending-callout {
+  background: linear-gradient(180deg, rgba(212,197,160,0.08), rgba(212,197,160,0.02)) !important;
+  border-color: rgba(212,197,160,0.22) !important;
+}
+
+/* --- ScanPay v2 frame corners (were neon-lime when tracking) --- */
+.sp2-frame-tracking .sp2-frame-corner {
+  border-color: rgba(212,197,160,0.85) !important;
+  box-shadow: 0 0 8px rgba(212,197,160,0.40) !important;
+}
+
+/* --- Quick-actions hover wash --- */
+.qa-action-card:hover {
+  background: rgba(212,197,160,0.05) !important;
+  border-color: rgba(212,197,160,0.18) !important;
+}
