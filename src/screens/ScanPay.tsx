@@ -153,6 +153,10 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
 
     if (serverResult && serverResult.ok) {
       useApp.setState({ balance: serverResult.newBalance });
+      // Post-payment reconciliation: re-fetch live balance from Supabase and
+      // detect drift between the server function's reported newBalance and the
+      // actual profile row (e.g., a parental top-up landed mid-transaction).
+      void reconcileBalance(userId, serverResult.newBalance);
       const txn: SavedTxn = {
         id: serverResult.txnId,
         amount: amt,
@@ -232,6 +236,9 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
     const newBal = liveBalance - amt;
     await supabase.from("profiles").update({ balance: newBal }).eq("id", userId);
     useApp.setState({ balance: newBal });
+    // Reconcile against the canonical DB row in case another tab/server
+    // changed the balance between our update and now.
+    void reconcileBalance(userId, newBal);
     await supabase.from("notifications").insert({
       user_id: userId,
       type: "transaction",
