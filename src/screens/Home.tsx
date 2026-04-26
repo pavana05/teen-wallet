@@ -260,10 +260,13 @@ export function Home() {
       </div>
 
       {/* ===== EVERYTHING UPI ===== */}
-      <div className="px-5 mt-7">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-white text-[17px] font-semibold tracking-tight">Everything UPI!</h3>
-          <button className="text-white/60">›</button>
+      <div className="px-5 mt-8">
+        <div className="hp-section-head">
+          <div>
+            <span className="hp-section-eyebrow">Quick actions</span>
+            <h3 className="hp-section-title">Everything UPI</h3>
+          </div>
+          <button className="hp-section-link">View all</button>
         </div>
         <div className="grid grid-cols-4 gap-3">
           <QuickAction icon={ArrowUpRight} label={"Pay\nfriends"} onClick={() => setQuickAction("pay-friends")} />
@@ -273,11 +276,16 @@ export function Home() {
         </div>
       </div>
 
+      <div className="hp-divider mt-8" />
+
       {/* ===== RECHARGES AND BILLS ===== */}
-      <div className="px-5 mt-7">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-white text-[17px] font-semibold tracking-tight">Recharges and bills</h3>
-          <button className="text-white/60">›</button>
+      <div className="px-5 mt-8">
+        <div className="hp-section-head">
+          <div>
+            <span className="hp-section-eyebrow">Pay bills</span>
+            <h3 className="hp-section-title">Recharges & utilities</h3>
+          </div>
+          <button className="hp-section-link">View all</button>
         </div>
         <div className="grid grid-cols-4 gap-3">
           <RechargeTile icon={Smartphone} label="Recharge" tint="from-indigo-500/40 to-fuchsia-500/30" />
@@ -287,12 +295,17 @@ export function Home() {
         </div>
       </div>
 
+      <div className="hp-divider mt-8" />
+
       {/* ===== PAYMENT HISTORY ===== */}
-      <div className="px-5 mt-7">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-white text-[17px] font-semibold tracking-tight">Payment history</h3>
-          <button onClick={handleRefresh} className="text-white/60 inline-flex items-center gap-1 text-[12px]">
-            <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? "animate-spin" : ""}`} /> Refresh
+      <div className="px-5 mt-8">
+        <div className="hp-section-head">
+          <div>
+            <span className="hp-section-eyebrow">Activity</span>
+            <h3 className="hp-section-title">Payment history</h3>
+          </div>
+          <button onClick={handleRefresh} className="hp-section-link inline-flex items-center gap-1.5">
+            <RefreshCw className={`w-3 h-3 ${refreshing ? "animate-spin" : ""}`} /> Refresh
           </button>
         </div>
         {loading ? (
