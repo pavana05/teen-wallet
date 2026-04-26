@@ -9,7 +9,10 @@ import { Onboarding } from "@/screens/Onboarding";
 import { AuthPhone } from "@/screens/AuthPhone";
 import { KycFlow } from "@/screens/KycFlow";
 import { KycPending } from "@/screens/KycPending";
+import { Permissions } from "@/screens/Permissions";
 import { Home } from "@/screens/Home";
+
+const PERMISSIONS_DONE_KEY = "tw_permissions_seen_v1";
 
 export const Route = createFileRoute("/")({
   head: () => ({
