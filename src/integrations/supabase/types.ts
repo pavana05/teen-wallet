@@ -492,6 +492,8 @@ export type Database = {
       profiles: {
         Row: {
           aadhaar_last4: string | null
+          account_locked: boolean
+          account_tag: string
           address_city: string | null
           address_line1: string | null
           address_pincode: string | null
@@ -512,6 +514,8 @@ export type Database = {
         }
         Insert: {
           aadhaar_last4?: string | null
+          account_locked?: boolean
+          account_tag?: string
           address_city?: string | null
           address_line1?: string | null
           address_pincode?: string | null
@@ -532,6 +536,8 @@ export type Database = {
         }
         Update: {
           aadhaar_last4?: string | null
+          account_locked?: boolean
+          account_tag?: string
           address_city?: string | null
           address_line1?: string | null
           address_pincode?: string | null
