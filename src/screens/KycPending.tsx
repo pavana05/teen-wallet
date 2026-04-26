@@ -287,26 +287,6 @@ function PendingView({
   retrying: boolean;
   lastFetchAt: string | null;
 }) {
-
-/* ----------------------------- Pending View ----------------------------- */
-
-function PendingView({
-  pollMs,
-  latest,
-  onRetry,
-  onClose,
-  initialLoading,
-  fetchError,
-  retrying,
-}: {
-  pollMs: number;
-  latest: LatestSubmission | null;
-  onRetry: () => void | Promise<void>;
-  onClose: () => void;
-  initialLoading: boolean;
-  fetchError: string | null;
-  retrying: boolean;
-}) {
   // Render submission timestamp on client only — avoids SSR/CSR locale + timezone hydration mismatch.
   const [submittedLabel, setSubmittedLabel] = useState<string | null>(null);
   // Time-based neon-lime progress (0..PROGRESS_CEILING) that resumes after reload.
