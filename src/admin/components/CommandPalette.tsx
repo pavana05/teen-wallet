@@ -2,9 +2,10 @@ import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import {
   LayoutDashboard, Users, FileCheck2, Wallet, ShieldAlert, Activity, Settings,
-  Search, ArrowRight, User as UserIcon, Receipt, LogOut, Copy, Command,
+  Search, ArrowRight, User as UserIcon, Receipt, LogOut, Copy, Command, Flame,
 } from "lucide-react";
 import { callAdminFn, readAdminSession, clearAdminSession } from "@/admin/lib/adminAuth";
+import { toast } from "sonner";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 type CmdItem = {
