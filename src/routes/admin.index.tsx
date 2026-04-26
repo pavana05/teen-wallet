@@ -41,7 +41,9 @@ interface ActivityItem {
   refId?: string;
 }
 
-const FRAUD_COLORS = ["#c8f135", "#3b82f6", "#f59e0b", "#ef4444", "#a855f7", "#22c55e"];
+// Premium champagne-led palette for charts (no neon-lime).
+const FRAUD_COLORS = ["#d4c5a0", "#7c8db5", "#b89b7a", "#c2766b", "#9c8fb5", "#7da890"];
+const PREMIUM_ACCENT = "#d4c5a0";
 
 function CommandCenter() {
   const [data, setData] = useState<DashboardData | null>(null);
@@ -138,15 +140,15 @@ function CommandCenter() {
             <AreaChart data={data?.txnSeries ?? []} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
               <defs>
                 <linearGradient id="gVol" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#c8f135" stopOpacity={0.5} />
-                  <stop offset="100%" stopColor="#c8f135" stopOpacity={0} />
+                  <stop offset="0%" stopColor={PREMIUM_ACCENT} stopOpacity={0.5} />
+                  <stop offset="100%" stopColor={PREMIUM_ACCENT} stopOpacity={0} />
                 </linearGradient>
               </defs>
               <CartesianGrid stroke="#2a2a2a" vertical={false} />
               <XAxis dataKey="date" tickFormatter={shortDate} stroke="#666" tick={{ fontSize: 11 }} />
               <YAxis stroke="#666" tick={{ fontSize: 11 }} tickFormatter={(v) => `₹${shortNum(v)}`} />
               <Tooltip contentStyle={tooltipStyle} formatter={(v: any) => [`₹${Number(v).toLocaleString("en-IN")}`, "Volume"]} labelFormatter={shortDate} />
-              <Area type="monotone" dataKey="volume" stroke="#c8f135" strokeWidth={2} fill="url(#gVol)" />
+              <Area type="monotone" dataKey="volume" stroke={PREMIUM_ACCENT} strokeWidth={2} fill="url(#gVol)" />
             </AreaChart>
           </ResponsiveContainer>
         </ChartCard>
@@ -231,7 +233,7 @@ function KpiCard({ icon, label, value, delta, deltaLabel, spark, warn, danger, m
           <div style={{ width: 80, height: 28 }}>
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={spark}>
-                <Area dataKey="v" stroke="#c8f135" fill="#c8f135" fillOpacity={0.2} strokeWidth={1.5} />
+                <Area dataKey="v" stroke={PREMIUM_ACCENT} fill={PREMIUM_ACCENT} fillOpacity={0.2} strokeWidth={1.5} />
               </AreaChart>
             </ResponsiveContainer>
           </div>
