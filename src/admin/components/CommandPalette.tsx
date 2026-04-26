@@ -268,11 +268,18 @@ export function CommandPalette() {
   // Reset cursor when item set shrinks
   useEffect(() => { setActive(0); }, [items.length]);
 
-  // Arrow / Enter handlers on input
+  // Arrow / Enter / Cmd+C handlers on input
   const onInputKey = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "ArrowDown") { e.preventDefault(); setActive((i) => Math.min(i + 1, items.length - 1)); }
     else if (e.key === "ArrowUp") { e.preventDefault(); setActive((i) => Math.max(i - 1, 0)); }
     else if (e.key === "Enter") { e.preventDefault(); items[active]?.onRun(); }
+    else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "c") {
+      const it = items[active];
+      if (it?.copy) {
+        e.preventDefault();
+        void copyText(it.copy(), it.group === "Users" ? "user details" : it.group === "Transactions" ? "transaction details" : "details");
+      }
+    }
   }, [items, active]);
 
   if (!open) return null;
@@ -282,7 +289,7 @@ export function CommandPalette() {
     (acc[it.group] ||= []).push(it);
     return acc;
   }, {});
-  const groupOrder: CmdItem["group"][] = ["Navigate", "Users", "Transactions", "Actions"];
+  const groupOrder: CmdItem["group"][] = ["Navigate", "KYC Queue", "Users", "Transactions", "Actions"];
   let runningIndex = 0;
 
   return (
