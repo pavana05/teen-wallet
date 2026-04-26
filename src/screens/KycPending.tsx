@@ -134,8 +134,9 @@ export function KycPending({ onApproved, forceState, forceReason }: { onApproved
       setStatus(next.status);
 
       // Persist for cross-reload resume (only while still pending).
+      const nowIso = new Date().toISOString();
+      setLastFetchAt(nowIso);
       if (next.status === "pending") {
-        const nowIso = new Date().toISOString();
         writePersisted({
           submittedAt: next.submittedAt,
           lastSeenAt: nowIso,
