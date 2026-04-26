@@ -178,6 +178,22 @@ export function Home() {
 
   useEffect(() => { void fetchTxns(); }, [fetchTxns]);
 
+  // Persona-targeted offers feed (admin-managed via gender_offers)
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const { data } = await supabase
+        .from("gender_offers")
+        .select("id,eyebrow,headline,emphasis,subtitle,cta_label,accent,sort_order,gender_target")
+        .eq("active", true)
+        .in("gender_target", persona.offerFilter)
+        .order("sort_order", { ascending: true })
+        .limit(8);
+      if (!cancelled) setPersonaOffers((data ?? []) as PersonaOffer[]);
+    })();
+    return () => { cancelled = true; };
+  }, [persona.offerFilter]);
+
   useEffect(() => {
     if (!userId) return;
     const ch = supabase
