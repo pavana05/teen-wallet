@@ -72,6 +72,11 @@ export function ProfilePanel({ onClose }: Props) {
     biometric: true, darkMode: true, lang: "English", sounds: true,
   });
 
+  // Connected Instagram handle (persisted locally — server hookup is future work)
+  const [instagram, setInstagram] = usePersistentState<string>("tw-profile-instagram", "");
+  const [igOpen, setIgOpen] = useState(false);
+  const [schoolOpen, setSchoolOpen] = useState(false);
+
   const refetch = async () => {
     if (!userId) return;
     setProfileLoading(true); setStatsLoading(true); setProfileError(false);
