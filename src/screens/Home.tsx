@@ -386,7 +386,7 @@ export function Home() {
                 <p className="hp-offer-eyebrow">P2P UPI · Limited</p>
                 <p className="hp-offer-headline">20%<em>flat off</em></p>
                 <p className="hp-offer-sub">On every peer transfer this month</p>
-                <button type="button" className="hp-offer-cta" aria-label="Apply 20% flat off offer on peer transfers">
+                <button type="button" onClick={() => void haptics.success()} className="hp-offer-cta" aria-label="Apply 20% flat off offer on peer transfers">
                   <span>Apply offer</span>
                   <ArrowUpRight className="w-3.5 h-3.5 hp-offer-cta-icon" strokeWidth={2.2} aria-hidden="true" />
                 </button>
