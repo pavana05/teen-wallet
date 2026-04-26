@@ -35,7 +35,7 @@ function AdminLogin() {
   }
 
   useEffect(() => {
-    if (otpauthUrl) QRCode.toDataURL(otpauthUrl, { margin: 1, width: 220, color: { dark: "#0d0d0d", light: "#c8f135" } }).then(setQrSrc).catch(() => {});
+    if (otpauthUrl) QRCode.toDataURL(otpauthUrl, { margin: 1, width: 220, color: { dark: "#0c0c0e", light: "#d4c5a0" } }).then(setQrSrc).catch(() => {});
   }, [otpauthUrl]);
 
   async function submitEmail(e: React.FormEvent) {
