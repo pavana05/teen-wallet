@@ -6,7 +6,7 @@ import { scanTransaction, logFraudFlags, type FraudFlag } from "@/lib/fraud";
 import { useApp } from "@/lib/store";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { downloadReceiptPdf, shareReceiptPdf, type ReceiptData } from "@/lib/receipt";
+import { downloadReceiptPdf, shareReceiptPdf, buildReceiptSummary, type ReceiptData } from "@/lib/receipt";
 import { payUpi } from "@/lib/payments.functions";
 import { breadcrumb, captureError } from "@/lib/breadcrumbs";
 
