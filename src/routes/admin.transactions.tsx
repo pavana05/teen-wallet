@@ -2,10 +2,11 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { callAdminFn, readAdminSession, can } from "@/admin/lib/adminAuth";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, RefreshCw, Search, AlertTriangle, RotateCcw } from "lucide-react";
+import { Loader2, RefreshCw, Search, AlertTriangle, RotateCcw, ShieldCheck, Lock } from "lucide-react";
 import { VirtualTable, type Column } from "@/admin/components/VirtualTable";
 import { usePersistedState } from "@/admin/lib/usePersistedState";
 import { recordPanelLoad, recordRealtime } from "@/admin/lib/perfBus";
+import { PermissionBanner, ErrorState } from "@/admin/components/AdminFeedback";
 
 export const Route = createFileRoute("/admin/transactions")({
   component: TransactionsList,
