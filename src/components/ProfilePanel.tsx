@@ -725,7 +725,28 @@ function StatChip({ icon: Icon, label, value, tint }: { icon: React.ComponentTyp
   );
 }
 
-function Row({ icon: Icon, label, hint, onClick }: { icon: React.ComponentType<{ className?: string; strokeWidth?: number }>; label: string; hint?: React.ReactNode; onClick?: () => void }) {
+function BigStatTile({
+  tone, icon: Icon, value, label,
+}: {
+  tone: "orange" | "green";
+  icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
+  value: string;
+  label: string;
+}) {
+  return (
+    <div className={`pp-bigstat pp-bigstat-${tone}`}>
+      <div className="pp-bigstat-shine" aria-hidden="true" />
+      <div className={`pp-bigstat-icon pp-bigstat-icon-${tone}`}>
+        <Icon className="w-4 h-4 text-white" strokeWidth={2.4} />
+      </div>
+      <div className="flex flex-col">
+        <p className="text-white text-[18px] font-bold num-mono leading-none">{value}</p>
+        <p className="text-[11px] text-white/80 font-medium mt-1">{label}</p>
+      </div>
+      <ChevronRight className="w-4 h-4 text-white/55 ml-auto self-center" />
+    </div>
+  );
+}
   return (
     <button onClick={onClick} className="w-full px-3.5 py-3.5 flex items-center gap-3 hover:bg-white/[.02] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-2xl">
       <div className="pp-row-icon"><Icon className="w-4 h-4 text-white/85" strokeWidth={2} /></div>
