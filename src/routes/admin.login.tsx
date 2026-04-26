@@ -39,42 +39,45 @@ function AdminLogin() {
   }, [otpauthUrl]);
 
   async function submitEmail(e: React.FormEvent) {
-    e.preventDefault(); setErr(""); setBusy(true);
+    e.preventDefault(); setErr(""); setErrCid(null); setBusy(true);
     try {
       const r = await callAdminFn<any>({ action: "login_password", email, password });
       if (r.stage === "set_password") setStage("set_password");
       else if (r.stage === "enroll_totp") {
         setChallengeToken(r.challengeToken); setOtpauthUrl(r.otpauthUrl); setSecret(r.secret); setStage("enroll_totp");
       } else if (r.stage === "totp") { setChallengeToken(r.challengeToken); setStage("totp"); }
-    } catch (e: any) { setErr(e.message || "Login failed"); }
+    } catch (e) { setErr(captureErr(e, "Login failed")); }
     finally { setBusy(false); }
   }
 
   async function submitSetPassword(e: React.FormEvent) {
-    e.preventDefault(); setErr(""); setBusy(true);
+    e.preventDefault(); setErr(""); setErrCid(null); setBusy(true);
     try {
       const r = await callAdminFn<any>({ action: "set_password", email, password });
       setChallengeToken(r.challengeToken); setOtpauthUrl(r.otpauthUrl); setSecret(r.secret); setStage("enroll_totp");
-    } catch (e: any) { setErr(e.message || "Could not set password"); }
+    } catch (e) { setErr(captureErr(e, "Could not set password")); }
     finally { setBusy(false); }
   }
 
   async function submitTotp(e: React.FormEvent) {
-    e.preventDefault(); setErr(""); setBusy(true);
+    e.preventDefault(); setErr(""); setErrCid(null); setBusy(true);
     try {
       const r = await callAdminFn<{ sessionToken: string; expiresAt: string; admin: AdminMe }>({
         action: "verify_totp", challengeToken, code,
       });
       writeAdminSession(r);
       nav({ to: "/admin" });
-    } catch (e: any) {
-      const raw = (e?.message || "").toLowerCase();
-      let friendly = e?.message || "Invalid code";
+    } catch (e) {
+      // Friendly translation of known TOTP error codes — preserve correlation ID.
+      const cid = e instanceof AdminFnError ? e.correlationId : null;
+      const raw = (e instanceof Error ? e.message : "").toLowerCase();
+      let friendly = e instanceof Error ? (e.message || "Invalid code") : "Invalid code";
       if (raw.includes("invalid_code")) friendly = "Invalid or expired code. Codes refresh every 30 seconds — please enter the current code from your authenticator app.";
       else if (raw.includes("challenge")) friendly = "Your login session expired. Please re-enter your password.";
       else if (raw.includes("locked")) friendly = "Account temporarily locked due to too many attempts. Try again later.";
       else if (raw.includes("failed to fetch")) friendly = "Couldn't reach the server. Check your connection and try again.";
       setErr(friendly);
+      setErrCid(cid);
       setCode("");
       if (raw.includes("challenge")) setStage("email");
     }
