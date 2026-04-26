@@ -49,13 +49,23 @@ export function KycPending({ onApproved, forceState, forceReason }: { onApproved
   const persistedReason =
     typeof window !== "undefined" ? localStorage.getItem(REJECTION_REASON_KEY) : null;
 
+  // Hydrate persisted submittedAt so the "Submitted X ago" line is correct
+  // immediately on reopen — before the network round-trip completes.
+  const persistedPending = forceState ? null : readPersisted();
+
   const [latest, setLatest] = useState<LatestSubmission | null>(
     forceState
       ? { submissionId: "preview", providerRef: "preview", status: forceState, submittedAt: new Date().toISOString(), reason: forceReason ?? persistedReason ?? null }
-      : null
+      : persistedPending
+        ? { submissionId: persistedPending.submissionId ?? "cached", providerRef: null, status: "pending", submittedAt: persistedPending.submittedAt, reason: null }
+        : null
   );
   const [status, setStatus] = useState<Status>(forceState ?? "pending");
   const [pollMs, setPollMs] = useState(POLL_INTERVAL_MS);
+  // Initial-load skeleton: only true until first fetch resolves (success or error).
+  const [initialLoading, setInitialLoading] = useState<boolean>(!forceState && !persistedPending);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+  const [retrying, setRetrying] = useState(false);
   const stoppedRef = useRef(!!forceState);
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const redirectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -71,45 +81,71 @@ export function KycPending({ onApproved, forceState, forceReason }: { onApproved
   };
 
   // Fetch the latest submission row + reconcile profile.kyc_status.
-  const fetchLatest = async () => {
-    if (stoppedRef.current) return;
-    const { data: u } = await supabase.auth.getUser();
-    if (!u.user) return;
-    const { data: rows, error } = await supabase
-      .from("kyc_submissions")
-      .select("id,provider_ref,status,created_at,reason")
-      .eq("user_id", u.user.id)
-      .order("created_at", { ascending: false })
-      .limit(1);
-    if (error) return;
-    const r = rows?.[0];
-    if (!r) return;
-    const next: LatestSubmission = {
-      submissionId: r.id,
-      providerRef: r.provider_ref,
-      status: r.status as Status,
-      submittedAt: r.created_at,
-      reason: r.reason,
-    };
-    setLatest(next);
-    setStatus(next.status);
-
-    if (next.status === "approved") {
-      stopAllListeners();
-      // Clear any stale rejection reason now that the user is approved.
-      try { localStorage.removeItem(REJECTION_REASON_KEY); } catch { /* ignore */ }
-      await updateProfileFields({ kyc_status: "approved" });
-      await persistStage("STAGE_5");
-      // Wait for the seal bounce + shimmer sweep to finish before transitioning.
-      if (redirectTimerRef.current) clearTimeout(redirectTimerRef.current);
-      redirectTimerRef.current = setTimeout(() => onApproved(), APPROVED_ANIMATION_MS);
-    } else if (next.status === "rejected") {
-      stopAllListeners();
-      // Persist the reason so a reload still shows it.
-      if (next.reason) {
-        try { localStorage.setItem(REJECTION_REASON_KEY, next.reason); } catch { /* ignore */ }
+  // Returns true on success, false on error so callers can react.
+  const fetchLatest = async (): Promise<boolean> => {
+    if (stoppedRef.current) return true;
+    try {
+      const { data: u, error: authErr } = await supabase.auth.getUser();
+      if (authErr) throw authErr;
+      if (!u.user) {
+        setInitialLoading(false);
+        return true; // not signed-in is not a transient error
       }
-      await updateProfileFields({ kyc_status: "rejected" });
+      const { data: rows, error } = await supabase
+        .from("kyc_submissions")
+        .select("id,provider_ref,status,created_at,reason")
+        .eq("user_id", u.user.id)
+        .order("created_at", { ascending: false })
+        .limit(1);
+      if (error) throw error;
+      const r = rows?.[0];
+      setInitialLoading(false);
+      setFetchError(null);
+      if (!r) return true;
+      const next: LatestSubmission = {
+        submissionId: r.id,
+        providerRef: r.provider_ref,
+        status: r.status as Status,
+        submittedAt: r.created_at,
+        reason: r.reason,
+      };
+      setLatest(next);
+      setStatus(next.status);
+
+      // Persist for cross-reload resume (only while still pending).
+      if (next.status === "pending") {
+        writePersisted({
+          submittedAt: next.submittedAt,
+          lastSeenAt: new Date().toISOString(),
+          submissionId: next.submissionId,
+        });
+      }
+
+      if (next.status === "approved") {
+        stopAllListeners();
+        // Clear any stale rejection reason now that the user is approved.
+        try { localStorage.removeItem(REJECTION_REASON_KEY); } catch { /* ignore */ }
+        clearPersisted();
+        await updateProfileFields({ kyc_status: "approved" });
+        await persistStage("STAGE_5");
+        // Wait for the seal bounce + shimmer sweep to finish before transitioning.
+        if (redirectTimerRef.current) clearTimeout(redirectTimerRef.current);
+        redirectTimerRef.current = setTimeout(() => onApproved(), APPROVED_ANIMATION_MS);
+      } else if (next.status === "rejected") {
+        stopAllListeners();
+        clearPersisted();
+        // Persist the reason so a reload still shows it.
+        if (next.reason) {
+          try { localStorage.setItem(REJECTION_REASON_KEY, next.reason); } catch { /* ignore */ }
+        }
+        await updateProfileFields({ kyc_status: "rejected" });
+      }
+      return true;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Couldn't reach verification service";
+      setInitialLoading(false);
+      setFetchError(message);
+      return false;
     }
   };
 
