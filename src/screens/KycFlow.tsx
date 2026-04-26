@@ -78,12 +78,18 @@ export function KycFlow({ onDone }: { onDone: () => void }) {
       if (raw) {
         const d = JSON.parse(raw) as Partial<{
           name: string; dob: string; gender: typeof gender; aadhaar: string; step: Step;
+          schoolName: string; addrLine1: string; addrCity: string; addrState: string; addrPincode: string;
         }>;
         if (d.name) setName(d.name);
         if (d.dob) setDob(d.dob);
         if (d.gender) setGender(d.gender);
         if (d.aadhaar) setAadhaar(d.aadhaar);
         if (d.step) setStep(d.step);
+        if (d.schoolName) setSchoolName(d.schoolName);
+        if (d.addrLine1) setAddrLine1(d.addrLine1);
+        if (d.addrCity) setAddrCity(d.addrCity);
+        if (d.addrState) setAddrState(d.addrState);
+        if (d.addrPincode) setAddrPincode(d.addrPincode);
       }
       const docsRaw = localStorage.getItem(KYC_DOCS_KEY);
       if (docsRaw) {
@@ -102,13 +108,18 @@ export function KycFlow({ onDone }: { onDone: () => void }) {
         if (!u.user) return;
         const { data: p } = await supabase
           .from("profiles")
-          .select("full_name,dob,gender,aadhaar_last4,onboarding_stage")
+          .select("full_name,dob,gender,aadhaar_last4,onboarding_stage,school_name,address_line1,address_city,address_state,address_pincode")
           .eq("id", u.user.id)
           .maybeSingle();
         if (!p) return;
         // Only fill empty fields — never overwrite the user's in-progress edits.
         setName((cur) => cur || (p.full_name ?? ""));
         setGender((cur) => cur || ((p.gender as typeof gender) ?? ""));
+        setSchoolName((cur) => cur || (p.school_name ?? ""));
+        setAddrLine1((cur) => cur || (p.address_line1 ?? ""));
+        setAddrCity((cur) => cur || (p.address_city ?? ""));
+        setAddrState((cur) => cur || (p.address_state ?? ""));
+        setAddrPincode((cur) => cur || (p.address_pincode ?? ""));
         if (p.dob) {
           // Stored as YYYY-MM-DD; show as DD/MM/YYYY.
           const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(p.dob);
@@ -130,10 +141,10 @@ export function KycFlow({ onDone }: { onDone: () => void }) {
     try {
       localStorage.setItem(
         KYC_DRAFT_KEY,
-        JSON.stringify({ name, dob, gender, aadhaar, step }),
+        JSON.stringify({ name, dob, gender, aadhaar, step, schoolName, addrLine1, addrCity, addrState, addrPincode }),
       );
     } catch { /* ignore */ }
-  }, [name, dob, gender, aadhaar, step]);
+  }, [name, dob, gender, aadhaar, step, schoolName, addrLine1, addrCity, addrState, addrPincode]);
 
   useEffect(() => {
     try {
