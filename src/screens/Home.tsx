@@ -178,6 +178,22 @@ export function Home() {
 
   useEffect(() => { void fetchTxns(); }, [fetchTxns]);
 
+  // Persona-targeted offers feed (admin-managed via gender_offers)
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const { data } = await supabase
+        .from("gender_offers")
+        .select("id,eyebrow,headline,emphasis,subtitle,cta_label,accent,sort_order,gender_target")
+        .eq("active", true)
+        .in("gender_target", persona.offerFilter)
+        .order("sort_order", { ascending: true })
+        .limit(8);
+      if (!cancelled) setPersonaOffers((data ?? []) as PersonaOffer[]);
+    })();
+    return () => { cancelled = true; };
+  }, [persona.offerFilter]);
+
   useEffect(() => {
     if (!userId) return;
     const ch = supabase
@@ -288,7 +304,7 @@ export function Home() {
       onTouchStart={onTouchStart}
       onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}
-      className="hp-root flex-1 flex flex-col tw-slide-up pb-32 overflow-y-auto relative"
+      className={`hp-root ${persona.accentClass} flex-1 flex flex-col tw-slide-up pb-32 overflow-y-auto relative`}
       style={{ transform: pullY ? `translateY(${pullY}px)` : undefined, transition: pullY ? "none" : "transform 220ms ease" }}
     >
       {/* Keyboard skip-link to payment history */}
@@ -321,9 +337,9 @@ export function Home() {
             className="hp-greeting-tap text-left"
           >
             <p key={greetingPulse} className="hp-greeting hp-greeting-pulse">
-              Hey, {first}{waveEnabled ? " 👋" : ""}
+              Hey, {first}{waveEnabled ? ` ${persona.emoji}` : ""}
             </p>
-            <p className="hp-greeting-sub">Welcome back</p>
+            <p className="hp-greeting-sub">{persona.subtitle}</p>
             <span
               role="status"
               aria-live="polite"
@@ -395,28 +411,56 @@ export function Home() {
             role="list"
             aria-label="Available offers"
           >
-            <div className="hp-offer hp-offer-1 snap-start shrink-0" role="listitem">
-              <div className="relative z-10">
-                <p className="hp-offer-eyebrow">P2P UPI · Limited</p>
-                <p className="hp-offer-headline">20%<em>flat off</em></p>
-                <p className="hp-offer-sub">On every peer transfer this month</p>
-                <button type="button" onClick={() => void haptics.success()} className="hp-offer-cta" aria-label="Apply 20% flat off offer on peer transfers">
-                  <span>Apply offer</span>
-                  <ArrowUpRight className="w-3.5 h-3.5 hp-offer-cta-icon" strokeWidth={2.2} aria-hidden="true" />
-                </button>
-              </div>
-            </div>
-            <div className="hp-offer hp-offer-2 snap-start shrink-0" role="listitem">
-              <div className="relative z-10">
-                <p className="hp-offer-eyebrow">First recharge</p>
-                <p className="hp-offer-headline">40%<em>cashback</em></p>
-                <p className="hp-offer-sub">Credited instantly to your wallet</p>
-                <button type="button" onClick={() => void haptics.success()} className="hp-offer-cta" aria-label="Claim 40% cashback offer on your first recharge">
-                  <span>Claim now</span>
-                  <Sparkles className="w-3.5 h-3.5 hp-offer-cta-icon" strokeWidth={2.2} aria-hidden="true" />
-                </button>
-              </div>
-            </div>
+            {personaOffers.length > 0 ? (
+              personaOffers.map((o) => (
+                <div
+                  key={o.id}
+                  className="hp-offer hp-offer-persona snap-start shrink-0"
+                  role="listitem"
+                  data-accent={o.accent}
+                >
+                  <div className="relative z-10">
+                    <p className="hp-offer-eyebrow">{o.eyebrow}</p>
+                    <p className="hp-offer-headline">{o.headline}<em>{o.emphasis}</em></p>
+                    <p className="hp-offer-sub">{o.subtitle}</p>
+                    <button
+                      type="button"
+                      onClick={() => void haptics.success()}
+                      className="hp-offer-cta"
+                      aria-label={`${o.cta_label} — ${o.headline} ${o.emphasis}`}
+                    >
+                      <span>{o.cta_label}</span>
+                      <ArrowUpRight className="w-3.5 h-3.5 hp-offer-cta-icon" strokeWidth={2.2} aria-hidden="true" />
+                    </button>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <>
+                <div className="hp-offer hp-offer-1 snap-start shrink-0" role="listitem">
+                  <div className="relative z-10">
+                    <p className="hp-offer-eyebrow">P2P UPI · Limited</p>
+                    <p className="hp-offer-headline">20%<em>flat off</em></p>
+                    <p className="hp-offer-sub">On every peer transfer this month</p>
+                    <button type="button" onClick={() => void haptics.success()} className="hp-offer-cta" aria-label="Apply 20% flat off offer on peer transfers">
+                      <span>Apply offer</span>
+                      <ArrowUpRight className="w-3.5 h-3.5 hp-offer-cta-icon" strokeWidth={2.2} aria-hidden="true" />
+                    </button>
+                  </div>
+                </div>
+                <div className="hp-offer hp-offer-2 snap-start shrink-0" role="listitem">
+                  <div className="relative z-10">
+                    <p className="hp-offer-eyebrow">First recharge</p>
+                    <p className="hp-offer-headline">40%<em>cashback</em></p>
+                    <p className="hp-offer-sub">Credited instantly to your wallet</p>
+                    <button type="button" onClick={() => void haptics.success()} className="hp-offer-cta" aria-label="Claim 40% cashback offer on your first recharge">
+                      <span>Claim now</span>
+                      <Sparkles className="w-3.5 h-3.5 hp-offer-cta-icon" strokeWidth={2.2} aria-hidden="true" />
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         )}
       </section>
