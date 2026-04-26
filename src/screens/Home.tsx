@@ -109,6 +109,24 @@ export function Home() {
   const [navCollapsed, setNavCollapsed] = useState(false);
   const [navMode, setNavMode] = useState<"full" | "profile-morph">("full");
   const [scanLaunching, setScanLaunching] = useState(false);
+  const [greetingPulse, setGreetingPulse] = useState(0);
+  const [showGreetingTip, setShowGreetingTip] = useState(false);
+  const [waveEnabled, setWaveEnabled] = useState<boolean>(() => {
+    if (typeof window === "undefined") return true;
+    try { const v = localStorage.getItem("tw_greeting_wave"); return v === null ? true : v === "1"; } catch { return true; }
+  });
+  const toggleWave = useCallback(() => {
+    setWaveEnabled((prev) => {
+      const next = !prev;
+      try { localStorage.setItem("tw_greeting_wave", next ? "1" : "0"); } catch { /* ignore */ }
+      return next;
+    });
+  }, []);
+  const handleGreetingTap = useCallback(() => {
+    setGreetingPulse((k) => k + 1);
+    setShowGreetingTip(true);
+    window.setTimeout(() => setShowGreetingTip(false), 2200);
+  }, []);
   const touchStartY = useRef<number | null>(null);
   const scrollerRef = useRef<HTMLDivElement | null>(null);
   const loadStartRef = useRef<number>(performance.now());
@@ -274,10 +292,25 @@ export function Home() {
 
         {/* Header */}
         <div className="relative z-10 flex items-center justify-between px-6 pt-8">
-          <div>
-            <p className="hp-greeting">Hey, {first} 👋</p>
+          <button
+            type="button"
+            onClick={handleGreetingTap}
+            onDoubleClick={toggleWave}
+            aria-label={`Greeting for ${first}. Double-tap to ${waveEnabled ? "hide" : "show"} the wave emoji.`}
+            className="hp-greeting-tap text-left"
+          >
+            <p key={greetingPulse} className="hp-greeting hp-greeting-pulse">
+              Hey, {first}{waveEnabled ? " 👋" : ""}
+            </p>
             <p className="hp-greeting-sub">Welcome back</p>
-          </div>
+            <span
+              role="status"
+              aria-live="polite"
+              className={`hp-greeting-tip ${showGreetingTip ? "is-visible" : ""}`}
+            >
+              {waveEnabled ? "Double-tap to hide 👋" : "Double-tap to bring back 👋"}
+            </span>
+          </button>
           <button
             type="button"
             onClick={() => setShowNotifs(true)}
