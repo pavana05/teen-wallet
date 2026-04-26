@@ -1109,3 +1109,136 @@ function SectionSkeleton({ title, rows = 4 }: { title: string; rows?: number }) 
     </section>
   );
 }
+
+/* ───────── Instagram connect sheet ───────── */
+function InstagramSheet({
+  initial, onClose, onSaved,
+}: {
+  initial: string;
+  onClose: () => void;
+  onSaved: (handle: string) => void;
+}) {
+  const [handle, setHandle] = useState(initial);
+  const [err, setErr] = useState<string | null>(null);
+  const save = () => {
+    const clean = handle.trim().replace(/^@/, "");
+    if (clean && !/^[a-zA-Z0-9._]{1,30}$/.test(clean)) {
+      setErr("Letters, numbers, dot and underscore only");
+      return;
+    }
+    onSaved(clean);
+  };
+  return (
+    <div
+      className="absolute inset-0 z-[80] flex items-end pp-sheet-backdrop"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="pp-ig-title"
+    >
+      <div className="pp-sheet" onClick={(e) => e.stopPropagation()}>
+        <div className="pp-sheet-grab" />
+        <div className="flex items-center gap-2.5 px-1 mb-2">
+          <div className="w-9 h-9 rounded-full flex items-center justify-center bg-gradient-to-br from-pink-500/30 via-fuchsia-500/30 to-amber-400/30 border border-pink-300/30">
+            <Instagram className="w-4 h-4 text-pink-200" strokeWidth={2.2} />
+          </div>
+          <div>
+            <p id="pp-ig-title" className="text-[15px] font-semibold text-white">Connect Instagram</p>
+            <p className="text-[11.5px] text-white/55 mt-0.5">Show off your handle on your TeenWallet card.</p>
+          </div>
+        </div>
+        <label className="pp-field">
+          <span>Instagram handle</span>
+          <input
+            value={handle}
+            onChange={(e) => { setHandle(e.target.value); setErr(null); }}
+            placeholder="yourhandle"
+            autoCapitalize="off"
+            autoCorrect="off"
+            maxLength={32}
+            autoFocus
+            inputMode="text"
+          />
+          {err && <p className="pp-field-err">{err}</p>}
+        </label>
+        <div className="flex gap-2 mt-5">
+          {initial && (
+            <button onClick={() => onSaved("")} className="pp-btn-ghost flex-1">Unlink</button>
+          )}
+          <button onClick={onClose} className="pp-btn-ghost flex-1">Cancel</button>
+          <button onClick={save} className="pp-btn-primary flex-1">Save</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ───────── School / College edit sheet ───────── */
+function SchoolSheet({
+  initial, userId, onClose, onSaved,
+}: {
+  initial: string;
+  userId: string | null;
+  onClose: () => void;
+  onSaved: (name: string) => void;
+}) {
+  const [name, setName] = useState(initial);
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  const save = async () => {
+    setErr(null);
+    const clean = name.trim().slice(0, 120);
+    if (clean && clean.length < 2) { setErr("Enter at least 2 characters"); return; }
+    if (!userId) { setErr("Please sign in again"); return; }
+    setSaving(true);
+    const { error } = await supabase
+      .from("profiles")
+      .update({ school_name: clean || null })
+      .eq("id", userId);
+    setSaving(false);
+    if (error) { setErr(error.message); toast.error("Couldn't save", { description: error.message }); return; }
+    toast.success(clean ? "School updated" : "School cleared");
+    onSaved(clean);
+  };
+
+  return (
+    <div
+      className="absolute inset-0 z-[80] flex items-end pp-sheet-backdrop"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="pp-school-title"
+    >
+      <div className="pp-sheet" onClick={(e) => e.stopPropagation()}>
+        <div className="pp-sheet-grab" />
+        <div className="flex items-center gap-2.5 px-1 mb-2">
+          <div className="w-9 h-9 rounded-full flex items-center justify-center bg-sky-400/15 border border-sky-300/30">
+            <GraduationCap className="w-4 h-4 text-sky-200" strokeWidth={2.2} />
+          </div>
+          <div>
+            <p id="pp-school-title" className="text-[15px] font-semibold text-white">School / College</p>
+            <p className="text-[11.5px] text-white/55 mt-0.5">Helps unlock student-only rewards.</p>
+          </div>
+        </div>
+        <label className="pp-field">
+          <span>Institution name</span>
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Delhi Public School, RK Puram"
+            maxLength={120}
+            autoFocus
+          />
+          {err && <p className="pp-field-err">{err}</p>}
+        </label>
+        <div className="flex gap-2 mt-5">
+          <button onClick={onClose} className="pp-btn-ghost flex-1">Cancel</button>
+          <button onClick={save} disabled={saving} className="pp-btn-primary flex-1 disabled:opacity-60">
+            {saving ? <Loader2 className="w-4 h-4 inline animate-spin" /> : "Save"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
