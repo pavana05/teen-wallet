@@ -825,11 +825,17 @@ function MyQrSheet({ upiId, payeeName, onClose }: { upiId: string; payeeName: st
   };
 
   return (
-    <div className="absolute inset-0 z-[80] flex items-end pp-sheet-backdrop" onClick={onClose}>
+    <div
+      className="absolute inset-0 z-[80] flex items-end pp-sheet-backdrop"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="pp-qr-title"
+    >
       <div className="pp-sheet" onClick={(e) => e.stopPropagation()}>
         <div className="pp-sheet-grab" />
         <div className="flex items-center justify-between px-1 mb-3">
-          <p className="text-[15px] font-semibold text-white">My UPI QR</p>
+          <p id="pp-qr-title" className="text-[15px] font-semibold text-white">My UPI QR</p>
           <button onClick={onClose} aria-label="Close" className="qa-icon-btn"><X className="w-4 h-4 text-white/80" /></button>
         </div>
 
@@ -866,16 +872,23 @@ function DeleteAccountSheet({ onCancel, onConfirm }: { onCancel: () => void; onC
   const [busy, setBusy] = useState(false);
   const ok = text.trim().toUpperCase() === "DELETE";
   return (
-    <div className="absolute inset-0 z-[80] flex items-end pp-sheet-backdrop" onClick={onCancel}>
+    <div
+      className="absolute inset-0 z-[80] flex items-end pp-sheet-backdrop"
+      onClick={onCancel}
+      role="alertdialog"
+      aria-modal="true"
+      aria-labelledby="pp-del-title"
+      aria-describedby="pp-del-desc"
+    >
       <div className="pp-sheet" onClick={(e) => e.stopPropagation()}>
         <div className="pp-sheet-grab" />
         <div className="flex items-center gap-2.5 px-1">
-          <div className="w-9 h-9 rounded-full bg-red-400/15 border border-red-400/30 flex items-center justify-center">
+          <div className="w-9 h-9 rounded-full bg-red-400/15 border border-red-400/30 flex items-center justify-center" aria-hidden="true">
             <AlertTriangle className="w-4.5 h-4.5 text-red-300" strokeWidth={2.2} />
           </div>
-          <p className="text-[16px] font-semibold text-white">Delete your account?</p>
+          <p id="pp-del-title" className="text-[16px] font-semibold text-white">Delete your account?</p>
         </div>
-        <p className="text-[12.5px] text-white/65 mt-2 px-1">
+        <p id="pp-del-desc" className="text-[12.5px] text-white/65 mt-2 px-1">
           This permanently removes your profile, transactions, notifications and KYC records.
           Your wallet balance will be lost. This action cannot be undone.
         </p>
@@ -902,11 +915,18 @@ function ConfirmSheet({ title, desc, confirmLabel, danger, onCancel, onConfirm }
   title: string; desc: string; confirmLabel: string; danger?: boolean; onCancel: () => void; onConfirm: () => void;
 }) {
   return (
-    <div className="absolute inset-0 z-[80] flex items-end pp-sheet-backdrop" onClick={onCancel}>
+    <div
+      className="absolute inset-0 z-[80] flex items-end pp-sheet-backdrop"
+      onClick={onCancel}
+      role="alertdialog"
+      aria-modal="true"
+      aria-labelledby="pp-confirm-title"
+      aria-describedby="pp-confirm-desc"
+    >
       <div className="pp-sheet" onClick={(e) => e.stopPropagation()}>
         <div className="pp-sheet-grab" />
-        <p className="text-[16px] font-semibold text-white">{title}</p>
-        <p className="text-[12.5px] text-white/60 mt-1">{desc}</p>
+        <p id="pp-confirm-title" className="text-[16px] font-semibold text-white">{title}</p>
+        <p id="pp-confirm-desc" className="text-[12.5px] text-white/60 mt-1">{desc}</p>
         <div className="flex gap-2 mt-5">
           <button onClick={onCancel} className="pp-btn-ghost flex-1">Cancel</button>
           <button onClick={onConfirm} className={`flex-1 ${danger ? "pp-btn-danger" : "pp-btn-primary"}`}>{confirmLabel}</button>
