@@ -227,7 +227,10 @@ function rateCheck(key: string, max: number, windowMs: number, blockMs: number):
 // -----------------------------------------------------------------
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
-  if (req.method !== "POST") return json({ error: "method_not_allowed" }, 405);
+  // Per-request correlation ID. Generated up-front so even early validation
+  // failures (bad method, bad JSON) come back with an ID the user can copy.
+  const cid = newCid();
+  if (req.method !== "POST") return json({ error: "method_not_allowed" }, 405, cid);
 
   const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
   const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -237,6 +240,18 @@ Deno.serve(async (req) => {
     ?? req.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
     ?? "unknown";
   const ua = req.headers.get("user-agent") ?? "unknown";
+
+  // Shadow the outer helper so every existing `json(...)` call site
+  // inside this handler automatically gets the request correlation ID.
+  // eslint-disable-next-line @typescript-eslint/no-shadow
+  const _json = json;
+  const json = (data: unknown, status = 200) => {
+    if (status >= 400) {
+      // Mirror error responses to console with cid for log-grep correlation.
+      console.error(`[admin-auth] ${cid} action="${String((data as any)?.error ?? "?")}" status=${status} ip=${ip}`);
+    }
+    return _json(data, status, cid);
+  };
 
   let body: Record<string, unknown> = {};
   try { body = await req.json(); } catch { return json({ error: "invalid_json" }, 400); }
@@ -250,9 +265,10 @@ Deno.serve(async (req) => {
       action_type: type,
       ip_address: ip,
       user_agent: ua,
-      new_value: extra as any,
+      new_value: { ...extra, correlationId: cid } as any,
     });
   }
+
 
   // ---------------------------------------------------------------
   // login_password
