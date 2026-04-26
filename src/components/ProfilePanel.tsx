@@ -227,9 +227,9 @@ export function ProfilePanel({ onClose }: Props) {
                   </button>
                 </div>
                 <p className="text-[12px] text-white/60 mt-0.5">{phone}</p>
-                <div className={`mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border ${kycMeta.border} ${kycMeta.bg}`}>
+                <div className={`pp-kyc-badge mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border ${kycMeta.border} ${kycMeta.bg}`}>
                   <kycMeta.icon className={`w-3.5 h-3.5 ${kycMeta.color}`} strokeWidth={2.2} />
-                  <span className={`text-[10.5px] font-medium ${kycMeta.color} tracking-wide`}>{kycMeta.label}</span>
+                  <span className={`text-[10.5px] font-semibold ${kycMeta.color} tracking-wide`}>{kycMeta.label}</span>
                 </div>
               </div>
             </div>
@@ -338,16 +338,28 @@ export function ProfilePanel({ onClose }: Props) {
                   <span className="text-[10.5px] font-semibold text-amber-300 px-2 py-0.5 rounded-full bg-amber-400/10 border border-amber-400/25 shrink-0">SOON</span>
                 </button>
               </Section>
-              <Section title="Member since">
-                <div className="px-3.5 py-3.5 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="pp-row-icon"><Star className="w-4 h-4 text-amber-300" strokeWidth={2} /></div>
-                    <div>
-                      <p className="text-[13px] text-white">TeenWallet member</p>
-                      <p className="text-[11px] text-white/50">Since {memberSince}</p>
+              <Section title="Membership">
+                <div className="px-3.5 py-3.5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="pp-row-icon"><Star className="w-4 h-4 text-amber-300" strokeWidth={2} /></div>
+                      <div>
+                        <p className="text-[13px] text-white font-medium">Gold member</p>
+                        <p className="text-[11px] text-white/50">Since {memberSince}</p>
+                      </div>
                     </div>
+                    <span className="text-[10px] font-bold tracking-wider text-amber-300 px-2 py-0.5 rounded-full bg-amber-400/10 border border-amber-400/25">GOLD</span>
                   </div>
-                  <span className="text-[10.5px] text-amber-300 px-2 py-0.5 rounded-full bg-amber-400/10 border border-amber-400/25">Gold</span>
+                  <div className="mt-3.5">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-[10.5px] text-white/55 uppercase tracking-wider">Progress to Platinum</span>
+                      <span className="text-[10.5px] text-white/70 num-mono">{Math.min(100, Math.round((stats.txnCount / 50) * 100))}%</span>
+                    </div>
+                    <div className="pp-progress">
+                      <div className="pp-progress-fill" style={{ width: `${Math.min(100, Math.round((stats.txnCount / 50) * 100))}%` }} />
+                    </div>
+                    <p className="text-[10.5px] text-white/45 mt-1.5">{Math.max(0, 50 - stats.txnCount)} more transactions to unlock Platinum perks</p>
+                  </div>
                 </div>
               </Section>
             </>
@@ -528,7 +540,7 @@ function VirtualCardModal({ onClose }: { onClose: () => void }) {
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div>
-      <p className="text-[11px] uppercase tracking-wider text-white/45 px-1 mb-2">{title}</p>
+      <p className="pp-section-title">{title}</p>
       <div className="pp-card divide-y divide-white/5">{children}</div>
     </div>
   );
