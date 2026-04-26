@@ -101,8 +101,6 @@ function Index() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  if (!splashSeen) return <PhoneShell><Splash onDone={() => useApp.getState().setSplashSeen(true)} /></PhoneShell>;
-
   return (
     <PhoneShell>
       <Suspense fallback={<ScreenFallback />}>
