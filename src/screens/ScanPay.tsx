@@ -581,8 +581,17 @@ function ScannerView({ onBack, onDecoded }: { onBack: () => void; onDecoded: (p:
 
   const manualSoftReset = () => {
     setSoftResetCount((c) => c + 1);
+    setInvalidDecodeCount(0);
+    setCameraStartError(null);
     setStarting(true);
     setRestartTick((t) => t + 1);
+  };
+
+  // Trigger gallery picker programmatically — used by the recovery panel so
+  // a struggling user can fall back from camera scanning to file upload in
+  // a single tap, without hunting for the small Upload chip in the dock.
+  const openGalleryPicker = () => {
+    fallbackInputRef.current?.click();
   };
 
   const toggleTorch = async () => {
@@ -607,10 +616,20 @@ function ScannerView({ onBack, onDecoded }: { onBack: () => void; onDecoded: (p:
       const decoded = await scanner.scanFile(file, false);
       const result = parseUpiQrWithReason(decoded);
       setDebug({ raw: decoded, result, at: Date.now() });
-      if (result.payload) onDecoded(result.payload);
-      else toast.error(result.reason ?? "Not a valid UPI QR code");
+      if (result.payload) {
+        onDecoded(result.payload);
+      } else {
+        // Gallery decode succeeded but the QR isn't a UPI payment — count it
+        // toward the invalid streak so the recovery panel stays visible.
+        setInvalidDecodeCount((c) => c + 1);
+        toast.error(result.reason ?? "Not a valid UPI QR code");
+      }
     } catch {
-      toast.error("Could not read QR from image");
+      setInvalidDecodeCount((c) => c + 1);
+      toast.error("Could not read QR from image. Try a clearer photo.");
+    } finally {
+      // Always clear the input so picking the same file again still triggers onChange.
+      if (e.target) e.target.value = "";
     }
   };
 
