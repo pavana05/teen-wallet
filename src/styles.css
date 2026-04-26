@@ -1140,14 +1140,14 @@
 
 /* Soft accent glow per variant */
 .hp-offer-1::after{
-  content:""; position:absolute; right:-40px; top:-40px; width:160px; height:160px; border-radius:50%;
-  background: radial-gradient(closest-side, rgba(212,175,108,0.18), transparent 70%);
-  z-index:0; pointer-events:none;
+  content:""; position:absolute; right:-50px; top:-50px; width:200px; height:200px; border-radius:50%;
+  background: radial-gradient(closest-side, rgba(212,175,108,0.28), transparent 72%);
+  z-index:0; pointer-events:none; filter: blur(2px);
 }
 .hp-offer-2::after{
-  content:""; position:absolute; right:-40px; top:-40px; width:160px; height:160px; border-radius:50%;
-  background: radial-gradient(closest-side, rgba(180,205,225,0.16), transparent 70%);
-  z-index:0; pointer-events:none;
+  content:""; position:absolute; right:-50px; top:-50px; width:200px; height:200px; border-radius:50%;
+  background: radial-gradient(closest-side, rgba(180,205,225,0.24), transparent 72%);
+  z-index:0; pointer-events:none; filter: blur(2px);
 }
 
 .hp-offer-eyebrow{
