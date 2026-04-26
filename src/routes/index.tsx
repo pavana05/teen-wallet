@@ -27,6 +27,14 @@ export const Route = createFileRoute("/")({
 function Index() {
   const { stage, splashSeen, setStage, hydrateFromProfile } = useApp();
   const [booting, setBooting] = useState(true);
+  const [permsSeen, setPermsSeen] = useState<boolean>(() => {
+    if (typeof window === "undefined") return true;
+    try { return localStorage.getItem(PERMISSIONS_DONE_KEY) === "1"; } catch { return true; }
+  });
+  const markPermsSeen = () => {
+    try { localStorage.setItem(PERMISSIONS_DONE_KEY, "1"); } catch { /* ignore */ }
+    setPermsSeen(true);
+  };
 
   useEffect(() => {
     let mounted = true;
