@@ -30,8 +30,8 @@ describe("Home screen smoke test", () => {
     expect(await screen.findByText(/Hey, Alex/i)).toBeInTheDocument();
 
     // Section headings prove QuickAction/RechargeTile/TxnRow scaffolding loaded.
-    expect(screen.getByText(/Everything UPI!/i)).toBeInTheDocument();
-    expect(screen.getByText(/Recharges and bills/i)).toBeInTheDocument();
+    expect(screen.getByText(/Everything UPI/i)).toBeInTheDocument();
+    expect(screen.getByText(/Recharges & utilities/i)).toBeInTheDocument();
     expect(screen.getByText(/Payment history/i)).toBeInTheDocument();
 
     // NavItem labels — guards against the "NavItem is not defined" regression.
