@@ -41,7 +41,9 @@ interface ActivityItem {
   refId?: string;
 }
 
-const FRAUD_COLORS = ["#c8f135", "#3b82f6", "#f59e0b", "#ef4444", "#a855f7", "#22c55e"];
+// Premium champagne-led palette for charts (no neon-lime).
+const FRAUD_COLORS = ["#d4c5a0", "#7c8db5", "#b89b7a", "#c2766b", "#9c8fb5", "#7da890"];
+const PREMIUM_ACCENT = "#d4c5a0";
 
 function CommandCenter() {
   const [data, setData] = useState<DashboardData | null>(null);
