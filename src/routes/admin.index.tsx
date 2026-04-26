@@ -233,7 +233,7 @@ function KpiCard({ icon, label, value, delta, deltaLabel, spark, warn, danger, m
           <div style={{ width: 80, height: 28 }}>
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={spark}>
-                <Area dataKey="v" stroke="#c8f135" fill="#c8f135" fillOpacity={0.2} strokeWidth={1.5} />
+                <Area dataKey="v" stroke={PREMIUM_ACCENT} fill={PREMIUM_ACCENT} fillOpacity={0.2} strokeWidth={1.5} />
               </AreaChart>
             </ResponsiveContainer>
           </div>
