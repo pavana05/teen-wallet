@@ -109,7 +109,7 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
   }
 
   async function handleVerify(code: string) {
-    setBusy(true); setError(""); setErrorKind(null);
+    setBusy(true); setError(""); setErrorKind(null); setErrorId(null);
     try {
       await verifyOtp(phone, code);
       const p = await fetchProfile();
@@ -130,10 +130,10 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
       clearOtpState();
       setStep("verified");
     } catch (e) {
-      const { message, kind } = classifyOtpError(e);
-      setError(message); setErrorKind(kind);
-      void logOtpErrorEvent(kind, e instanceof Error ? e.message : String(e), phone);
-      toast.error(kind === "network" ? "Network error" : "Verification failed", { description: message });
+      const { message, kind, correlationId } = classifyOtpError(e);
+      setError(message); setErrorKind(kind); setErrorId(correlationId);
+      void logOtpErrorEvent(kind, e instanceof Error ? e.message : String(e), phone, correlationId);
+      toast.error(kind === "network" ? "Network error" : "Verification failed", { description: `${message} (ID: ${correlationId})` });
 
       if (kind === "rate_limited") {
         setResendBlockedUntil(Date.now() + 60_000);
