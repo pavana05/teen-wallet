@@ -286,6 +286,87 @@ export type Database = {
           },
         ]
       }
+      gender_offers: {
+        Row: {
+          accent: string
+          active: boolean
+          created_at: string
+          cta_label: string
+          emphasis: string
+          eyebrow: string
+          gender_target: string
+          headline: string
+          id: string
+          sort_order: number
+          subtitle: string
+          updated_at: string
+        }
+        Insert: {
+          accent?: string
+          active?: boolean
+          created_at?: string
+          cta_label?: string
+          emphasis: string
+          eyebrow: string
+          gender_target: string
+          headline: string
+          id?: string
+          sort_order?: number
+          subtitle: string
+          updated_at?: string
+        }
+        Update: {
+          accent?: string
+          active?: boolean
+          created_at?: string
+          cta_label?: string
+          emphasis?: string
+          eyebrow?: string
+          gender_target?: string
+          headline?: string
+          id?: string
+          sort_order?: number
+          subtitle?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      gender_rewards_rules: {
+        Row: {
+          active: boolean
+          cashback_pct: number
+          category: string
+          created_at: string
+          description: string
+          gender_target: string
+          id: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          cashback_pct: number
+          category: string
+          created_at?: string
+          description: string
+          gender_target: string
+          id?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          cashback_pct?: number
+          category?: string
+          created_at?: string
+          description?: string
+          gender_target?: string
+          id?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       issue_report_notes: {
         Row: {
           admin_email: string
