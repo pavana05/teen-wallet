@@ -360,8 +360,6 @@ export function ProfilePanel({ onClose }: Props) {
           )}
         </section>
 
-        {/* hidden helpers for layout parity */}
-        <div className="hidden">{Activity.name}{TrendingUp.name}</div>
 
         {/* ── TABS ── */}
         <div className="px-5 mt-5">
