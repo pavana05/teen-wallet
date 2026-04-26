@@ -1033,6 +1033,63 @@
 .hp-greeting{ font-size:18px; font-weight:600; color:#f5f5f7; letter-spacing:-0.015em; }
 .hp-greeting-sub{ font-size:11px; color:rgba(255,255,255,.5); margin-top:3px; letter-spacing:0.02em; text-transform: uppercase; font-weight: 500; }
 
+/* Tappable greeting wrapper — preserves layout, adds interactivity affordance */
+.hp-greeting-tap{
+  position: relative;
+  display: block;
+  padding: 2px 4px;
+  margin: -2px -4px;
+  border-radius: 10px;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 200ms ease, transform 160ms ease;
+}
+.hp-greeting-tap:hover{ background: rgba(255,255,255,0.03); }
+.hp-greeting-tap:active{ transform: scale(0.985); }
+.hp-greeting-tap:focus-visible{
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(200,241,53,0.55);
+}
+
+/* Subtle pulse — fires once each tap by remounting via key */
+.hp-greeting-pulse{ animation: hp-greeting-pulse 520ms ease-out; transform-origin: left center; }
+@keyframes hp-greeting-pulse{
+  0%   { transform: scale(1);    text-shadow: 0 0 0 rgba(255,255,255,0); }
+  35%  { transform: scale(1.035); text-shadow: 0 0 14px rgba(255,255,255,0.25); }
+  100% { transform: scale(1);    text-shadow: 0 0 0 rgba(255,255,255,0); }
+}
+
+/* Helper tooltip below greeting — minimal, reserves no layout space when hidden */
+.hp-greeting-tip{
+  position: absolute;
+  top: 100%; left: 4px;
+  margin-top: 6px;
+  padding: 5px 9px;
+  font-size: 10px; font-weight: 500; letter-spacing: 0.04em;
+  color: rgba(255,255,255,0.78);
+  background: rgba(20,20,24,0.92);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 8px;
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  white-space: nowrap;
+  opacity: 0;
+  transform: translateY(-2px);
+  pointer-events: none;
+  transition: opacity 180ms ease, transform 180ms ease;
+  box-shadow: 0 8px 20px -10px rgba(0,0,0,0.7);
+}
+.hp-greeting-tip.is-visible{
+  opacity: 1;
+  transform: translateY(0);
+}
+
+@media (prefers-reduced-motion: reduce){
+  .hp-greeting-pulse{ animation: none; }
+  .hp-greeting-tip{ transition: opacity 80ms linear; transform: none; }
+}
+
 .hp-scan-card{
   position:relative; display:block; width: calc(100% - 40px); margin: 24px auto 4px;
   border-radius: var(--hp-radius-lg); overflow:hidden;
