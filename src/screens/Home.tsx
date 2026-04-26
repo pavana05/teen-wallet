@@ -205,21 +205,19 @@ export function Home() {
         <div className="flex gap-3 overflow-x-auto hp-scroll snap-x snap-mandatory pb-1">
           <div className="hp-offer hp-offer-1 snap-start shrink-0">
             <div className="relative z-10">
-              <p className="text-white text-[20px] leading-tight font-serif italic">
-                Get <span className="font-bold not-italic">20% flat free</span>
-              </p>
-              <p className="text-white/85 text-[12px] mt-2">On your P2P UPI transactions ✨</p>
+              <p className="hp-offer-eyebrow">P2P UPI · Limited</p>
+              <p className="hp-offer-headline">20%<em>flat off</em></p>
+              <p className="hp-offer-sub">On every peer transfer this month</p>
+              <span className="hp-offer-cta">Apply offer →</span>
             </div>
-            <div className="hp-offer-art">🎁</div>
           </div>
           <div className="hp-offer hp-offer-2 snap-start shrink-0">
             <div className="relative z-10">
-              <p className="text-white text-[20px] leading-tight font-serif italic">
-                <span className="font-bold not-italic">40% off</span>
-              </p>
-              <p className="text-white/85 text-[12px] mt-2">First recharge cashback 🎉</p>
+              <p className="hp-offer-eyebrow">First recharge</p>
+              <p className="hp-offer-headline">40%<em>cashback</em></p>
+              <p className="hp-offer-sub">Credited instantly to your wallet</p>
+              <span className="hp-offer-cta">Claim now →</span>
             </div>
-            <div className="hp-offer-art">🎊</div>
           </div>
         </div>
       </div>
