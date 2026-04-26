@@ -26,11 +26,27 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-function json(data: unknown, status = 200) {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { "Content-Type": "application/json", ...corsHeaders },
-  });
+function json(data: unknown, status = 200, cid?: string) {
+  // When a request-scoped correlation ID is supplied, attach it both as a header
+  // (machine readable, for log correlation) and merge it into the JSON body
+  // (UI can copy it). For success bodies it appears as `correlationId`; for error
+  // bodies the existing `error` key stays the user-safe code.
+  const headers: Record<string, string> = { "Content-Type": "application/json", ...corsHeaders };
+  let payload: unknown = data;
+  if (cid) {
+    headers["X-Correlation-Id"] = cid;
+    if (data && typeof data === "object") {
+      payload = { ...(data as Record<string, unknown>), correlationId: cid };
+    } else {
+      payload = { value: data, correlationId: cid };
+    }
+  }
+  return new Response(JSON.stringify(payload), { status, headers });
+}
+
+function newCid(): string {
+  const u = crypto.randomUUID().replace(/-/g, "").slice(0, 8);
+  return `tw_${u}`;
 }
 
 // -----------------------------------------------------------------
