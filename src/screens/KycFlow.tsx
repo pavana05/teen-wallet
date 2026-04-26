@@ -56,6 +56,19 @@ export function KycFlow({ onDone }: { onDone: () => void }) {
   const [docFront, setDocFront] = useState<DocState>(null);
   const [docBack, setDocBack] = useState<DocState>(null);
   const [uploading, setUploading] = useState<DocSide | null>(null);
+  // Per-side upload progress (0–100). Reported via XHR's `progress` event so the
+  // user gets real feedback for slow networks instead of an indeterminate spinner.
+  const [uploadProgress, setUploadProgress] = useState<{ front: number; back: number }>({ front: 0, back: 0 });
+  // Per-side last failed File. Kept in memory so a network drop during an Aadhaar
+  // doc upload can be retried with one tap WITHOUT forcing the user to re-pick
+  // the file (or, critically, re-capture the selfie on Step 3).
+  const pendingRetryRef = useRef<{ front: File | null; back: File | null }>({ front: null, back: null });
+  const [retryAvailable, setRetryAvailable] = useState<{ front: boolean; back: boolean }>({ front: false, back: false });
+  // Result of the bucket-access preflight: null = not checked yet, true = OK,
+  // false = blocked (RLS / auth / network). We surface a clear banner when blocked
+  // so the user understands WHY uploads aren't working before they try one.
+  const [bucketAccessOk, setBucketAccessOk] = useState<boolean | null>(null);
+  const [bucketAccessReason, setBucketAccessReason] = useState<string | null>(null);
   const [autoSaveState, setAutoSaveState] = useState<"idle" | "saving" | "saved">("idle");
   const [camPerm, setCamPerm] = useState<SelfiePermState>("unknown");
   const [camSupported, setCamSupported] = useState(true);
