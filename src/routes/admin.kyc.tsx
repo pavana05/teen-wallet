@@ -310,6 +310,13 @@ function KycQueue() {
         </button>
       </div>
 
+      <PermissionBanner
+        canView={canView}
+        canDecide={canDecide}
+        decideLabel="approve/reject"
+        resourceLabel="KYC submissions"
+      />
+
       {/* Stat row */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, margin: "20px 0" }}>
         <StatCard label="In queue" value={filters.status === "pending" ? total : pendingCount} accent="var(--a-warn)" />
@@ -328,7 +335,12 @@ function KycQueue() {
         ))}
       </div>
 
-      {err && <div className="kyc-err">{err}</div>}
+      <ErrorState
+        error={err}
+        retrying={initialLoading}
+        onRetry={() => { setPage(1); void fetchPage(1); }}
+      />
+
 
       <div style={{ marginTop: 12 }}>
         <VirtualTable<KycRow>
