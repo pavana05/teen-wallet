@@ -686,6 +686,21 @@ export function ProfilePanel({ onClose }: Props) {
         />
       )}
       {vcardOpen && <VirtualCardModal onClose={() => setVcardOpen(false)} />}
+      {igOpen && (
+        <InstagramSheet
+          initial={instagram}
+          onClose={() => setIgOpen(false)}
+          onSaved={(handle) => { setInstagram(handle); setIgOpen(false); toast.success(handle ? `Connected @${handle}` : "Instagram unlinked"); }}
+        />
+      )}
+      {schoolOpen && (
+        <SchoolSheet
+          initial={profile?.school_name ?? ""}
+          userId={userId}
+          onClose={() => setSchoolOpen(false)}
+          onSaved={(name) => { setProfile((prev) => prev ? { ...prev, school_name: name } : prev); setSchoolOpen(false); }}
+        />
+      )}
     </div>
   );
 }
