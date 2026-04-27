@@ -10,6 +10,7 @@ import {
   Users as UsersIcon, Activity, FileCheck2, ArrowRightLeft,
   IndianRupee, ShieldAlert, TrendingUp, TrendingDown,
 } from "lucide-react";
+import { adminChartTokens } from "@/lib/themeTokens";
 
 export const Route = createFileRoute("/admin/")({
   component: CommandCenter,
