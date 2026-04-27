@@ -1290,7 +1290,18 @@ function TxnDetailSheet({
         {/* Receipt actions — available for any non-pending payment */}
         {!pending && (
           <div className="mt-5">
-            <p className="text-[11px] uppercase tracking-[0.14em] text-white/45 mb-2">Receipt</p>
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-[11px] uppercase tracking-[0.14em] text-white/45">Receipt</p>
+              {lastDelivery && (
+                <p className="text-[10.5px] text-white/55" aria-live="polite">
+                  Last:{" "}
+                  <span className={lastDelivery.status === "failed" ? "text-rose-300" : "text-emerald-300"}>
+                    {channelLabel(lastDelivery.channel)} · {statusLabel(lastDelivery.status)}
+                  </span>{" "}
+                  · {relativeTime(lastDelivery.attemptedAt)}
+                </p>
+              )}
+            </div>
             <div className="grid grid-cols-2 gap-2">
               <ReceiptBtn
                 icon={Download}
@@ -1298,8 +1309,12 @@ function TxnDetailSheet({
                 onClick={async () => {
                   try {
                     await downloadReceiptPdf(toReceipt(txn));
+                    logDelivery("download", "sent");
                     toast.success("Receipt downloaded");
-                  } catch { toast.error("Couldn't generate receipt"); }
+                  } catch {
+                    logDelivery("download", "failed");
+                    toast.error("Couldn't generate receipt");
+                  }
                 }}
               />
               <ReceiptBtn
@@ -1308,25 +1323,57 @@ function TxnDetailSheet({
                 onClick={async () => {
                   try {
                     const shared = await shareReceiptPdf(toReceipt(txn));
+                    logDelivery("share", shared ? "sent" : "attempted");
                     if (!shared) toast.success("Receipt downloaded");
-                  } catch { toast.error("Share failed"); }
+                  } catch {
+                    logDelivery("share", "failed");
+                    toast.error("Share failed");
+                  }
                 }}
               />
               <ReceiptBtn
                 icon={Mail}
                 label="Email"
                 onClick={() => {
-                  const subject = encodeURIComponent(`Payment receipt · ₹${Number(txn.amount).toFixed(2)} → ${txn.merchant_name}`);
-                  const body = encodeURIComponent(buildReceiptSummary(toReceipt(txn)));
-                  window.location.href = `mailto:?subject=${subject}&body=${body}`;
+                  try {
+                    const subject = encodeURIComponent(`Payment receipt · ₹${Number(txn.amount).toFixed(2)} → ${txn.merchant_name}`);
+                    const body = encodeURIComponent(buildReceiptSummary(toReceipt(txn)));
+                    window.location.href = `mailto:?subject=${subject}&body=${body}`;
+                    logDelivery("email", "attempted");
+                  } catch {
+                    logDelivery("email", "failed");
+                  }
                 }}
               />
               <ReceiptBtn
                 icon={MessageCircle}
                 label="SMS"
                 onClick={() => {
-                  const body = encodeURIComponent(buildReceiptSummary(toReceipt(txn)));
-                  window.location.href = `sms:?body=${body}`;
+                  try {
+                    const body = encodeURIComponent(buildReceiptSummary(toReceipt(txn)));
+                    window.location.href = `sms:?body=${body}`;
+                    logDelivery("sms", "attempted");
+                  } catch {
+                    logDelivery("sms", "failed");
+                  }
+                }}
+              />
+              <ReceiptBtn
+                icon={Phone}
+                label="WhatsApp"
+                onClick={async () => {
+                  try {
+                    const result = await shareReceiptToWhatsApp(toReceipt(txn));
+                    if (result === "failed") {
+                      logDelivery("whatsapp", "failed");
+                      toast.error("Couldn't open WhatsApp");
+                    } else {
+                      logDelivery("whatsapp", result === "file" ? "sent" : "attempted");
+                    }
+                  } catch {
+                    logDelivery("whatsapp", "failed");
+                    toast.error("Couldn't open WhatsApp");
+                  }
                 }}
               />
             </div>
