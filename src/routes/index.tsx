@@ -16,6 +16,8 @@ const OnboardingReferral = lazy(() => import("@/screens/OnboardingReferral").the
 
 const PERMISSIONS_DONE_KEY = "tw_permissions_seen_v1";
 
+import { shouldShowReferralPrompt } from "@/lib/referral";
+
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
