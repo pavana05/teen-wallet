@@ -142,6 +142,9 @@ export function Home() {
   const { fullName, userId } = useApp();
   const persona = useGenderPersona();
   const first = fullName?.split(" ")[0] ?? "Alex";
+  // Admin-managed scan hero images (live via Realtime). Falls back to bundled assets.
+  const scanHeroDefault = useAppImage("home.scan_hero", heroScan, "Scan and pay");
+  const scanHeroDiwali = useAppImage("home.scan_hero_diwali", heroScanDiwali, "Diwali scan and pay");
   const [view, setView] = useState<"home" | "scan" | "transactions">("home");
   const [quickAction, setQuickAction] = useState<QuickActionKind | null>(null);
   const [showNotifs, setShowNotifs] = useState(false);
