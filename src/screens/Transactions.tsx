@@ -6,6 +6,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useApp } from "@/lib/store";
 import { haptics } from "@/lib/haptics";
+import { TransactionDetail } from "@/components/TransactionDetail";
 
 interface Txn {
   id: string;
@@ -56,6 +57,7 @@ export function Transactions({ onBack }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<FilterKind>("all");
   const [query, setQuery] = useState("");
+  const [openTxn, setOpenTxn] = useState<{ txn: Txn; credit: boolean; balanceAfter: number } | null>(null);
 
   const fetchAll = useCallback(async () => {
     if (!userId) { setLoading(false); return; }
@@ -243,7 +245,13 @@ export function Transactions({ onBack }: Props) {
                 <p className="text-[10.5px] uppercase tracking-[.18em] text-white/45 font-semibold px-1 mb-2">{day}</p>
                 <div className="space-y-2">
                   {rows.map(({ txn, credit, balanceAfter }) => (
-                    <TxnDetailRow key={txn.id} txn={txn} credit={credit} balanceAfter={balanceAfter} />
+                    <TxnDetailRow
+                      key={txn.id}
+                      txn={txn}
+                      credit={credit}
+                      balanceAfter={balanceAfter}
+                      onOpen={() => { void haptics.tap(); setOpenTxn({ txn, credit, balanceAfter }); }}
+                    />
                   ))}
                 </div>
               </li>
@@ -251,6 +259,15 @@ export function Transactions({ onBack }: Props) {
           </ol>
         )}
       </div>
+
+      {openTxn && (
+        <TransactionDetail
+          txn={openTxn.txn}
+          credit={openTxn.credit}
+          balanceAfter={openTxn.balanceAfter}
+          onClose={() => setOpenTxn(null)}
+        />
+      )}
     </div>
   );
 }
@@ -300,8 +317,8 @@ function FilterChip({ children, active, onClick }: { children: React.ReactNode; 
 }
 
 function TxnDetailRow({
-  txn, credit, balanceAfter,
-}: { txn: Txn; credit: boolean; balanceAfter: number }) {
+  txn, credit, balanceAfter, onOpen,
+}: { txn: Txn; credit: boolean; balanceAfter: number; onOpen: () => void }) {
   const d = new Date(txn.created_at);
   const sign = credit ? "+" : "−";
   const StatusIcon = txn.status === "success" ? CheckCircle2 : txn.status === "pending" ? Clock : XCircle;
@@ -312,11 +329,11 @@ function TxnDetailRow({
   const failed = txn.status === "failed";
 
   return (
-    <div
-      className="hp-row"
-      role="article"
-      aria-label={`${credit ? "Credit" : "Debit"} ${sign}${fmtINR(txn.amount)} ${credit ? "from" : "to"} ${txn.merchant_name}, status ${txn.status}`}
-      tabIndex={0}
+    <button
+      type="button"
+      onClick={onOpen}
+      className="hp-row w-full text-left transition-transform active:scale-[.99]"
+      aria-label={`${credit ? "Credit" : "Debit"} ${sign}${fmtINR(txn.amount)} ${credit ? "from" : "to"} ${txn.merchant_name}, status ${txn.status}. View details.`}
     >
       <div
         className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
@@ -350,6 +367,6 @@ function TxnDetailRow({
           Bal {fmtINR(balanceAfter)}
         </p>
       </div>
-    </div>
+    </button>
   );
 }
