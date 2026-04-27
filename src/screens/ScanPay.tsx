@@ -63,6 +63,10 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
   // Bump this to force-remount the ScannerView and dispose its camera + Html5Qrcode instance.
   const [scannerKey, setScannerKey] = useState(0);
 
+  // Persisted server-side payment attempt id. When present, we are mid-flow
+  // and polling the backend for status updates rather than running a timer.
+  const [attemptId, setAttemptId] = useState<string | null>(() => readAttemptId());
+
   // Keep persistence in sync; clear on terminal states. Including `note` so a
   // user-typed memo survives accidental nav-away mid-flow.
   useEffect(() => {
@@ -72,6 +76,13 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
       clearPersisted();
     }
   }, [phase, payload, amount, note]);
+
+  // Mirror attemptId into localStorage so a refresh during processing
+  // resumes against the same backend record.
+  useEffect(() => {
+    if (attemptId) writeAttemptId(attemptId);
+    else clearAttemptId();
+  }, [attemptId]);
 
   const navLockRef = useRef(false);
   const handleDecoded = useCallback((parsed: UpiPayload) => {
@@ -84,6 +95,120 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
     breadcrumb("payment.qr_decoded", { upiId: parsed.upiId, payee: parsed.payeeName, amount: parsed.amount ?? undefined });
     setPhase("confirm");
   }, []);
+
+  // ── Resume on mount ──
+  // If we have a persisted attempt id (or the backend reports an in-progress
+  // attempt for this user), rehydrate the UI into the correct stage instead
+  // of dropping the user back into the scanner. This is the heart of "reopen
+  // the app and continue from the same payment screen state".
+  const resumedRef = useRef(false);
+  useEffect(() => {
+    if (resumedRef.current) return;
+    if (!userId) return;
+    resumedRef.current = true;
+    void resumeFromBackend({
+      userId,
+      cachedAttemptId: attemptId,
+      onResume: ({ snap }) => {
+        setPayload({
+          upiId: snap.upiId,
+          payeeName: snap.payeeName,
+          amount: snap.amount,
+          note: snap.note ?? null,
+        });
+        setAmount(snap.amount);
+        setNote(snap.note ?? "");
+        setAttemptId(snap.id);
+        if (snap.stage === "processing") {
+          setPhase("processing");
+        } else if (snap.stage === "confirm") {
+          setPhase("confirm");
+        } else if (snap.stage === "success" && snap.transactionId) {
+          // Already done — show success screen with what we know.
+          setSavedTxn(snapToSavedTxn(snap));
+          setPhase("success");
+        } else if (snap.stage === "failed") {
+          setResultMsg(snap.failureReason ?? "Payment failed");
+          setFailKind("generic");
+          setPhase("failed");
+        }
+      },
+    });
+  }, [userId, attemptId]);
+
+  // ── Polling loop while processing ──
+  // The success transition is driven by the backend (simulated PSP webhook
+  // finalizes the attempt after ~3s). The UI just polls and reacts.
+  useEffect(() => {
+    if (phase !== "processing" || !attemptId) return;
+    let cancelled = false;
+    const startedAt = Date.now();
+
+    const tick = async () => {
+      if (cancelled) return;
+      try {
+        const res = await callWithAuth(pollAttempt, { attemptId });
+        if (cancelled) return;
+        if (!res.ok) {
+          // Network blip — keep polling unless we've timed out overall.
+          if (Date.now() - startedAt > POLL_MAX_MS) {
+            setResultMsg(res.message);
+            setFailKind("generic");
+            setPhase("failed");
+            return;
+          }
+          setTimeout(tick, POLL_INTERVAL_MS);
+          return;
+        }
+        const snap = res.attempt;
+        if (typeof res.newBalance === "number") {
+          useApp.setState({ balance: res.newBalance });
+        }
+        if (snap.stage === "success" && snap.transactionId) {
+          breadcrumb("payment.success", { txnId: snap.transactionId, amount: snap.amount, durationMs: Date.now() - startedAt });
+          setSavedTxn(snapToSavedTxn(snap));
+          setResultMsg(`₹${snap.amount.toFixed(0)} sent to ${snap.payeeName}`);
+          if (navigator.vibrate) navigator.vibrate([30, 60, 30]);
+          setAttemptId(null);
+          setPhase("success");
+          return;
+        }
+        if (snap.stage === "failed") {
+          breadcrumb("payment.failed", { amount: snap.amount, reason: snap.failureReason }, "warning");
+          setResultMsg(snap.failureReason ?? "Payment failed");
+          setFailKind("generic");
+          setAttemptId(null);
+          setPhase("failed");
+          return;
+        }
+        // Still processing — schedule next tick.
+        if (Date.now() - startedAt > POLL_MAX_MS) {
+          setResultMsg("Payment is taking longer than expected. We'll keep trying in the background.");
+          setFailKind("generic");
+          setPhase("failed");
+          return;
+        }
+        setTimeout(tick, POLL_INTERVAL_MS);
+      } catch (err) {
+        if (cancelled) return;
+        captureError(err, { where: "scanpay.poll", attemptId });
+        if (Date.now() - startedAt > POLL_MAX_MS) {
+          setResultMsg("Lost connection to payment service.");
+          setFailKind("generic");
+          setPhase("failed");
+          return;
+        }
+        setTimeout(tick, POLL_INTERVAL_MS);
+      }
+    };
+
+    // Slight delay so the premium animation has a beat to settle in.
+    const initial = setTimeout(tick, 800);
+    return () => {
+      cancelled = true;
+      clearTimeout(initial);
+    };
+  }, [phase, attemptId]);
 
   const handlePay = useCallback(async () => {
     if (!userId || !payload) return;
