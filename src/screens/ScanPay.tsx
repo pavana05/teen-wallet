@@ -1654,6 +1654,9 @@ function FailedView({
       role="alert"
       aria-live="assertive"
     >
+      <div className="w-full max-w-sm mb-6">
+        <PaymentStepper stage="failed" />
+      </div>
       <div className="w-20 h-20 rounded-full bg-destructive/15 border border-destructive/40 flex items-center justify-center tw-shake">
         <X className="w-10 h-10 text-destructive" strokeWidth={2} />
       </div>
