@@ -15,10 +15,17 @@ import {
   type OtpErrorKind,
 } from "@/lib/otpState";
 import { CopyableErrorId } from "@/components/CopyableErrorId";
+import { ResendCountdown } from "@/components/ResendCountdown";
 
 type Step = "phone" | "otp" | "verified";
 
-const RESEND_COOLDOWN_S = 30;
+// Escalating cooldown ladder. Each successive resend within the same OTP attempt
+// extends the wait so a user (or script) can't hammer the SMS provider. The last
+// step is a hard 5-minute lockout treated as rate-limited.
+const RESEND_LADDER_S = [30, 60, 120, 300];
+const MAX_RESENDS_BEFORE_LOCK = RESEND_LADDER_S.length;
+const cooldownForCount = (count: number) =>
+  RESEND_LADDER_S[Math.min(count, RESEND_LADDER_S.length - 1)];
 
 export function AuthPhone({ onDone }: { onDone: () => void }) {
   const [step, setStep] = useState<Step>("phone");
@@ -28,8 +35,12 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
   const [errorId, setErrorId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
-  const [resendIn, setResendIn] = useState(RESEND_COOLDOWN_S);
+  const [resendIn, setResendIn] = useState(RESEND_LADDER_S[0]);
   const [resendBlockedUntil, setResendBlockedUntil] = useState<number | null>(null);
+  // Total ms of the currently-running cooldown so the ring can show fill progress.
+  const [cooldownTotalMs, setCooldownTotalMs] = useState<number>(RESEND_LADDER_S[0] * 1000);
+  // Number of successful resends this attempt — drives the escalating ladder.
+  const [resendCount, setResendCount] = useState<number>(0);
   const inputs = useRef<(HTMLInputElement | null)[]>([]);
   const otpRowRef = useRef<HTMLDivElement | null>(null);
   const { setPendingPhone, hydrateFromProfile } = useApp();
@@ -52,6 +63,10 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
       setErrorKind(persisted.errorKind);
       setErrorId(persisted.correlationId);
       setResendBlockedUntil(persisted.resendBlockedUntil);
+      const rc = persisted.resendCount ?? 0;
+      setResendCount(rc);
+      const totalMs = persisted.cooldownTotalMs ?? cooldownForCount(rc) * 1000;
+      setCooldownTotalMs(totalMs);
       setStep("otp");
     }
   }, []);
@@ -74,8 +89,11 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
   // Persist OTP UX state on every meaningful change so refresh doesn't lose progress.
   useEffect(() => {
     if (step !== "otp") return;
-    saveOtpState({ phone, digits: otp, error, errorKind, correlationId: errorId, busy, resendBlockedUntil });
-  }, [step, phone, otp, error, errorKind, errorId, busy, resendBlockedUntil]);
+    saveOtpState({
+      phone, digits: otp, error, errorKind, correlationId: errorId, busy,
+      resendBlockedUntil, resendCount, cooldownTotalMs,
+    });
+  }, [step, phone, otp, error, errorKind, errorId, busy, resendBlockedUntil, resendCount, cooldownTotalMs]);
 
   // Auto-focus first empty OTP slot when entering the OTP step.
   useEffect(() => {
@@ -88,23 +106,45 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
   const valid = /^[6-9]\d{9}$/.test(phone);
   const formatted = phone.replace(/(\d{5})(\d{0,5})/, (_, a, b) => (b ? `${a} ${b}` : a));
   const resendBlocked = resendIn > 0 || (resendBlockedUntil !== null && resendBlockedUntil > Date.now());
+  const lockedOut = resendCount >= MAX_RESENDS_BEFORE_LOCK && resendBlocked;
+
+  /**
+   * Start a fresh cooldown window. `escalate=true` advances the ladder (used
+   * for resends); `escalate=false` keeps the same step (used for the initial
+   * send so the first cooldown is always 30s).
+   */
+  function startCooldown(escalate: boolean) {
+    const nextCount = escalate ? Math.min(resendCount + 1, MAX_RESENDS_BEFORE_LOCK) : resendCount;
+    const seconds = cooldownForCount(escalate ? nextCount - 1 : nextCount);
+    setResendCount(nextCount);
+    setCooldownTotalMs(seconds * 1000);
+    setResendIn(seconds);
+    setResendBlockedUntil(Date.now() + seconds * 1000);
+  }
 
   async function handleSendOtp() {
     if (!valid) { setError("Enter a valid Indian mobile number"); return; }
+    // Hard client-side block — never let a click fire while in cooldown.
+    if (step === "otp" && resendBlocked) return;
     setError(""); setErrorKind(null); setErrorId(null); setBusy(true);
     try {
       const r = await sendOtp(phone);
       setPendingPhone("+91" + phone);
       toast.success(`OTP sent — dev code: ${r.devOtp}`);
-      setResendIn(RESEND_COOLDOWN_S);
-      setResendBlockedUntil(null);
+      // First send keeps the base cooldown; subsequent sends escalate.
+      startCooldown(step === "otp");
       setStep("otp");
     } catch (e) {
       const { message, kind, correlationId } = classifyOtpError(e);
       setError(message); setErrorKind(kind); setErrorId(correlationId);
       void logOtpErrorEvent(kind, e instanceof Error ? e.message : String(e), phone, correlationId);
       if (kind === "rate_limited") {
-        setResendBlockedUntil(Date.now() + 60_000);
+        // Server told us to back off — jump to the longest cooldown step.
+        const seconds = RESEND_LADDER_S[RESEND_LADDER_S.length - 1];
+        setResendCount(MAX_RESENDS_BEFORE_LOCK);
+        setCooldownTotalMs(seconds * 1000);
+        setResendIn(seconds);
+        setResendBlockedUntil(Date.now() + seconds * 1000);
       }
     } finally { setBusy(false); }
   }
@@ -137,7 +177,11 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
       toast.error(kind === "network" ? "Network error" : "Verification failed", { description: `${message} (ID: ${correlationId})` });
 
       if (kind === "rate_limited") {
-        setResendBlockedUntil(Date.now() + 60_000);
+        const seconds = RESEND_LADDER_S[RESEND_LADDER_S.length - 1];
+        setResendCount(MAX_RESENDS_BEFORE_LOCK);
+        setCooldownTotalMs(seconds * 1000);
+        setResendIn(seconds);
+        setResendBlockedUntil(Date.now() + seconds * 1000);
       }
 
       // Keep entered digits on network errors so the user can just tap Try again.
@@ -311,18 +355,18 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
             </div>
           )}
 
-          <div className="mt-6 text-sm">
-            {errorKind === "rate_limited" && resendBlocked ? (
-              <span className="text-destructive/90">
-                Too many requests. Resend available in {resendIn}s.
-              </span>
-            ) : resendBlocked ? (
-              <span className="text-muted-foreground">Resend OTP in {resendIn}s</span>
-            ) : (
-              <button onClick={handleSendOtp} disabled={busy} className="text-primary font-medium disabled:opacity-50">
-                Resend OTP
-              </button>
-            )}
+          <div className="mt-7">
+            <ResendCountdown
+              resendIn={resendIn}
+              cooldownTotalMs={cooldownTotalMs}
+              blocked={resendBlocked}
+              busy={busy}
+              lockedOut={lockedOut}
+              rateLimited={errorKind === "rate_limited"}
+              resendCount={resendCount}
+              maxResends={MAX_RESENDS_BEFORE_LOCK}
+              onResend={handleSendOtp}
+            />
           </div>
 
           <div className="flex-1" />

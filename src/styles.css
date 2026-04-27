@@ -5786,3 +5786,110 @@ html.motion-reduced .perm-row-denied { animation: none !important; }
 
 html.motion-reduced .kyc-input-error.tw-input,
 html.motion-reduced .kyc-field-error-msg { animation: none !important; }
+
+/* ============================================================
+   OTP Resend Countdown — premium pill + ring + ladder
+   ============================================================ */
+.otp-resend {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 10px;
+  user-select: none;
+}
+.otp-resend-pill {
+  display: inline-flex; align-items: center; gap: 12px;
+  padding: 8px 14px 8px 8px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.015));
+  border: 1px solid rgba(255,255,255,0.08);
+  color: rgba(255,255,255,0.92);
+  transition: transform 180ms ease, border-color 220ms ease, background 220ms ease, box-shadow 220ms ease, color 220ms ease;
+  text-align: left;
+  min-width: 0;
+}
+.otp-resend-pill:not(:disabled):hover {
+  transform: translateY(-1px);
+  border-color: rgba(255,255,255,0.16);
+  box-shadow: 0 14px 30px -18px rgba(200,241,53,0.45);
+}
+.otp-resend-pill:not(:disabled):active { transform: translateY(0) scale(0.985); }
+.otp-resend-pill:disabled { cursor: not-allowed; }
+
+.otp-resend-ring {
+  position: relative;
+  width: 36px; height: 36px;
+  display: inline-flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.otp-resend-ring svg { display: block; }
+.otp-resend-icon {
+  position: absolute; inset: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  color: currentColor;
+}
+
+.otp-resend-text {
+  display: inline-flex; flex-direction: column; gap: 1px; min-width: 0;
+}
+.otp-resend-headline {
+  font-size: 13px; font-weight: 600; letter-spacing: 0.005em;
+  color: inherit;
+  font-variant-numeric: tabular-nums;
+}
+.otp-resend-sub {
+  font-size: 10.5px; line-height: 1.35;
+  color: rgba(255,255,255,0.5);
+  letter-spacing: 0.01em;
+}
+
+/* Ladder dots */
+.otp-resend-ladder {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 0; margin: 0; list-style: none;
+}
+.otp-resend-ladder-dot {
+  width: 18px; height: 3px; border-radius: 999px;
+  background: rgba(255,255,255,0.10);
+  transition: background-color 240ms ease, box-shadow 240ms ease;
+}
+.otp-resend-ladder-dot.is-used { background: rgba(255,255,255,0.32); }
+.otp-resend-ladder-dot.is-active {
+  background: currentColor;
+  box-shadow: 0 0 12px -2px currentColor;
+  animation: otp-ladder-pulse 1.6s ease-in-out infinite;
+}
+@keyframes otp-ladder-pulse {
+  0%, 100% { opacity: 0.55; }
+  50%      { opacity: 1; }
+}
+
+/* Tones */
+.otp-resend-ready  { color: var(--primary); }
+.otp-resend-ready .otp-resend-pill {
+  border-color: color-mix(in oklab, var(--primary) 28%, transparent);
+  background:
+    linear-gradient(180deg, color-mix(in oklab, var(--primary) 10%, transparent), rgba(255,255,255,0.015));
+  color: var(--primary);
+}
+.otp-resend-ready .otp-resend-sub { color: color-mix(in oklab, var(--primary) 65%, white 0%); opacity: 0.75; }
+
+.otp-resend-wait   { color: rgba(255,255,255,0.78); }
+.otp-resend-wait .otp-resend-pill { color: rgba(255,255,255,0.85); }
+
+.otp-resend-warn   { color: #fbbf24; }
+.otp-resend-warn .otp-resend-pill {
+  border-color: rgba(251,191,36,0.30);
+  background: linear-gradient(180deg, rgba(251,191,36,0.10), rgba(251,191,36,0.02));
+}
+.otp-resend-warn .otp-resend-sub { color: rgba(251,191,36,0.75); }
+
+.otp-resend-locked { color: #fca5a5; }
+.otp-resend-locked .otp-resend-pill {
+  border-color: rgba(248,113,113,0.32);
+  background: linear-gradient(180deg, rgba(248,113,113,0.10), rgba(248,113,113,0.02));
+  color: #fca5a5;
+}
+.otp-resend-locked .otp-resend-sub { color: rgba(252,165,165,0.75); }
+
+/* Motion preferences */
+html.motion-reduced .otp-resend-ladder-dot.is-active,
+html.motion-off    .otp-resend-ladder-dot.is-active { animation: none !important; }
+html.motion-off    .otp-resend-ring svg circle { transition: none !important; }
