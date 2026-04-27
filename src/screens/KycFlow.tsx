@@ -52,6 +52,7 @@ export function KycFlow({ onDone }: { onDone: () => void }) {
   const [aadhaarOtp, setAadhaarOtp] = useState("");
   const [aadhaarOtpSent, setAadhaarOtpSent] = useState(false);
   const [error, setError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [errorId, setErrorId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [selfie, setSelfie] = useState<SelfiePayload | null>(null);
@@ -332,31 +333,52 @@ export function KycFlow({ onDone }: { onDone: () => void }) {
 
   async function submitStep1() {
     setError("");
-    if (name.trim().length < 2) return setError("Enter your full name");
+    // Collect all field-level errors at once so the user can see every problem
+    // and correct them in one pass instead of fixing one, retrying, repeating.
+    const fe: Record<string, string> = {};
+    if (name.trim().length < 2) fe.name = "Enter your full name (min 2 characters).";
     const age = ageFromDob(dob);
-    if (age == null) return setError("Enter DOB as DD/MM/YYYY");
-    if (age < 13 || age > 19) return setError("Teen Wallet is for ages 13–19");
-    if (!gender) return setError("Select gender");
-    if (schoolName.trim().length < 2) return setError("Enter your school or college name");
-    if (addrLine1.trim().length < 4) return setError("Enter your home address");
-    if (addrCity.trim().length < 2) return setError("Enter your city");
-    if (addrState.trim().length < 2) return setError("Enter your state");
-    if (!/^[0-9]{6}$/.test(addrPincode)) return setError("Enter a valid 6-digit pincode");
+    if (age == null) fe.dob = "Use DD/MM/YYYY format.";
+    else if (age < 13 || age > 19) fe.dob = "Teen Wallet is for ages 13–19.";
+    if (!gender) fe.gender = "Select your gender to continue.";
+    if (schoolName.trim().length < 2) fe.schoolName = "Enter your school or college name.";
+    if (addrLine1.trim().length < 4) fe.addrLine1 = "Enter your house no., street and locality.";
+    if (addrCity.trim().length < 2) fe.addrCity = "City is required.";
+    if (addrState.trim().length < 2) fe.addrState = "State is required.";
+    if (!/^[0-9]{6}$/.test(addrPincode)) fe.addrPincode = "Enter a valid 6-digit pincode.";
+
+    if (Object.keys(fe).length > 0) {
+      setFieldErrors(fe);
+      setError("Please fix the highlighted fields above.");
+      // Scroll the first invalid field into view for a smooth correction flow.
+      requestAnimationFrame(() => {
+        const firstKey = Object.keys(fe)[0];
+        const el = document.querySelector<HTMLElement>(`[data-kyc-field="${firstKey}"]`);
+        el?.scrollIntoView({ behavior: "smooth", block: "center" });
+      });
+      return;
+    }
+    setFieldErrors({});
     setBusy(true);
     const [d, m, y] = dob.split("/");
-    await updateProfileFields({
-      full_name: name.trim(),
-      dob: `${y}-${m}-${d}`,
-      gender,
-      school_name: schoolName.trim(),
-      address_line1: addrLine1.trim(),
-      address_city: addrCity.trim(),
-      address_state: addrState.trim(),
-      address_pincode: addrPincode,
-      onboarding_stage: "STAGE_2",
-    });
-    setBusy(false);
-    setStep(2);
+    try {
+      await updateProfileFields({
+        full_name: name.trim(),
+        dob: `${y}-${m}-${d}`,
+        gender,
+        school_name: schoolName.trim(),
+        address_line1: addrLine1.trim(),
+        address_city: addrCity.trim(),
+        address_state: addrState.trim(),
+        address_pincode: addrPincode,
+        onboarding_stage: "STAGE_2",
+      });
+      setStep(2);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn't save your details. Please try again.");
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function submitStep2() {
@@ -643,85 +665,152 @@ export function KycFlow({ onDone }: { onDone: () => void }) {
           <h1 className="text-[28px] font-bold">Personal details</h1>
           <p className="text-[#888] text-sm mt-2">We need a few basics to set up your wallet. Your progress saves automatically.</p>
 
-          <div className="mt-8 space-y-6">
-            <div>
-              <label className="text-xs text-muted-foreground uppercase tracking-wider">Full Name</label>
-              <input value={name}
-                onChange={(e) => setName(e.target.value.replace(/\b\w/g, (c) => c.toUpperCase()))}
-                placeholder="Pavan Kumar" className="tw-input text-lg mt-1" />
-            </div>
-            <div>
-              <label className="text-xs text-muted-foreground uppercase tracking-wider">Date of Birth</label>
-              <input value={dob} onChange={(e) => {
-                const d = e.target.value.replace(/\D/g, "").slice(0, 8);
-                let f = d;
-                if (d.length > 2) f = d.slice(0, 2) + "/" + d.slice(2);
-                if (d.length > 4) f = d.slice(0, 2) + "/" + d.slice(2, 4) + "/" + d.slice(4);
-                setDob(f);
-              }} placeholder="DD/MM/YYYY" inputMode="numeric" className="tw-input text-lg mt-1 num-mono" />
-            </div>
-            <div>
-              <label className="text-xs text-muted-foreground uppercase tracking-wider">Gender</label>
-              <div className="flex gap-2 mt-3">
-                {(["Male", "Female", "Non-binary"] as const).map((g) => (
-                  <button key={g} onClick={() => setGender(g)}
-                    className={`px-4 py-2 rounded-full text-sm transition-all ${gender === g ? "bg-primary text-primary-foreground" : "glass"}`}>
-                    {g}
-                  </button>
-                ))}
+          <div className="kyc-form-scroll mt-6 -mr-1 pr-1">
+            <div className="space-y-6 pb-2">
+              <div className="kyc-field" data-kyc-field="name">
+                <label className="kyc-field-label">Full Name</label>
+                <input value={name}
+                  onChange={(e) => {
+                    setName(e.target.value.replace(/\b\w/g, (c) => c.toUpperCase()));
+                    if (fieldErrors.name) setFieldErrors((f) => { const { name: _n, ...rest } = f; return rest; });
+                  }}
+                  placeholder="Pavan Kumar"
+                  autoComplete="name"
+                  className={`tw-input text-lg mt-2 ${fieldErrors.name ? "kyc-input-error" : ""}`} />
+                {fieldErrors.name
+                  ? <p className="kyc-field-error-msg"><AlertTriangle className="w-3 h-3" /> {fieldErrors.name}</p>
+                  : <p className="kyc-field-hint">As per your Aadhaar.</p>}
               </div>
-            </div>
 
-            <div className="pt-2">
-              <p className="text-[10.5px] tracking-[0.18em] uppercase text-white/45 font-medium mb-3">Education & address</p>
-            </div>
-
-            <div>
-              <label className="text-xs text-muted-foreground uppercase tracking-wider">School / College Name</label>
-              <input value={schoolName}
-                onChange={(e) => setSchoolName(e.target.value.slice(0, 120))}
-                placeholder="Delhi Public School, RK Puram"
-                className="tw-input text-lg mt-1" />
-            </div>
-
-            <div>
-              <label className="text-xs text-muted-foreground uppercase tracking-wider">Home Address</label>
-              <input value={addrLine1}
-                onChange={(e) => setAddrLine1(e.target.value.slice(0, 160))}
-                placeholder="House no., Street, Locality"
-                className="tw-input text-base mt-1" />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="text-xs text-muted-foreground uppercase tracking-wider">City</label>
-                <input value={addrCity}
-                  onChange={(e) => setAddrCity(e.target.value.slice(0, 60))}
-                  placeholder="Bengaluru"
-                  className="tw-input text-base mt-1" />
+              <div className="kyc-field" data-kyc-field="dob">
+                <label className="kyc-field-label">Date of Birth</label>
+                <input value={dob} onChange={(e) => {
+                  const d = e.target.value.replace(/\D/g, "").slice(0, 8);
+                  let f = d;
+                  if (d.length > 2) f = d.slice(0, 2) + "/" + d.slice(2);
+                  if (d.length > 4) f = d.slice(0, 2) + "/" + d.slice(2, 4) + "/" + d.slice(4);
+                  setDob(f);
+                  if (fieldErrors.dob) setFieldErrors((fs) => { const { dob: _d, ...rest } = fs; return rest; });
+                }} placeholder="DD/MM/YYYY" inputMode="numeric"
+                  className={`tw-input text-lg mt-2 num-mono ${fieldErrors.dob ? "kyc-input-error" : ""}`} />
+                {fieldErrors.dob
+                  ? <p className="kyc-field-error-msg"><AlertTriangle className="w-3 h-3" /> {fieldErrors.dob}</p>
+                  : <p className="kyc-field-hint">You must be 13–19 to use Teen Wallet.</p>}
               </div>
-              <div>
-                <label className="text-xs text-muted-foreground uppercase tracking-wider">State</label>
-                <input value={addrState}
-                  onChange={(e) => setAddrState(e.target.value.slice(0, 60))}
-                  placeholder="Karnataka"
-                  className="tw-input text-base mt-1" />
-              </div>
-            </div>
 
-            <div>
-              <label className="text-xs text-muted-foreground uppercase tracking-wider">Pincode</label>
-              <input value={addrPincode}
-                onChange={(e) => setAddrPincode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                placeholder="560001"
-                inputMode="numeric"
-                className="tw-input text-lg mt-1 num-mono tracking-[0.2em]" />
+              <div className="kyc-field" data-kyc-field="gender">
+                <label className="kyc-field-label">Gender</label>
+                <div className="flex gap-2 mt-3 flex-wrap">
+                  {(["Male", "Female", "Non-binary"] as const).map((g) => (
+                    <button key={g} onClick={() => {
+                      setGender(g);
+                      if (fieldErrors.gender) setFieldErrors((fs) => { const { gender: _g, ...rest } = fs; return rest; });
+                    }}
+                      className={`px-4 py-2 rounded-full text-sm transition-all ${gender === g ? "bg-primary text-primary-foreground" : "glass"}`}>
+                      {g}
+                    </button>
+                  ))}
+                </div>
+                {fieldErrors.gender && (
+                  <p className="kyc-field-error-msg"><AlertTriangle className="w-3 h-3" /> {fieldErrors.gender}</p>
+                )}
+              </div>
+
+              <div className="pt-2 border-t border-white/5 mt-2">
+                <p className="text-[10.5px] tracking-[0.18em] uppercase text-white/45 font-medium mt-4 mb-1">Education & address</p>
+                <p className="text-[11px] text-white/40 leading-snug">Used for school-verified offers and dispute resolution. Saved securely.</p>
+              </div>
+
+              <div className="kyc-field" data-kyc-field="schoolName">
+                <label className="kyc-field-label">
+                  <span>School / College Name</span>
+                  <span className="text-[10px] text-white/35 normal-case tracking-normal">{schoolName.length}/120</span>
+                </label>
+                <input value={schoolName}
+                  onChange={(e) => {
+                    setSchoolName(e.target.value.slice(0, 120));
+                    if (fieldErrors.schoolName) setFieldErrors((fs) => { const { schoolName: _s, ...rest } = fs; return rest; });
+                  }}
+                  placeholder="Delhi Public School, RK Puram"
+                  autoComplete="organization"
+                  className={`tw-input text-base mt-2 ${fieldErrors.schoolName ? "kyc-input-error" : ""}`} />
+                {fieldErrors.schoolName
+                  ? <p className="kyc-field-error-msg"><AlertTriangle className="w-3 h-3" /> {fieldErrors.schoolName}</p>
+                  : <p className="kyc-field-hint">Type your current institution's full name.</p>}
+              </div>
+
+              <div className="kyc-field" data-kyc-field="addrLine1">
+                <label className="kyc-field-label">
+                  <span>Home Address</span>
+                  <span className="text-[10px] text-white/35 normal-case tracking-normal">{addrLine1.length}/160</span>
+                </label>
+                <textarea value={addrLine1}
+                  onChange={(e) => {
+                    setAddrLine1(e.target.value.slice(0, 160));
+                    if (fieldErrors.addrLine1) setFieldErrors((fs) => { const { addrLine1: _a, ...rest } = fs; return rest; });
+                  }}
+                  placeholder="House no., Street, Locality"
+                  autoComplete="street-address"
+                  rows={2}
+                  className={`tw-input text-base mt-2 resize-none leading-snug ${fieldErrors.addrLine1 ? "kyc-input-error" : ""}`} />
+                {fieldErrors.addrLine1
+                  ? <p className="kyc-field-error-msg"><AlertTriangle className="w-3 h-3" /> {fieldErrors.addrLine1}</p>
+                  : <p className="kyc-field-hint">Include flat / building number for accurate delivery.</p>}
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="kyc-field min-w-0" data-kyc-field="addrCity">
+                  <label className="kyc-field-label">City</label>
+                  <input value={addrCity}
+                    onChange={(e) => {
+                      setAddrCity(e.target.value.slice(0, 60));
+                      if (fieldErrors.addrCity) setFieldErrors((fs) => { const { addrCity: _c, ...rest } = fs; return rest; });
+                    }}
+                    placeholder="Bengaluru"
+                    autoComplete="address-level2"
+                    className={`tw-input text-base mt-2 ${fieldErrors.addrCity ? "kyc-input-error" : ""}`} />
+                  {fieldErrors.addrCity && (
+                    <p className="kyc-field-error-msg"><AlertTriangle className="w-3 h-3" /> {fieldErrors.addrCity}</p>
+                  )}
+                </div>
+                <div className="kyc-field min-w-0" data-kyc-field="addrState">
+                  <label className="kyc-field-label">State</label>
+                  <input value={addrState}
+                    onChange={(e) => {
+                      setAddrState(e.target.value.slice(0, 60));
+                      if (fieldErrors.addrState) setFieldErrors((fs) => { const { addrState: _s, ...rest } = fs; return rest; });
+                    }}
+                    placeholder="Karnataka"
+                    autoComplete="address-level1"
+                    className={`tw-input text-base mt-2 ${fieldErrors.addrState ? "kyc-input-error" : ""}`} />
+                  {fieldErrors.addrState && (
+                    <p className="kyc-field-error-msg"><AlertTriangle className="w-3 h-3" /> {fieldErrors.addrState}</p>
+                  )}
+                </div>
+              </div>
+
+              <div className="kyc-field" data-kyc-field="addrPincode">
+                <label className="kyc-field-label">Pincode</label>
+                <input value={addrPincode}
+                  onChange={(e) => {
+                    setAddrPincode(e.target.value.replace(/\D/g, "").slice(0, 6));
+                    if (fieldErrors.addrPincode) setFieldErrors((fs) => { const { addrPincode: _p, ...rest } = fs; return rest; });
+                  }}
+                  placeholder="560001"
+                  inputMode="numeric"
+                  autoComplete="postal-code"
+                  className={`tw-input text-lg mt-2 num-mono tracking-[0.2em] ${fieldErrors.addrPincode ? "kyc-input-error" : ""}`} />
+                {fieldErrors.addrPincode
+                  ? <p className="kyc-field-error-msg"><AlertTriangle className="w-3 h-3" /> {fieldErrors.addrPincode}</p>
+                  : <p className="kyc-field-hint">6-digit Indian postal code.</p>}
+              </div>
             </div>
           </div>
 
-          {error && <p className="text-destructive text-xs mt-4 tw-shake">{error}</p>}
-          <div className="flex-1" />
-          <button onClick={submitStep1} disabled={busy} className="btn-primary w-full">Continue <ArrowRight className="w-5 h-5" /></button>
+          {error && <p className="text-destructive text-xs mt-3 tw-shake">{error}</p>}
+          <button onClick={submitStep1} disabled={busy} className="btn-primary w-full mt-4">
+            {busy ? <><Loader2 className="w-4 h-4 animate-spin" /> Saving…</> : <>Continue <ArrowRight className="w-5 h-5" /></>}
+          </button>
         </>
       )}
 
