@@ -1108,6 +1108,19 @@ function TxnDetailSheet({
   onPayAgain: (t: Txn) => void;
 }) {
   const [copied, setCopied] = useState(false);
+  const [lastDelivery, setLastDelivery] = useState<ReceiptDelivery | null>(() => getLastDelivery(txn.id));
+  // Re-render when other components (or this one) record a delivery.
+  useEffect(() => {
+    const onChange = (e: Event) => {
+      const detail = (e as CustomEvent<ReceiptDelivery>).detail;
+      if (detail?.txnId === txn.id) setLastDelivery(detail);
+    };
+    window.addEventListener("tw-receipt-delivery", onChange);
+    return () => window.removeEventListener("tw-receipt-delivery", onChange);
+  }, [txn.id]);
+  const logDelivery = (channel: ReceiptDelivery["channel"], status: ReceiptDelivery["status"] = "attempted") => {
+    setLastDelivery(recordReceiptDelivery(txn.id, channel, status));
+  };
   const created = new Date(txn.created_at);
   const dateLabel = created.toLocaleString("en-IN", {
     weekday: "short",
