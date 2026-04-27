@@ -57,6 +57,7 @@ export function Transactions({ onBack }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<FilterKind>("all");
   const [query, setQuery] = useState("");
+  const [openTxn, setOpenTxn] = useState<{ txn: Txn; credit: boolean; balanceAfter: number } | null>(null);
 
   const fetchAll = useCallback(async () => {
     if (!userId) { setLoading(false); return; }
