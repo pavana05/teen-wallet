@@ -503,7 +503,7 @@ export function Home() {
           <QuickAction icon={ArrowUpRight} label={"Pay\nfriends"} onClick={() => setQuickAction("pay-friends")} />
           <QuickAction icon={Building2} label={"To bank &\nself a/c"} onClick={() => setQuickAction("to-bank")} />
           <QuickAction icon={Wallet} label={"Check\nbalance"} onClick={() => setQuickAction("balance")} />
-          <QuickAction icon={History} label={"Transaction\nhistory"} onClick={() => setQuickAction("history")} />
+          <QuickAction icon={History} label={"Transaction\nhistory"} onClick={() => setView("transactions")} />
         </div>
       </div>
 
