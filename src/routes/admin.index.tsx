@@ -213,7 +213,7 @@ function CommandCenter() {
             {activity.length === 0 && <div style={{ fontSize: 12, color: "var(--a-muted)", padding: 12 }}>No recent events</div>}
             {activity.map((it, i) => (
               <div key={i} style={{ display: "flex", gap: 10, padding: "8px 4px", borderBottom: "1px solid var(--a-border)" }}>
-                <span style={{ width: 8, height: 8, borderRadius: "50%", marginTop: 6, background: dotColor(it.kind, t), flexShrink: 0 }} />
+                <span style={{ width: 8, height: 8, borderRadius: "50%", marginTop: 6, background: dotColor(it.kind), flexShrink: 0 }} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 12, fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{it.title}</div>
                   {it.subtitle && <div className="a-mono" style={{ fontSize: 10, color: "var(--a-muted)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{it.subtitle}</div>}
