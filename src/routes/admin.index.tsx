@@ -139,12 +139,12 @@ function CommandCenter() {
       {err && <div style={{ padding: 12, marginBottom: 16, borderRadius: 8, background: "var(--a-danger-soft)", border: "1px solid var(--a-danger-border)", color: "var(--a-danger-text)", fontSize: 13 }}>{err}</div>}
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12, marginBottom: 20 }}>
-        <KpiCard icon={<UsersIcon size={14} />} label="Total Users" value={k?.totalUsers ?? "—"} delta={k?.newUsers7d} deltaLabel="new 7d" spark={sparkSignups} accent={t.accent} success={t.success} danger={t.danger} />
-        <KpiCard icon={<Activity size={14} />} label="Active Today" value={k?.activeToday ?? "—"} accent={t.accent} success={t.success} danger={t.danger} />
-        <KpiCard icon={<FileCheck2 size={14} />} label="KYC Pending" value={k?.kycPending ?? "—"} warn={(k?.kycPending ?? 0) > 20} accent={t.accent} success={t.success} danger={t.danger} warnColor={t.warn} />
-        <KpiCard icon={<ArrowRightLeft size={14} />} label="Txns Today" value={k?.totalTxnsToday ?? "—"} spark={sparkVolume} accent={t.accent} success={t.success} danger={t.danger} />
-        <KpiCard icon={<IndianRupee size={14} />} label="Volume Today" value={k ? `₹${k.totalVolumeToday.toLocaleString("en-IN", { maximumFractionDigits: 0 })}` : "—"} mono accent={t.accent} success={t.success} danger={t.danger} />
-        <KpiCard icon={<ShieldAlert size={14} />} label="Fraud Open" value={k?.fraudOpen ?? "—"} danger={(k?.fraudOpen ?? 0) > 0} accent={t.accent} success={t.success} dangerColor={t.danger} />
+        <KpiCard icon={<UsersIcon size={14} />} label="Total Users" value={k?.totalUsers ?? "—"} delta={k?.newUsers7d} deltaLabel="new 7d" spark={sparkSignups} />
+        <KpiCard icon={<Activity size={14} />} label="Active Today" value={k?.activeToday ?? "—"} />
+        <KpiCard icon={<FileCheck2 size={14} />} label="KYC Pending" value={k?.kycPending ?? "—"} warn={(k?.kycPending ?? 0) > 20} />
+        <KpiCard icon={<ArrowRightLeft size={14} />} label="Txns Today" value={k?.totalTxnsToday ?? "—"} spark={sparkVolume} />
+        <KpiCard icon={<IndianRupee size={14} />} label="Volume Today" value={k ? `₹${k.totalVolumeToday.toLocaleString("en-IN", { maximumFractionDigits: 0 })}` : "—"} mono />
+        <KpiCard icon={<ShieldAlert size={14} />} label="Fraud Open" value={k?.fraudOpen ?? "—"} danger={(k?.fraudOpen ?? 0) > 0} />
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 16, marginBottom: 16 }}>
