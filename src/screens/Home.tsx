@@ -8,6 +8,7 @@ import { QuickActionsPanel, type QuickActionKind } from "@/components/QuickActio
 import { NotificationsPanel } from "@/components/NotificationsPanel";
 import { ProfilePanel } from "@/components/ProfilePanel";
 import heroScan from "@/assets/home-hero-scan.jpg";
+import heroScanDiwali from "@/assets/home-hero-scan-diwali.png";
 import { haptics } from "@/lib/haptics";
 import { useGenderPersona } from "@/lib/genderPersona";
 import { notifyPaymentReceived } from "@/lib/notify";
@@ -21,6 +22,33 @@ interface PersonaOffer {
   subtitle: string;
   cta_label: string;
   accent: string;
+}
+
+// Returns true during the Diwali festival window so the scan hero swaps to
+// the festive variant. Diwali 2026 falls on Nov 8 — we light the banner from
+// Oct 25 → Nov 15 (covers Dhanteras through Bhai Dooj). A `?festival=diwali`
+// query param forces it on year-round for testing/preview.
+function isDiwaliSeason(now: Date = new Date()): boolean {
+  if (typeof window !== "undefined") {
+    const sp = new URLSearchParams(window.location.search);
+    const f = sp.get("festival");
+    if (f === "diwali") return true;
+    if (f === "off") return false;
+  }
+  // Diwali date table — extend yearly. Keys are YYYY, values are the main
+  // Lakshmi Puja date. Window: 14 days before → 7 days after.
+  const DIWALI: Record<number, string> = {
+    2024: "2024-11-01",
+    2025: "2025-10-21",
+    2026: "2026-11-08",
+    2027: "2027-10-29",
+    2028: "2028-11-17",
+  };
+  const iso = DIWALI[now.getUTCFullYear()];
+  if (!iso) return false;
+  const peak = new Date(iso + "T00:00:00Z").getTime();
+  const day = 86400000;
+  return now.getTime() >= peak - 14 * day && now.getTime() <= peak + 7 * day;
 }
 
 
@@ -409,14 +437,19 @@ export function Home() {
           </button>
         </div>
 
-        {/* Scan hero card */}
+        {/* Scan hero card — swaps to a Diwali-themed banner during the festival */}
         <button
           type="button"
           onClick={() => setView("scan")}
           className="hp-scan-card group"
           aria-label="Open scanner to scan and pay"
+          data-festival={isDiwaliSeason() ? "diwali" : undefined}
         >
-          <img src={heroScan} alt="" className="hp-scan-img" />
+          <img
+            src={isDiwaliSeason() ? heroScanDiwali : heroScan}
+            alt=""
+            className="hp-scan-img"
+          />
         </button>
 
         {/* Grass to black blend */}
