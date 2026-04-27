@@ -127,6 +127,7 @@ export function AppLockSetup({ onClose }: Props) {
               <p className="text-sm text-white/55 mt-2">You'll use this every time the app locks.</p>
             </div>
             <PinPad
+              key="setup-enter"
               length={length}
               onComplete={(p) => { setFirst(p); setStep("confirm"); }}
               disabled={busy}
@@ -141,6 +142,7 @@ export function AppLockSetup({ onClose }: Props) {
               <p className="text-sm text-white/55 mt-2">Re-enter the same PIN.</p>
             </div>
             <PinPad
+              key="setup-confirm"
               length={length}
               onComplete={(p) => {
                 if (p !== first) {
