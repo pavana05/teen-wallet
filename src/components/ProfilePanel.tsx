@@ -64,6 +64,7 @@ export function ProfilePanel({ onClose }: Props) {
   const [copied, setCopied] = useState<string | null>(null);
   const [confirmLogout, setConfirmLogout] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [referralOpen, setReferralOpen] = useState(false);
   const [qrOpen, setQrOpen] = useState(false);
   const [editPhoneOpen, setEditPhoneOpen] = useState(false);
   // Virtual Card is on the roadmap but not shipped yet. Tapping the section
