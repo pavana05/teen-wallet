@@ -5912,3 +5912,97 @@ html.motion-reduced .kyc-field-error-msg { animation: none !important; }
 html.motion-reduced .otp-resend-ladder-dot.is-active,
 html.motion-off    .otp-resend-ladder-dot.is-active { animation: none !important; }
 html.motion-off    .otp-resend-ring svg circle { transition: none !important; }
+
+/* ============================================================
+ * ONBOARDING — PREMIUM OVERRIDE
+ * Replaces the colorful neon ambient + multi-color accent words
+ * with a quiet champagne / platinum palette. Appended last so
+ * source order wins over the older .ob-* declarations.
+ * ============================================================ */
+
+/* Deep, quiet stage */
+.ob-root {
+  background:
+    radial-gradient(120% 80% at 50% -10%, rgba(212,189,144,.07), transparent 60%),
+    radial-gradient(80% 60% at 50% 110%, rgba(255,255,255,.04), transparent 70%),
+    #07070a;
+}
+
+/* Neutralize the per-slide colored washes — soft champagne halo only */
+.ob-ambient,
+.ob-ambient-0,
+.ob-ambient-1,
+.ob-ambient-2,
+.ob-ambient-3 {
+  background:
+    radial-gradient(55% 38% at 50% 28%, rgba(220,200,160,.10), transparent 70%),
+    radial-gradient(50% 35% at 50% 85%, rgba(255,255,255,.04), transparent 75%) !important;
+  opacity: 1 !important;
+}
+
+/* Slightly less grain — premium surfaces breathe */
+.ob-grain { opacity: .025 !important; }
+
+/* Monochrome accent words — champagne shimmer instead of pink/blue/purple/orange */
+.ob-accent,
+.ob-accent-pink,
+.ob-accent-blue,
+.ob-accent-purple,
+.ob-accent-orange {
+  background-image: linear-gradient(135deg, #f5ead0 0%, #d8c290 50%, #b89a5a 100%) !important;
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent !important;
+  -webkit-text-fill-color: transparent !important;
+  filter: drop-shadow(0 1px 0 rgba(0,0,0,.25));
+}
+
+/* Hero halo — neutral light, no color */
+.ob-hero-glow {
+  background: radial-gradient(60% 50% at 50% 60%, rgba(255,255,255,.10), transparent 72%) !important;
+  filter: blur(28px) !important;
+}
+
+/* CTA — premium platinum with subtle inner highlight, no colored glow */
+.ob-cta-pill {
+  background: linear-gradient(180deg, #f7f4ec 0%, #d9d2c0 100%) !important;
+  color: #0c0c10 !important;
+  border: 1px solid rgba(255,255,255,.55) !important;
+  box-shadow:
+    0 1px 0 rgba(255,255,255,.7) inset,
+    0 -1px 0 rgba(0,0,0,.08) inset,
+    0 14px 30px -14px rgba(0,0,0,.7),
+    0 0 0 1px rgba(184,154,90,.15) !important;
+}
+.ob-cta-pill:hover { filter: brightness(1.02); }
+.ob-cta-arrow {
+  background: #0a0a0c !important;
+  box-shadow: 0 0 0 1px rgba(184,154,90,.35);
+}
+
+/* Nav circles — quieter glass */
+.ob-nav-circle {
+  background: rgba(255,255,255,.04) !important;
+  border: 1px solid rgba(255,255,255,.10) !important;
+}
+.ob-nav-circle-light {
+  background: linear-gradient(180deg, #f7f4ec, #ddd5c2) !important;
+  border-color: rgba(255,255,255,.55) !important;
+  box-shadow: 0 8px 22px -10px rgba(0,0,0,.55) !important;
+}
+
+/* Active dot — champagne instead of harsh white glow */
+.ob-top-dot[data-active="true"] {
+  background: linear-gradient(90deg, #f5ead0, #d8c290) !important;
+  box-shadow: 0 0 6px rgba(220,200,160,.35) !important;
+}
+
+/* Focus ring — champagne, not lime */
+.ob-top-dot-btn:focus-visible {
+  box-shadow:
+    0 0 0 2px rgba(220,200,160,.85),
+    0 0 0 4px rgba(220,200,160,.20) !important;
+}
+
+/* Brand wordmark — slightly warmer */
+.ob-brand-word { color: rgba(245,234,208,.72) !important; }
