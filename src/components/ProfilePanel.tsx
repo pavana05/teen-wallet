@@ -764,6 +764,8 @@ export function ProfilePanel({ onClose }: Props) {
           onSaved={(name) => { setProfile((prev) => prev ? { ...prev, school_name: name } : prev); setSchoolOpen(false); }}
         />
       )}
+
+      {appLockOpen && <AppLockSettings onBack={() => setAppLockOpen(false)} />}
     </div>
   );
 }
