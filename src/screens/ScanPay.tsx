@@ -1007,7 +1007,11 @@ function ConfirmView({
         </button>
       </div>
 
-      {/* Merchant verified card */}
+      {/* Stepper: Confirm → Processing → Success */}
+      <div className="px-4 pb-3 pt-1">
+        <PaymentStepper stage="confirm" />
+      </div>
+
       <div className="sp2-merchant-card" role="group" aria-label={`Paying ${payload.payeeName || payload.upiId}`}>
         <div className="sp2-merchant-avatar" aria-hidden="true">
           {initial || "?"}
