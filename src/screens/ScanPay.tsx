@@ -1,12 +1,20 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { Html5Qrcode } from "html5-qrcode";
-import { ArrowLeft, ArrowRight, Image as ImageIcon, Zap, ZapOff, X, Share2, Check, Bug, ShieldCheck, Wallet, Users, User as UserIcon, QrCode, Download, RotateCcw, Copy, ScanLine, ExternalLink, AlertTriangle, Info, Mail, MessageCircle } from "lucide-react";
+import { ArrowLeft, ArrowRight, Image as ImageIcon, Zap, ZapOff, X, Share2, Check, Bug, ShieldCheck, Wallet, Users, User as UserIcon, QrCode, Download, RotateCcw, Copy, ScanLine, ExternalLink, AlertTriangle, Info, Mail, MessageCircle, Phone } from "lucide-react";
 import { parseUpiQr, parseUpiQrWithReason, canOpenUpiApp, type UpiPayload, type UpiParseResult } from "@/lib/upi";
 import { scanTransaction, logFraudFlags, type FraudFlag } from "@/lib/fraud";
 import { useApp } from "@/lib/store";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { downloadReceiptPdf, shareReceiptPdf, buildReceiptSummary, type ReceiptData } from "@/lib/receipt";
+import { downloadReceiptPdf, shareReceiptPdf, shareReceiptToWhatsApp, buildReceiptSummary, type ReceiptData } from "@/lib/receipt";
+import {
+  recordReceiptDelivery,
+  getLastDelivery,
+  channelLabel,
+  statusLabel,
+  relativeTime,
+  type ReceiptDelivery,
+} from "@/lib/receiptDelivery";
 import { callWithAuth } from "@/lib/serverFnAuth";
 import { breadcrumb, captureError } from "@/lib/breadcrumbs";
 import { PaymentStepper, type StepperStage } from "@/components/PaymentStepper";
@@ -1436,11 +1444,27 @@ function SuccessView({
     payerPhone,
   }), [txn, payerName, payerPhone]);
 
+  // Persisted delivery status for THIS receipt — survives reloads.
+  const [lastDelivery, setLastDelivery] = useState<ReceiptDelivery | null>(() => getLastDelivery(txn.id));
+  useEffect(() => {
+    const onChange = (e: Event) => {
+      const detail = (e as CustomEvent<ReceiptDelivery>).detail;
+      if (detail?.txnId === txn.id) setLastDelivery(detail);
+    };
+    window.addEventListener("tw-receipt-delivery", onChange);
+    return () => window.removeEventListener("tw-receipt-delivery", onChange);
+  }, [txn.id]);
+  const logDelivery = (channel: ReceiptDelivery["channel"], status: ReceiptDelivery["status"] = "attempted") => {
+    setLastDelivery(recordReceiptDelivery(txn.id, channel, status));
+  };
+
   const handleDownload = async () => {
     try {
       await downloadReceiptPdf(receipt());
+      logDelivery("download", "sent");
       toast.success("Receipt downloaded");
     } catch {
+      logDelivery("download", "failed");
       toast.error("Couldn't generate receipt");
     }
   };
@@ -1448,8 +1472,10 @@ function SuccessView({
   const handleShare = async () => {
     try {
       const shared = await shareReceiptPdf(receipt());
+      logDelivery("share", shared ? "sent" : "attempted");
       if (!shared) toast.success("Receipt downloaded");
     } catch {
+      logDelivery("share", "failed");
       toast.error("Share failed");
     }
   };
@@ -1458,18 +1484,44 @@ function SuccessView({
   // Most platforms can't attach a generated File via mailto:, so we lead
   // with the readable summary and offer "Download PDF" alongside.
   const handleEmail = () => {
-    const subject = encodeURIComponent(`Payment receipt · ₹${txn.amount.toFixed(2)} → ${txn.payee}`);
-    const body = encodeURIComponent(buildReceiptSummary(receipt()));
-    window.location.href = `mailto:?subject=${subject}&body=${body}`;
+    try {
+      const subject = encodeURIComponent(`Payment receipt · ₹${txn.amount.toFixed(2)} → ${txn.payee}`);
+      const body = encodeURIComponent(buildReceiptSummary(receipt()));
+      window.location.href = `mailto:?subject=${subject}&body=${body}`;
+      logDelivery("email", "attempted");
+    } catch {
+      logDelivery("email", "failed");
+    }
   };
 
   // SMS deep link: works on iOS / Android. We keep the body short to avoid
   // forcing the carrier to split into multiple messages.
   const handleSms = () => {
-    const body = encodeURIComponent(buildReceiptSummary(receipt()));
-    // iOS uses `&body=` after `&`; Android uses `?body=`. Both accept `?body=`
-    // with no recipient, so we use that.
-    window.location.href = `sms:?body=${body}`;
+    try {
+      const body = encodeURIComponent(buildReceiptSummary(receipt()));
+      // iOS uses `&body=` after `&`; Android uses `?body=`. Both accept `?body=`
+      // with no recipient, so we use that.
+      window.location.href = `sms:?body=${body}`;
+      logDelivery("sms", "attempted");
+    } catch {
+      logDelivery("sms", "failed");
+    }
+  };
+
+  // WhatsApp share: PDF file via Web Share when supported, else wa.me deep link.
+  const handleWhatsApp = async () => {
+    try {
+      const result = await shareReceiptToWhatsApp(receipt());
+      if (result === "failed") {
+        logDelivery("whatsapp", "failed");
+        toast.error("Couldn't open WhatsApp");
+      } else {
+        logDelivery("whatsapp", result === "file" ? "sent" : "attempted");
+      }
+    } catch {
+      logDelivery("whatsapp", "failed");
+      toast.error("Couldn't open WhatsApp");
+    }
   };
 
   const copyRef = () => {
@@ -1602,6 +1654,26 @@ function SuccessView({
             SMS
           </button>
         </div>
+        <button
+          onClick={handleWhatsApp}
+          className="sp-receipt-action focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary w-full"
+          aria-label="Share receipt via WhatsApp"
+        >
+          <Phone className="w-4 h-4" />
+          Share via WhatsApp
+        </button>
+        {lastDelivery && (
+          <p
+            className="text-[11px] text-white/60 text-center -mt-1"
+            aria-live="polite"
+          >
+            Last delivery:{" "}
+            <span className={lastDelivery.status === "failed" ? "text-rose-300" : "text-emerald-300"}>
+              {channelLabel(lastDelivery.channel)} · {statusLabel(lastDelivery.status)}
+            </span>{" "}
+            · {relativeTime(lastDelivery.attemptedAt)}
+          </p>
+        )}
         <div className="grid grid-cols-2 gap-2">
           <button
             onClick={onScanAgain}

@@ -248,3 +248,51 @@ export function buildReceiptSummary(data: ReceiptData, lang: Lang = getLang()): 
   if (data.note) lines.push(`${t("note", lang)}: ${data.note}`);
   return lines.join("\n");
 }
+
+/**
+ * Open WhatsApp with the receipt summary pre-filled.
+ *
+ * Strategy:
+ *  1. If the runtime supports Web Share with files (most mobile browsers
+ *     including Android Chrome + iOS 16+ Safari), share the actual PDF —
+ *     the user can then pick WhatsApp from the system share sheet and the
+ *     attachment goes through as a real file.
+ *  2. Otherwise, open `https://wa.me/?text=…` (no recipient) which lets
+ *     the user pick a chat. Text-only fallback.
+ *
+ * Returns "file" | "link" | "failed" so the caller can record an accurate
+ * delivery status.
+ */
+export async function shareReceiptToWhatsApp(
+  data: ReceiptData,
+  lang?: Lang,
+): Promise<"file" | "link" | "failed"> {
+  const summary = buildReceiptSummary(data, lang);
+  const greeting = `Hey! Here's the payment receipt 👇\n\n${summary}`;
+
+  // 1) Try Web Share API with PDF — user picks WhatsApp from share sheet.
+  try {
+    const doc = await buildReceiptPdf(data, lang);
+    const blob = doc.output("blob");
+    const filename = `TeenWallet-${shortRef(data.txnId)}.pdf`;
+    const file = new File([blob], filename, { type: "application/pdf" });
+    const nav = navigator as Navigator & { canShare?: (d: ShareData) => boolean };
+    if (nav.share && nav.canShare && nav.canShare({ files: [file] })) {
+      await nav.share({ files: [file], title: "Payment receipt", text: greeting });
+      return "file";
+    }
+  } catch {
+    // user dismissed the share sheet — treat as failed so we don't open wa.me too
+    return "failed";
+  }
+
+  // 2) wa.me deep link — opens WhatsApp Web on desktop, the app on mobile.
+  try {
+    const url = `https://wa.me/?text=${encodeURIComponent(greeting)}`;
+    window.open(url, "_blank", "noopener,noreferrer");
+    return "link";
+  } catch {
+    return "failed";
+  }
+}
+
