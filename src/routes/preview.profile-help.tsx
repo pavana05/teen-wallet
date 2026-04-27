@@ -216,45 +216,56 @@ function ProfileHelpPage() {
             {!loading && reports && reports.length > 0 && (
               <ul className="space-y-2">
                 {reports.map((r) => (
-                  <li
-                    key={r.id}
-                    className="rounded-2xl border border-white/10 bg-white/[.03] p-3.5"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className="text-[10px] uppercase tracking-wider text-white/50 px-1.5 py-0.5 rounded bg-white/[.05] border border-white/10">
-                            {r.category}
-                          </span>
-                          {r.route && (
-                            <span className="text-[10px] text-white/40 truncate">
-                              {r.route}
+                  <li key={r.id}>
+                    <button
+                      type="button"
+                      onClick={() => void openDetail(r)}
+                      className="w-full text-left rounded-2xl border border-white/10 bg-white/[.03] p-3.5 hover:bg-white/[.05] transition-colors"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-[10px] uppercase tracking-wider text-white/50 px-1.5 py-0.5 rounded bg-white/[.05] border border-white/10">
+                              {r.category}
                             </span>
-                          )}
+                            {r.route && (
+                              <span className="text-[10px] text-white/40 truncate">{r.route}</span>
+                            )}
+                            {r.screenshot_path && (
+                              <span className="text-[10px] text-white/55 px-1.5 py-0.5 rounded bg-white/[.04] border border-white/10 inline-flex items-center gap-1">
+                                <ImageIcon className="w-2.5 h-2.5" /> shot
+                              </span>
+                            )}
+                            {r.camera_photo_path && (
+                              <span className="text-[10px] text-white/55 px-1.5 py-0.5 rounded bg-white/[.04] border border-white/10 inline-flex items-center gap-1">
+                                <Camera className="w-2.5 h-2.5" /> photo
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[13px] text-white mt-1.5 leading-snug line-clamp-2">
+                            {r.message}
+                          </p>
+                          <p className="text-[10.5px] text-white/45 mt-1.5">
+                            {new Date(r.created_at).toLocaleString("en-IN", {
+                              day: "numeric",
+                              month: "short",
+                              hour: "numeric",
+                              minute: "2-digit",
+                            })}
+                            {r.resolved_at && (
+                              <>
+                                {" · resolved "}
+                                {new Date(r.resolved_at).toLocaleDateString("en-IN", {
+                                  day: "numeric",
+                                  month: "short",
+                                })}
+                              </>
+                            )}
+                          </p>
                         </div>
-                        <p className="text-[13px] text-white mt-1.5 leading-snug line-clamp-2">
-                          {r.message}
-                        </p>
-                        <p className="text-[10.5px] text-white/45 mt-1.5">
-                          {new Date(r.created_at).toLocaleString("en-IN", {
-                            day: "numeric",
-                            month: "short",
-                            hour: "numeric",
-                            minute: "2-digit",
-                          })}
-                          {r.resolved_at && (
-                            <>
-                              {" · resolved "}
-                              {new Date(r.resolved_at).toLocaleDateString("en-IN", {
-                                day: "numeric",
-                                month: "short",
-                              })}
-                            </>
-                          )}
-                        </p>
+                        <StatusBadge status={r.status} />
                       </div>
-                      <StatusBadge status={r.status} />
-                    </div>
+                    </button>
                   </li>
                 ))}
               </ul>
