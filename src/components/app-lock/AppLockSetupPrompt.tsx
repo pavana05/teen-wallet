@@ -34,10 +34,16 @@ export function AppLockSetupPrompt() {
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[140] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm" onClick={dismiss}>
+    <div
+      className="absolute inset-0 z-[140] flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-md tw-fade-in"
+      onClick={dismiss}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="al-prompt-title"
+    >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="w-full sm:max-w-md bg-[#0e1424] text-white rounded-t-3xl sm:rounded-3xl border border-white/10 p-6 pb-8"
+        className="w-full sm:max-w-[92%] bg-[#0e1424] text-white rounded-t-3xl sm:rounded-3xl border border-white/10 p-6 pb-8 tw-sheet-in"
       >
         <div className="flex items-start justify-between mb-5">
           <div className="w-12 h-12 rounded-2xl bg-emerald-400/15 flex items-center justify-center">
@@ -48,7 +54,7 @@ export function AppLockSetupPrompt() {
           </button>
         </div>
 
-        <h2 className="text-lg font-semibold">Lock your wallet with a PIN</h2>
+        <h2 id="al-prompt-title" className="text-lg font-semibold">Lock your wallet with a PIN</h2>
         <p className="text-sm text-white/60 mt-1.5 leading-relaxed">
           Add a quick PIN (and fingerprint) so no one can open your wallet — even if they get your phone after you've used GPay or PhonePe.
         </p>

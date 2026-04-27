@@ -1175,12 +1175,14 @@ function TxnDetailSheet({
 
   return (
     <div
-      className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm"
+      className="absolute inset-0 z-[80] flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-md tw-fade-in"
       onClick={onClose}
+      role="dialog"
+      aria-modal="true"
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="qa-sheet w-full max-w-[420px] rounded-t-3xl sm:rounded-3xl bg-background border-t sm:border border-white/10 px-5 pt-5 pb-7 max-h-[88vh] overflow-y-auto"
+        className="qa-sheet w-full sm:max-w-[92%] rounded-t-3xl sm:rounded-3xl bg-background border-t sm:border border-white/10 px-5 pt-5 pb-7 max-h-[88%] overflow-y-auto tw-sheet-in"
       >
         {/* drag handle */}
         <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-white/15" />
