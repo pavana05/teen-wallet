@@ -156,10 +156,16 @@ export function installAppLockListeners() {
   document.addEventListener("visibilitychange", onVisibility);
 }
 
-// ===== Optional WebAuthn helpers (used by setup + unlock) =====
+// ===== WebAuthn helpers (server-driven challenge + signature verification) =====
+//
+// Both registration and authentication go through the edge function:
+//   1. Client requests options (server issues + stores a one-time challenge).
+//   2. Browser invokes navigator.credentials.create/get with those options.
+//   3. Client returns the full attestation/assertion to the server.
+//   4. Server cryptographically verifies via @simplewebauthn/server.
 
-function bufToB64url(buf: ArrayBuffer): string {
-  const bytes = new Uint8Array(buf);
+function bufToB64url(buf: ArrayBuffer | Uint8Array): string {
+  const bytes = buf instanceof Uint8Array ? buf : new Uint8Array(buf);
   let s = "";
   for (let i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]);
   return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
@@ -179,53 +185,117 @@ export function isBiometricSupported(): boolean {
     && typeof navigator?.credentials?.create === "function";
 }
 
-export async function createBiometricCredential(userId: string, userName: string): Promise<{ credentialId: string; publicKey: string } | null> {
-  if (!isBiometricSupported()) return null;
-  const challenge = new Uint8Array(32);
-  crypto.getRandomValues(challenge);
-  const cred = await navigator.credentials.create({
-    publicKey: {
-      challenge,
-      rp: { name: "Teen Wallet", id: window.location.hostname },
-      user: {
-        id: new TextEncoder().encode(userId),
-        name: userName || userId,
-        displayName: userName || "Teen Wallet User",
-      },
-      pubKeyCredParams: [
-        { type: "public-key", alg: -7 },   // ES256
-        { type: "public-key", alg: -257 }, // RS256
-      ],
-      authenticatorSelection: {
-        authenticatorAttachment: "platform",
-        userVerification: "required",
-        residentKey: "preferred",
-      },
-      timeout: 60_000,
-      attestation: "none",
-    },
-  }) as PublicKeyCredential | null;
-  if (!cred) return null;
-  const credentialId = bufToB64url(cred.rawId);
-  const response = cred.response as AuthenticatorAttestationResponse;
-  const publicKeyBuf = response.getPublicKey?.();
-  const publicKey = publicKeyBuf ? bufToB64url(publicKeyBuf) : "";
-  return { credentialId, publicKey };
+function rpAndOrigin(): { rp_id: string; origin: string } {
+  return { rp_id: window.location.hostname, origin: window.location.origin };
 }
 
-export async function getBiometricAssertion(credentialId: string): Promise<string | null> {
-  if (!isBiometricSupported()) return null;
-  const challenge = new Uint8Array(32);
-  crypto.getRandomValues(challenge);
+// Drive a full WebAuthn registration flow with the server.
+// Returns true if enrollment succeeded.
+export async function enrollBiometric(): Promise<boolean> {
+  if (!isBiometricSupported()) return false;
+  const ctx = rpAndOrigin();
+  const optsRes = await callAppLock<{ options: PublicKeyCredentialCreationOptionsJSON }>({
+    action: "biometric_register_options",
+    ...ctx,
+  });
+  if (optsRes.error || !optsRes.data) throw new Error(optsRes.error?.message ?? "Failed to start enrollment");
+  const opts = optsRes.data.options;
+
+  const cred = await navigator.credentials.create({
+    publicKey: {
+      ...opts,
+      challenge: b64urlToBuf(opts.challenge),
+      user: { ...opts.user, id: b64urlToBuf(opts.user.id) },
+      excludeCredentials: opts.excludeCredentials?.map((c) => ({
+        ...c, id: b64urlToBuf(c.id),
+      })),
+    } as PublicKeyCredentialCreationOptions,
+  }) as PublicKeyCredential | null;
+  if (!cred) return false;
+
+  const att = cred.response as AuthenticatorAttestationResponse;
+  const transports = typeof att.getTransports === "function" ? att.getTransports() : [];
+  const attestation_response = {
+    id: cred.id,
+    rawId: bufToB64url(cred.rawId),
+    type: cred.type,
+    clientExtensionResults: cred.getClientExtensionResults?.() ?? {},
+    response: {
+      clientDataJSON: bufToB64url(att.clientDataJSON),
+      attestationObject: bufToB64url(att.attestationObject),
+      transports,
+    },
+  };
+
+  const verify = await callAppLock<{ ok: true }>({
+    action: "biometric_register_verify",
+    ...ctx,
+    attestation_response,
+  });
+  if (verify.error) throw new Error(verify.error.message);
+  return true;
+}
+
+// Drive a full WebAuthn assertion (unlock) flow with the server.
+export async function verifyBiometricUnlock(): Promise<boolean> {
+  if (!isBiometricSupported()) return false;
+  const ctx = rpAndOrigin();
+  const optsRes = await callAppLock<{ options: PublicKeyCredentialRequestOptionsJSON }>({
+    action: "biometric_auth_options",
+    ...ctx,
+  });
+  if (optsRes.error || !optsRes.data) throw new Error(optsRes.error?.message ?? "Failed to start verification");
+  const opts = optsRes.data.options;
+
   const assertion = await navigator.credentials.get({
     publicKey: {
-      challenge,
-      rpId: window.location.hostname,
-      allowCredentials: [{ type: "public-key", id: b64urlToBuf(credentialId) }],
-      userVerification: "required",
-      timeout: 60_000,
-    },
+      ...opts,
+      challenge: b64urlToBuf(opts.challenge),
+      allowCredentials: opts.allowCredentials?.map((c) => ({
+        ...c, id: b64urlToBuf(c.id),
+      })),
+    } as PublicKeyCredentialRequestOptions,
   }) as PublicKeyCredential | null;
-  if (!assertion) return null;
-  return bufToB64url(assertion.rawId);
+  if (!assertion) return false;
+
+  const a = assertion.response as AuthenticatorAssertionResponse;
+  const assertion_response = {
+    id: assertion.id,
+    rawId: bufToB64url(assertion.rawId),
+    type: assertion.type,
+    clientExtensionResults: assertion.getClientExtensionResults?.() ?? {},
+    response: {
+      clientDataJSON: bufToB64url(a.clientDataJSON),
+      authenticatorData: bufToB64url(a.authenticatorData),
+      signature: bufToB64url(a.signature),
+      userHandle: a.userHandle ? bufToB64url(a.userHandle) : null,
+    },
+  };
+
+  const verify = await callAppLock<{ ok: true }>({
+    action: "biometric_auth_verify",
+    ...ctx,
+    assertion_response,
+  });
+  if (verify.error) throw new Error(verify.error.message);
+  return true;
 }
+
+// Lightweight types matching @simplewebauthn/server output shape (avoids extra deps).
+type PublicKeyCredentialCreationOptionsJSON = {
+  challenge: string;
+  rp: { id?: string; name: string };
+  user: { id: string; name: string; displayName: string };
+  pubKeyCredParams: Array<{ type: "public-key"; alg: number }>;
+  timeout?: number;
+  attestation?: AttestationConveyancePreference;
+  excludeCredentials?: Array<{ id: string; type: "public-key"; transports?: AuthenticatorTransport[] }>;
+  authenticatorSelection?: AuthenticatorSelectionCriteria;
+};
+type PublicKeyCredentialRequestOptionsJSON = {
+  challenge: string;
+  timeout?: number;
+  rpId?: string;
+  userVerification?: UserVerificationRequirement;
+  allowCredentials?: Array<{ id: string; type: "public-key"; transports?: AuthenticatorTransport[] }>;
+};

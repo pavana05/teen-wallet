@@ -5,12 +5,22 @@
 // - PINs are NEVER stored in plaintext; we hash with PBKDF2-SHA256 (210k iterations).
 // - All verification happens server-side with constant-time comparison + rate limiting.
 // - After 5 failed attempts → 30s cooldown; 10 → 5m; 15 → 30m. Counter resets on success.
-// - Biometric: we store the WebAuthn credential id + public key. The browser owns the
-//   private key; we trust the assertion when the credential id matches a registered one
-//   for this user. (Full signature verification of WebAuthn assertions is out of scope
-//   for v1 — credential possession is already a strong factor; we can add full sig
-//   verification later via @simplewebauthn/server if needed.)
+// - Biometric: full WebAuthn attestation + assertion verification using
+//   @simplewebauthn/server. The server issues a single-use challenge, stores it
+//   bound to the user + purpose with a short TTL, and cryptographically verifies
+//   the signed assertion against the registered public key on every unlock.
+//   Sign-count is monotonically enforced to detect cloned authenticators.
 import { createClient } from "npm:@supabase/supabase-js@2";
+import {
+  generateRegistrationOptions,
+  verifyRegistrationResponse,
+  generateAuthenticationOptions,
+  verifyAuthenticationResponse,
+} from "npm:@simplewebauthn/server@10.0.1";
+import type {
+  RegistrationResponseJSON,
+  AuthenticationResponseJSON,
+} from "npm:@simplewebauthn/types@10.0.0";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -23,8 +33,10 @@ type Action =
   | "set_pin"
   | "change_pin"
   | "verify_pin"
-  | "register_biometric"
-  | "verify_biometric"
+  | "biometric_register_options"
+  | "biometric_register_verify"
+  | "biometric_auth_options"
+  | "biometric_auth_verify"
   | "remove_biometric"
   | "disable"
   | "update_settings";
@@ -34,8 +46,10 @@ interface Body {
   pin?: string;
   current_pin?: string;
   new_pin?: string;
-  credential_id?: string;
-  public_key?: string;
+  rp_id?: string;
+  origin?: string;
+  attestation_response?: RegistrationResponseJSON;
+  assertion_response?: AuthenticationResponseJSON;
   auto_lock_seconds?: number;
   lock_after_payment?: boolean;
 }
@@ -48,6 +62,22 @@ const isPin = (pin: unknown): pin is string =>
 
 function bytesToHex(buf: ArrayBuffer): string {
   return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+function bufToB64url(buf: ArrayBuffer | Uint8Array): string {
+  const bytes = buf instanceof Uint8Array ? buf : new Uint8Array(buf);
+  let s = "";
+  for (let i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]);
+  return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+function b64urlToBytes(s: string): Uint8Array {
+  const pad = s.length % 4 ? "=".repeat(4 - (s.length % 4)) : "";
+  const b64 = (s + pad).replace(/-/g, "+").replace(/_/g, "/");
+  const bin = atob(b64);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
 }
 
 function randomSalt(): string {
@@ -68,7 +98,6 @@ async function hashPin(pin: string, saltHex: string, iterations: number): Promis
   return bytesToHex(bits);
 }
 
-// Constant-time string comparison
 function constEq(a: string, b: string): boolean {
   if (a.length !== b.length) return false;
   let r = 0;
@@ -76,12 +105,24 @@ function constEq(a: string, b: string): boolean {
   return r === 0;
 }
 
-// Lockout schedule based on failed attempt count.
 function lockoutMsFor(attempts: number): number | null {
   if (attempts >= 15) return 30 * 60_000;
   if (attempts >= 10) return 5 * 60_000;
   if (attempts >= 5) return 30_000;
   return null;
+}
+
+// Validate that the rp_id sent by the client is consistent with the request origin.
+// The browser already enforces RP ID = same registrable domain as origin, but we
+// double-check server-side to prevent a malicious caller from claiming a foreign RP.
+function rpIdAllowedForOrigin(rpId: string, origin: string): boolean {
+  try {
+    const u = new URL(origin);
+    if (u.protocol !== "https:" && u.hostname !== "localhost" && u.hostname !== "127.0.0.1") return false;
+    return u.hostname === rpId || u.hostname.endsWith("." + rpId);
+  } catch {
+    return false;
+  }
 }
 
 Deno.serve(async (req) => {
@@ -107,7 +148,6 @@ Deno.serve(async (req) => {
     try { body = await req.json(); } catch { return json({ error: "Invalid JSON" }, 400); }
     const { action } = body;
 
-    // Load current row (may not exist yet)
     const { data: row } = await admin
       .from("user_security")
       .select("*")
@@ -214,41 +254,201 @@ Deno.serve(async (req) => {
         }, 401);
       }
 
-      case "register_biometric": {
+      // ===== Biometric (WebAuthn) — full signature verification =====
+
+      case "biometric_register_options": {
         if (!row?.app_lock_enabled || !row?.pin_hash) {
           return json({ error: "Set up a PIN before enrolling biometric" }, 400);
         }
-        if (typeof body.credential_id !== "string" || body.credential_id.length < 8 || body.credential_id.length > 1024) {
-          return json({ error: "Invalid credential id" }, 400);
+        if (typeof body.rp_id !== "string" || typeof body.origin !== "string") {
+          return json({ error: "rp_id and origin required" }, 400);
         }
-        if (typeof body.public_key !== "string" || body.public_key.length > 4096) {
-          return json({ error: "Invalid public key" }, 400);
+        if (!rpIdAllowedForOrigin(body.rp_id, body.origin)) {
+          return json({ error: "rp_id does not match origin" }, 400);
         }
-        await admin.from("user_security").update({
-          biometric_credential_id: body.credential_id,
-          biometric_public_key: body.public_key,
-          biometric_sign_count: 0,
-        }).eq("user_id", userId);
-        return json({ ok: true });
+        const options = await generateRegistrationOptions({
+          rpName: "Teen Wallet",
+          rpID: body.rp_id,
+          userID: new TextEncoder().encode(userId),
+          userName: u.user.email ?? u.user.phone ?? userId,
+          userDisplayName: "Teen Wallet User",
+          attestationType: "none",
+          authenticatorSelection: {
+            authenticatorAttachment: "platform",
+            userVerification: "required",
+            residentKey: "preferred",
+          },
+          supportedAlgorithmIDs: [-7, -257],
+          timeout: 60_000,
+        });
+        await admin.from("user_security").upsert({
+          user_id: userId,
+          webauthn_challenge: options.challenge,
+          webauthn_challenge_purpose: "register",
+          webauthn_challenge_expires_at: new Date(now + 5 * 60_000).toISOString(),
+        }, { onConflict: "user_id" });
+        return json({ options });
       }
 
-      case "verify_biometric": {
-        if (!row?.biometric_credential_id) return json({ error: "Biometric not enrolled" }, 400);
+      case "biometric_register_verify": {
+        if (!row?.webauthn_challenge || row.webauthn_challenge_purpose !== "register") {
+          return json({ error: "No active registration challenge" }, 400);
+        }
+        if (!row.webauthn_challenge_expires_at || new Date(row.webauthn_challenge_expires_at).getTime() < now) {
+          return json({ error: "Challenge expired" }, 400);
+        }
+        if (!body.attestation_response || typeof body.rp_id !== "string" || typeof body.origin !== "string") {
+          return json({ error: "Missing attestation_response/rp_id/origin" }, 400);
+        }
+        if (!rpIdAllowedForOrigin(body.rp_id, body.origin)) {
+          return json({ error: "rp_id does not match origin" }, 400);
+        }
+        let verification;
+        try {
+          verification = await verifyRegistrationResponse({
+            response: body.attestation_response,
+            expectedChallenge: row.webauthn_challenge,
+            expectedOrigin: body.origin,
+            expectedRPID: body.rp_id,
+            requireUserVerification: true,
+          });
+        } catch (e) {
+          return json({ error: "Attestation verification failed: " + (e as Error).message }, 401);
+        }
+        if (!verification.verified || !verification.registrationInfo) {
+          return json({ error: "Attestation not verified" }, 401);
+        }
+        const info = verification.registrationInfo;
+        await admin.from("user_security").update({
+          biometric_credential_id: bufToB64url(info.credentialID),
+          biometric_public_key: bufToB64url(info.credentialPublicKey),
+          biometric_sign_count: info.counter ?? 0,
+          biometric_transports: body.attestation_response.response?.transports ?? null,
+          biometric_aaguid: info.aaguid ?? null,
+          webauthn_challenge: null,
+          webauthn_challenge_purpose: null,
+          webauthn_challenge_expires_at: null,
+        }).eq("user_id", userId);
+        return json({ ok: true, credential_id: bufToB64url(info.credentialID) });
+      }
+
+      case "biometric_auth_options": {
+        if (!row?.biometric_credential_id || !row?.biometric_public_key) {
+          return json({ error: "Biometric not enrolled" }, 400);
+        }
         if (isLockedOut) return json({ error: "Too many attempts", locked_until: row.locked_until }, 429);
-        if (body.credential_id !== row.biometric_credential_id) {
-          // Treat mismatched credential as a failed attempt
+        if (typeof body.rp_id !== "string" || typeof body.origin !== "string") {
+          return json({ error: "rp_id and origin required" }, 400);
+        }
+        if (!rpIdAllowedForOrigin(body.rp_id, body.origin)) {
+          return json({ error: "rp_id does not match origin" }, 400);
+        }
+        const options = await generateAuthenticationOptions({
+          rpID: body.rp_id,
+          userVerification: "required",
+          allowCredentials: [{
+            id: b64urlToBytes(row.biometric_credential_id),
+            type: "public-key",
+            transports: row.biometric_transports ?? undefined,
+          }],
+          timeout: 60_000,
+        });
+        await admin.from("user_security").update({
+          webauthn_challenge: options.challenge,
+          webauthn_challenge_purpose: "auth",
+          webauthn_challenge_expires_at: new Date(now + 2 * 60_000).toISOString(),
+        }).eq("user_id", userId);
+        return json({ options });
+      }
+
+      case "biometric_auth_verify": {
+        if (!row?.biometric_credential_id || !row?.biometric_public_key) {
+          return json({ error: "Biometric not enrolled" }, 400);
+        }
+        if (isLockedOut) return json({ error: "Too many attempts", locked_until: row.locked_until }, 429);
+        if (!row.webauthn_challenge || row.webauthn_challenge_purpose !== "auth") {
+          return json({ error: "No active auth challenge" }, 400);
+        }
+        if (!row.webauthn_challenge_expires_at || new Date(row.webauthn_challenge_expires_at).getTime() < now) {
+          return json({ error: "Challenge expired" }, 400);
+        }
+        if (!body.assertion_response || typeof body.rp_id !== "string" || typeof body.origin !== "string") {
+          return json({ error: "Missing assertion_response/rp_id/origin" }, 400);
+        }
+        if (!rpIdAllowedForOrigin(body.rp_id, body.origin)) {
+          return json({ error: "rp_id does not match origin" }, 400);
+        }
+        // The assertion's rawId must match the registered credential.
+        if (body.assertion_response.id !== row.biometric_credential_id
+            && body.assertion_response.rawId !== row.biometric_credential_id) {
+          return json({ error: "Unknown credential" }, 401);
+        }
+
+        let verification;
+        try {
+          verification = await verifyAuthenticationResponse({
+            response: body.assertion_response,
+            expectedChallenge: row.webauthn_challenge,
+            expectedOrigin: body.origin,
+            expectedRPID: body.rp_id,
+            authenticator: {
+              credentialID: b64urlToBytes(row.biometric_credential_id),
+              credentialPublicKey: b64urlToBytes(row.biometric_public_key),
+              counter: Number(row.biometric_sign_count ?? 0),
+            },
+            requireUserVerification: true,
+          });
+        } catch (e) {
+          // Cryptographic failure — count as a failed attempt + clear challenge.
           const attempts = (row.failed_attempts ?? 0) + 1;
           const cooldown = lockoutMsFor(attempts);
           await admin.from("user_security").update({
             failed_attempts: attempts,
             locked_until: cooldown ? new Date(now + cooldown).toISOString() : null,
+            webauthn_challenge: null,
+            webauthn_challenge_purpose: null,
+            webauthn_challenge_expires_at: null,
+          }).eq("user_id", userId);
+          return json({ error: "Biometric verification failed: " + (e as Error).message }, 401);
+        }
+
+        if (!verification.verified) {
+          const attempts = (row.failed_attempts ?? 0) + 1;
+          const cooldown = lockoutMsFor(attempts);
+          await admin.from("user_security").update({
+            failed_attempts: attempts,
+            locked_until: cooldown ? new Date(now + cooldown).toISOString() : null,
+            webauthn_challenge: null,
+            webauthn_challenge_purpose: null,
+            webauthn_challenge_expires_at: null,
           }).eq("user_id", userId);
           return json({ error: "Biometric verification failed" }, 401);
         }
+
+        const newCounter = verification.authenticationInfo.newCounter;
+        // Anti-cloning: counter must strictly increase (unless authenticator reports 0).
+        const prevCounter = Number(row.biometric_sign_count ?? 0);
+        if (newCounter !== 0 && newCounter <= prevCounter) {
+          await admin.from("user_security").update({
+            biometric_credential_id: null,
+            biometric_public_key: null,
+            biometric_sign_count: 0,
+            biometric_transports: null,
+            biometric_aaguid: null,
+            webauthn_challenge: null,
+            webauthn_challenge_purpose: null,
+            webauthn_challenge_expires_at: null,
+          }).eq("user_id", userId);
+          return json({ error: "Authenticator counter regressed — biometric removed for safety" }, 401);
+        }
+
         await admin.from("user_security").update({
           failed_attempts: 0,
           locked_until: null,
-          biometric_sign_count: (row.biometric_sign_count ?? 0) + 1,
+          biometric_sign_count: newCounter,
+          webauthn_challenge: null,
+          webauthn_challenge_purpose: null,
+          webauthn_challenge_expires_at: null,
         }).eq("user_id", userId);
         return json({ ok: true });
       }
@@ -258,6 +458,11 @@ Deno.serve(async (req) => {
           biometric_credential_id: null,
           biometric_public_key: null,
           biometric_sign_count: 0,
+          biometric_transports: null,
+          biometric_aaguid: null,
+          webauthn_challenge: null,
+          webauthn_challenge_purpose: null,
+          webauthn_challenge_expires_at: null,
         }).eq("user_id", userId);
         return json({ ok: true });
       }
@@ -265,7 +470,6 @@ Deno.serve(async (req) => {
       case "update_settings": {
         const updates: Record<string, unknown> = {};
         if (typeof body.auto_lock_seconds === "number") {
-          // Allowed: 0 (immediately), 30, 120, 300, -1 (never auto-lock; cold-start only)
           const allowed = [0, 30, 120, 300, -1];
           if (!allowed.includes(body.auto_lock_seconds)) return json({ error: "Invalid auto_lock_seconds" }, 400);
           updates.auto_lock_seconds = body.auto_lock_seconds;
@@ -282,8 +486,6 @@ Deno.serve(async (req) => {
       }
 
       case "disable": {
-        // Disabling requires PIN verification to prevent someone with the unlocked
-        // session from quietly turning off security.
         if (row?.pin_hash) {
           if (typeof body.pin !== "string") return json({ error: "PIN required to disable" }, 400);
           if (isLockedOut) return json({ error: "Too many attempts" }, 429);
@@ -306,6 +508,11 @@ Deno.serve(async (req) => {
           biometric_credential_id: null,
           biometric_public_key: null,
           biometric_sign_count: 0,
+          biometric_transports: null,
+          biometric_aaguid: null,
+          webauthn_challenge: null,
+          webauthn_challenge_purpose: null,
+          webauthn_challenge_expires_at: null,
           failed_attempts: 0,
           locked_until: null,
         }).eq("user_id", userId);

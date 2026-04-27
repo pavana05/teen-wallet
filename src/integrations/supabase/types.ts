@@ -847,9 +847,11 @@ export type Database = {
         Row: {
           app_lock_enabled: boolean
           auto_lock_seconds: number
+          biometric_aaguid: string | null
           biometric_credential_id: string | null
           biometric_public_key: string | null
           biometric_sign_count: number
+          biometric_transports: string[] | null
           created_at: string
           failed_attempts: number
           lock_after_payment: boolean
@@ -861,13 +863,18 @@ export type Database = {
           setup_prompt_dismissed_at: string | null
           updated_at: string
           user_id: string
+          webauthn_challenge: string | null
+          webauthn_challenge_expires_at: string | null
+          webauthn_challenge_purpose: string | null
         }
         Insert: {
           app_lock_enabled?: boolean
           auto_lock_seconds?: number
+          biometric_aaguid?: string | null
           biometric_credential_id?: string | null
           biometric_public_key?: string | null
           biometric_sign_count?: number
+          biometric_transports?: string[] | null
           created_at?: string
           failed_attempts?: number
           lock_after_payment?: boolean
@@ -879,13 +886,18 @@ export type Database = {
           setup_prompt_dismissed_at?: string | null
           updated_at?: string
           user_id: string
+          webauthn_challenge?: string | null
+          webauthn_challenge_expires_at?: string | null
+          webauthn_challenge_purpose?: string | null
         }
         Update: {
           app_lock_enabled?: boolean
           auto_lock_seconds?: number
+          biometric_aaguid?: string | null
           biometric_credential_id?: string | null
           biometric_public_key?: string | null
           biometric_sign_count?: number
+          biometric_transports?: string[] | null
           created_at?: string
           failed_attempts?: number
           lock_after_payment?: boolean
@@ -897,6 +909,9 @@ export type Database = {
           setup_prompt_dismissed_at?: string | null
           updated_at?: string
           user_id?: string
+          webauthn_challenge?: string | null
+          webauthn_challenge_expires_at?: string | null
+          webauthn_challenge_purpose?: string | null
         }
         Relationships: []
       }
