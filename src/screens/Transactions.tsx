@@ -245,7 +245,13 @@ export function Transactions({ onBack }: Props) {
                 <p className="text-[10.5px] uppercase tracking-[.18em] text-white/45 font-semibold px-1 mb-2">{day}</p>
                 <div className="space-y-2">
                   {rows.map(({ txn, credit, balanceAfter }) => (
-                    <TxnDetailRow key={txn.id} txn={txn} credit={credit} balanceAfter={balanceAfter} />
+                    <TxnDetailRow
+                      key={txn.id}
+                      txn={txn}
+                      credit={credit}
+                      balanceAfter={balanceAfter}
+                      onOpen={() => { void haptics.tap(); setOpenTxn({ txn, credit, balanceAfter }); }}
+                    />
                   ))}
                 </div>
               </li>
