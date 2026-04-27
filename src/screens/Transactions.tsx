@@ -6,6 +6,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useApp } from "@/lib/store";
 import { haptics } from "@/lib/haptics";
+import { TransactionDetail } from "@/components/TransactionDetail";
 
 interface Txn {
   id: string;
