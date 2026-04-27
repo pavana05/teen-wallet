@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { ArrowLeft, AlertTriangle, CheckCircle2, Clock, Smartphone, RefreshCw } from "lucide-react";
+import { ArrowLeft, AlertTriangle, CheckCircle2, Clock, Smartphone, RefreshCw, X, Image as ImageIcon, Camera, Loader2, ExternalLink } from "lucide-react";
 import { PhoneShell } from "@/components/PhoneShell";
 import { supabase } from "@/integrations/supabase/client";
 import { useApp } from "@/lib/store";
