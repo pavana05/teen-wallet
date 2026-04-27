@@ -77,6 +77,9 @@
   --premium-elevated: #1f1f24;
   --premium-hairline: rgba(255,255,255,0.07);
   --premium-hairline-strong: rgba(255,255,255,0.12);
+  /* QR code modules — fixed contrast for scannability, themed via tokens */
+  --qr-dark: #0a0a0a;
+  --qr-light: #ffffff;
 }
 
 /* Premium Light (opt-in via .light or [data-theme="light"]) */
@@ -651,6 +654,22 @@
   --a-danger: #ef4444;
   --a-info: #3b82f6;
   --a-grad-accent: linear-gradient(135deg, #c8f135 0%, #94de3a 100%);
+  /* Premium chart palette — derived from admin theme, no neon-lime in series */
+  --a-chart-1: #d4c5a0;
+  --a-chart-2: #7c8db5;
+  --a-chart-3: #b89b7a;
+  --a-chart-4: #c2766b;
+  --a-chart-5: #9c8fb5;
+  --a-chart-6: #7da890;
+  --a-chart-grid: #2a2a2a;
+  --a-chart-axis: #666;
+  --a-chart-legend: #888;
+  --a-tooltip-bg: #161616;
+  --a-tooltip-border: #2a2a2a;
+  --a-tooltip-text: #f2f2f2;
+  --a-danger-soft: rgba(239,68,68,0.10);
+  --a-danger-border: rgba(239,68,68,0.30);
+  --a-danger-text: #fca5a5;
   background:
     radial-gradient(1200px 600px at 0% -10%, rgba(200,241,53,0.05), transparent 60%),
     radial-gradient(900px 500px at 100% 0%, rgba(59,130,246,0.04), transparent 70%),

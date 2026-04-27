@@ -10,6 +10,7 @@ import {
   Users as UsersIcon, Activity, FileCheck2, ArrowRightLeft,
   IndianRupee, ShieldAlert, TrendingUp, TrendingDown,
 } from "lucide-react";
+import { adminChartTokens } from "@/lib/themeTokens";
 
 export const Route = createFileRoute("/admin/")({
   component: CommandCenter,
@@ -41,9 +42,9 @@ interface ActivityItem {
   refId?: string;
 }
 
-// Premium champagne-led palette for charts (no neon-lime).
-const FRAUD_COLORS = ["#d4c5a0", "#7c8db5", "#b89b7a", "#c2766b", "#9c8fb5", "#7da890"];
-const PREMIUM_ACCENT = "#d4c5a0";
+// Chart colors are sourced from theme tokens (see src/styles.css → .admin-shell
+// --a-chart-*, --a-tooltip-*, --a-success/warn/danger/info). Resolved at render
+// time via adminChartTokens() so future theme changes flow through automatically.
 
 function CommandCenter() {
   const [data, setData] = useState<DashboardData | null>(null);
@@ -111,6 +112,18 @@ function CommandCenter() {
     [data],
   );
 
+  const t = useMemo(() => adminChartTokens(), [data]);
+  const tooltipStyle = useMemo(
+    () => ({
+      background: t.tooltipBg,
+      border: `1px solid ${t.tooltipBorder}`,
+      borderRadius: 6,
+      fontSize: 12,
+      color: t.tooltipText,
+    }),
+    [t],
+  );
+
   return (
     <div>
       <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 20 }}>
@@ -123,7 +136,7 @@ function CommandCenter() {
         </div>
       </div>
 
-      {err && <div style={{ padding: 12, marginBottom: 16, borderRadius: 8, background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", color: "#fca5a5", fontSize: 13 }}>{err}</div>}
+      {err && <div style={{ padding: 12, marginBottom: 16, borderRadius: 8, background: "var(--a-danger-soft)", border: "1px solid var(--a-danger-border)", color: "var(--a-danger-text)", fontSize: 13 }}>{err}</div>}
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12, marginBottom: 20 }}>
         <KpiCard icon={<UsersIcon size={14} />} label="Total Users" value={k?.totalUsers ?? "—"} delta={k?.newUsers7d} deltaLabel="new 7d" spark={sparkSignups} />
@@ -140,15 +153,15 @@ function CommandCenter() {
             <AreaChart data={data?.txnSeries ?? []} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
               <defs>
                 <linearGradient id="gVol" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor={PREMIUM_ACCENT} stopOpacity={0.5} />
-                  <stop offset="100%" stopColor={PREMIUM_ACCENT} stopOpacity={0} />
+                  <stop offset="0%" stopColor={t.accent} stopOpacity={0.5} />
+                  <stop offset="100%" stopColor={t.accent} stopOpacity={0} />
                 </linearGradient>
               </defs>
-              <CartesianGrid stroke="#2a2a2a" vertical={false} />
-              <XAxis dataKey="date" tickFormatter={shortDate} stroke="#666" tick={{ fontSize: 11 }} />
-              <YAxis stroke="#666" tick={{ fontSize: 11 }} tickFormatter={(v) => `₹${shortNum(v)}`} />
+              <CartesianGrid stroke={t.grid} vertical={false} />
+              <XAxis dataKey="date" tickFormatter={shortDate} stroke={t.axis} tick={{ fontSize: 11 }} />
+              <YAxis stroke={t.axis} tick={{ fontSize: 11 }} tickFormatter={(v) => `₹${shortNum(v)}`} />
               <Tooltip contentStyle={tooltipStyle} formatter={(v: any) => [`₹${Number(v).toLocaleString("en-IN")}`, "Volume"]} labelFormatter={shortDate} />
-              <Area type="monotone" dataKey="volume" stroke={PREMIUM_ACCENT} strokeWidth={2} fill="url(#gVol)" />
+              <Area type="monotone" dataKey="volume" stroke={t.accent} strokeWidth={2} fill="url(#gVol)" />
             </AreaChart>
           </ResponsiveContainer>
         </ChartCard>
@@ -159,11 +172,11 @@ function CommandCenter() {
               <PieChart>
                 <Pie data={data.fraudBreakdown} dataKey="count" nameKey="rule" innerRadius={50} outerRadius={90} paddingAngle={2}>
                   {data.fraudBreakdown.map((_, i) => (
-                    <Cell key={i} fill={FRAUD_COLORS[i % FRAUD_COLORS.length]} />
+                    <Cell key={i} fill={t.series[i % t.series.length]} />
                   ))}
                 </Pie>
                 <Tooltip contentStyle={tooltipStyle} />
-                <Legend wrapperStyle={{ fontSize: 11, color: "#888" }} />
+                <Legend wrapperStyle={{ fontSize: 11, color: t.legend }} />
               </PieChart>
             </ResponsiveContainer>
           ) : (
@@ -176,14 +189,14 @@ function CommandCenter() {
         <ChartCard title="Signups vs KYC" subtitle="Last 30 days">
           <ResponsiveContainer width="100%" height={240}>
             <BarChart data={data?.signupSeries ?? []} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-              <CartesianGrid stroke="#2a2a2a" vertical={false} />
-              <XAxis dataKey="date" tickFormatter={shortDate} stroke="#666" tick={{ fontSize: 11 }} />
-              <YAxis stroke="#666" tick={{ fontSize: 11 }} allowDecimals={false} />
+              <CartesianGrid stroke={t.grid} vertical={false} />
+              <XAxis dataKey="date" tickFormatter={shortDate} stroke={t.axis} tick={{ fontSize: 11 }} />
+              <YAxis stroke={t.axis} tick={{ fontSize: 11 }} allowDecimals={false} />
               <Tooltip contentStyle={tooltipStyle} labelFormatter={shortDate} />
-              <Legend wrapperStyle={{ fontSize: 11, color: "#888" }} />
-              <Bar dataKey="approved" stackId="s" fill="#22c55e" />
-              <Bar dataKey="pending" stackId="s" fill="#f59e0b" />
-              <Bar dataKey="other" stackId="s" fill="#3b82f6" />
+              <Legend wrapperStyle={{ fontSize: 11, color: t.legend }} />
+              <Bar dataKey="approved" stackId="s" fill={t.success} />
+              <Bar dataKey="pending" stackId="s" fill={t.warn} />
+              <Bar dataKey="other" stackId="s" fill={t.info} />
             </BarChart>
           </ResponsiveContainer>
         </ChartCard>
@@ -194,7 +207,7 @@ function CommandCenter() {
               <div style={{ fontSize: 14, fontWeight: 600 }}>Live Activity</div>
               <div className="a-label">Realtime stream</div>
             </div>
-            <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#22c55e", boxShadow: "0 0 8px #22c55e" }} />
+            <span style={{ width: 8, height: 8, borderRadius: "50%", background: t.success, boxShadow: `0 0 8px ${t.success}` }} />
           </div>
           <div style={{ overflowY: "auto", flex: 1 }}>
             {activity.length === 0 && <div style={{ fontSize: 12, color: "var(--a-muted)", padding: 12 }}>No recent events</div>}
@@ -221,7 +234,9 @@ function KpiCard({ icon, label, value, delta, deltaLabel, spark, warn, danger, m
   spark?: Array<{ v: number }>;
   warn?: boolean; danger?: boolean; mono?: boolean;
 }) {
-  const color = danger ? "#ef4444" : warn ? "#f59e0b" : "var(--a-text)";
+  const t = useMemo(() => adminChartTokens(), []);
+  const color = danger ? t.danger : warn ? t.warn : "var(--a-text)";
+  const deltaColor = (delta ?? 0) >= 0 ? t.success : t.danger;
   return (
     <div className="a-surface" style={{ padding: 14 }}>
       <div className="a-label" style={{ display: "flex", alignItems: "center", gap: 6, color: "var(--a-muted)" }}>
@@ -233,14 +248,14 @@ function KpiCard({ icon, label, value, delta, deltaLabel, spark, warn, danger, m
           <div style={{ width: 80, height: 28 }}>
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={spark}>
-                <Area dataKey="v" stroke={PREMIUM_ACCENT} fill={PREMIUM_ACCENT} fillOpacity={0.2} strokeWidth={1.5} />
+                <Area dataKey="v" stroke={t.accent} fill={t.accent} fillOpacity={0.2} strokeWidth={1.5} />
               </AreaChart>
             </ResponsiveContainer>
           </div>
         )}
       </div>
       {typeof delta === "number" && (
-        <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 4, fontSize: 11, color: delta >= 0 ? "#22c55e" : "#ef4444" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 4, fontSize: 11, color: deltaColor }}>
           {delta >= 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
           <span className="a-mono">{delta}</span>
           <span style={{ color: "var(--a-muted)" }}>{deltaLabel}</span>
@@ -262,14 +277,6 @@ function ChartCard({ title, subtitle, children }: { title: string; subtitle?: st
   );
 }
 
-const tooltipStyle = {
-  background: "#161616",
-  border: "1px solid #2a2a2a",
-  borderRadius: 6,
-  fontSize: 12,
-  color: "#f2f2f2",
-};
-
 function shortDate(d: string) {
   if (!d) return "";
   const dt = new Date(d);
@@ -289,11 +296,12 @@ function relTime(ts: string) {
   return Math.floor(s / 86400) + "d";
 }
 function dotColor(kind: string) {
-  if (kind.startsWith("user")) return "#22c55e";
-  if (kind === "kyc_approved") return "#22c55e";
-  if (kind.startsWith("kyc")) return "#f59e0b";
-  if (kind === "txn_failed") return "#ef4444";
-  if (kind.startsWith("txn")) return "#3b82f6";
-  if (kind === "fraud") return "#ef4444";
-  return "#888";
+  const t = adminChartTokens();
+  if (kind.startsWith("user")) return t.success;
+  if (kind === "kyc_approved") return t.success;
+  if (kind.startsWith("kyc")) return t.warn;
+  if (kind === "txn_failed") return t.danger;
+  if (kind.startsWith("txn")) return t.info;
+  if (kind === "fraud") return t.danger;
+  return t.legend;
 }

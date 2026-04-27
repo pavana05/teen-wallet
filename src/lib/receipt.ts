@@ -36,11 +36,15 @@ function shortRef(txnId: string) {
  */
 async function buildRefQrDataUrl(refId: string): Promise<string | null> {
   try {
+    // QR module colors come from theme tokens (--qr-dark / --qr-light) so any
+    // future theme adjustment flows through without touching this file.
+    const { qrColors } = await import("@/lib/themeTokens");
+    const { dark, light } = qrColors();
     return await QRCode.toDataURL(refId, {
       errorCorrectionLevel: "M",
       margin: 1,
       width: 220,
-      color: { dark: "#0B0B0B", light: "#FFFFFF" },
+      color: { dark, light },
     });
   } catch {
     return null;

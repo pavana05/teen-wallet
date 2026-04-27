@@ -19,6 +19,7 @@ import { ProfileCompletionMeter } from "./profile/ProfileCompletionMeter";
 import { QuickActions } from "./profile/QuickActions";
 import { InlineEditCard } from "./profile/InlineEditCard";
 import { useMotionLevel, type MotionLevel } from "@/lib/motionPrefs";
+import { qrColors } from "@/lib/themeTokens";
 
 interface Props {
   onClose: () => void;
@@ -996,7 +997,8 @@ function MyQrSheet({ upiId, payeeName, onClose }: { upiId: string; payeeName: st
 
   useEffect(() => {
     let active = true;
-    QRCode.toDataURL(upiLink, { errorCorrectionLevel: "M", margin: 2, width: 320, color: { dark: "#0a0a0a", light: "#ffffff" } })
+    const { dark, light } = qrColors();
+    QRCode.toDataURL(upiLink, { errorCorrectionLevel: "M", margin: 2, width: 320, color: { dark, light } })
       .then((url) => { if (active) setDataUrl(url); })
       .catch((e: unknown) => { if (active) setErr(e instanceof Error ? e.message : "Couldn't generate QR"); });
     return () => { active = false; };
