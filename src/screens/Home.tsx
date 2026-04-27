@@ -437,14 +437,19 @@ export function Home() {
           </button>
         </div>
 
-        {/* Scan hero card */}
+        {/* Scan hero card — swaps to a Diwali-themed banner during the festival */}
         <button
           type="button"
           onClick={() => setView("scan")}
           className="hp-scan-card group"
           aria-label="Open scanner to scan and pay"
+          data-festival={isDiwaliSeason() ? "diwali" : undefined}
         >
-          <img src={heroScan} alt="" className="hp-scan-img" />
+          <img
+            src={isDiwaliSeason() ? heroScanDiwali : heroScan}
+            alt=""
+            className="hp-scan-img"
+          />
         </button>
 
         {/* Grass to black blend */}
