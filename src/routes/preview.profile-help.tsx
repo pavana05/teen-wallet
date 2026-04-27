@@ -22,6 +22,8 @@ interface ReportRow {
   route: string | null;
   created_at: string;
   resolved_at: string | null;
+  screenshot_path: string | null;
+  camera_photo_path: string | null;
 }
 
 function ProfileHelpPage() {
