@@ -128,6 +128,12 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
     // Hard client-side block — never let a click fire while in cooldown.
     if (step === "otp" && resendBlocked) return;
     setError(""); setErrorKind(null); setErrorId(null); setBusy(true);
+    recordCheckpoint({
+      screen: "auth",
+      action: "auth_phone_entered",
+      detail: { phoneTail: phone.slice(-4) },
+      stage: "STAGE_2",
+    });
     try {
       const r = await sendOtp(phone);
       setPendingPhone("+91" + phone);
