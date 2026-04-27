@@ -208,6 +208,50 @@ export function Home() {
     return () => { supabase.removeChannel(ch); };
   }, [userId, fetchTxns]);
 
+  // Payment-received watcher — listens for balance credits on the user's
+  // profile and emits a rich in-app notification (+ toast) whenever the
+  // balance goes UP. Initial balance is loaded once so we don't fire on
+  // first mount; subsequent UPDATE events with a positive delta count as
+  // an incoming credit (parent top-up, refund, cashback settlement, etc).
+  const lastBalanceRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (!userId) return;
+    let cancelled = false;
+    void (async () => {
+      const { data } = await supabase
+        .from("profiles")
+        .select("balance")
+        .eq("id", userId)
+        .maybeSingle();
+      if (!cancelled && data) lastBalanceRef.current = Number(data.balance);
+    })();
+    const ch = supabase
+      .channel("home-balance")
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "profiles", filter: `id=eq.${userId}` },
+        (payload) => {
+          const next = Number((payload.new as { balance?: number | string }).balance);
+          if (!Number.isFinite(next)) return;
+          const prev = lastBalanceRef.current;
+          lastBalanceRef.current = next;
+          if (prev == null) return; // baseline only
+          const delta = +(next - prev).toFixed(2);
+          if (delta > 0) {
+            const formatted = `₹${delta.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
+            toast.success(`${formatted} received`, {
+              description: "Credited to your wallet",
+              icon: "💰",
+            });
+            void notifyPaymentReceived(userId, delta);
+            void haptics.swipe();
+          }
+        },
+      )
+      .subscribe();
+    return () => { cancelled = true; supabase.removeChannel(ch); };
+  }, [userId]);
+
   // Unread notifications badge — count + realtime
   useEffect(() => {
     if (!userId) return;
