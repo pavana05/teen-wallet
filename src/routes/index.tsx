@@ -123,7 +123,9 @@ function Index() {
   return (
     <PhoneShell>
       <Suspense fallback={<ScreenFallback />}>
-        {stage === "STAGE_0" || stage === "STAGE_1" ? (
+        {booting ? (
+          <ScreenFallback />
+        ) : stage === "STAGE_0" || stage === "STAGE_1" ? (
           <Onboarding onDone={() => setStage("STAGE_2")} />
         ) : stage === "STAGE_2" ? (
           <AuthPhone onDone={() => {
