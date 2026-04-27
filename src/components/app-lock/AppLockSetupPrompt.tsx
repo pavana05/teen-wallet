@@ -54,7 +54,7 @@ export function AppLockSetupPrompt() {
           </button>
         </div>
 
-        <h2 className="text-lg font-semibold">Lock your wallet with a PIN</h2>
+        <h2 id="al-prompt-title" className="text-lg font-semibold">Lock your wallet with a PIN</h2>
         <p className="text-sm text-white/60 mt-1.5 leading-relaxed">
           Add a quick PIN (and fingerprint) so no one can open your wallet — even if they get your phone after you've used GPay or PhonePe.
         </p>
