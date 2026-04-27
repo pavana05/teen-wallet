@@ -1444,11 +1444,27 @@ function SuccessView({
     payerPhone,
   }), [txn, payerName, payerPhone]);
 
+  // Persisted delivery status for THIS receipt — survives reloads.
+  const [lastDelivery, setLastDelivery] = useState<ReceiptDelivery | null>(() => getLastDelivery(txn.id));
+  useEffect(() => {
+    const onChange = (e: Event) => {
+      const detail = (e as CustomEvent<ReceiptDelivery>).detail;
+      if (detail?.txnId === txn.id) setLastDelivery(detail);
+    };
+    window.addEventListener("tw-receipt-delivery", onChange);
+    return () => window.removeEventListener("tw-receipt-delivery", onChange);
+  }, [txn.id]);
+  const logDelivery = (channel: ReceiptDelivery["channel"], status: ReceiptDelivery["status"] = "attempted") => {
+    setLastDelivery(recordReceiptDelivery(txn.id, channel, status));
+  };
+
   const handleDownload = async () => {
     try {
       await downloadReceiptPdf(receipt());
+      logDelivery("download", "sent");
       toast.success("Receipt downloaded");
     } catch {
+      logDelivery("download", "failed");
       toast.error("Couldn't generate receipt");
     }
   };
@@ -1456,8 +1472,10 @@ function SuccessView({
   const handleShare = async () => {
     try {
       const shared = await shareReceiptPdf(receipt());
+      logDelivery("share", shared ? "sent" : "attempted");
       if (!shared) toast.success("Receipt downloaded");
     } catch {
+      logDelivery("share", "failed");
       toast.error("Share failed");
     }
   };
@@ -1466,18 +1484,44 @@ function SuccessView({
   // Most platforms can't attach a generated File via mailto:, so we lead
   // with the readable summary and offer "Download PDF" alongside.
   const handleEmail = () => {
-    const subject = encodeURIComponent(`Payment receipt · ₹${txn.amount.toFixed(2)} → ${txn.payee}`);
-    const body = encodeURIComponent(buildReceiptSummary(receipt()));
-    window.location.href = `mailto:?subject=${subject}&body=${body}`;
+    try {
+      const subject = encodeURIComponent(`Payment receipt · ₹${txn.amount.toFixed(2)} → ${txn.payee}`);
+      const body = encodeURIComponent(buildReceiptSummary(receipt()));
+      window.location.href = `mailto:?subject=${subject}&body=${body}`;
+      logDelivery("email", "attempted");
+    } catch {
+      logDelivery("email", "failed");
+    }
   };
 
   // SMS deep link: works on iOS / Android. We keep the body short to avoid
   // forcing the carrier to split into multiple messages.
   const handleSms = () => {
-    const body = encodeURIComponent(buildReceiptSummary(receipt()));
-    // iOS uses `&body=` after `&`; Android uses `?body=`. Both accept `?body=`
-    // with no recipient, so we use that.
-    window.location.href = `sms:?body=${body}`;
+    try {
+      const body = encodeURIComponent(buildReceiptSummary(receipt()));
+      // iOS uses `&body=` after `&`; Android uses `?body=`. Both accept `?body=`
+      // with no recipient, so we use that.
+      window.location.href = `sms:?body=${body}`;
+      logDelivery("sms", "attempted");
+    } catch {
+      logDelivery("sms", "failed");
+    }
+  };
+
+  // WhatsApp share: PDF file via Web Share when supported, else wa.me deep link.
+  const handleWhatsApp = async () => {
+    try {
+      const result = await shareReceiptToWhatsApp(receipt());
+      if (result === "failed") {
+        logDelivery("whatsapp", "failed");
+        toast.error("Couldn't open WhatsApp");
+      } else {
+        logDelivery("whatsapp", result === "file" ? "sent" : "attempted");
+      }
+    } catch {
+      logDelivery("whatsapp", "failed");
+      toast.error("Couldn't open WhatsApp");
+    }
   };
 
   const copyRef = () => {
