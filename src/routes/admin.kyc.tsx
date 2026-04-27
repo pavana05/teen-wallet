@@ -189,6 +189,12 @@ function KycQueue() {
   const [rejectReason, setRejectReason] = useState<RejectReason | "">("");
   const [rejectNote, setRejectNote] = useState("");
   const [showReject, setShowReject] = useState(false);
+  // Approval confirmation flow — mirrors rejection: explicit note + typed
+  // confirmation phrase so an accidental click can't approve a submission.
+  const [showApprove, setShowApprove] = useState(false);
+  const [approveNote, setApproveNote] = useState("");
+  const [approveConfirm, setApproveConfirm] = useState("");
+  const [rejectConfirm, setRejectConfirm] = useState("");
   const [err, setErr] = useState("");
   const [urls, setUrls] = useState<{ selfieUrl: string | null; docFrontUrl: string | null; docBackUrl: string | null } | null>(null);
   const [urlsLoading, setUrlsLoading] = useState(false);
@@ -334,11 +340,15 @@ function KycQueue() {
       .finally(() => setHistoryLoading(false));
   }, [reviewing]);
 
-  // Reset reject form whenever review modal changes target.
+  // Reset reject + approve forms whenever review modal changes target.
   useEffect(() => {
     setShowReject(false);
     setRejectReason("");
     setRejectNote("");
+    setRejectConfirm("");
+    setShowApprove(false);
+    setApproveNote("");
+    setApproveConfirm("");
   }, [reviewing?.id]);
 
   // Compose final reject reason from the dropdown + custom note.
@@ -350,20 +360,42 @@ function KycQueue() {
     if (rejectReason === "Other (write below)") return note;
     return note ? `${rejectReason} — ${note}` : rejectReason;
   }
-  const rejectValid = rejectReason !== "" && rejectNote.trim().length >= 4;
+  const APPROVE_PHRASE = "APPROVE";
+  const REJECT_PHRASE = "REJECT";
+  const rejectValid =
+    rejectReason !== "" &&
+    rejectNote.trim().length >= 4 &&
+    rejectConfirm.trim().toUpperCase() === REJECT_PHRASE;
+  const approveValid =
+    approveNote.trim().length >= 4 &&
+    approveConfirm.trim().toUpperCase() === APPROVE_PHRASE;
 
   async function decide(submissionId: string, decision: "approved" | "rejected", reason?: string) {
     const s = readAdminSession();
     if (!s) return;
+    // Defense in depth: never let a stale handler bypass the form invariants.
+    const composed = (reason ?? "").trim();
+    if (decision === "rejected" && (!rejectValid || composed.length < 4)) {
+      toast.error("Add a reason, a reviewer note (≥4 chars) and type REJECT to confirm");
+      return;
+    }
+    if (decision === "approved" && !approveValid) {
+      toast.error("Add an approval note (≥4 chars) and type APPROVE to confirm");
+      return;
+    }
     setBusyId(submissionId);
     setErr("");
     try {
-      await callAdminFn({ action: "kyc_decide", sessionToken: s.sessionToken, submissionId, decision, reason: reason || "" });
+      await callAdminFn({ action: "kyc_decide", sessionToken: s.sessionToken, submissionId, decision, reason: composed });
       toast.success(decision === "approved" ? "KYC approved" : "KYC rejected");
       setReviewing(null);
       setShowReject(false);
+      setShowApprove(false);
       setRejectReason("");
       setRejectNote("");
+      setRejectConfirm("");
+      setApproveNote("");
+      setApproveConfirm("");
       setCursor(null);
       setRows([]);
       await fetchList(true);
@@ -760,11 +792,61 @@ function KycQueue() {
                 />
                 <div style={{ fontSize: 11, color: "var(--a-muted)", marginTop: 6, display: "flex", justifyContent: "space-between" }}>
                   <span>
-                    {rejectValid ? "✓ Will send: " : "Pick a reason and add a note. "}
-                    {rejectValid && <em style={{ color: "var(--a-text)" }}>{composeRejectReason()}</em>}
+                    {rejectReason && rejectNote.trim().length >= 4 ? "Will send: " : "Pick a reason and add a note. "}
+                    {rejectReason && rejectNote.trim().length >= 4 && <em style={{ color: "var(--a-text)" }}>{composeRejectReason()}</em>}
                   </span>
                   <span>{rejectNote.length}/500</span>
                 </div>
+                <div className="a-label" style={{ marginTop: 12, marginBottom: 6 }}>
+                  Type <strong>REJECT</strong> to confirm <span style={{ color: "var(--a-danger)" }}>*</span>
+                </div>
+                <input
+                  className="a-input"
+                  type="text"
+                  value={rejectConfirm}
+                  onChange={(e) => setRejectConfirm(e.target.value)}
+                  placeholder="REJECT"
+                  autoComplete="off"
+                  spellCheck={false}
+                  maxLength={16}
+                  aria-label="Type REJECT to confirm rejection"
+                />
+              </div>
+            )}
+
+            {showApprove && (
+              <div className="kyc-reject-form">
+                <div className="a-label" style={{ marginBottom: 6 }}>
+                  Approval note <span style={{ color: "var(--a-danger)" }}>*</span>
+                </div>
+                <textarea
+                  className="a-input"
+                  rows={3}
+                  value={approveNote}
+                  onChange={(e) => setApproveNote(e.target.value)}
+                  placeholder="Why this submission passes review (min 4 chars) — kept in audit log."
+                  maxLength={500}
+                />
+                <div style={{ fontSize: 11, color: "var(--a-muted)", marginTop: 6, display: "flex", justifyContent: "space-between" }}>
+                  <span>
+                    {approveNote.trim().length >= 4 ? "Note ready." : "Add a short audit note (min 4 chars)."}
+                  </span>
+                  <span>{approveNote.length}/500</span>
+                </div>
+                <div className="a-label" style={{ marginTop: 12, marginBottom: 6 }}>
+                  Type <strong>APPROVE</strong> to confirm <span style={{ color: "var(--a-danger)" }}>*</span>
+                </div>
+                <input
+                  className="a-input"
+                  type="text"
+                  value={approveConfirm}
+                  onChange={(e) => setApproveConfirm(e.target.value)}
+                  placeholder="APPROVE"
+                  autoComplete="off"
+                  spellCheck={false}
+                  maxLength={16}
+                  aria-label="Type APPROVE to confirm approval"
+                />
               </div>
             )}
 
@@ -777,14 +859,20 @@ function KycQueue() {
                 <ExternalLink size={14} /> Open user
               </Link>
               <div style={{ flex: 1 }} />
-              <button className="a-btn-ghost" onClick={() => { setReviewing(null); setShowReject(false); }} disabled={!!busyId}>Close</button>
-              {canDecide && reviewing.status === "pending" && !showReject && (
+              <button
+                className="a-btn-ghost"
+                onClick={() => { setReviewing(null); setShowReject(false); setShowApprove(false); }}
+                disabled={!!busyId}
+              >
+                Close
+              </button>
+              {canDecide && reviewing.status === "pending" && !showReject && !showApprove && (
                 <>
                   <button className="kyc-btn-reject" onClick={() => setShowReject(true)} disabled={!!busyId}>
                     <ShieldX size={14} /> Reject
                   </button>
-                  <button className="kyc-btn-approve" onClick={() => decide(reviewing.id, "approved")} disabled={!!busyId}>
-                    {busyId === reviewing.id ? <Loader2 size={14} className="animate-spin" /> : <ShieldCheck size={14} />} Approve
+                  <button className="kyc-btn-approve" onClick={() => setShowApprove(true)} disabled={!!busyId}>
+                    <ShieldCheck size={14} /> Approve
                   </button>
                 </>
               )}
@@ -793,9 +881,19 @@ function KycQueue() {
                   className="kyc-btn-reject-confirm"
                   disabled={!rejectValid || !!busyId}
                   onClick={() => decide(reviewing.id, "rejected", composeRejectReason())}
-                  title={!rejectValid ? "Pick a reason and add a note (min 4 chars)" : "Confirm rejection"}
+                  title={!rejectValid ? "Pick a reason, add a note (min 4 chars), and type REJECT" : "Confirm rejection"}
                 >
                   {busyId === reviewing.id ? <Loader2 size={14} className="animate-spin" /> : <ShieldX size={14} />} Confirm reject
+                </button>
+              )}
+              {canDecide && showApprove && (
+                <button
+                  className="kyc-btn-approve"
+                  disabled={!approveValid || !!busyId}
+                  onClick={() => decide(reviewing.id, "approved", approveNote.trim())}
+                  title={!approveValid ? "Add an approval note (min 4 chars) and type APPROVE" : "Confirm approval"}
+                >
+                  {busyId === reviewing.id ? <Loader2 size={14} className="animate-spin" /> : <ShieldCheck size={14} />} Confirm approve
                 </button>
               )}
             </div>
