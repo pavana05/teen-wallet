@@ -1315,6 +1315,12 @@ function ProcessingView({ amount }: { amount: number }) {
       {/* Soft top vignette to add depth */}
       <div className="sp-pay-vignette" aria-hidden />
 
+      {/* Stepper pinned to top */}
+      <div className="absolute top-6 left-0 right-0 px-4 z-30">
+        <PaymentStepper stage="processing" />
+      </div>
+
+
       {/* Perspective grid floor */}
       <div className="sp-pay-floor" aria-hidden>
         <div className="sp-pay-floor-grid" />
