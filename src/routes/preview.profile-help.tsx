@@ -48,7 +48,7 @@ function ProfileHelpPage() {
     setError(null);
     const { data, error } = await supabase
       .from("issue_reports")
-      .select("id,category,message,status,route,created_at,resolved_at")
+      .select("id,category,message,status,route,created_at,resolved_at,screenshot_path,camera_photo_path")
       .eq("user_id", userId)
       .order("created_at", { ascending: false })
       .limit(50);
