@@ -35,6 +35,7 @@ import { Route as AdminKycRouteImport } from './routes/admin.kyc'
 import { Route as AdminFraudRouteImport } from './routes/admin.fraud'
 import { Route as AdminDiagnosticsRouteImport } from './routes/admin.diagnostics'
 import { Route as AdminCampaignsRouteImport } from './routes/admin.campaigns'
+import { Route as AdminAppImagesRouteImport } from './routes/admin.app-images'
 import { Route as ApiKycVerifyRouteImport } from './routes/api/kyc.verify'
 import { Route as AdminUsersIdRouteImport } from './routes/admin.users.$id'
 
@@ -168,6 +169,11 @@ const AdminCampaignsRoute = AdminCampaignsRouteImport.update({
   path: '/campaigns',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminAppImagesRoute = AdminAppImagesRouteImport.update({
+  id: '/app-images',
+  path: '/app-images',
+  getParentRoute: () => AdminRoute,
+} as any)
 const ApiKycVerifyRoute = ApiKycVerifyRouteImport.update({
   id: '/api/kyc/verify',
   path: '/api/kyc/verify',
@@ -182,6 +188,7 @@ const AdminUsersIdRoute = AdminUsersIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
+  '/admin/app-images': typeof AdminAppImagesRoute
   '/admin/campaigns': typeof AdminCampaignsRoute
   '/admin/diagnostics': typeof AdminDiagnosticsRoute
   '/admin/fraud': typeof AdminFraudRoute
@@ -211,6 +218,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/admin/app-images': typeof AdminAppImagesRoute
   '/admin/campaigns': typeof AdminCampaignsRoute
   '/admin/diagnostics': typeof AdminDiagnosticsRoute
   '/admin/fraud': typeof AdminFraudRoute
@@ -242,6 +250,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
+  '/admin/app-images': typeof AdminAppImagesRoute
   '/admin/campaigns': typeof AdminCampaignsRoute
   '/admin/diagnostics': typeof AdminDiagnosticsRoute
   '/admin/fraud': typeof AdminFraudRoute
@@ -274,6 +283,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/admin'
+    | '/admin/app-images'
     | '/admin/campaigns'
     | '/admin/diagnostics'
     | '/admin/fraud'
@@ -303,6 +313,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/admin/app-images'
     | '/admin/campaigns'
     | '/admin/diagnostics'
     | '/admin/fraud'
@@ -333,6 +344,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/admin'
+    | '/admin/app-images'
     | '/admin/campaigns'
     | '/admin/diagnostics'
     | '/admin/fraud'
@@ -565,6 +577,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminCampaignsRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/app-images': {
+      id: '/admin/app-images'
+      path: '/app-images'
+      fullPath: '/admin/app-images'
+      preLoaderRoute: typeof AdminAppImagesRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/api/kyc/verify': {
       id: '/api/kyc/verify'
       path: '/api/kyc/verify'
@@ -595,6 +614,7 @@ const AdminUsersRouteWithChildren = AdminUsersRoute._addFileChildren(
 )
 
 interface AdminRouteChildren {
+  AdminAppImagesRoute: typeof AdminAppImagesRoute
   AdminCampaignsRoute: typeof AdminCampaignsRoute
   AdminDiagnosticsRoute: typeof AdminDiagnosticsRoute
   AdminFraudRoute: typeof AdminFraudRoute
@@ -608,6 +628,7 @@ interface AdminRouteChildren {
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
+  AdminAppImagesRoute: AdminAppImagesRoute,
   AdminCampaignsRoute: AdminCampaignsRoute,
   AdminDiagnosticsRoute: AdminDiagnosticsRoute,
   AdminFraudRoute: AdminFraudRoute,
