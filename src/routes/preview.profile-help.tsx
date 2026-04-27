@@ -33,6 +33,32 @@ function ProfileHelpPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [sensitivity, setSens] = useState<ShakeSensitivity>("normal");
+  const [detail, setDetail] = useState<ReportRow | null>(null);
+  const [attachUrls, setAttachUrls] = useState<{ screenshot: string | null; camera: string | null }>({ screenshot: null, camera: null });
+  const [attachLoading, setAttachLoading] = useState(false);
+
+  const openDetail = async (r: ReportRow) => {
+    setDetail(r);
+    setAttachUrls({ screenshot: null, camera: null });
+    if (!r.screenshot_path && !r.camera_photo_path) return;
+    setAttachLoading(true);
+    try {
+      const [s, c] = await Promise.all([
+        r.screenshot_path
+          ? supabase.storage.from("issue-attachments").createSignedUrl(r.screenshot_path, 600)
+          : Promise.resolve({ data: null, error: null } as const),
+        r.camera_photo_path
+          ? supabase.storage.from("issue-attachments").createSignedUrl(r.camera_photo_path, 600)
+          : Promise.resolve({ data: null, error: null } as const),
+      ]);
+      setAttachUrls({
+        screenshot: s.data?.signedUrl ?? null,
+        camera: c.data?.signedUrl ?? null,
+      });
+    } finally {
+      setAttachLoading(false);
+    }
+  };
 
   useEffect(() => {
     setSens(getShakeSensitivity());
