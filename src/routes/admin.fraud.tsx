@@ -51,6 +51,7 @@ function FraudPage() {
   const [err, setErr] = useState("");
   const [resolving, setResolving] = useState<FraudRow | null>(null);
   const [resolution, setResolution] = useState("");
+  const [selected, setSelected] = useState<FraudRow | null>(null);
 
   const canManage = can(admin?.role, "manageFraud" as any);
 
