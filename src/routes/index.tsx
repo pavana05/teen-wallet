@@ -77,8 +77,20 @@ function ScreenFallback() {
 }
 
 function Index() {
-  const { stage, setStage, hydrateFromProfile } = useApp();
-  const [booting, setBooting] = useState(true);
+  const { stage, setStage, hydrateFromProfile, userId } = useApp();
+
+  const stageRank: Record<Stage, number> = {
+    STAGE_0: 0, STAGE_1: 1, STAGE_2: 2, STAGE_3: 3, STAGE_4: 4, STAGE_5: 5,
+  };
+
+  // Fast-boot: if we already have persisted state past pre-auth (or a known
+  // userId), render the correct screen immediately and reconcile with the
+  // backend in the background. Skeleton only shows on a true cold start.
+  const hasPersistedSession =
+    typeof window !== "undefined" &&
+    (!!userId || stageRank[stage] >= stageRank["STAGE_3"]);
+  const [booting, setBooting] = useState(!hasPersistedSession);
+
   const [permsSeen, setPermsSeen] = useState<boolean>(() => {
     if (typeof window === "undefined") return true;
     try { return localStorage.getItem(PERMISSIONS_DONE_KEY) === "1"; } catch { return true; }
@@ -102,6 +114,10 @@ function Index() {
         if (!mounted) return;
         if (!session) {
           // No session: ensure we don't show post-auth screens from stale persisted state.
+          const localStage = useApp.getState().stage;
+          if (stageRank[localStage] >= stageRank["STAGE_3"]) {
+            useApp.getState().setStageLocal("STAGE_0");
+          }
           setBooting(false);
           return;
         }
@@ -111,15 +127,15 @@ function Index() {
         if (localStage === "STAGE_0" || localStage === "STAGE_1" || localStage === "STAGE_2") {
           useApp.getState().setStageLocal("STAGE_3");
         }
+        // Unblock UI immediately — fetch profile in the background and reconcile silently.
+        if (mounted) setBooting(false);
+
         const p = await fetchProfile();
-        if (!p || !mounted) { setBooting(false); return; }
+        if (!p || !mounted) return;
         const profileStage = (p.onboarding_stage as Stage) ?? "STAGE_0";
         const kyc = (p as { kyc_status?: string | null }).kyc_status ?? null;
 
         const curLocal = useApp.getState().stage;
-        const stageRank: Record<Stage, number> = {
-          STAGE_0: 0, STAGE_1: 1, STAGE_2: 2, STAGE_3: 3, STAGE_4: 4, STAGE_5: 5,
-        };
         const moreAdvanced: Stage =
           stageRank[curLocal] >= stageRank[profileStage] ? curLocal : profileStage;
 
@@ -158,6 +174,22 @@ function Index() {
     });
     return () => { mounted = false; sub.subscription.unsubscribe(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Idle-time prefetch — warm the most likely next screens so navigation
+  // feels instant. Runs after first paint, never blocks rendering.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const idle = (cb: () => void) => {
+      const w = window as unknown as { requestIdleCallback?: (cb: () => void) => number };
+      if (typeof w.requestIdleCallback === "function") w.requestIdleCallback(cb);
+      else setTimeout(cb, 600);
+    };
+    idle(() => {
+      void import("@/screens/Home");
+      void import("@/screens/Onboarding");
+      void import("@/screens/AuthPhone");
+    });
   }, []);
 
   return (
