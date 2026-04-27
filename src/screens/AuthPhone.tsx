@@ -183,6 +183,10 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
         await persistStage(resumedStage);
       }
       clearOtpState();
+      // Greet the user once per calendar day with an in-app entry notification.
+      if (p?.id) {
+        void maybeInsertWelcome(p.id, p.full_name ?? null);
+      }
       recordCheckpoint({
         screen: "auth",
         action: "auth_otp_verified",
