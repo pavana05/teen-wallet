@@ -6516,3 +6516,144 @@ html.motion-off    .otp-resend-ring svg circle { transition: none !important; }
     filter: none !important;
   }
 }
+
+/* ============================================================
+   FloatingDock — reusable bottom dock pinned to the phone shell.
+   Used on Home (alternate) and Profile screens. Subtle premium
+   micro-animations: 220ms ease-out scale, soft glow halo on FAB,
+   gentle icon lift on hover, smooth tab indicator.
+   ============================================================ */
+.fd-shell {
+  width: calc(100% - 2rem);
+  max-width: 320px;
+}
+.fd-pill {
+  flex: 1;
+  display: flex;
+  padding: 6px;
+  border-radius: 9999px;
+  background: rgba(14, 14, 17, 0.78);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(18px) saturate(140%);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  box-shadow:
+    0 10px 28px -10px rgba(0, 0, 0, 0.85),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+.fd-tab {
+  position: relative;
+  transition: color 200ms ease-out, transform 200ms ease-out;
+}
+.fd-tab:active { transform: scale(0.96); }
+.fd-tab-icon {
+  transition: transform 240ms cubic-bezier(.2,.8,.2,1);
+}
+.fd-tab:hover .fd-tab-icon { transform: translateY(-1px); }
+.fd-tab-active {
+  background: linear-gradient(180deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.04) 100%);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.08), 0 4px 12px -6px rgba(0,0,0,0.6);
+}
+.fd-tab-active .fd-tab-icon {
+  animation: fd-icon-pop 280ms cubic-bezier(.2,.8,.2,1);
+}
+@keyframes fd-icon-pop {
+  0%   { transform: scale(0.85); opacity: 0.6; }
+  60%  { transform: scale(1.08); opacity: 1; }
+  100% { transform: scale(1); }
+}
+
+/* ----- FAB: graphite/champagne bubble with soft glow halo ----- */
+.fd-fab {
+  position: relative;
+  width: 56px; height: 56px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 25%, #ffffff 0%, #ededed 60%, #d4d4d4 100%);
+  display: flex; align-items: center; justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  box-shadow:
+    0 0 22px rgba(255, 255, 255, 0.18),
+    0 14px 30px -10px rgba(0, 0, 0, 0.8);
+  transition: transform 220ms cubic-bezier(.2,.8,.2,1),
+              box-shadow 220ms ease-out,
+              border-color 220ms ease-out;
+}
+.fd-fab:hover {
+  transform: translateY(-2px);
+  border-color: rgba(255, 255, 255, 0.75);
+  box-shadow:
+    0 0 32px rgba(255, 255, 255, 0.28),
+    0 18px 40px -10px rgba(0, 0, 0, 0.85);
+}
+.fd-fab:active { transform: scale(0.94); }
+.fd-fab:active svg { animation: fd-icon-pulse 380ms ease-out; }
+.fd-fab:focus-visible {
+  outline: none;
+  border-color: rgba(212, 197, 160, 0.85);
+  box-shadow:
+    0 0 0 2px rgba(212, 197, 160, 0.35),
+    0 14px 32px -10px rgba(0, 0, 0, 0.8);
+}
+.fd-fab[data-launching="true"] {
+  transform: scale(0.92);
+  box-shadow: 0 0 36px rgba(255, 255, 255, 0.45), 0 14px 32px -10px rgba(0, 0, 0, 0.85);
+}
+.fd-fab-halo {
+  position: absolute;
+  inset: -8px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0) 70%);
+  opacity: 0;
+  transition: opacity 280ms ease-out;
+  pointer-events: none;
+}
+.fd-fab:hover .fd-fab-halo { opacity: 1; animation: fd-halo-breathe 2.4s ease-in-out infinite; }
+@keyframes fd-halo-breathe {
+  0%, 100% { transform: scale(1); opacity: 0.65; }
+  50%      { transform: scale(1.08); opacity: 1; }
+}
+@keyframes fd-icon-pulse {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.18); }
+  100% { transform: scale(1); }
+}
+
+/* ----- Liquid bubble launch into scanner lightbox ----- */
+.fd-launch {
+  position: absolute;
+  inset: 0;
+  z-index: 110;
+  pointer-events: none;
+  display: flex; align-items: flex-end; justify-content: flex-end;
+  padding: 0 24px 28px 0;
+}
+.fd-launch-bubble {
+  display: block;
+  width: 56px; height: 56px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 25%, #ffffff 0%, #ededed 60%, #d4d4d4 100%);
+  box-shadow: 0 0 60px rgba(255, 255, 255, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.6);
+  transform-origin: center;
+  animation: fd-bloom 480ms cubic-bezier(.2,.8,.2,1) forwards;
+}
+@keyframes fd-bloom {
+  0%   { transform: scale(1); opacity: 1; filter: blur(0); }
+  60%  { opacity: 1; }
+  100% { transform: scale(28); opacity: 0.98; filter: blur(2px); }
+}
+
+/* ----- Scanner lightbox entrance ----- */
+.fd-scan-sheet {
+  animation: fd-sheet-in 280ms cubic-bezier(.2,.8,.2,1) both;
+}
+@keyframes fd-sheet-in {
+  from { opacity: 0; transform: scale(0.96); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fd-shell, .fd-pill, .fd-tab, .fd-tab-icon, .fd-fab, .fd-fab-halo,
+  .fd-launch-bubble, .fd-scan-sheet {
+    transition: none !important;
+    animation: none !important;
+  }
+}
