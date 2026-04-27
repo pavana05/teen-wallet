@@ -280,6 +280,11 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
   }, [userId, payload, amount, balance, note, attemptId]);
 
   const reset = useCallback(() => {
+    // Best-effort: cancel the server attempt if one is in-flight.
+    if (attemptId) {
+      void callWithAuth(cancelAttempt, { attemptId }).catch(() => {});
+    }
+    setAttemptId(null);
     setPayload(null);
     setAmount(0);
     setNote("");
@@ -288,23 +293,31 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
     setSavedTxn(null);
     navLockRef.current = false;
     clearPersisted();
+    clearAttemptId();
     setScannerKey((k) => k + 1);
     setPhase("scanning");
-  }, []);
+  }, [attemptId]);
 
   // Retry the last attempted payment without re-scanning. Used by the failure
   // screen when the failure was transient (network/insufficient balance fixed).
   const retryPay = useCallback(() => {
     if (!payload) { reset(); return; }
+    // Old attempt is terminal — start a fresh one on next Confirm.
+    setAttemptId(null);
+    clearAttemptId();
     setResultMsg("");
     setFailKind("generic");
     setPhase("confirm");
   }, [payload, reset]);
 
   const handleHardBack = useCallback(() => {
+    if (attemptId && (phase === "confirm" || phase === "processing")) {
+      void callWithAuth(cancelAttempt, { attemptId }).catch(() => {});
+    }
     clearPersisted();
+    clearAttemptId();
     onBack();
-  }, [onBack]);
+  }, [onBack, attemptId, phase]);
 
 
   if (phase === "processing") return <ProcessingView amount={amount} />;
