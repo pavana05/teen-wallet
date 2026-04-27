@@ -1501,5 +1501,152 @@ Deno.serve(async (req) => {
     return json({ ok: true });
   }
 
+  // ---------------------------------------------------------------
+  // App Images library — admin-managed image slots that the app reads
+  // at runtime. Anyone signed in as admin can read/write/delete.
+  // ---------------------------------------------------------------
+  if (action === "app_images_list") {
+    const { data, error } = await sb
+      .from("app_images")
+      .select("*")
+      .order("key");
+    if (error) return json({ error: error.message }, 500);
+    return json({ rows: data ?? [] });
+  }
+
+  if (action === "app_images_upsert_meta") {
+    // Create or rename a slot WITHOUT changing the image. Used to register
+    // a new key (e.g. "promo.banner") with a friendly label/description.
+    const key = String(body.key ?? "").trim();
+    if (!key || !/^[a-z0-9._-]{1,64}$/.test(key)) return json({ error: "invalid_key" }, 400);
+    const label = String(body.label ?? "").slice(0, 80);
+    const description = String(body.description ?? "").slice(0, 240) || null;
+    const alt = String(body.alt ?? "").slice(0, 200);
+    if (!label) return json({ error: "missing_label" }, 400);
+    const { error } = await sb
+      .from("app_images")
+      .upsert({ key, label, description, alt, updated_by_email: me.email }, { onConflict: "key" });
+    if (error) return json({ error: error.message }, 500);
+    await audit(me.id, me.email, me.role, "app_images_upsert_meta", { key, label });
+    return json({ ok: true });
+  }
+
+  if (action === "app_images_upload") {
+    // Replace the image for a given slot. Body: { key, alt?, fileBase64,
+    // contentType, width?, height? }. The slot row is upserted on the way
+    // through, so this also creates the slot if it didn't exist yet.
+    const key = String(body.key ?? "").trim();
+    if (!key || !/^[a-z0-9._-]{1,64}$/.test(key)) return json({ error: "invalid_key" }, 400);
+    const contentType = String(body.contentType ?? "");
+    const allowed = ["image/png", "image/jpeg", "image/webp", "image/gif", "image/svg+xml"];
+    if (!allowed.includes(contentType)) return json({ error: "unsupported_type" }, 400);
+    const b64 = String(body.fileBase64 ?? "");
+    if (!b64) return json({ error: "missing_file" }, 400);
+
+    // Decode base64 → Uint8Array (Deno-safe).
+    let bytes: Uint8Array;
+    try {
+      const bin = atob(b64);
+      bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    } catch {
+      return json({ error: "invalid_base64" }, 400);
+    }
+    const MAX_BYTES = 6 * 1024 * 1024; // 6 MB hard cap
+    if (bytes.byteLength > MAX_BYTES) return json({ error: "file_too_large" }, 413);
+
+    const ext = contentType === "image/jpeg" ? "jpg"
+              : contentType === "image/png" ? "png"
+              : contentType === "image/webp" ? "webp"
+              : contentType === "image/gif" ? "gif"
+              : "svg";
+    // Cache-busting filename so a fresh upload doesn't get served from CDN.
+    const path = `${key}/${Date.now()}.${ext}`;
+
+    const { error: upErr } = await sb.storage.from("app-images").upload(path, bytes, {
+      contentType,
+      cacheControl: "3600",
+      upsert: true,
+    });
+    if (upErr) return json({ error: upErr.message }, 500);
+
+    const { data: pub } = sb.storage.from("app-images").getPublicUrl(path);
+    const url = pub?.publicUrl ?? null;
+    if (!url) return json({ error: "no_public_url" }, 500);
+
+    // Existing slot? Preserve label/description; otherwise create fresh.
+    const { data: existing } = await sb
+      .from("app_images")
+      .select("key,label,description,storage_path")
+      .eq("key", key)
+      .maybeSingle();
+
+    const row = {
+      key,
+      label: existing?.label ?? (String(body.label ?? "") || key),
+      description: existing?.description ?? (String(body.description ?? "") || null),
+      url,
+      storage_path: path,
+      alt: String(body.alt ?? "").slice(0, 200) || (existing as any)?.alt || "",
+      width: body.width != null ? Number(body.width) : null,
+      height: body.height != null ? Number(body.height) : null,
+      bytes: bytes.byteLength,
+      content_type: contentType,
+      updated_by_email: me.email,
+      updated_at: new Date().toISOString(),
+    };
+    const { error: dbErr } = await sb
+      .from("app_images")
+      .upsert(row, { onConflict: "key" });
+    if (dbErr) return json({ error: dbErr.message }, 500);
+
+    // Best-effort: clean up the previous file so the bucket doesn't bloat.
+    if (existing?.storage_path && existing.storage_path !== path) {
+      await sb.storage.from("app-images").remove([existing.storage_path]).catch(() => {});
+    }
+
+    await audit(me.id, me.email, me.role, "app_images_upload", { key, bytes: bytes.byteLength, contentType });
+    return json({ ok: true, url, key });
+  }
+
+  if (action === "app_images_clear") {
+    // Removes the image (file + url) but keeps the slot entry so it can be
+    // re-uploaded later. Use app_images_delete to drop the slot entirely.
+    const key = String(body.key ?? "").trim();
+    if (!key) return json({ error: "missing_key" }, 400);
+    const { data: existing } = await sb
+      .from("app_images")
+      .select("storage_path")
+      .eq("key", key)
+      .maybeSingle();
+    if (existing?.storage_path) {
+      await sb.storage.from("app-images").remove([existing.storage_path]).catch(() => {});
+    }
+    const { error } = await sb
+      .from("app_images")
+      .update({ url: null, storage_path: null, bytes: null, width: null, height: null, content_type: null, updated_by_email: me.email })
+      .eq("key", key);
+    if (error) return json({ error: error.message }, 500);
+    await audit(me.id, me.email, me.role, "app_images_clear", { key });
+    return json({ ok: true });
+  }
+
+  if (action === "app_images_delete") {
+    const key = String(body.key ?? "").trim();
+    if (!key) return json({ error: "missing_key" }, 400);
+    const { data: existing } = await sb
+      .from("app_images")
+      .select("storage_path")
+      .eq("key", key)
+      .maybeSingle();
+    if (existing?.storage_path) {
+      await sb.storage.from("app-images").remove([existing.storage_path]).catch(() => {});
+    }
+    const { error } = await sb.from("app_images").delete().eq("key", key);
+    if (error) return json({ error: error.message }, 500);
+    await audit(me.id, me.email, me.role, "app_images_delete", { key });
+    return json({ ok: true });
+  }
+
   return json({ error: "unknown_action" }, 400);
 });

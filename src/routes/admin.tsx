@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useAdminSession, ROLE_LABELS, ROLE_BADGE } from "@/admin/lib/adminAuth";
 import {
   LayoutDashboard, Users, ShieldAlert, FileCheck2, Wallet, Settings, LogOut,
-  Bell, Activity, Search, ChevronLeft, ChevronRight, Command, MessageSquareWarning,
+  Bell, Activity, Search, ChevronLeft, ChevronRight, Command, MessageSquareWarning, ImageIcon,
 } from "lucide-react";
 import { PerfOverlay } from "@/admin/components/PerfOverlay";
 import { CommandPalette } from "@/admin/components/CommandPalette";
@@ -56,6 +56,7 @@ function AdminLayout() {
     { to: "/admin/fraud", label: "Fraud", icon: ShieldAlert, kbd: "g f" },
     { to: "/admin/reports", label: "Issue Reports", icon: MessageSquareWarning, kbd: "g r" },
     { to: "/admin/campaigns", label: "Gender Campaigns", icon: Bell, kbd: "g c" },
+    { to: "/admin/app-images", label: "App Images", icon: ImageIcon, kbd: "g i" },
     { to: "/admin/diagnostics", label: "Diagnostics", icon: Activity },
     { to: "/admin/settings", label: "Settings", icon: Settings },
   ];
