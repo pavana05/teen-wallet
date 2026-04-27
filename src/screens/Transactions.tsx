@@ -308,8 +308,8 @@ function FilterChip({ children, active, onClick }: { children: React.ReactNode; 
 }
 
 function TxnDetailRow({
-  txn, credit, balanceAfter,
-}: { txn: Txn; credit: boolean; balanceAfter: number }) {
+  txn, credit, balanceAfter, onOpen,
+}: { txn: Txn; credit: boolean; balanceAfter: number; onOpen: () => void }) {
   const d = new Date(txn.created_at);
   const sign = credit ? "+" : "−";
   const StatusIcon = txn.status === "success" ? CheckCircle2 : txn.status === "pending" ? Clock : XCircle;
@@ -320,11 +320,11 @@ function TxnDetailRow({
   const failed = txn.status === "failed";
 
   return (
-    <div
-      className="hp-row"
-      role="article"
-      aria-label={`${credit ? "Credit" : "Debit"} ${sign}${fmtINR(txn.amount)} ${credit ? "from" : "to"} ${txn.merchant_name}, status ${txn.status}`}
-      tabIndex={0}
+    <button
+      type="button"
+      onClick={onOpen}
+      className="hp-row w-full text-left transition-transform active:scale-[.99]"
+      aria-label={`${credit ? "Credit" : "Debit"} ${sign}${fmtINR(txn.amount)} ${credit ? "from" : "to"} ${txn.merchant_name}, status ${txn.status}. View details.`}
     >
       <div
         className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
