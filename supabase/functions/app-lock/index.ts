@@ -319,8 +319,10 @@ Deno.serve(async (req) => {
           return json({ error: "Attestation not verified" }, 401);
         }
         const info = verification.registrationInfo;
+        // In v10: credentialID is already a Base64URLString; credentialPublicKey is Uint8Array.
+        const credIdB64 = info.credentialID;
         await admin.from("user_security").update({
-          biometric_credential_id: bufToB64url(info.credentialID),
+          biometric_credential_id: credIdB64,
           biometric_public_key: bufToB64url(info.credentialPublicKey),
           biometric_sign_count: info.counter ?? 0,
           biometric_transports: body.attestation_response.response?.transports ?? null,
@@ -329,7 +331,7 @@ Deno.serve(async (req) => {
           webauthn_challenge_purpose: null,
           webauthn_challenge_expires_at: null,
         }).eq("user_id", userId);
-        return json({ ok: true, credential_id: bufToB64url(info.credentialID) });
+        return json({ ok: true, credential_id: credIdB64 });
       }
 
       case "biometric_auth_options": {
@@ -347,7 +349,8 @@ Deno.serve(async (req) => {
           rpID: body.rp_id,
           userVerification: "required",
           allowCredentials: [{
-            id: b64urlToBytes(row.biometric_credential_id),
+            // v10 expects Base64URLString here, not Uint8Array.
+            id: row.biometric_credential_id,
             type: "public-key",
             transports: row.biometric_transports ?? undefined,
           }],
@@ -392,7 +395,8 @@ Deno.serve(async (req) => {
             expectedOrigin: body.origin,
             expectedRPID: body.rp_id,
             authenticator: {
-              credentialID: b64urlToBytes(row.biometric_credential_id),
+              // v10: credentialID is Base64URLString; credentialPublicKey is Uint8Array.
+              credentialID: row.biometric_credential_id,
               credentialPublicKey: b64urlToBytes(row.biometric_public_key),
               counter: Number(row.biometric_sign_count ?? 0),
             },
