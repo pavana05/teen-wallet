@@ -564,6 +564,7 @@ export function ProfilePanel({ onClose }: Props) {
                   onToggle={() => toggleSection("ac-contact", true)}
                 >
                   <DetailRow icon={Smartphone} label="Phone" value={phone} onEdit={() => setEditPhoneOpen(true)} />
+                  <DetailRow icon={Cake} label="Birthday" value={profile?.dob ? formatBirthday(profile.dob) : "Not added"} />
                   <DetailRow icon={ShieldCheck} label="Aadhaar" value={profile?.aadhaar_last4 ? `XXXX XXXX ${profile.aadhaar_last4}` : "Not added"} />
                   <DetailRow icon={BadgeCheck} label="KYC status" value={kycMeta.label} />
                 </CollapsibleSection>
