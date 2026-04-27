@@ -354,18 +354,18 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
             </div>
           )}
 
-          <div className="mt-6 text-sm">
-            {errorKind === "rate_limited" && resendBlocked ? (
-              <span className="text-destructive/90">
-                Too many requests. Resend available in {resendIn}s.
-              </span>
-            ) : resendBlocked ? (
-              <span className="text-muted-foreground">Resend OTP in {resendIn}s</span>
-            ) : (
-              <button onClick={handleSendOtp} disabled={busy} className="text-primary font-medium disabled:opacity-50">
-                Resend OTP
-              </button>
-            )}
+          <div className="mt-7">
+            <ResendCountdown
+              resendIn={resendIn}
+              cooldownTotalMs={cooldownTotalMs}
+              blocked={resendBlocked}
+              busy={busy}
+              lockedOut={lockedOut}
+              rateLimited={errorKind === "rate_limited"}
+              resendCount={resendCount}
+              maxResends={MAX_RESENDS_BEFORE_LOCK}
+              onResend={handleSendOtp}
+            />
           </div>
 
           <div className="flex-1" />
