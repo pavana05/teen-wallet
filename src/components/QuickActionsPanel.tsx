@@ -35,7 +35,15 @@ import {
   Lock,
 } from "lucide-react";
 import { haptics } from "@/lib/haptics";
-import { downloadReceiptPdf, shareReceiptPdf, buildReceiptSummary, type ReceiptData } from "@/lib/receipt";
+import { downloadReceiptPdf, shareReceiptPdf, shareReceiptToWhatsApp, buildReceiptSummary, type ReceiptData } from "@/lib/receipt";
+import {
+  recordReceiptDelivery,
+  getLastDelivery,
+  channelLabel,
+  statusLabel,
+  relativeTime,
+  type ReceiptDelivery,
+} from "@/lib/receiptDelivery";
 import { useApp } from "@/lib/store";
 import { supabase } from "@/integrations/supabase/client";
 import { payUpi } from "@/lib/payments.functions";
