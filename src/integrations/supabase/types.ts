@@ -570,6 +570,69 @@ export type Database = {
         }
         Relationships: []
       }
+      payment_attempts: {
+        Row: {
+          amount: number
+          client_ref: string | null
+          completed_at: string | null
+          created_at: string
+          failure_reason: string | null
+          fraud_flags: Json
+          id: string
+          method: Database["public"]["Enums"]["payment_method"]
+          note: string | null
+          payee_name: string
+          processing_started_at: string | null
+          provider_ref: string | null
+          stage: Database["public"]["Enums"]["payment_stage"]
+          transaction_id: string | null
+          updated_at: string
+          upi_id: string
+          user_id: string
+          webhook_due_at: string | null
+        }
+        Insert: {
+          amount: number
+          client_ref?: string | null
+          completed_at?: string | null
+          created_at?: string
+          failure_reason?: string | null
+          fraud_flags?: Json
+          id?: string
+          method?: Database["public"]["Enums"]["payment_method"]
+          note?: string | null
+          payee_name: string
+          processing_started_at?: string | null
+          provider_ref?: string | null
+          stage?: Database["public"]["Enums"]["payment_stage"]
+          transaction_id?: string | null
+          updated_at?: string
+          upi_id: string
+          user_id: string
+          webhook_due_at?: string | null
+        }
+        Update: {
+          amount?: number
+          client_ref?: string | null
+          completed_at?: string | null
+          created_at?: string
+          failure_reason?: string | null
+          fraud_flags?: Json
+          id?: string
+          method?: Database["public"]["Enums"]["payment_method"]
+          note?: string | null
+          payee_name?: string
+          processing_started_at?: string | null
+          provider_ref?: string | null
+          stage?: Database["public"]["Enums"]["payment_stage"]
+          transaction_id?: string | null
+          updated_at?: string
+          upi_id?: string
+          user_id?: string
+          webhook_due_at?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           aadhaar_last4: string | null
@@ -681,6 +744,16 @@ export type Database = {
     }
     Functions: {
       admin_email_allowed: { Args: { _email: string }; Returns: boolean }
+      finalize_due_payment_attempt: {
+        Args: { _attempt_id: string }
+        Returns: {
+          failure_reason: string
+          id: string
+          new_balance: number
+          stage: Database["public"]["Enums"]["payment_stage"]
+          transaction_id: string
+        }[]
+      }
     }
     Enums: {
       admin_status: "active" | "locked" | "disabled" | "pending"
@@ -699,6 +772,13 @@ export type Database = {
         | "STAGE_3"
         | "STAGE_4"
         | "STAGE_5"
+      payment_method: "upi" | "wallet" | "card"
+      payment_stage:
+        | "confirm"
+        | "processing"
+        | "success"
+        | "failed"
+        | "cancelled"
       txn_status: "success" | "pending" | "failed"
     }
     CompositeTypes: {
@@ -844,6 +924,14 @@ export const Constants = {
         "STAGE_3",
         "STAGE_4",
         "STAGE_5",
+      ],
+      payment_method: ["upi", "wallet", "card"],
+      payment_stage: [
+        "confirm",
+        "processing",
+        "success",
+        "failed",
+        "cancelled",
       ],
       txn_status: ["success", "pending", "failed"],
     },
