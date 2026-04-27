@@ -88,8 +88,11 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
   // Persist OTP UX state on every meaningful change so refresh doesn't lose progress.
   useEffect(() => {
     if (step !== "otp") return;
-    saveOtpState({ phone, digits: otp, error, errorKind, correlationId: errorId, busy, resendBlockedUntil });
-  }, [step, phone, otp, error, errorKind, errorId, busy, resendBlockedUntil]);
+    saveOtpState({
+      phone, digits: otp, error, errorKind, correlationId: errorId, busy,
+      resendBlockedUntil, resendCount, cooldownTotalMs,
+    });
+  }, [step, phone, otp, error, errorKind, errorId, busy, resendBlockedUntil, resendCount, cooldownTotalMs]);
 
   // Auto-focus first empty OTP slot when entering the OTP step.
   useEffect(() => {
@@ -102,23 +105,45 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
   const valid = /^[6-9]\d{9}$/.test(phone);
   const formatted = phone.replace(/(\d{5})(\d{0,5})/, (_, a, b) => (b ? `${a} ${b}` : a));
   const resendBlocked = resendIn > 0 || (resendBlockedUntil !== null && resendBlockedUntil > Date.now());
+  const lockedOut = resendCount >= MAX_RESENDS_BEFORE_LOCK && resendBlocked;
+
+  /**
+   * Start a fresh cooldown window. `escalate=true` advances the ladder (used
+   * for resends); `escalate=false` keeps the same step (used for the initial
+   * send so the first cooldown is always 30s).
+   */
+  function startCooldown(escalate: boolean) {
+    const nextCount = escalate ? Math.min(resendCount + 1, MAX_RESENDS_BEFORE_LOCK) : resendCount;
+    const seconds = cooldownForCount(escalate ? nextCount - 1 : nextCount);
+    setResendCount(nextCount);
+    setCooldownTotalMs(seconds * 1000);
+    setResendIn(seconds);
+    setResendBlockedUntil(Date.now() + seconds * 1000);
+  }
 
   async function handleSendOtp() {
     if (!valid) { setError("Enter a valid Indian mobile number"); return; }
+    // Hard client-side block — never let a click fire while in cooldown.
+    if (step === "otp" && resendBlocked) return;
     setError(""); setErrorKind(null); setErrorId(null); setBusy(true);
     try {
       const r = await sendOtp(phone);
       setPendingPhone("+91" + phone);
       toast.success(`OTP sent — dev code: ${r.devOtp}`);
-      setResendIn(RESEND_COOLDOWN_S);
-      setResendBlockedUntil(null);
+      // First send keeps the base cooldown; subsequent sends escalate.
+      startCooldown(step === "otp");
       setStep("otp");
     } catch (e) {
       const { message, kind, correlationId } = classifyOtpError(e);
       setError(message); setErrorKind(kind); setErrorId(correlationId);
       void logOtpErrorEvent(kind, e instanceof Error ? e.message : String(e), phone, correlationId);
       if (kind === "rate_limited") {
-        setResendBlockedUntil(Date.now() + 60_000);
+        // Server told us to back off — jump to the longest cooldown step.
+        const seconds = RESEND_LADDER_S[RESEND_LADDER_S.length - 1];
+        setResendCount(MAX_RESENDS_BEFORE_LOCK);
+        setCooldownTotalMs(seconds * 1000);
+        setResendIn(seconds);
+        setResendBlockedUntil(Date.now() + seconds * 1000);
       }
     } finally { setBusy(false); }
   }
