@@ -122,6 +122,8 @@ function Index() {
               setStage("STAGE_3");
             }
           }} />
+        ) : referralPending && (stage === "STAGE_3" || stage === "STAGE_4" || stage === "STAGE_5") ? (
+          <OnboardingReferral onDone={markReferralDone} />
         ) : !permsSeen && (stage === "STAGE_3" || stage === "STAGE_4") ? (
           <Permissions onDone={() => { markPermsSeen(); }} />
         ) : stage === "STAGE_3" ? (
