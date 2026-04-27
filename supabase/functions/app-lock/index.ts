@@ -79,7 +79,7 @@ function constEq(a: string, b: string): boolean {
 // Lockout schedule based on failed attempt count.
 function lockoutMsFor(attempts: number): number | null {
   if (attempts >= 15) return 30 * 60_000;
-  if (attempts >= 10) => 5 * 60_000;
+  if (attempts >= 10) return 5 * 60_000;
   if (attempts >= 5) return 30_000;
   return null;
 }
