@@ -5662,3 +5662,127 @@ html.motion-off .sp-pay-halo-2 { display: none !important; }
 }
 .ps-label-current { color: var(--primary); font-weight: 700; }
 .ps-label-failed { color: var(--destructive); font-weight: 700; }
+
+/* ============================================================
+   Permissions row micro-interactions
+   - Tap pulse: ripple from icon on press
+   - Granted: check pop + soft glow sweep
+   - Denied: subtle shake (uses tw-shake keyframes)
+   ============================================================ */
+.perm-row { position: relative; overflow: hidden; }
+.perm-row:not(:disabled):active { transform: scale(0.985); }
+
+@keyframes perm-tap-pulse {
+  0%   { transform: translate(-50%, -50%) scale(0.2); opacity: 0.55; }
+  60%  { opacity: 0.25; }
+  100% { transform: translate(-50%, -50%) scale(2.2); opacity: 0; }
+}
+.perm-row::after {
+  content: "";
+  position: absolute;
+  left: 28px; top: 50%;
+  width: 60px; height: 60px;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.05) 55%, transparent 70%);
+  transform: translate(-50%, -50%) scale(0.2);
+  opacity: 0;
+  pointer-events: none;
+}
+.perm-row:not(:disabled):active::after {
+  animation: perm-tap-pulse 520ms ease-out;
+}
+
+/* Granted: pop + glow sweep across the row */
+@keyframes perm-check-pop {
+  0%   { transform: scale(0.4) rotate(-12deg); opacity: 0; }
+  55%  { transform: scale(1.18) rotate(2deg); opacity: 1; }
+  100% { transform: scale(1) rotate(0deg); opacity: 1; }
+}
+@keyframes perm-row-glow {
+  0%   { box-shadow: inset 0 1px 0 rgba(255,255,255,.06), 0 0 0 0 rgba(110,231,183,0.55); }
+  60%  { box-shadow: inset 0 1px 0 rgba(255,255,255,.06), 0 0 28px 4px rgba(110,231,183,0.35); }
+  100% { box-shadow: inset 0 1px 0 rgba(255,255,255,.06), 0 8px 22px -16px rgba(16,185,129,.5); }
+}
+.perm-row-on { animation: perm-row-glow 720ms ease-out; }
+.perm-pill-on > svg { animation: perm-check-pop 420ms cubic-bezier(.18,.89,.32,1.28) both; }
+
+/* Granted icon shimmer sweep */
+@keyframes perm-icon-shine {
+  0%   { background-position: -120% 0; }
+  100% { background-position: 220% 0; }
+}
+.perm-row-on .perm-row-icon::before {
+  content: "";
+  position: absolute; inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(110deg, transparent 35%, rgba(255,255,255,0.28) 50%, transparent 65%);
+  background-size: 200% 100%;
+  animation: perm-icon-shine 900ms ease-out 60ms both;
+  pointer-events: none;
+}
+.perm-row-icon { position: relative; overflow: hidden; }
+
+/* Denied: subtle, gentler shake than tw-shake */
+@keyframes perm-shake {
+  0%, 100% { transform: translateX(0); }
+  20%  { transform: translateX(-3px); }
+  40%  { transform: translateX(3px); }
+  60%  { transform: translateX(-2px); }
+  80%  { transform: translateX(2px); }
+}
+.perm-row-denied { animation: perm-shake 360ms cubic-bezier(.36,.07,.19,.97) both; }
+
+/* Respect motion preferences */
+html.motion-reduced .perm-row::after,
+html.motion-reduced .perm-row-on,
+html.motion-reduced .perm-row-on .perm-row-icon::before,
+html.motion-reduced .perm-pill-on > svg { animation: none !important; }
+html.motion-reduced .perm-row-denied { animation: none !important; }
+
+/* ============================================================
+   KYC Step 1 polish — premium inputs + per-field error states
+   ============================================================ */
+.kyc-form-scroll {
+  /* Allow the long Step-1 form to scroll inside the phone shell on shorter
+     viewports without clipping School/Address fields. */
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,0.12) transparent;
+  padding-right: 2px;
+  -webkit-overflow-scrolling: touch;
+}
+.kyc-form-scroll::-webkit-scrollbar { width: 6px; }
+.kyc-form-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.10);
+  border-radius: 999px;
+}
+
+.kyc-field { position: relative; transition: transform 180ms ease; }
+.kyc-field-label {
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase;
+  color: rgba(255,255,255,0.55); font-weight: 500;
+}
+.kyc-field-hint {
+  margin-top: 6px;
+  font-size: 11px; color: rgba(255,255,255,0.42);
+  line-height: 1.4;
+  transition: color 200ms ease, opacity 200ms ease;
+}
+.kyc-field-error-msg {
+  margin-top: 6px;
+  font-size: 11.5px; color: #fca5a5;
+  display: inline-flex; align-items: center; gap: 5px;
+  animation: tw-slide-up 220ms ease-out both;
+}
+.kyc-input-error.tw-input {
+  border-bottom-color: #f87171 !important;
+  box-shadow: 0 4px 18px -10px rgba(248,113,113,0.55) !important;
+  animation: tw-shake 360ms cubic-bezier(.36,.07,.19,.97) both;
+}
+
+html.motion-reduced .kyc-input-error.tw-input,
+html.motion-reduced .kyc-field-error-msg { animation: none !important; }
