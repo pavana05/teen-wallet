@@ -6159,3 +6159,16 @@ html.motion-off    .otp-resend-ring svg circle { transition: none !important; }
   letter-spacing: 0.06em;
 }
 
+
+/* ===== Boot gate — premium slide-in for the skeleton fallback ===== */
+@keyframes boot-slide-in {
+  from { opacity: 0; transform: translateY(14px); filter: blur(6px); }
+  to   { opacity: 1; transform: translateY(0);    filter: blur(0); }
+}
+.boot-slide-in {
+  animation: boot-slide-in 520ms cubic-bezier(.2,.8,.2,1) both;
+  will-change: opacity, transform, filter;
+}
+@media (prefers-reduced-motion: reduce) {
+  .boot-slide-in { animation: none !important; filter: none !important; }
+}
