@@ -19,6 +19,7 @@ import { ProfileCompletionMeter } from "./profile/ProfileCompletionMeter";
 import { QuickActions } from "./profile/QuickActions";
 import { InlineEditCard } from "./profile/InlineEditCard";
 import { useMotionLevel, type MotionLevel } from "@/lib/motionPrefs";
+import { qrColors } from "@/lib/themeTokens";
 
 interface Props {
   onClose: () => void;
