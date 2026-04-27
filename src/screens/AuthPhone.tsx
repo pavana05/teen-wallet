@@ -15,6 +15,7 @@ import {
   type OtpErrorKind,
 } from "@/lib/otpState";
 import { CopyableErrorId } from "@/components/CopyableErrorId";
+import { ResendCountdown } from "@/components/ResendCountdown";
 
 type Step = "phone" | "otp" | "verified";
 
