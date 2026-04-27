@@ -689,8 +689,16 @@ export function ProfilePanel({ onClose }: Props) {
                   hint="My reports & shake settings"
                   onClick={() => { onClose(); window.location.assign("/preview/profile-help"); }}
                 />
-                <Row icon={FileText} label="Terms of service" />
-                <Row icon={FileText} label="Privacy policy" />
+                <Row
+                  icon={FileText}
+                  label="Terms of service"
+                  onClick={() => window.open("https://teen-wallet.lovable.app/terms", "_blank", "noopener,noreferrer")}
+                />
+                <Row
+                  icon={FileText}
+                  label="Privacy policy"
+                  onClick={() => window.open("https://teen-wallet.lovable.app/privacy", "_blank", "noopener,noreferrer")}
+                />
                 <Row icon={Settings} label="App version" hint="v1.0.6" />
               </CollapsibleSection>
               <CollapsibleSection
