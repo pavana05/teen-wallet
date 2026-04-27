@@ -23,6 +23,7 @@ import { InlineEditCard } from "./profile/InlineEditCard";
 import { useMotionLevel, type MotionLevel } from "@/lib/motionPrefs";
 import { qrColors } from "@/lib/themeTokens";
 import { ReferralProgram } from "@/screens/ReferralProgram";
+import { FloatingDock } from "@/components/FloatingDock";
 
 interface Props {
   onClose: () => void;
