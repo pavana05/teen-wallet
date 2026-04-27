@@ -340,11 +340,15 @@ function KycQueue() {
       .finally(() => setHistoryLoading(false));
   }, [reviewing]);
 
-  // Reset reject form whenever review modal changes target.
+  // Reset reject + approve forms whenever review modal changes target.
   useEffect(() => {
     setShowReject(false);
     setRejectReason("");
     setRejectNote("");
+    setRejectConfirm("");
+    setShowApprove(false);
+    setApproveNote("");
+    setApproveConfirm("");
   }, [reviewing?.id]);
 
   // Compose final reject reason from the dropdown + custom note.
@@ -356,20 +360,42 @@ function KycQueue() {
     if (rejectReason === "Other (write below)") return note;
     return note ? `${rejectReason} — ${note}` : rejectReason;
   }
-  const rejectValid = rejectReason !== "" && rejectNote.trim().length >= 4;
+  const APPROVE_PHRASE = "APPROVE";
+  const REJECT_PHRASE = "REJECT";
+  const rejectValid =
+    rejectReason !== "" &&
+    rejectNote.trim().length >= 4 &&
+    rejectConfirm.trim().toUpperCase() === REJECT_PHRASE;
+  const approveValid =
+    approveNote.trim().length >= 4 &&
+    approveConfirm.trim().toUpperCase() === APPROVE_PHRASE;
 
   async function decide(submissionId: string, decision: "approved" | "rejected", reason?: string) {
     const s = readAdminSession();
     if (!s) return;
+    // Defense in depth: never let a stale handler bypass the form invariants.
+    const composed = (reason ?? "").trim();
+    if (decision === "rejected" && (!rejectValid || composed.length < 4)) {
+      toast.error("Add a reason, a reviewer note (≥4 chars) and type REJECT to confirm");
+      return;
+    }
+    if (decision === "approved" && !approveValid) {
+      toast.error("Add an approval note (≥4 chars) and type APPROVE to confirm");
+      return;
+    }
     setBusyId(submissionId);
     setErr("");
     try {
-      await callAdminFn({ action: "kyc_decide", sessionToken: s.sessionToken, submissionId, decision, reason: reason || "" });
+      await callAdminFn({ action: "kyc_decide", sessionToken: s.sessionToken, submissionId, decision, reason: composed });
       toast.success(decision === "approved" ? "KYC approved" : "KYC rejected");
       setReviewing(null);
       setShowReject(false);
+      setShowApprove(false);
       setRejectReason("");
       setRejectNote("");
+      setRejectConfirm("");
+      setApproveNote("");
+      setApproveConfirm("");
       setCursor(null);
       setRows([]);
       await fetchList(true);
