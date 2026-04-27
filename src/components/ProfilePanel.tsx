@@ -132,6 +132,14 @@ export function ProfilePanel({ onClose }: Props) {
 
   useEffect(() => { void refetch(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [userId]);
 
+  // Reset scroll to the top of the panel whenever the user switches tabs so
+  // each section opens at its header instead of preserving the prior position.
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (el) el.scrollTo({ top: 0, behavior: "auto" });
+  }, [tab]);
+
   const phone = profile?.phone ?? "+91 ••••• •••••";
   const upiId = useMemo(() => {
     const digits = (profile?.phone ?? "").replace(/\D/g, "").slice(-10);
