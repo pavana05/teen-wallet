@@ -47,6 +47,12 @@ function Index() {
     setPermsSeen(true);
   };
 
+  // Optional referral step shown once between Auth and Permissions/KYC.
+  // The user can apply a code or skip; either way we mark it done so the
+  // screen never reappears on subsequent launches.
+  const [referralPending, setReferralPending] = useState<boolean>(() => shouldShowReferralPrompt());
+  const markReferralDone = () => setReferralPending(false);
+
   useEffect(() => {
     let mounted = true;
     (async () => {
