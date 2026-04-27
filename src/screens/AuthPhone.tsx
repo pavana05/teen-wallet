@@ -176,7 +176,11 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
       toast.error(kind === "network" ? "Network error" : "Verification failed", { description: `${message} (ID: ${correlationId})` });
 
       if (kind === "rate_limited") {
-        setResendBlockedUntil(Date.now() + 60_000);
+        const seconds = RESEND_LADDER_S[RESEND_LADDER_S.length - 1];
+        setResendCount(MAX_RESENDS_BEFORE_LOCK);
+        setCooldownTotalMs(seconds * 1000);
+        setResendIn(seconds);
+        setResendBlockedUntil(Date.now() + seconds * 1000);
       }
 
       // Keep entered digits on network errors so the user can just tap Try again.
