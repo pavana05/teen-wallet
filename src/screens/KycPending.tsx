@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import { RefreshCw, X, AlertTriangle, Loader2 } from "lucide-react";
 import { setStage as persistStage, updateProfileFields } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
+import { recordCheckpoint } from "@/lib/navState";
 
 type Status = "pending" | "approved" | "rejected" | "unknown";
 
