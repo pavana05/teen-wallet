@@ -6172,3 +6172,44 @@ html.motion-off    .otp-resend-ring svg circle { transition: none !important; }
 @media (prefers-reduced-motion: reduce) {
   .boot-slide-in { animation: none !important; filter: none !important; }
 }
+
+/* ===== Boot gate — premium dark skeleton (no neon) ===== */
+@keyframes boot-skel-sweep {
+  0%   { background-position: -180% 0; }
+  100% { background-position: 180% 0; }
+}
+.boot-skel {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.06);
+  background:
+    linear-gradient(90deg,
+      rgba(255,255,255,0.02) 0%,
+      rgba(212,197,160,0.10) 50%,
+      rgba(255,255,255,0.02) 100%),
+    linear-gradient(180deg, #18181c 0%, #0e0e11 100%);
+  background-size: 200% 100%, 100% 100%;
+  background-repeat: no-repeat;
+  animation: boot-skel-sweep 1.8s ease-in-out infinite;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.04),
+    0 8px 22px -16px rgba(0,0,0,0.7);
+  border-radius: 10px;
+}
+.boot-skel-card {
+  background:
+    linear-gradient(90deg,
+      rgba(255,255,255,0.02) 0%,
+      rgba(212,197,160,0.12) 50%,
+      rgba(255,255,255,0.02) 100%),
+    radial-gradient(120% 140% at 0% 0%, #24242a 0%, #16161a 55%, #0c0c0f 100%);
+  background-size: 200% 100%, 100% 100%;
+  border-color: rgba(212,197,160,0.14);
+}
+.boot-skel-row {
+  height: 64px;
+  border-radius: 14px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .boot-skel { animation: none !important; }
+}
