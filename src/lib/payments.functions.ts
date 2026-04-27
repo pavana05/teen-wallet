@@ -252,9 +252,9 @@ export const payUpi = createServerFn({ method: "POST" })
 
     await supabase.from("notifications").insert({
       user_id: userId,
-      type: "transaction",
+      type: "payment_sent",
       title: `₹${data.amount.toFixed(2)} paid to ${data.payeeName}`,
-      body: data.upiId,
+      body: data.note ? `${data.upiId} · ${data.note}` : data.upiId,
     });
 
     // 6. Build the UPI deep link the client can hand off to a real UPI app
