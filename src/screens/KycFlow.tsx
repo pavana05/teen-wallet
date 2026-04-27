@@ -52,6 +52,7 @@ export function KycFlow({ onDone }: { onDone: () => void }) {
   const [aadhaarOtp, setAadhaarOtp] = useState("");
   const [aadhaarOtpSent, setAadhaarOtpSent] = useState(false);
   const [error, setError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [errorId, setErrorId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [selfie, setSelfie] = useState<SelfiePayload | null>(null);
