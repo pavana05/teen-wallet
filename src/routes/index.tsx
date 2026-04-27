@@ -12,6 +12,7 @@ const KycFlow = lazy(() => import("@/screens/KycFlow").then(m => ({ default: m.K
 const KycPending = lazy(() => import("@/screens/KycPending").then(m => ({ default: m.KycPending })));
 const Permissions = lazy(() => import("@/screens/Permissions").then(m => ({ default: m.Permissions })));
 const Home = lazy(() => import("@/screens/Home").then(m => ({ default: m.Home })));
+const OnboardingReferral = lazy(() => import("@/screens/OnboardingReferral").then(m => ({ default: m.OnboardingReferral })));
 
 const PERMISSIONS_DONE_KEY = "tw_permissions_seen_v1";
 
