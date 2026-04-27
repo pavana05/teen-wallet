@@ -234,7 +234,9 @@ function KpiCard({ icon, label, value, delta, deltaLabel, spark, warn, danger, m
   spark?: Array<{ v: number }>;
   warn?: boolean; danger?: boolean; mono?: boolean;
 }) {
-  const color = danger ? "#ef4444" : warn ? "#f59e0b" : "var(--a-text)";
+  const t = useMemo(() => adminChartTokens(), []);
+  const color = danger ? t.danger : warn ? t.warn : "var(--a-text)";
+  const deltaColor = (delta ?? 0) >= 0 ? t.success : t.danger;
   return (
     <div className="a-surface" style={{ padding: 14 }}>
       <div className="a-label" style={{ display: "flex", alignItems: "center", gap: 6, color: "var(--a-muted)" }}>
@@ -246,14 +248,14 @@ function KpiCard({ icon, label, value, delta, deltaLabel, spark, warn, danger, m
           <div style={{ width: 80, height: 28 }}>
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={spark}>
-                <Area dataKey="v" stroke={PREMIUM_ACCENT} fill={PREMIUM_ACCENT} fillOpacity={0.2} strokeWidth={1.5} />
+                <Area dataKey="v" stroke={t.accent} fill={t.accent} fillOpacity={0.2} strokeWidth={1.5} />
               </AreaChart>
             </ResponsiveContainer>
           </div>
         )}
       </div>
       {typeof delta === "number" && (
-        <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 4, fontSize: 11, color: delta >= 0 ? "#22c55e" : "#ef4444" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 4, fontSize: 11, color: deltaColor }}>
           {delta >= 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
           <span className="a-mono">{delta}</span>
           <span style={{ color: "var(--a-muted)" }}>{deltaLabel}</span>
@@ -275,14 +277,6 @@ function ChartCard({ title, subtitle, children }: { title: string; subtitle?: st
   );
 }
 
-const tooltipStyle = {
-  background: "#161616",
-  border: "1px solid #2a2a2a",
-  borderRadius: 6,
-  fontSize: 12,
-  color: "#f2f2f2",
-};
-
 function shortDate(d: string) {
   if (!d) return "";
   const dt = new Date(d);
@@ -302,11 +296,12 @@ function relTime(ts: string) {
   return Math.floor(s / 86400) + "d";
 }
 function dotColor(kind: string) {
-  if (kind.startsWith("user")) return "#22c55e";
-  if (kind === "kyc_approved") return "#22c55e";
-  if (kind.startsWith("kyc")) return "#f59e0b";
-  if (kind === "txn_failed") return "#ef4444";
-  if (kind.startsWith("txn")) return "#3b82f6";
-  if (kind === "fraud") return "#ef4444";
-  return "#888";
+  const t = adminChartTokens();
+  if (kind.startsWith("user")) return t.success;
+  if (kind === "kyc_approved") return t.success;
+  if (kind.startsWith("kyc")) return t.warn;
+  if (kind === "txn_failed") return t.danger;
+  if (kind.startsWith("txn")) return t.info;
+  if (kind === "fraud") return t.danger;
+  return t.legend;
 }
