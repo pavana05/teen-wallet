@@ -6213,3 +6213,20 @@ html.motion-off    .otp-resend-ring svg circle { transition: none !important; }
 @media (prefers-reduced-motion: reduce) {
   .boot-skel { animation: none !important; }
 }
+
+/* ===== Unified lightbox / sheet animation tokens =====
+ * Used for any popup overlaying the phone shell so transitions feel
+ * consistent (backdrop fade + content slide-up / scale-in). */
+@keyframes tw-lightbox-fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes tw-lightbox-up {
+  from { transform: translateY(8%); opacity: 0; }
+  to   { transform: translateY(0);  opacity: 1; }
+}
+.tw-fade-in { animation: tw-lightbox-fade 200ms ease-out both; }
+.tw-sheet-in { animation: tw-lightbox-up 280ms cubic-bezier(.2,.8,.2,1) both; }
+@media (prefers-reduced-motion: reduce) {
+  .tw-fade-in, .tw-sheet-in { animation: none !important; }
+}
