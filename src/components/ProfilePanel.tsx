@@ -17,6 +17,7 @@ import { NotificationPrefs, DEFAULT_NOTIF_PREFS, type NotifPrefs } from "./profi
 import { KycTimeline } from "./profile/KycTimeline";
 import { QuickActions } from "./profile/QuickActions";
 import { InlineEditCard } from "./profile/InlineEditCard";
+import { useMotionLevel, type MotionLevel } from "@/lib/motionPrefs";
 
 interface Props {
   onClose: () => void;
