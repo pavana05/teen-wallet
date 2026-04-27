@@ -2,9 +2,12 @@ import { useEffect } from "react";
 import { Outlet, Link, createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
 import { Toaster } from "@/components/ui/sonner";
 import { ShakeToReport } from "@/components/ShakeToReport";
+import { AppLockGate } from "@/components/app-lock/AppLockGate";
+import { AppLockSetupPrompt } from "@/components/app-lock/AppLockSetupPrompt";
 import { initNative } from "@/lib/native";
 import { breadcrumb, captureError } from "@/lib/breadcrumbs";
 import { installConsoleCapture } from "@/lib/consoleCapture";
+import { installAppLockListeners } from "@/lib/appLock";
 
 import appCss from "../styles.css?url";
 
@@ -107,6 +110,7 @@ function RootComponent() {
   useEffect(() => {
     installConsoleCapture();
     initNative();
+    installAppLockListeners();
     breadcrumb("system.boot", { platform: typeof navigator !== "undefined" ? navigator.userAgent : undefined });
 
     const onError = (e: ErrorEvent) => captureError(e.error ?? e.message, { where: "window.onerror" });
@@ -124,6 +128,8 @@ function RootComponent() {
       <Outlet />
       <Toaster />
       <ShakeToReport />
+      <AppLockSetupPrompt />
+      <AppLockGate />
     </>
   );
 }

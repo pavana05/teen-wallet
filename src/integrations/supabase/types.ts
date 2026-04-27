@@ -843,12 +843,70 @@ export type Database = {
         }
         Relationships: []
       }
+      user_security: {
+        Row: {
+          app_lock_enabled: boolean
+          auto_lock_seconds: number
+          biometric_credential_id: string | null
+          biometric_public_key: string | null
+          biometric_sign_count: number
+          created_at: string
+          failed_attempts: number
+          lock_after_payment: boolean
+          locked_until: string | null
+          pin_hash: string | null
+          pin_iterations: number
+          pin_length: number | null
+          pin_salt: string | null
+          setup_prompt_dismissed_at: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          app_lock_enabled?: boolean
+          auto_lock_seconds?: number
+          biometric_credential_id?: string | null
+          biometric_public_key?: string | null
+          biometric_sign_count?: number
+          created_at?: string
+          failed_attempts?: number
+          lock_after_payment?: boolean
+          locked_until?: string | null
+          pin_hash?: string | null
+          pin_iterations?: number
+          pin_length?: number | null
+          pin_salt?: string | null
+          setup_prompt_dismissed_at?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          app_lock_enabled?: boolean
+          auto_lock_seconds?: number
+          biometric_credential_id?: string | null
+          biometric_public_key?: string | null
+          biometric_sign_count?: number
+          created_at?: string
+          failed_attempts?: number
+          lock_after_payment?: boolean
+          locked_until?: string | null
+          pin_hash?: string | null
+          pin_iterations?: number
+          pin_length?: number | null
+          pin_salt?: string | null
+          setup_prompt_dismissed_at?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
       admin_email_allowed: { Args: { _email: string }; Returns: boolean }
+      dismiss_app_lock_prompt: { Args: never; Returns: undefined }
       finalize_due_payment_attempt: {
         Args: { _attempt_id: string }
         Returns: {

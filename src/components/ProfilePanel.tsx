@@ -12,6 +12,8 @@ import { toast } from "sonner";
 import { useApp } from "@/lib/store";
 import { supabase } from "@/integrations/supabase/client";
 import { logout } from "@/lib/auth";
+import { useAppLock } from "@/lib/appLock";
+import { AppLockSettings } from "@/components/app-lock/AppLockSettings";
 import { usePersistentState } from "./profile/usePersistentState";
 import { NotificationPrefs, DEFAULT_NOTIF_PREFS, type NotifPrefs } from "./profile/NotificationPrefs";
 import { KycTimeline } from "./profile/KycTimeline";
@@ -71,6 +73,8 @@ export function ProfilePanel({ onClose }: Props) {
   // Virtual Card is on the roadmap but not shipped yet. Tapping the section
   // opens a friendly "Under Construction" modal instead of dead-end clicks.
   const [vcardOpen, setVcardOpen] = useState(false);
+  const [appLockOpen, setAppLockOpen] = useState(false);
+  const appLockStatus = useAppLock((s) => s.status);
 
   // app-level preferences (toggles unrelated to notification channels)
   const [prefs, setPrefs] = usePersistentState("tw-profile-prefs", {
@@ -605,7 +609,12 @@ export function ProfilePanel({ onClose }: Props) {
                 isOpen={isOpen("se-security", true)}
                 onToggle={() => toggleSection("se-security", true)}
               >
-                <ToggleRow icon={Lock} label="App lock (PIN)" desc="Require PIN every time" value={true} onChange={() => {}} />
+                <Row
+                  icon={Lock}
+                  label="App Lock"
+                  hint={appLockStatus?.enabled ? (appLockStatus.biometric_enrolled ? "PIN + Biometric" : "PIN only") : "Off"}
+                  onClick={() => setAppLockOpen(true)}
+                />
                 <ToggleRow icon={Sparkles} label="Biometric login" desc="Face / Fingerprint" value={prefs.biometric} onChange={(v) => setPrefs({ ...prefs, biometric: v })} />
                 <Row icon={Smartphone} label="Trusted devices" hint="2 active" />
                 <Row icon={Activity} label="Login activity" hint="Last 30 days" />
@@ -755,6 +764,8 @@ export function ProfilePanel({ onClose }: Props) {
           onSaved={(name) => { setProfile((prev) => prev ? { ...prev, school_name: name } : prev); setSchoolOpen(false); }}
         />
       )}
+
+      {appLockOpen && <AppLockSettings onBack={() => setAppLockOpen(false)} />}
     </div>
   );
 }
