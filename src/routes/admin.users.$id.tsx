@@ -318,7 +318,21 @@ function KycBadge({ s }: { s: string }) {
     approved: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
     rejected: "bg-red-500/15 text-red-400 border-red-500/30",
   };
-  return <span className={`inline-block px-2 py-0.5 rounded border text-[10px] uppercase tracking-wider ${map[s] || ""}`}>{s}</span>;
+  // Deep-link to the KYC queue with the matching status filter pre-applied.
+  // The queue filter only supports pending|approved|rejected|all — for
+  // not_started (no submission yet) we fall back to "all".
+  const queueStatus = s === "approved" || s === "rejected" || s === "pending" ? s : "all";
+  return (
+    <Link
+      to="/admin/kyc"
+      search={{ status: queueStatus } as never}
+      title={`Open KYC queue filtered by "${queueStatus}"`}
+      className={`inline-block px-2 py-0.5 rounded border text-[10px] uppercase tracking-wider ${map[s] || ""}`}
+      style={{ textDecoration: "none", cursor: "pointer" }}
+    >
+      {s}
+    </Link>
+  );
 }
 
 function TabBtn({ id, cur, onClick, children }: { id: Tab; cur: Tab; onClick: (t: Tab) => void; children: React.ReactNode }) {

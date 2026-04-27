@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { callAdminFn, readAdminSession, can } from "@/admin/lib/adminAuth";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, RefreshCw, ShieldAlert, Check, AlertTriangle, User as UserIcon, FileCheck2 } from "lucide-react";
+import { Loader2, RefreshCw, ShieldAlert, Check, AlertTriangle, User as UserIcon, FileCheck2, X, Eye } from "lucide-react";
 import { VirtualTable, type Column } from "@/admin/components/VirtualTable";
 import { usePersistedState } from "@/admin/lib/usePersistedState";
 import { SavedViewsBar } from "@/admin/components/SavedViewsBar";
@@ -51,6 +51,7 @@ function FraudPage() {
   const [err, setErr] = useState("");
   const [resolving, setResolving] = useState<FraudRow | null>(null);
   const [resolution, setResolution] = useState("");
+  const [selected, setSelected] = useState<FraudRow | null>(null);
 
   const canManage = can(admin?.role, "manageFraud" as any);
 
@@ -150,9 +151,18 @@ function FraudPage() {
         : <span style={{ color: "var(--a-warn)", fontSize: 12 }}><AlertTriangle size={12} style={{ display: "inline", verticalAlign: "-2px" }} /> Open</span>,
     },
     {
-      key: "act", header: "Actions", width: "200px", align: "right",
+      key: "act", header: "Actions", width: "240px", align: "right",
       cell: (r) => (
         <div style={{ display: "inline-flex", gap: 4, alignItems: "center" }}>
+          <button
+            type="button"
+            onClick={() => setSelected(r)}
+            title="View details"
+            className="a-btn-ghost"
+            style={{ fontSize: 11, padding: "4px 8px", display: "inline-flex", alignItems: "center", gap: 4 }}
+          >
+            <Eye size={12} /> View
+          </button>
           <Link
             to="/admin/users/$id"
             params={{ id: r.user_id }}
@@ -241,6 +251,104 @@ function FraudPage() {
         onLoadMore={loadMore}
         empty="No fraud alerts."
       />
+
+      {/* ── Slide-over: fraud details + quick actions ─────────── */}
+      {selected && (
+        <div
+          onClick={() => setSelected(null)}
+          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", zIndex: 45, display: "flex", justifyContent: "flex-end" }}
+        >
+          <aside
+            onClick={(e) => e.stopPropagation()}
+            className="a-surface"
+            style={{
+              width: "min(440px, 100%)", height: "100%", overflowY: "auto",
+              padding: 20, borderRadius: 0, borderLeft: "1px solid var(--a-border)",
+              boxShadow: "-12px 0 32px rgba(0,0,0,0.4)",
+              animation: "slideIn 220ms ease-out",
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <ShieldAlert size={16} style={{ color: selected.resolution ? "var(--a-muted)" : "var(--a-warn)" }} />
+                <h3 style={{ fontSize: 15, fontWeight: 700 }}>Fraud alert</h3>
+              </div>
+              <button onClick={() => setSelected(null)} className="a-btn-ghost" style={{ padding: 6 }} aria-label="Close">
+                <X size={14} />
+              </button>
+            </div>
+
+            <div className="a-label" style={{ marginBottom: 4 }}>Rule</div>
+            <div className="a-mono" style={{ fontSize: 13, marginBottom: 12 }}>{selected.rule_triggered}</div>
+
+            <div className="a-label" style={{ marginBottom: 4 }}>Status</div>
+            <div style={{ fontSize: 13, marginBottom: 12 }}>
+              {selected.resolution ? (
+                <span style={{ color: "var(--a-success)" }}><Check size={12} style={{ display: "inline", verticalAlign: "-2px" }} /> {selected.resolution}</span>
+              ) : (
+                <span style={{ color: "var(--a-warn)" }}><AlertTriangle size={12} style={{ display: "inline", verticalAlign: "-2px" }} /> Open</span>
+              )}
+            </div>
+
+            <div className="a-label" style={{ marginBottom: 4 }}>User</div>
+            <div style={{ fontSize: 13, marginBottom: 4 }}>{selected.profile?.full_name || "—"}</div>
+            <div className="a-mono" style={{ fontSize: 11, color: "var(--a-muted)", marginBottom: 12 }}>
+              {selected.profile?.phone || selected.user_id}
+            </div>
+
+            {selected.transaction && (
+              <>
+                <div className="a-label" style={{ marginBottom: 4 }}>Transaction</div>
+                <div style={{ fontSize: 13, marginBottom: 2 }} className="a-mono">
+                  ₹{Number(selected.transaction.amount).toFixed(2)}
+                </div>
+                <div style={{ fontSize: 12, color: "var(--a-muted)", marginBottom: 2 }}>{selected.transaction.merchant_name}</div>
+                <div className="a-mono" style={{ fontSize: 11, color: "var(--a-muted)", marginBottom: 12 }}>
+                  {selected.transaction.upi_id} · {selected.transaction.status}
+                </div>
+              </>
+            )}
+
+            <div className="a-label" style={{ marginBottom: 4 }}>Triggered</div>
+            <div style={{ fontSize: 12, color: "var(--a-muted)", marginBottom: 16 }}>
+              {timeAgo(selected.created_at)} · {new Date(selected.created_at).toLocaleString()}
+            </div>
+
+            <div className="a-label" style={{ marginBottom: 6 }}>Quick actions</div>
+            <div style={{ display: "grid", gap: 8 }}>
+              <Link
+                to="/admin/users/$id"
+                params={{ id: selected.user_id }}
+                onClick={() => setSelected(null)}
+                className="a-btn"
+                style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6, textDecoration: "none" }}
+              >
+                <UserIcon size={14} /> Open User 360
+              </Link>
+              <Link
+                to="/admin/users/$id"
+                params={{ id: selected.user_id }}
+                search={{ tab: "kyc" } as never}
+                onClick={() => setSelected(null)}
+                className="a-btn-ghost"
+                style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6, textDecoration: "none" }}
+              >
+                <FileCheck2 size={14} /> Jump to KYC
+              </Link>
+              {!selected.resolution && canManage && (
+                <button
+                  className="a-btn-ghost"
+                  onClick={() => { setResolving(selected); setResolution(""); setSelected(null); }}
+                  style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6 }}
+                >
+                  <Check size={14} /> Resolve alert
+                </button>
+              )}
+            </div>
+          </aside>
+          <style>{`@keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }`}</style>
+        </div>
+      )}
 
       {resolving && (
         <div onClick={() => !busyId && setResolving(null)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", display: "grid", placeItems: "center", zIndex: 50, padding: 16 }}>
