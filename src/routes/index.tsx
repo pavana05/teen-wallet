@@ -38,6 +38,7 @@ function ScreenFallback() {
 
 function Index() {
   const { stage, setStage, hydrateFromProfile } = useApp();
+  const [booting, setBooting] = useState(true);
   const [permsSeen, setPermsSeen] = useState<boolean>(() => {
     if (typeof window === "undefined") return true;
     try { return localStorage.getItem(PERMISSIONS_DONE_KEY) === "1"; } catch { return true; }
@@ -58,18 +59,29 @@ function Index() {
     (async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
-        if (!session) return;
+        if (!mounted) return;
+        if (!session) {
+          // No session: ensure we don't show post-auth screens from stale persisted state.
+          setBooting(false);
+          return;
+        }
+        // Session exists — make sure we don't flash Onboarding/AuthPhone while we
+        // fetch the profile. Bump local stage out of pre-auth screens immediately.
+        const localStage = useApp.getState().stage;
+        if (localStage === "STAGE_0" || localStage === "STAGE_1" || localStage === "STAGE_2") {
+          useApp.getState().setStageLocal("STAGE_3");
+        }
         const p = await fetchProfile();
-        if (!p || !mounted) return;
+        if (!p || !mounted) { setBooting(false); return; }
         const profileStage = (p.onboarding_stage as Stage) ?? "STAGE_0";
         const kyc = (p as { kyc_status?: string | null }).kyc_status ?? null;
 
-        const localStage = useApp.getState().stage;
+        const curLocal = useApp.getState().stage;
         const stageRank: Record<Stage, number> = {
           STAGE_0: 0, STAGE_1: 1, STAGE_2: 2, STAGE_3: 3, STAGE_4: 4, STAGE_5: 5,
         };
         const moreAdvanced: Stage =
-          stageRank[localStage] >= stageRank[profileStage] ? localStage : profileStage;
+          stageRank[curLocal] >= stageRank[profileStage] ? curLocal : profileStage;
 
         let resolvedStage: Stage = moreAdvanced;
         if (kyc === "approved") resolvedStage = "STAGE_5";
@@ -89,19 +101,17 @@ function Index() {
         if (resolvedStage !== profileStage) setStage(resolvedStage);
       } catch (err) {
         console.error("[boot] hydrate failed", err);
+      } finally {
+        if (mounted) setBooting(false);
       }
     })();
     const { data: sub } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event !== "SIGNED_OUT") return;
-      // Defensive: only reset local stage if there is truly no session. A transient
-      // SIGNED_OUT event (e.g. token refresh blip) with a still-valid session shouldn't
-      // wipe locally persisted onboarding progress.
       if (session) return;
       try {
         const { data } = await supabase.auth.getSession();
         if (data.session) return;
       } catch {
-        // If we can't even check the session (network failure), don't destroy local state.
         return;
       }
       useApp.getState().reset();
@@ -113,7 +123,9 @@ function Index() {
   return (
     <PhoneShell>
       <Suspense fallback={<ScreenFallback />}>
-        {stage === "STAGE_0" || stage === "STAGE_1" ? (
+        {booting ? (
+          <ScreenFallback />
+        ) : stage === "STAGE_0" || stage === "STAGE_1" ? (
           <Onboarding onDone={() => setStage("STAGE_2")} />
         ) : stage === "STAGE_2" ? (
           <AuthPhone onDone={() => {
