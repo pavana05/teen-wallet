@@ -388,6 +388,61 @@ function clearPersisted() {
   try { window.sessionStorage.removeItem(SCANPAY_PERSIST_KEY); } catch { /* ignore */ }
 }
 
+// ── Attempt-id cache (localStorage so it survives a full restart) ──
+function readAttemptId(): string | null {
+  if (typeof window === "undefined") return null;
+  try { return window.localStorage.getItem(SCANPAY_ATTEMPT_KEY); } catch { return null; }
+}
+function writeAttemptId(id: string) {
+  if (typeof window === "undefined") return;
+  try { window.localStorage.setItem(SCANPAY_ATTEMPT_KEY, id); } catch { /* quota — ignore */ }
+}
+function clearAttemptId() {
+  if (typeof window === "undefined") return;
+  try { window.localStorage.removeItem(SCANPAY_ATTEMPT_KEY); } catch { /* ignore */ }
+}
+
+/** Convert a server attempt snapshot into the local SavedTxn shape used by SuccessView. */
+function snapToSavedTxn(snap: AttemptSnapshot): SavedTxn {
+  return {
+    id: snap.transactionId ?? snap.id,
+    amount: snap.amount,
+    payee: snap.payeeName,
+    upiId: snap.upiId,
+    note: snap.note,
+    createdAt: snap.completedAt ?? snap.createdAt,
+    upiDeepLink: "", // built lazily by SuccessView fallback if user taps "Open in UPI app"
+  };
+}
+
+/**
+ * Resolve which payment attempt (if any) the user should resume into.
+ * Tries the cached attempt id first, then falls back to a server lookup of
+ * the most recent in-progress attempt for this user.
+ */
+async function resumeFromBackend(opts: {
+  userId: string;
+  cachedAttemptId: string | null;
+  onResume: (args: { snap: AttemptSnapshot }) => void;
+}) {
+  const { cachedAttemptId, onResume } = opts;
+  try {
+    if (cachedAttemptId) {
+      const res = await callWithAuth(pollAttempt, { attemptId: cachedAttemptId });
+      if (res.ok) {
+        onResume({ snap: res.attempt });
+        return;
+      }
+    }
+    const found = await callWithAuth(findResumableAttempt, {});
+    if (found.ok && found.attempt) {
+      onResume({ snap: found.attempt });
+    }
+  } catch (err) {
+    captureError(err, { where: "scanpay.resumeFromBackend" });
+  }
+}
+
 /**
  * Post-payment balance reconciliation.
  *
