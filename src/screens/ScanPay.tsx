@@ -114,7 +114,10 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
           upiId: snap.upiId,
           payeeName: snap.payeeName,
           amount: snap.amount,
-          note: snap.note ?? null,
+          amountRaw: String(snap.amount),
+          amountSource: "rupees",
+          note: snap.note,
+          currency: "INR",
         });
         setAmount(snap.amount);
         setNote(snap.note ?? "");
@@ -174,7 +177,7 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
           return;
         }
         if (snap.stage === "failed") {
-          breadcrumb("payment.failed", { amount: snap.amount, reason: snap.failureReason }, "warning");
+          breadcrumb("payment.failed", { amount: snap.amount, reason: snap.failureReason ?? undefined }, "warning");
           setResultMsg(snap.failureReason ?? "Payment failed");
           setFailKind("generic");
           setAttemptId(null);
