@@ -9,6 +9,7 @@ import { Camera as CapCamera } from "@capacitor/camera";
 import { PushNotifications } from "@capacitor/push-notifications";
 import { Contacts } from "@capacitor-community/contacts";
 import { toast } from "sonner";
+import { recordCheckpoint } from "@/lib/navState";
 
 type PermKey = "contacts" | "location" | "camera" | "notifications" | "microphone";
 type PermStatus = "idle" | "granted" | "denied" | "unsupported" | "loading";
