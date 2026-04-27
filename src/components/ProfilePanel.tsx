@@ -614,6 +614,16 @@ export function ProfilePanel({ onClose }: Props) {
                 <ToggleRow icon={Sparkles} label="Sounds & haptics" desc="Feedback on actions" value={prefs.sounds} onChange={(v) => setPrefs({ ...prefs, sounds: v })} />
                 <Row icon={Languages} label="Language" hint={prefs.lang} />
               </CollapsibleSection>
+
+              <CollapsibleSection
+                id="pr-motion"
+                title="Motion & animations"
+                defaultOpen={false}
+                isOpen={isOpen("pr-motion", false)}
+                onToggle={() => toggleSection("pr-motion", false)}
+              >
+                <MotionPrefs />
+              </CollapsibleSection>
             </>
           )}
 
