@@ -18,7 +18,13 @@ import { CopyableErrorId } from "@/components/CopyableErrorId";
 
 type Step = "phone" | "otp" | "verified";
 
-const RESEND_COOLDOWN_S = 30;
+// Escalating cooldown ladder. Each successive resend within the same OTP attempt
+// extends the wait so a user (or script) can't hammer the SMS provider. The last
+// step is a hard 5-minute lockout treated as rate-limited.
+const RESEND_LADDER_S = [30, 60, 120, 300];
+const MAX_RESENDS_BEFORE_LOCK = RESEND_LADDER_S.length;
+const cooldownForCount = (count: number) =>
+  RESEND_LADDER_S[Math.min(count, RESEND_LADDER_S.length - 1)];
 
 export function AuthPhone({ onDone }: { onDone: () => void }) {
   const [step, setStep] = useState<Step>("phone");
@@ -28,8 +34,12 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
   const [errorId, setErrorId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
-  const [resendIn, setResendIn] = useState(RESEND_COOLDOWN_S);
+  const [resendIn, setResendIn] = useState(RESEND_LADDER_S[0]);
   const [resendBlockedUntil, setResendBlockedUntil] = useState<number | null>(null);
+  // Total ms of the currently-running cooldown so the ring can show fill progress.
+  const [cooldownTotalMs, setCooldownTotalMs] = useState<number>(RESEND_LADDER_S[0] * 1000);
+  // Number of successful resends this attempt — drives the escalating ladder.
+  const [resendCount, setResendCount] = useState<number>(0);
   const inputs = useRef<(HTMLInputElement | null)[]>([]);
   const otpRowRef = useRef<HTMLDivElement | null>(null);
   const { setPendingPhone, hydrateFromProfile } = useApp();
