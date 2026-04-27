@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import { RefreshCw, X, AlertTriangle, Loader2 } from "lucide-react";
 import { setStage as persistStage, updateProfileFields } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
+import { recordCheckpoint } from "@/lib/navState";
 
 type Status = "pending" | "approved" | "rejected" | "unknown";
 
@@ -144,6 +145,13 @@ export function KycPending({ onApproved, forceState, forceReason }: { onApproved
           submissionId: next.submissionId,
         });
       }
+
+      recordCheckpoint({
+        screen: "kyc_pending",
+        action: next.status === "approved" ? "kyc_approved" : "kyc_pending_polled",
+        detail: { status: next.status, submissionId: next.submissionId },
+        stage: next.status === "approved" ? "STAGE_5" : "STAGE_4",
+      });
 
       if (next.status === "approved") {
         stopAllListeners();

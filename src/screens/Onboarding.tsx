@@ -5,6 +5,7 @@ import paymentImg from "@/assets/onboarding-payment.jpg";
 import shieldImg from "@/assets/onboarding-shield.jpg";
 import giftImg from "@/assets/onboarding-gift.jpg";
 import { TWLogo } from "@/components/TWLogo";
+import { recordCheckpoint } from "@/lib/navState";
 
 const ONBOARDING_STATE_KEY = "tw-onboarding-state-v1";
 interface PersistedOnboarding { slide: number; completed: boolean; updatedAt: string; }
@@ -119,10 +120,20 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
   // Persist slide changes (debounced via state lifecycle, not interval).
   useEffect(() => {
     writeOnboardingState({ slide: i, completed: false, updatedAt: new Date().toISOString() });
+    recordCheckpoint({
+      screen: "onboarding",
+      action: "onboarding_slide_viewed",
+      detail: { slide: i, total: SLIDES.length },
+    });
   }, [i]);
 
   const finishOnboarding = () => {
     writeOnboardingState({ slide: SLIDES.length - 1, completed: true, updatedAt: new Date().toISOString() });
+    recordCheckpoint({
+      screen: "onboarding",
+      action: "onboarding_completed",
+      detail: { slide: SLIDES.length - 1 },
+    });
     onDone();
   };
 
