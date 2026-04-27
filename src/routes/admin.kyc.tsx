@@ -189,6 +189,12 @@ function KycQueue() {
   const [rejectReason, setRejectReason] = useState<RejectReason | "">("");
   const [rejectNote, setRejectNote] = useState("");
   const [showReject, setShowReject] = useState(false);
+  // Approval confirmation flow — mirrors rejection: explicit note + typed
+  // confirmation phrase so an accidental click can't approve a submission.
+  const [showApprove, setShowApprove] = useState(false);
+  const [approveNote, setApproveNote] = useState("");
+  const [approveConfirm, setApproveConfirm] = useState("");
+  const [rejectConfirm, setRejectConfirm] = useState("");
   const [err, setErr] = useState("");
   const [urls, setUrls] = useState<{ selfieUrl: string | null; docFrontUrl: string | null; docBackUrl: string | null } | null>(null);
   const [urlsLoading, setUrlsLoading] = useState(false);
