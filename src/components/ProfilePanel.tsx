@@ -449,6 +449,16 @@ export function ProfilePanel({ onClose }: Props) {
               <p className="pp-group-label">About you</p>
               <div className="pp-card divide-y divide-white/5">
                 <Row
+                  icon={Cake}
+                  label="Birthday"
+                  hint={
+                    <span className="text-white/70">
+                      {profile?.dob ? formatBirthday(profile.dob) : "Add"}
+                    </span>
+                  }
+                  onClick={() => setTab("account")}
+                />
+                <Row
                   icon={GraduationCap}
                   label="School / College"
                   hint={
