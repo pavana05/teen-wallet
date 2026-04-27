@@ -437,6 +437,12 @@ export function ProfilePanel({ onClose }: Props) {
                   hint={<span className="text-amber-300 font-semibold">3 active</span>}
                   onClick={() => toast("Vouchers", { description: "Amazon ₹100 · Zomato 20% off · Myntra ₹250" })}
                 />
+                <Row
+                  icon={Users}
+                  label="Referral Program"
+                  hint={<span className="text-fuchsia-300 font-semibold">Invite & earn</span>}
+                  onClick={() => setReferralOpen(true)}
+                />
               </div>
 
               {/* UPI group */}
