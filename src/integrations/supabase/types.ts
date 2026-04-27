@@ -212,6 +212,54 @@ export type Database = {
         }
         Relationships: []
       }
+      app_images: {
+        Row: {
+          alt: string
+          bytes: number | null
+          content_type: string | null
+          created_at: string
+          description: string | null
+          height: number | null
+          key: string
+          label: string
+          storage_path: string | null
+          updated_at: string
+          updated_by_email: string | null
+          url: string | null
+          width: number | null
+        }
+        Insert: {
+          alt?: string
+          bytes?: number | null
+          content_type?: string | null
+          created_at?: string
+          description?: string | null
+          height?: number | null
+          key: string
+          label: string
+          storage_path?: string | null
+          updated_at?: string
+          updated_by_email?: string | null
+          url?: string | null
+          width?: number | null
+        }
+        Update: {
+          alt?: string
+          bytes?: number | null
+          content_type?: string | null
+          created_at?: string
+          description?: string | null
+          height?: number | null
+          key?: string
+          label?: string
+          storage_path?: string | null
+          updated_at?: string
+          updated_by_email?: string | null
+          url?: string | null
+          width?: number | null
+        }
+        Relationships: []
+      }
       contacts: {
         Row: {
           created_at: string
