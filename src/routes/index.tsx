@@ -29,48 +29,46 @@ export const Route = createFileRoute("/")({
 });
 
 function ScreenFallback() {
-  // Premium boot skeleton — mirrors the Home layout (balance card, quick-action
-  // tiles, and offer rows) so the first frame after boot feels like the app
-  // already loaded. Uses the shared `hp-skeleton` shimmer + a slide-in transition
-  // so the gate is visually consistent with the rest of the premium UI.
+  // Premium dark boot skeleton — graphite surfaces with a soft champagne
+  // shimmer sweep. Mirrors the Home layout so the boot gate feels seamless.
   return (
     <div className="flex-1 flex flex-col gap-4 px-5 pt-8 pb-6 boot-slide-in">
       {/* Top bar: avatar + bell */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="hp-skeleton" style={{ width: 40, height: 40, borderRadius: 999 }} />
+          <div className="boot-skel" style={{ width: 40, height: 40, borderRadius: 999 }} />
           <div className="flex flex-col gap-2">
-            <div className="hp-skeleton" style={{ width: 96, height: 10, borderRadius: 6 }} />
-            <div className="hp-skeleton" style={{ width: 64, height: 8, borderRadius: 6 }} />
+            <div className="boot-skel" style={{ width: 96, height: 10, borderRadius: 6 }} />
+            <div className="boot-skel" style={{ width: 64, height: 8, borderRadius: 6 }} />
           </div>
         </div>
-        <div className="hp-skeleton" style={{ width: 38, height: 38, borderRadius: 14 }} />
+        <div className="boot-skel" style={{ width: 38, height: 38, borderRadius: 14 }} />
       </div>
 
       {/* Balance card */}
-      <div className="hp-skeleton" style={{ height: 148, borderRadius: 22, marginTop: 6 }} />
+      <div className="boot-skel boot-skel-card" style={{ height: 148, borderRadius: 22, marginTop: 6 }} />
 
       {/* Quick action tiles */}
       <div className="grid grid-cols-4 gap-3 mt-1">
         {Array.from({ length: 4 }).map((_, i) => (
           <div key={i} className="flex flex-col items-center gap-2">
-            <div className="hp-skeleton" style={{ width: 60, height: 60, borderRadius: 16 }} />
-            <div className="hp-skeleton" style={{ width: 44, height: 8, borderRadius: 6 }} />
+            <div className="boot-skel" style={{ width: 60, height: 60, borderRadius: 16 }} />
+            <div className="boot-skel" style={{ width: 44, height: 8, borderRadius: 6 }} />
           </div>
         ))}
       </div>
 
       {/* Section header */}
       <div className="flex items-center justify-between mt-2">
-        <div className="hp-skeleton" style={{ width: 120, height: 12, borderRadius: 6 }} />
-        <div className="hp-skeleton" style={{ width: 48, height: 10, borderRadius: 6 }} />
+        <div className="boot-skel" style={{ width: 120, height: 12, borderRadius: 6 }} />
+        <div className="boot-skel" style={{ width: 48, height: 10, borderRadius: 6 }} />
       </div>
 
       {/* Offer / activity rows */}
       <div className="flex flex-col gap-3">
-        <div className="hp-skeleton-row" />
-        <div className="hp-skeleton-row" />
-        <div className="hp-skeleton-row" />
+        <div className="boot-skel boot-skel-row" />
+        <div className="boot-skel boot-skel-row" />
+        <div className="boot-skel boot-skel-row" />
       </div>
 
       <span className="sr-only" role="status" aria-live="polite">Loading your wallet…</span>

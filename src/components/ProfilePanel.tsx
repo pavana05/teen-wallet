@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft, X, QrCode, Copy, Check, ChevronRight, ChevronDown, Pencil, Camera, ShieldCheck,
   ShieldAlert, BadgeCheck, Wallet, CreditCard, Building2, Bell, Lock, Smartphone,
@@ -132,6 +132,14 @@ export function ProfilePanel({ onClose }: Props) {
 
   useEffect(() => { void refetch(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [userId]);
 
+  // Reset scroll to the top of the panel whenever the user switches tabs so
+  // each section opens at its header instead of preserving the prior position.
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (el) el.scrollTo({ top: 0, behavior: "auto" });
+  }, [tab]);
+
   const phone = profile?.phone ?? "+91 ••••• •••••";
   const upiId = useMemo(() => {
     const digits = (profile?.phone ?? "").replace(/\D/g, "").slice(-10);
@@ -231,7 +239,7 @@ export function ProfilePanel({ onClose }: Props) {
         <div className="qa-icon-btn invisible" aria-hidden="true" />
       </header>
 
-      <div className="relative z-10 flex-1 overflow-y-auto pb-32 qa-enter">
+      <div ref={scrollRef} className="relative z-10 flex-1 overflow-y-auto pb-32 qa-enter">
         {/* error banner */}
         {profileError && (
           <div className="px-5 mt-3">
@@ -689,8 +697,16 @@ export function ProfilePanel({ onClose }: Props) {
                   hint="My reports & shake settings"
                   onClick={() => { onClose(); window.location.assign("/preview/profile-help"); }}
                 />
-                <Row icon={FileText} label="Terms of service" />
-                <Row icon={FileText} label="Privacy policy" />
+                <Row
+                  icon={FileText}
+                  label="Terms of service"
+                  onClick={() => window.open("https://teen-wallet.lovable.app/terms", "_blank", "noopener,noreferrer")}
+                />
+                <Row
+                  icon={FileText}
+                  label="Privacy policy"
+                  onClick={() => window.open("https://teen-wallet.lovable.app/privacy", "_blank", "noopener,noreferrer")}
+                />
                 <Row icon={Settings} label="App version" hint="v1.0.6" />
               </CollapsibleSection>
               <CollapsibleSection
@@ -981,41 +997,28 @@ function EditPhoneSheet({
   );
 }
 
-/* ───────── Collapsible section (persists open/closed via parent) ───────── */
+/* ───────── Section (always expanded — collapse removed for clarity) ───────── */
 
 function CollapsibleSection({
-  id, title, children, isOpen, onToggle,
+  id, title, children,
 }: {
   id: string;
   title: string;
   defaultOpen?: boolean;
-  isOpen: boolean;
-  onToggle: () => void;
+  isOpen?: boolean;
+  onToggle?: () => void;
   children: React.ReactNode;
 }) {
   const headerId = `${id}-header`;
   const panelId = `${id}-panel`;
   return (
     <section aria-labelledby={headerId}>
-      <button
-        id={headerId}
-        type="button"
-        onClick={onToggle}
-        aria-expanded={isOpen}
-        aria-controls={panelId}
-        className="pp-section-title flex items-center justify-between w-full"
-      >
+      <h3 id={headerId} className="pp-section-title flex items-center justify-between w-full">
         <span>{title}</span>
-        <ChevronDown
-          className={`w-3.5 h-3.5 text-white/50 transition-transform ${isOpen ? "rotate-180" : ""}`}
-          strokeWidth={2}
-        />
-      </button>
-      {isOpen && (
-        <div id={panelId} role="region" aria-labelledby={headerId} className="pp-card divide-y divide-white/5">
-          {children}
-        </div>
-      )}
+      </h3>
+      <div id={panelId} role="region" aria-labelledby={headerId} className="pp-card divide-y divide-white/5">
+        {children}
+      </div>
     </section>
   );
 }
