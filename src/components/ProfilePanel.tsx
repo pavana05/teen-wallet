@@ -609,7 +609,12 @@ export function ProfilePanel({ onClose }: Props) {
                 isOpen={isOpen("se-security", true)}
                 onToggle={() => toggleSection("se-security", true)}
               >
-                <ToggleRow icon={Lock} label="App lock (PIN)" desc="Require PIN every time" value={true} onChange={() => {}} />
+                <Row
+                  icon={Lock}
+                  label="App Lock"
+                  hint={appLockStatus?.enabled ? (appLockStatus.biometric_enrolled ? "PIN + Biometric" : "PIN only") : "Off"}
+                  onClick={() => setAppLockOpen(true)}
+                />
                 <ToggleRow icon={Sparkles} label="Biometric login" desc="Face / Fingerprint" value={prefs.biometric} onChange={(v) => setPrefs({ ...prefs, biometric: v })} />
                 <Row icon={Smartphone} label="Trusted devices" hint="2 active" />
                 <Row icon={Activity} label="Login activity" hint="Last 30 days" />
