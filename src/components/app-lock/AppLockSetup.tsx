@@ -58,8 +58,26 @@ export function AppLockSetup({ onClose }: Props) {
   };
 
   return (
-    <div className="fixed inset-0 z-[150] bg-[#0a0e1a] text-white flex flex-col">
-      <div className="flex items-center justify-between px-5 py-4">
+    <div className="fixed inset-0 z-[150] text-white flex flex-col overflow-hidden">
+      {/* Premium emerald + gold ambient backdrop */}
+      <div className="absolute inset-0 -z-10 bg-[#05100c]" />
+      <div
+        className="absolute inset-0 -z-10 opacity-90"
+        style={{
+          background:
+            "radial-gradient(120% 80% at 50% -10%, rgba(201,162,74,0.18) 0%, rgba(201,162,74,0) 55%), radial-gradient(90% 70% at 50% 110%, rgba(16,80,58,0.55) 0%, rgba(5,16,12,0) 60%), linear-gradient(180deg, #06120e 0%, #04100c 100%)",
+        }}
+      />
+      <div
+        className="absolute inset-0 -z-10 opacity-[0.06] mix-blend-overlay pointer-events-none"
+        style={{
+          backgroundImage:
+            "radial-gradient(rgba(255,255,255,0.6) 1px, transparent 1px)",
+          backgroundSize: "3px 3px",
+        }}
+      />
+
+      <div className="flex items-center justify-between px-5 pt-5 pb-3">
         <button
           type="button"
           onClick={() => {
@@ -67,16 +85,16 @@ export function AppLockSetup({ onClose }: Props) {
             else if (step === "confirm") { setStep("enter"); setFirst(""); }
             else onClose();
           }}
-          className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center"
+          className="w-10 h-10 rounded-full bg-white/[0.06] border border-white/10 backdrop-blur-md flex items-center justify-center hover:bg-white/10 transition active:scale-95"
           aria-label="Back"
         >
           {step === "choose-length" || step === "done" ? <X className="w-4 h-4" /> : <ArrowLeft className="w-4 h-4" />}
         </button>
-        <p className="text-xs text-white/60">App Lock setup</p>
-        <span className="w-9" />
+        <p className="text-[11px] tracking-[0.22em] uppercase text-[#c9a24a]/80 font-medium">App Lock</p>
+        <span className="w-10" />
       </div>
 
-      <div className="flex-1 flex flex-col items-center justify-center px-6 pb-10">
+      <div className="flex-1 flex flex-col items-center justify-start pt-4 px-6 pb-8 overflow-y-auto">
         {step === "choose-length" && (
           <div className="w-full max-w-sm flex flex-col items-center gap-6">
             <div className="w-14 h-14 rounded-2xl bg-emerald-400/15 flex items-center justify-center">
