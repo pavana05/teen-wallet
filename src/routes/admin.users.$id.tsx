@@ -194,24 +194,76 @@ function RiskHeader({ risk, profile, txnCount, fraudCount }: { risk: RiskResult;
   }[risk.band];
 
   return (
-    <div className="a-surface" style={{ padding: 16, marginBottom: 16, display: "grid", gridTemplateColumns: "180px 1fr repeat(4, auto)", gap: 16, alignItems: "center" }}>
-      <div style={{ background: colors.bg, border: `1px solid ${colors.border}`, borderRadius: 12, padding: "12px 16px", textAlign: "center" }}>
-        <div className="a-label" style={{ marginBottom: 4 }}>Risk Score</div>
-        <div style={{ fontSize: 32, fontWeight: 800, color: colors.fg, lineHeight: 1 }}>{risk.score}</div>
-        <div style={{ fontSize: 11, color: colors.fg, textTransform: "uppercase", letterSpacing: "0.08em", marginTop: 4 }}>{risk.band}</div>
+    <div className="a-surface" style={{ padding: 16, marginBottom: 16, display: "grid", gap: 12 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "180px 1fr repeat(4, auto)", gap: 16, alignItems: "center" }}>
+        <div style={{ background: colors.bg, border: `1px solid ${colors.border}`, borderRadius: 12, padding: "12px 16px", textAlign: "center" }}>
+          <div className="a-label" style={{ marginBottom: 4 }}>Risk Score</div>
+          <div style={{ fontSize: 32, fontWeight: 800, color: colors.fg, lineHeight: 1 }}>{risk.score}</div>
+          <div style={{ fontSize: 11, color: colors.fg, textTransform: "uppercase", letterSpacing: "0.08em", marginTop: 4 }}>{risk.band}</div>
+        </div>
+        <div style={{ minWidth: 0 }}>
+          <div className="a-label" style={{ marginBottom: 6 }}>Risk signals</div>
+          <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexWrap: "wrap", gap: 6 }}>
+            {risk.reasons.map((r) => (
+              <li key={r} style={{ fontSize: 11, padding: "3px 8px", borderRadius: 4, background: "var(--a-elevated)", color: "var(--a-fg)", border: "1px solid var(--a-border)" }}>{r}</li>
+            ))}
+          </ul>
+        </div>
+        <RiskStat icon={<FileCheck2 size={14} />} label="KYC" value={profile.kyc_status} />
+        <RiskStat icon={<Wallet size={14} />} label="Txns" value={String(txnCount)} />
+        <RiskStat icon={<ShieldAlert size={14} />} label="Fraud" value={String(fraudCount)} accent={risk.openFraud > 0 ? "var(--a-warn)" : undefined} />
+        <RiskStat icon={<ActivityIcon size={14} />} label="Open" value={String(risk.openFraud)} accent={risk.openFraud > 0 ? "#fca5a5" : undefined} />
       </div>
-      <div style={{ minWidth: 0 }}>
-        <div className="a-label" style={{ marginBottom: 6 }}>Risk signals</div>
-        <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexWrap: "wrap", gap: 6 }}>
-          {risk.reasons.map((r) => (
-            <li key={r} style={{ fontSize: 11, padding: "3px 8px", borderRadius: 4, background: "var(--a-elevated)", color: "var(--a-fg)", border: "1px solid var(--a-border)" }}>{r}</li>
-          ))}
-        </ul>
-      </div>
-      <RiskStat icon={<FileCheck2 size={14} />} label="KYC" value={profile.kyc_status} />
-      <RiskStat icon={<Wallet size={14} />} label="Txns" value={String(txnCount)} />
-      <RiskStat icon={<ShieldAlert size={14} />} label="Fraud" value={String(fraudCount)} accent={risk.openFraud > 0 ? "var(--a-warn)" : undefined} />
-      <RiskStat icon={<ActivityIcon size={14} />} label="Open" value={String(risk.openFraud)} accent={risk.openFraud > 0 ? "#fca5a5" : undefined} />
+      <KycStageChips current={profile.kyc_status} />
+    </div>
+  );
+}
+
+// Clickable KYC stage chips that deep-link to the KYC queue with the matching
+// status filter pre-applied. The user's current stage is highlighted.
+function KycStageChips({ current }: { current: string }) {
+  const stages: { key: "pending" | "approved" | "rejected" | "all"; label: string; matches: string[] }[] = [
+    { key: "all", label: "Not started", matches: ["not_started"] },
+    { key: "pending", label: "Pending", matches: ["pending"] },
+    { key: "approved", label: "Approved", matches: ["approved"] },
+    { key: "rejected", label: "Rejected", matches: ["rejected"] },
+  ];
+  const tone: Record<string, { bg: string; fg: string; border: string }> = {
+    "Not started": { bg: "rgba(161,161,170,0.10)", fg: "#d4d4d8", border: "rgba(161,161,170,0.30)" },
+    Pending: { bg: "rgba(245,158,11,0.10)", fg: "#fcd34d", border: "rgba(245,158,11,0.30)" },
+    Approved: { bg: "rgba(34,197,94,0.10)", fg: "#86efac", border: "rgba(34,197,94,0.30)" },
+    Rejected: { bg: "rgba(239,68,68,0.10)", fg: "#fca5a5", border: "rgba(239,68,68,0.30)" },
+  };
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", paddingTop: 8, borderTop: "1px solid var(--a-border)" }}>
+      <span className="a-label" style={{ marginRight: 4 }}>Jump to KYC queue</span>
+      {stages.map((s) => {
+        const active = s.matches.includes(current);
+        const t = tone[s.label];
+        return (
+          <Link
+            key={s.label}
+            to="/admin/kyc"
+            search={{ status: s.key } as never}
+            title={`Open KYC queue filtered by "${s.key}"`}
+            style={{
+              fontSize: 11,
+              padding: "4px 10px",
+              borderRadius: 999,
+              background: t.bg,
+              color: t.fg,
+              border: `1px solid ${active ? t.fg : t.border}`,
+              textDecoration: "none",
+              textTransform: "uppercase",
+              letterSpacing: "0.06em",
+              fontWeight: active ? 700 : 500,
+              boxShadow: active ? `0 0 0 1px ${t.fg} inset` : undefined,
+            }}
+          >
+            {s.label}
+          </Link>
+        );
+      })}
     </div>
   );
 }
