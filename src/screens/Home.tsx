@@ -542,14 +542,24 @@ export function Home() {
             <span className="hp-section-eyebrow">Activity</span>
             <h3 className="hp-section-title">Payment history</h3>
           </div>
-          <button
-            type="button"
-            onClick={handleRefresh}
-            aria-label={refreshing ? "Refreshing payment history" : "Refresh payment history"}
-            className="hp-section-link inline-flex items-center gap-1.5"
-          >
-            <RefreshCw className={`w-3 h-3 ${refreshing ? "animate-spin" : ""}`} aria-hidden="true" /> Refresh
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => { void haptics.tap(); setView("transactions"); }}
+              aria-label="See all transactions"
+              className="hp-section-link inline-flex items-center gap-1"
+            >
+              See all <ArrowUpRight className="w-3 h-3" aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              onClick={handleRefresh}
+              aria-label={refreshing ? "Refreshing payment history" : "Refresh payment history"}
+              className="hp-section-link inline-flex items-center gap-1.5"
+            >
+              <RefreshCw className={`w-3 h-3 ${refreshing ? "animate-spin" : ""}`} aria-hidden="true" /> Refresh
+            </button>
+          </div>
         </div>
         {loading ? (
           <div className="space-y-2" aria-hidden="true">
