@@ -212,16 +212,14 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
 
   const handlePay = useCallback(async () => {
     if (!userId || !payload) return;
-    setPhase("processing");
     const amt = amount;
     const noteToSave = note.trim() || payload.note || null;
-    const startedAt = Date.now();
     breadcrumb("payment.submit_started", { amount: amt, upiId: payload.upiId, payee: payload.payeeName });
 
     // ── Pre-flight client-side fraud check ──
     // Mirrors the server rules so the user gets instant feedback for things
-    // like daily-limit blocks without the round-trip. The server re-runs
-    // these on submit so the check cannot be bypassed.
+    // like daily-limit blocks without the round-trip. The backend re-runs
+    // these on settlement so the check cannot be bypassed.
     const preflight = await scanTransaction({ userId, amount: amt, upiId: payload.upiId });
     if (preflight.blocked) {
       const blockFlag = preflight.flags.find((f) => f.severity === "block");
@@ -240,175 +238,46 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
       return;
     }
 
-    // Minimum visible processing window so the premium animation has time to play.
-    await new Promise((r) => setTimeout(r, 1800));
-
-    // ── Server-side payment ──
-    // Calls the authenticated `payUpi` server function which re-runs fraud
-    // rules, re-checks balance, inserts the transaction, debits the wallet,
-    // and returns a `upi://pay?...` deep link the client can hand off to a
-    // real UPI app on mobile.
-    let serverResult: Awaited<ReturnType<typeof payUpi>> | null = null;
+    // ── Create + start the server-side payment attempt ──
+    // The attempt row is the source of truth. Polling against it drives the
+    // Processing → Success transition (no client setTimeout deciding success).
+    let id = attemptId;
     try {
-      serverResult = await callWithAuth(payUpi, {
-        amount: amt,
-        upiId: payload.upiId,
-        payeeName: payload.payeeName,
-        note: noteToSave,
-      });
-    } catch (err) {
-      // Network / server function unavailable — fall back to direct insert
-      // so the demo flow keeps working in environments where the server
-      // function isn't deployed yet.
-      captureError(err, { where: "payment.payUpi", amount: amt, upiId: payload.upiId });
-      serverResult = null;
-    }
-
-    if (serverResult && !serverResult.ok) {
-      // Surface the typed reason to the failure screen.
-      if (serverResult.reason === "blocked") {
-        setFailKind("blocked");
-      } else if (serverResult.reason === "insufficient") {
-        setFailKind("insufficient");
-        if (typeof serverResult.newBalance === "number") {
-          useApp.setState({ balance: serverResult.newBalance });
+      if (!id) {
+        const created = await callWithAuth(createAttempt, {
+          amount: amt,
+          upiId: payload.upiId,
+          payeeName: payload.payeeName,
+          note: noteToSave,
+          method: "upi",
+        });
+        if (!created.ok) {
+          setResultMsg(created.message);
+          setFailKind("generic");
+          setPhase("failed");
+          return;
         }
-      } else {
+        id = created.attempt.id;
+        setAttemptId(id);
+      }
+      const started = await callWithAuth(startProcessing, { attemptId: id });
+      if (!started.ok) {
+        setResultMsg(started.message);
         setFailKind("generic");
+        setPhase("failed");
+        return;
       }
-      breadcrumb("payment.failed", {
-        amount: amt,
-        upiId: payload.upiId,
-        reason: serverResult.reason,
-        message: serverResult.message,
-        durationMs: Date.now() - startedAt,
-      }, "warning");
-      setResultMsg(serverResult.message);
-      setPhase("failed");
-      return;
-    }
-
-    if (serverResult && serverResult.ok) {
-      useApp.setState({ balance: serverResult.newBalance });
-      // Post-payment reconciliation: re-fetch live balance from Supabase and
-      // detect drift between the server function's reported newBalance and the
-      // actual profile row (e.g., a parental top-up landed mid-transaction).
-      void reconcileBalance(userId, serverResult.newBalance);
-      const txn: SavedTxn = {
-        id: serverResult.txnId,
-        amount: amt,
-        payee: payload.payeeName,
-        upiId: payload.upiId,
-        note: noteToSave,
-        createdAt: serverResult.createdAt,
-        upiDeepLink: serverResult.upiDeepLink,
-      };
-      setSavedTxn(txn);
-      breadcrumb("payment.success", {
-        amount: amt,
-        upiId: payload.upiId,
-        txnId: serverResult.txnId,
-        newBalance: serverResult.newBalance,
-        durationMs: Date.now() - startedAt,
-      });
-      setResultMsg(`₹${amt.toFixed(0)} sent to ${payload.payeeName}`);
-      if (navigator.vibrate) navigator.vibrate([30, 60, 30]);
-      // On a real mobile device, hand off to the user's UPI app immediately.
-      // The success screen still renders so the user has a receipt + retry path.
-      if (canOpenUpiApp() && serverResult.upiDeepLink) {
-        try { window.location.href = serverResult.upiDeepLink; } catch { /* ignore */ }
-      }
-      setPhase("success");
-      return;
-    }
-
-    // ── Fallback path (server function unreachable) ──
-    // Re-check balance just before insert.
-    const { data: fresh, error: balErr } = await supabase
-      .from("profiles")
-      .select("balance")
-      .eq("id", userId)
-      .single();
-    if (balErr || !fresh) {
-      setResultMsg("Couldn't verify balance. Please try again.");
-      setFailKind("generic");
-      setPhase("failed");
-      return;
-    }
-    const liveBalance = Number(fresh.balance);
-    if (Math.abs(liveBalance - balance) > 0.001) {
-      useApp.setState({ balance: liveBalance });
-      if (amt > liveBalance) {
-        setResultMsg(`Your balance changed to ₹${liveBalance.toFixed(2)} and is no longer enough for this payment.`);
-      } else {
-        setResultMsg(`Your wallet balance changed to ₹${liveBalance.toFixed(2)}. Please scan the QR again to confirm.`);
-      }
-      setFailKind("balance_changed");
-      setPhase("failed");
-      return;
-    }
-
-    const { data: txn, error } = await supabase
-      .from("transactions")
-      .insert({
-        user_id: userId,
-        amount: amt,
-        merchant_name: payload.payeeName,
-        upi_id: payload.upiId,
-        note: noteToSave,
-        status: "success",
-        fraud_flags: preflight.flags as never,
-      })
-      .select()
-      .single();
-
-    if (error || !txn) {
-      setResultMsg(error?.message ?? "Payment failed");
+    } catch (err) {
+      captureError(err, { where: "scanpay.startProcessing", amount: amt });
+      setResultMsg("Couldn't start payment. Please try again.");
       setFailKind("generic");
       setPhase("failed");
       return;
     }
 
-    await logFraudFlags(userId, txn.id, preflight.flags, preflight.flags.length === 0 ? "auto_passed" : "user_confirmed");
-    const newBal = liveBalance - amt;
-    await supabase.from("profiles").update({ balance: newBal }).eq("id", userId);
-    useApp.setState({ balance: newBal });
-    // Reconcile against the canonical DB row in case another tab/server
-    // changed the balance between our update and now.
-    void reconcileBalance(userId, newBal);
-    await supabase.from("notifications").insert({
-      user_id: userId,
-      type: "transaction",
-      title: `₹${amt.toFixed(2)} paid to ${payload.payeeName}`,
-      body: payload.upiId,
-    });
-
-    // Build a deep link locally so the success screen can still offer "Open in UPI app".
-    const { buildUpiDeepLink } = await import("@/lib/upi");
-    const fallbackDeepLink = buildUpiDeepLink({
-      upiId: payload.upiId,
-      payeeName: payload.payeeName,
-      amount: amt,
-      note: noteToSave,
-      txnRef: txn.id,
-    });
-
-    setSavedTxn({
-      id: txn.id,
-      amount: amt,
-      payee: payload.payeeName,
-      upiId: payload.upiId,
-      note: noteToSave,
-      createdAt: txn.created_at ?? new Date().toISOString(),
-      upiDeepLink: fallbackDeepLink,
-    });
-    setResultMsg(`₹${amt.toFixed(0)} sent to ${payload.payeeName}`);
-    if (navigator.vibrate) navigator.vibrate([30, 60, 30]);
-    if (canOpenUpiApp()) {
-      try { window.location.href = fallbackDeepLink; } catch { /* ignore */ }
-    }
-    setPhase("success");
-  }, [userId, payload, amount, balance, note]);
+    // Hand off to the polling effect by switching phase.
+    setPhase("processing");
+  }, [userId, payload, amount, balance, note, attemptId]);
 
   const reset = useCallback(() => {
     setPayload(null);
