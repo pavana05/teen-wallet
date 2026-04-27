@@ -16,6 +16,7 @@ import {
 } from "@/lib/otpState";
 import { CopyableErrorId } from "@/components/CopyableErrorId";
 import { ResendCountdown } from "@/components/ResendCountdown";
+import { recordCheckpoint } from "@/lib/navState";
 
 type Step = "phone" | "otp" | "verified";
 
@@ -133,6 +134,12 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
       toast.success(`OTP sent — dev code: ${r.devOtp}`);
       // First send keeps the base cooldown; subsequent sends escalate.
       startCooldown(step === "otp");
+      recordCheckpoint({
+        screen: "auth",
+        action: "auth_otp_sent",
+        detail: { phoneTail: phone.slice(-4) },
+        stage: "STAGE_2",
+      });
       setStep("otp");
     } catch (e) {
       const { message, kind, correlationId } = classifyOtpError(e);
@@ -169,6 +176,12 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
         await persistStage(resumedStage);
       }
       clearOtpState();
+      recordCheckpoint({
+        screen: "auth",
+        action: "auth_otp_verified",
+        detail: { resumedStage },
+        stage: resumedStage,
+      });
       setStep("verified");
     } catch (e) {
       const { message, kind, correlationId } = classifyOtpError(e);
