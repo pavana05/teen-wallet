@@ -259,6 +259,15 @@ export function Transactions({ onBack }: Props) {
           </ol>
         )}
       </div>
+
+      {openTxn && (
+        <TransactionDetail
+          txn={openTxn.txn}
+          credit={openTxn.credit}
+          balanceAfter={openTxn.balanceAfter}
+          onClose={() => setOpenTxn(null)}
+        />
+      )}
     </div>
   );
 }
