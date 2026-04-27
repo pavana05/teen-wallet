@@ -981,41 +981,28 @@ function EditPhoneSheet({
   );
 }
 
-/* ───────── Collapsible section (persists open/closed via parent) ───────── */
+/* ───────── Section (always expanded — collapse removed for clarity) ───────── */
 
 function CollapsibleSection({
-  id, title, children, isOpen, onToggle,
+  id, title, children,
 }: {
   id: string;
   title: string;
   defaultOpen?: boolean;
-  isOpen: boolean;
-  onToggle: () => void;
+  isOpen?: boolean;
+  onToggle?: () => void;
   children: React.ReactNode;
 }) {
   const headerId = `${id}-header`;
   const panelId = `${id}-panel`;
   return (
     <section aria-labelledby={headerId}>
-      <button
-        id={headerId}
-        type="button"
-        onClick={onToggle}
-        aria-expanded={isOpen}
-        aria-controls={panelId}
-        className="pp-section-title flex items-center justify-between w-full"
-      >
+      <h3 id={headerId} className="pp-section-title flex items-center justify-between w-full">
         <span>{title}</span>
-        <ChevronDown
-          className={`w-3.5 h-3.5 text-white/50 transition-transform ${isOpen ? "rotate-180" : ""}`}
-          strokeWidth={2}
-        />
-      </button>
-      {isOpen && (
-        <div id={panelId} role="region" aria-labelledby={headerId} className="pp-card divide-y divide-white/5">
-          {children}
-        </div>
-      )}
+      </h3>
+      <div id={panelId} role="region" aria-labelledby={headerId} className="pp-card divide-y divide-white/5">
+        {children}
+      </div>
     </section>
   );
 }
