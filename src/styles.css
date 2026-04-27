@@ -77,6 +77,9 @@
   --premium-elevated: #1f1f24;
   --premium-hairline: rgba(255,255,255,0.07);
   --premium-hairline-strong: rgba(255,255,255,0.12);
+  /* QR code modules — fixed contrast for scannability, themed via tokens */
+  --qr-dark: #0a0a0a;
+  --qr-light: #ffffff;
 }
 
 /* Premium Light (opt-in via .light or [data-theme="light"]) */
