@@ -735,6 +735,11 @@ export function ProfilePanel({ onClose }: Props) {
         />
       )}
       {vcardOpen && <VirtualCardModal onClose={() => setVcardOpen(false)} />}
+      {referralOpen && (
+        <div className="absolute inset-0 z-50 bg-[#0B0B0B] flex flex-col">
+          <ReferralProgram onBack={() => setReferralOpen(false)} />
+        </div>
+      )}
       {igOpen && (
         <InstagramSheet
           initial={instagram}
