@@ -52,6 +52,18 @@ function FraudPage() {
   const [resolving, setResolving] = useState<FraudRow | null>(null);
   const [resolution, setResolution] = useState("");
   const [selected, setSelected] = useState<FraudRow | null>(null);
+  const [copied, setCopied] = useState<"upi" | "rule" | "all" | null>(null);
+
+  // Copies a string to clipboard and flashes a confirmation chip in the drawer.
+  const copyToClipboard = useCallback(async (text: string, key: "upi" | "rule" | "all") => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(key);
+      setTimeout(() => setCopied((c) => (c === key ? null : c)), 1400);
+    } catch {
+      setCopied(null);
+    }
+  }, []);
 
   const canManage = can(admin?.role, "manageFraud" as any);
 
