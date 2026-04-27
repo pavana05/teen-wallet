@@ -71,6 +71,8 @@ export function ProfilePanel({ onClose }: Props) {
   // Virtual Card is on the roadmap but not shipped yet. Tapping the section
   // opens a friendly "Under Construction" modal instead of dead-end clicks.
   const [vcardOpen, setVcardOpen] = useState(false);
+  const [appLockOpen, setAppLockOpen] = useState(false);
+  const appLockStatus = useAppLock((s) => s.status);
 
   // app-level preferences (toggles unrelated to notification channels)
   const [prefs, setPrefs] = usePersistentState("tw-profile-prefs", {
