@@ -111,6 +111,13 @@ export function Permissions({ onDone }: Props) {
     setStatus((s) => ({ ...s, [key]: "loading" }));
     const r = await requestPermission(key);
     setStatus((s) => ({ ...s, [key]: r }));
+    if (r === "granted" || r === "denied") {
+      recordCheckpoint({
+        screen: "permissions",
+        action: r === "granted" ? "permission_granted" : "permission_denied",
+        detail: { key },
+      });
+    }
     if (r === "denied") {
       toast.message("Permission declined", {
         description: "You can enable it later from your device settings.",
@@ -125,6 +132,13 @@ export function Permissions({ onDone }: Props) {
       // eslint-disable-next-line no-await-in-loop
       const r = await requestPermission(p.key);
       setStatus((s) => ({ ...s, [p.key]: r }));
+      if (r === "granted" || r === "denied") {
+        recordCheckpoint({
+          screen: "permissions",
+          action: r === "granted" ? "permission_granted" : "permission_denied",
+          detail: { key: p.key },
+        });
+      }
     }
     setBusyAll(false);
   };
@@ -132,13 +146,22 @@ export function Permissions({ onDone }: Props) {
   const grantedCount = Object.values(status).filter((s) => s === "granted").length;
   const allGranted = grantedCount === PERMS.length;
 
+  const finish = () => {
+    recordCheckpoint({
+      screen: "permissions",
+      action: "permissions_completed",
+      detail: { granted: grantedCount, total: PERMS.length },
+    });
+    onDone();
+  };
+
   const handleContinue = () => {
     if (continuing) return;
     // If everything is already granted, route immediately — no animation needed.
-    if (allGranted) { onDone(); return; }
+    if (allGranted) { finish(); return; }
     // Otherwise play the short neon-lime transition before advancing.
     setContinuing(true);
-    setTimeout(() => onDone(), 480);
+    setTimeout(() => finish(), 480);
   };
 
   return (
