@@ -358,6 +358,6 @@ function TxnDetailRow({
           Bal {fmtINR(balanceAfter)}
         </p>
       </div>
-    </div>
+    </button>
   );
 }
