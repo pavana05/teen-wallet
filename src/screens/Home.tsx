@@ -450,8 +450,8 @@ export function Home() {
           data-festival={isDiwaliSeason() ? "diwali" : undefined}
         >
           <img
-            src={isDiwaliSeason() ? heroScanDiwali : heroScan}
-            alt=""
+            src={isDiwaliSeason() ? scanHeroDiwali.url : scanHeroDefault.url}
+            alt={isDiwaliSeason() ? scanHeroDiwali.alt : scanHeroDefault.alt}
             className="hp-scan-img"
           />
         </button>
