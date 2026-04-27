@@ -1,11 +1,5 @@
 // Full-screen lock overlay. Mounted from __root.tsx. When `locked` is true, it
 // blocks all interaction with the app behind it and prompts for PIN/biometric.
-//
-// SECURITY UX:
-// - Backdrop is opaque (not just blurred) so screenshots / accessibility tree
-//   don't leak the underlying screen.
-// - Failed attempts come back from the server with a `seconds_remaining` value
-//   that we use to drive a live countdown.
 import { useEffect, useState } from "react";
 import { Fingerprint, LogOut, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
@@ -21,20 +15,36 @@ export function AppLockGate() {
   const [cooldownEnds, setCooldownEnds] = useState<number | null>(null);
   const [now, setNow] = useState(Date.now());
 
+  const visible = locked && !!status?.enabled;
+  const inCooldown = cooldownEnds !== null && cooldownEnds > now;
+  const secondsLeft = inCooldown ? Math.ceil((cooldownEnds! - now) / 1000) : 0;
+
   useEffect(() => {
     if (!cooldownEnds) return;
     const t = setInterval(() => setNow(Date.now()), 250);
     return () => clearInterval(t);
   }, [cooldownEnds]);
 
-  if (!locked || !status?.enabled) return null;
+  // Auto-prompt biometric on first show, if enrolled
+  useEffect(() => {
+    if (!visible) return;
+    if (status?.biometric_enrolled && !busy && !inCooldown) {
+      void tryBiometric();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible]);
 
-  const inCooldown = cooldownEnds !== null && cooldownEnds > now;
-  const secondsLeft = inCooldown ? Math.ceil((cooldownEnds! - now) / 1000) : 0;
+  // Clear cooldown when it expires
+  useEffect(() => {
+    if (cooldownEnds && now >= cooldownEnds) {
+      setCooldownEnds(null);
+      setMessage(null);
+    }
+  }, [now, cooldownEnds]);
 
   const tryBiometric = async () => {
     if (busy || inCooldown) return;
-    if (!status.biometric_credential_id) return;
+    if (!status?.biometric_credential_id) return;
     setBusy(true);
     setMessage(null);
     try {
@@ -48,14 +58,6 @@ export function AppLockGate() {
       setBusy(false);
     }
   };
-
-  // Auto-prompt biometric on first show, if enrolled
-  useEffect(() => {
-    if (status.biometric_enrolled && !busy && !inCooldown) {
-      void tryBiometric();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   const onPin = async (pin: string) => {
     if (busy) return;
@@ -86,29 +88,51 @@ export function AppLockGate() {
     toast.success("Signed out");
   };
 
-  // Clear cooldown when it expires
-  useEffect(() => {
-    if (cooldownEnds && now >= cooldownEnds) {
-      setCooldownEnds(null);
-      setMessage(null);
-    }
-  }, [now, cooldownEnds]);
+  if (!visible) return null;
 
   return (
-    <div className="fixed inset-0 z-[200] bg-[#0a0e1a] text-white flex flex-col items-center justify-center px-6">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(99,102,241,0.18),transparent_60%)]" />
+    <div className="fixed inset-0 z-[200] text-white flex flex-col items-center justify-center px-6 overflow-hidden">
+      {/* Premium emerald + gold ambient backdrop */}
+      <div className="absolute inset-0 bg-[#05100c]" />
+      <div
+        className="absolute inset-0 opacity-95"
+        style={{
+          background:
+            "radial-gradient(120% 80% at 50% -10%, rgba(201,162,74,0.20) 0%, rgba(201,162,74,0) 55%), radial-gradient(90% 70% at 50% 110%, rgba(16,80,58,0.55) 0%, rgba(5,16,12,0) 60%), linear-gradient(180deg, #06120e 0%, #04100c 100%)",
+        }}
+      />
+      <div
+        className="absolute inset-0 opacity-[0.05] mix-blend-overlay pointer-events-none"
+        style={{
+          backgroundImage: "radial-gradient(rgba(255,255,255,0.6) 1px, transparent 1px)",
+          backgroundSize: "3px 3px",
+        }}
+      />
+      {/* Soft animated halo */}
+      <div
+        className="absolute -top-40 left-1/2 -translate-x-1/2 w-[480px] h-[480px] rounded-full pointer-events-none"
+        style={{
+          background: "radial-gradient(circle, rgba(201,162,74,0.18) 0%, rgba(201,162,74,0) 70%)",
+          animation: "applock-halo 14s ease-in-out infinite",
+        }}
+      />
 
-      <div className="relative w-full max-w-sm flex flex-col items-center gap-6">
-        <div className="w-16 h-16 rounded-2xl bg-white/10 flex items-center justify-center">
-          <ShieldCheck className="w-8 h-8 text-emerald-300" strokeWidth={1.6} />
+      <div className="relative w-full max-w-sm flex flex-col items-center gap-7">
+        <div className="w-[72px] h-[72px] rounded-2xl bg-gradient-to-br from-emerald-300/20 to-emerald-700/5 border border-emerald-300/20 flex items-center justify-center shadow-[0_10px_36px_-10px_rgba(16,185,129,0.45),inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-md">
+          <ShieldCheck className="w-9 h-9 text-emerald-200" strokeWidth={1.4} />
         </div>
         <div className="text-center">
-          <h1 className="text-2xl font-semibold">App Locked</h1>
-          <p className="text-sm text-white/60 mt-1">
+          <p className="text-[10px] tracking-[0.32em] uppercase text-[#c9a24a]/80 font-medium mb-2">Secure</p>
+          <h1 className="text-3xl font-serif tracking-tight">App Locked</h1>
+          <p className="text-sm text-white/55 mt-2">
             {status.biometric_enrolled
-              ? "Use fingerprint or enter your PIN to continue"
+              ? "Use biometric or enter your PIN to continue"
               : `Enter your ${status.pin_length ?? 6}-digit PIN`}
           </p>
+          <div
+            className="mx-auto mt-3 h-px w-16"
+            style={{ background: "linear-gradient(90deg, transparent, rgba(201,162,74,0.6), transparent)" }}
+          />
         </div>
 
         <PinPad
@@ -119,26 +143,36 @@ export function AppLockGate() {
           extraButton={status.biometric_enrolled ? {
             label: "Biometric",
             onClick: tryBiometric,
-            icon: <Fingerprint className="w-5 h-5" />,
+            icon: <Fingerprint className="w-5 h-5 text-[#f0d98a]" />,
           } : null}
         />
 
-        <div className="min-h-[20px] text-center">
+        <div className="min-h-[22px] text-center">
           {inCooldown ? (
-            <p className="text-sm text-amber-300">Try again in {secondsLeft}s</p>
+            <p className="text-sm text-amber-300/90">Try again in {secondsLeft}s</p>
           ) : message ? (
-            <p className="text-sm text-red-300">{message}</p>
+            <p className="text-sm text-red-300/90">{message}</p>
           ) : null}
         </div>
 
         <button
           type="button"
           onClick={signOut}
-          className="text-xs text-white/50 hover:text-white/80 inline-flex items-center gap-1.5 mt-2"
+          className="text-[11px] tracking-[0.18em] uppercase text-white/45 hover:text-[#f0d98a] inline-flex items-center gap-1.5 transition-colors"
         >
           <LogOut className="w-3.5 h-3.5" /> Forgot PIN? Sign out
         </button>
       </div>
+
+      <style>{`
+        @keyframes applock-halo {
+          0%, 100% { transform: translate(-50%, 0) scale(1); opacity: 0.9; }
+          50% { transform: translate(-50%, 12px) scale(1.06); opacity: 1; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .applock-halo { animation: none !important; }
+        }
+      `}</style>
     </div>
   );
 }
