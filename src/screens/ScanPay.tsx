@@ -1654,6 +1654,26 @@ function SuccessView({
             SMS
           </button>
         </div>
+        <button
+          onClick={handleWhatsApp}
+          className="sp-receipt-action focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary w-full"
+          aria-label="Share receipt via WhatsApp"
+        >
+          <Phone className="w-4 h-4" />
+          Share via WhatsApp
+        </button>
+        {lastDelivery && (
+          <p
+            className="text-[11px] text-white/60 text-center -mt-1"
+            aria-live="polite"
+          >
+            Last delivery:{" "}
+            <span className={lastDelivery.status === "failed" ? "text-rose-300" : "text-emerald-300"}>
+              {channelLabel(lastDelivery.channel)} · {statusLabel(lastDelivery.status)}
+            </span>{" "}
+            · {relativeTime(lastDelivery.attemptedAt)}
+          </p>
+        )}
         <div className="grid grid-cols-2 gap-2">
           <button
             onClick={onScanAgain}
