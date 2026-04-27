@@ -12,6 +12,8 @@ import { toast } from "sonner";
 import { useApp } from "@/lib/store";
 import { supabase } from "@/integrations/supabase/client";
 import { logout } from "@/lib/auth";
+import { useAppLock } from "@/lib/appLock";
+import { AppLockSettings } from "@/components/app-lock/AppLockSettings";
 import { usePersistentState } from "./profile/usePersistentState";
 import { NotificationPrefs, DEFAULT_NOTIF_PREFS, type NotifPrefs } from "./profile/NotificationPrefs";
 import { KycTimeline } from "./profile/KycTimeline";
