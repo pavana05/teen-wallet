@@ -42,9 +42,9 @@ interface ActivityItem {
   refId?: string;
 }
 
-// Premium champagne-led palette for charts (no neon-lime).
-const FRAUD_COLORS = ["#d4c5a0", "#7c8db5", "#b89b7a", "#c2766b", "#9c8fb5", "#7da890"];
-const PREMIUM_ACCENT = "#d4c5a0";
+// Chart colors are sourced from theme tokens (see src/styles.css → .admin-shell
+// --a-chart-*, --a-tooltip-*, --a-success/warn/danger/info). Resolved at render
+// time via adminChartTokens() so future theme changes flow through automatically.
 
 function CommandCenter() {
   const [data, setData] = useState<DashboardData | null>(null);
