@@ -10,6 +10,8 @@ import { ProfilePanel } from "@/components/ProfilePanel";
 import heroScan from "@/assets/home-hero-scan.jpg";
 import { haptics } from "@/lib/haptics";
 import { useGenderPersona } from "@/lib/genderPersona";
+import { notifyPaymentReceived } from "@/lib/notify";
+import { toast } from "sonner";
 
 interface PersonaOffer {
   id: string;
