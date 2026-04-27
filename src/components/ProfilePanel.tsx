@@ -449,6 +449,16 @@ export function ProfilePanel({ onClose }: Props) {
               <p className="pp-group-label">About you</p>
               <div className="pp-card divide-y divide-white/5">
                 <Row
+                  icon={Cake}
+                  label="Birthday"
+                  hint={
+                    <span className="text-white/70">
+                      {profile?.dob ? formatBirthday(profile.dob) : "Add"}
+                    </span>
+                  }
+                  onClick={() => setTab("account")}
+                />
+                <Row
                   icon={GraduationCap}
                   label="School / College"
                   hint={
@@ -554,6 +564,7 @@ export function ProfilePanel({ onClose }: Props) {
                   onToggle={() => toggleSection("ac-contact", true)}
                 >
                   <DetailRow icon={Smartphone} label="Phone" value={phone} onEdit={() => setEditPhoneOpen(true)} />
+                  <DetailRow icon={Cake} label="Birthday" value={profile?.dob ? formatBirthday(profile.dob) : "Not added"} />
                   <DetailRow icon={ShieldCheck} label="Aadhaar" value={profile?.aadhaar_last4 ? `XXXX XXXX ${profile.aadhaar_last4}` : "Not added"} />
                   <DetailRow icon={BadgeCheck} label="KYC status" value={kycMeta.label} />
                 </CollapsibleSection>
@@ -985,6 +996,20 @@ function CollapsibleSection({
   );
 }
 
+/** Format a stored DOB ("YYYY-MM-DD") as a friendly birthday with age. */
+function formatBirthday(dob: string): string {
+  // Parse as local date to avoid TZ shifting (DOB is a calendar date, not an instant)
+  const [y, m, d] = dob.split("-").map((n) => parseInt(n, 10));
+  if (!y || !m || !d) return dob;
+  const date = new Date(y, m - 1, d);
+  if (Number.isNaN(date.getTime())) return dob;
+  const pretty = date.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+  const today = new Date();
+  let age = today.getFullYear() - y;
+  const beforeBday = today.getMonth() < m - 1 || (today.getMonth() === m - 1 && today.getDate() < d);
+  if (beforeBday) age -= 1;
+  return age >= 0 && age < 130 ? `${pretty} · ${age}y` : pretty;
+}
 
 /* ───────── My QR sheet ───────── */
 function MyQrSheet({ upiId, payeeName, onClose }: { upiId: string; payeeName: string; onClose: () => void }) {
