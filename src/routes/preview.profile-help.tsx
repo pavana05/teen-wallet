@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { ArrowLeft, AlertTriangle, CheckCircle2, Clock, Smartphone, RefreshCw } from "lucide-react";
+import { ArrowLeft, AlertTriangle, CheckCircle2, Clock, Smartphone, RefreshCw, X, Image as ImageIcon, Camera, Loader2, ExternalLink } from "lucide-react";
 import { PhoneShell } from "@/components/PhoneShell";
 import { supabase } from "@/integrations/supabase/client";
 import { useApp } from "@/lib/store";
@@ -22,6 +22,8 @@ interface ReportRow {
   route: string | null;
   created_at: string;
   resolved_at: string | null;
+  screenshot_path: string | null;
+  camera_photo_path: string | null;
 }
 
 function ProfileHelpPage() {
@@ -31,6 +33,32 @@ function ProfileHelpPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [sensitivity, setSens] = useState<ShakeSensitivity>("normal");
+  const [detail, setDetail] = useState<ReportRow | null>(null);
+  const [attachUrls, setAttachUrls] = useState<{ screenshot: string | null; camera: string | null }>({ screenshot: null, camera: null });
+  const [attachLoading, setAttachLoading] = useState(false);
+
+  const openDetail = async (r: ReportRow) => {
+    setDetail(r);
+    setAttachUrls({ screenshot: null, camera: null });
+    if (!r.screenshot_path && !r.camera_photo_path) return;
+    setAttachLoading(true);
+    try {
+      const [s, c] = await Promise.all([
+        r.screenshot_path
+          ? supabase.storage.from("issue-attachments").createSignedUrl(r.screenshot_path, 600)
+          : Promise.resolve({ data: null, error: null } as const),
+        r.camera_photo_path
+          ? supabase.storage.from("issue-attachments").createSignedUrl(r.camera_photo_path, 600)
+          : Promise.resolve({ data: null, error: null } as const),
+      ]);
+      setAttachUrls({
+        screenshot: s.data?.signedUrl ?? null,
+        camera: c.data?.signedUrl ?? null,
+      });
+    } finally {
+      setAttachLoading(false);
+    }
+  };
 
   useEffect(() => {
     setSens(getShakeSensitivity());
@@ -46,7 +74,7 @@ function ProfileHelpPage() {
     setError(null);
     const { data, error } = await supabase
       .from("issue_reports")
-      .select("id,category,message,status,route,created_at,resolved_at")
+      .select("id,category,message,status,route,created_at,resolved_at,screenshot_path,camera_photo_path")
       .eq("user_id", userId)
       .order("created_at", { ascending: false })
       .limit(50);
@@ -188,45 +216,56 @@ function ProfileHelpPage() {
             {!loading && reports && reports.length > 0 && (
               <ul className="space-y-2">
                 {reports.map((r) => (
-                  <li
-                    key={r.id}
-                    className="rounded-2xl border border-white/10 bg-white/[.03] p-3.5"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className="text-[10px] uppercase tracking-wider text-white/50 px-1.5 py-0.5 rounded bg-white/[.05] border border-white/10">
-                            {r.category}
-                          </span>
-                          {r.route && (
-                            <span className="text-[10px] text-white/40 truncate">
-                              {r.route}
+                  <li key={r.id}>
+                    <button
+                      type="button"
+                      onClick={() => void openDetail(r)}
+                      className="w-full text-left rounded-2xl border border-white/10 bg-white/[.03] p-3.5 hover:bg-white/[.05] transition-colors"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-[10px] uppercase tracking-wider text-white/50 px-1.5 py-0.5 rounded bg-white/[.05] border border-white/10">
+                              {r.category}
                             </span>
-                          )}
+                            {r.route && (
+                              <span className="text-[10px] text-white/40 truncate">{r.route}</span>
+                            )}
+                            {r.screenshot_path && (
+                              <span className="text-[10px] text-white/55 px-1.5 py-0.5 rounded bg-white/[.04] border border-white/10 inline-flex items-center gap-1">
+                                <ImageIcon className="w-2.5 h-2.5" /> shot
+                              </span>
+                            )}
+                            {r.camera_photo_path && (
+                              <span className="text-[10px] text-white/55 px-1.5 py-0.5 rounded bg-white/[.04] border border-white/10 inline-flex items-center gap-1">
+                                <Camera className="w-2.5 h-2.5" /> photo
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[13px] text-white mt-1.5 leading-snug line-clamp-2">
+                            {r.message}
+                          </p>
+                          <p className="text-[10.5px] text-white/45 mt-1.5">
+                            {new Date(r.created_at).toLocaleString("en-IN", {
+                              day: "numeric",
+                              month: "short",
+                              hour: "numeric",
+                              minute: "2-digit",
+                            })}
+                            {r.resolved_at && (
+                              <>
+                                {" · resolved "}
+                                {new Date(r.resolved_at).toLocaleDateString("en-IN", {
+                                  day: "numeric",
+                                  month: "short",
+                                })}
+                              </>
+                            )}
+                          </p>
                         </div>
-                        <p className="text-[13px] text-white mt-1.5 leading-snug line-clamp-2">
-                          {r.message}
-                        </p>
-                        <p className="text-[10.5px] text-white/45 mt-1.5">
-                          {new Date(r.created_at).toLocaleString("en-IN", {
-                            day: "numeric",
-                            month: "short",
-                            hour: "numeric",
-                            minute: "2-digit",
-                          })}
-                          {r.resolved_at && (
-                            <>
-                              {" · resolved "}
-                              {new Date(r.resolved_at).toLocaleDateString("en-IN", {
-                                day: "numeric",
-                                month: "short",
-                              })}
-                            </>
-                          )}
-                        </p>
+                        <StatusBadge status={r.status} />
                       </div>
-                      <StatusBadge status={r.status} />
-                    </div>
+                    </button>
                   </li>
                 ))}
               </ul>
@@ -242,8 +281,132 @@ function ProfileHelpPage() {
             </Link>
           </div>
         </div>
+
+        {detail && (
+          <div
+            className="absolute inset-0 z-20 bg-black/70 backdrop-blur-sm flex items-end sm:items-center justify-center p-3"
+            onClick={() => setDetail(null)}
+          >
+            <div
+              role="dialog"
+              aria-label="Report details"
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-md max-h-[88%] overflow-y-auto rounded-2xl border border-white/10 bg-zinc-950 shadow-2xl"
+            >
+              <header className="sticky top-0 bg-zinc-950/95 backdrop-blur px-4 py-3 flex items-center justify-between border-b border-white/10">
+                <div className="min-w-0 flex-1 flex items-center gap-2">
+                  <span className="text-[10px] uppercase tracking-wider text-white/50 px-1.5 py-0.5 rounded bg-white/[.05] border border-white/10">
+                    {detail.category}
+                  </span>
+                  <StatusBadge status={detail.status} />
+                </div>
+                <button
+                  onClick={() => setDetail(null)}
+                  aria-label="Close"
+                  className="qa-icon-btn"
+                >
+                  <X className="w-4 h-4 text-white" strokeWidth={2} />
+                </button>
+              </header>
+
+              <div className="p-4 space-y-4">
+                <div>
+                  <p className="text-[10.5px] uppercase tracking-wider text-white/45 mb-1">Message</p>
+                  <p className="text-[13px] text-white whitespace-pre-wrap leading-relaxed">{detail.message}</p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 text-[11.5px]">
+                  <div>
+                    <p className="text-white/45 mb-0.5">Submitted</p>
+                    <p className="text-white">{new Date(detail.created_at).toLocaleString("en-IN")}</p>
+                  </div>
+                  <div>
+                    <p className="text-white/45 mb-0.5">Resolved</p>
+                    <p className="text-white">
+                      {detail.resolved_at ? new Date(detail.resolved_at).toLocaleString("en-IN") : "—"}
+                    </p>
+                  </div>
+                  {detail.route && (
+                    <div className="col-span-2">
+                      <p className="text-white/45 mb-0.5">Route</p>
+                      <p className="text-white break-all font-mono text-[11px]">{detail.route}</p>
+                    </div>
+                  )}
+                </div>
+
+                {(detail.screenshot_path || detail.camera_photo_path) && (
+                  <div>
+                    <p className="text-[10.5px] uppercase tracking-wider text-white/45 mb-2">Attachments</p>
+                    {attachLoading && (
+                      <div className="flex items-center gap-2 text-[12px] text-white/55 py-3">
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading…
+                      </div>
+                    )}
+                    {!attachLoading && (
+                      <div className="space-y-3">
+                        {detail.screenshot_path && (
+                          <Attachment
+                            label="Screenshot"
+                            icon={<ImageIcon className="w-3.5 h-3.5" />}
+                            url={attachUrls.screenshot}
+                          />
+                        )}
+                        {detail.camera_photo_path && (
+                          <Attachment
+                            label="Camera photo"
+                            icon={<Camera className="w-3.5 h-3.5" />}
+                            url={attachUrls.camera}
+                          />
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {!detail.screenshot_path && !detail.camera_photo_path && (
+                  <p className="text-[11.5px] text-white/40 italic">No attachments on this report.</p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </PhoneShell>
+  );
+}
+
+function Attachment({ label, icon, url }: { label: string; icon: React.ReactNode; url: string | null }) {
+  if (!url) {
+    return (
+      <div className="rounded-xl border border-white/10 bg-white/[.02] px-3 py-2.5 text-[12px] text-white/50 flex items-center gap-2">
+        {icon} {label} — couldn't load
+      </div>
+    );
+  }
+  return (
+    <div className="rounded-xl border border-white/10 bg-white/[.03] overflow-hidden">
+      <div className="flex items-center justify-between px-3 py-2 border-b border-white/10">
+        <span className="text-[11.5px] text-white/75 font-medium inline-flex items-center gap-1.5">
+          {icon} {label}
+        </span>
+        <a
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-[11px] text-white/70 hover:text-white inline-flex items-center gap-1"
+        >
+          Open <ExternalLink className="w-3 h-3" />
+        </a>
+      </div>
+      <a href={url} target="_blank" rel="noopener noreferrer" className="block">
+        <img
+          src={url}
+          alt={label}
+          loading="lazy"
+          className="w-full max-h-[360px] object-contain bg-black/40"
+        />
+      </a>
+    </div>
   );
 }
 
