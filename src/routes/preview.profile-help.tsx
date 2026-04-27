@@ -281,8 +281,132 @@ function ProfileHelpPage() {
             </Link>
           </div>
         </div>
+
+        {detail && (
+          <div
+            className="absolute inset-0 z-20 bg-black/70 backdrop-blur-sm flex items-end sm:items-center justify-center p-3"
+            onClick={() => setDetail(null)}
+          >
+            <div
+              role="dialog"
+              aria-label="Report details"
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-md max-h-[88%] overflow-y-auto rounded-2xl border border-white/10 bg-zinc-950 shadow-2xl"
+            >
+              <header className="sticky top-0 bg-zinc-950/95 backdrop-blur px-4 py-3 flex items-center justify-between border-b border-white/10">
+                <div className="min-w-0 flex-1 flex items-center gap-2">
+                  <span className="text-[10px] uppercase tracking-wider text-white/50 px-1.5 py-0.5 rounded bg-white/[.05] border border-white/10">
+                    {detail.category}
+                  </span>
+                  <StatusBadge status={detail.status} />
+                </div>
+                <button
+                  onClick={() => setDetail(null)}
+                  aria-label="Close"
+                  className="qa-icon-btn"
+                >
+                  <X className="w-4 h-4 text-white" strokeWidth={2} />
+                </button>
+              </header>
+
+              <div className="p-4 space-y-4">
+                <div>
+                  <p className="text-[10.5px] uppercase tracking-wider text-white/45 mb-1">Message</p>
+                  <p className="text-[13px] text-white whitespace-pre-wrap leading-relaxed">{detail.message}</p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 text-[11.5px]">
+                  <div>
+                    <p className="text-white/45 mb-0.5">Submitted</p>
+                    <p className="text-white">{new Date(detail.created_at).toLocaleString("en-IN")}</p>
+                  </div>
+                  <div>
+                    <p className="text-white/45 mb-0.5">Resolved</p>
+                    <p className="text-white">
+                      {detail.resolved_at ? new Date(detail.resolved_at).toLocaleString("en-IN") : "—"}
+                    </p>
+                  </div>
+                  {detail.route && (
+                    <div className="col-span-2">
+                      <p className="text-white/45 mb-0.5">Route</p>
+                      <p className="text-white break-all font-mono text-[11px]">{detail.route}</p>
+                    </div>
+                  )}
+                </div>
+
+                {(detail.screenshot_path || detail.camera_photo_path) && (
+                  <div>
+                    <p className="text-[10.5px] uppercase tracking-wider text-white/45 mb-2">Attachments</p>
+                    {attachLoading && (
+                      <div className="flex items-center gap-2 text-[12px] text-white/55 py-3">
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading…
+                      </div>
+                    )}
+                    {!attachLoading && (
+                      <div className="space-y-3">
+                        {detail.screenshot_path && (
+                          <Attachment
+                            label="Screenshot"
+                            icon={<ImageIcon className="w-3.5 h-3.5" />}
+                            url={attachUrls.screenshot}
+                          />
+                        )}
+                        {detail.camera_photo_path && (
+                          <Attachment
+                            label="Camera photo"
+                            icon={<Camera className="w-3.5 h-3.5" />}
+                            url={attachUrls.camera}
+                          />
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {!detail.screenshot_path && !detail.camera_photo_path && (
+                  <p className="text-[11.5px] text-white/40 italic">No attachments on this report.</p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </PhoneShell>
+  );
+}
+
+function Attachment({ label, icon, url }: { label: string; icon: React.ReactNode; url: string | null }) {
+  if (!url) {
+    return (
+      <div className="rounded-xl border border-white/10 bg-white/[.02] px-3 py-2.5 text-[12px] text-white/50 flex items-center gap-2">
+        {icon} {label} — couldn't load
+      </div>
+    );
+  }
+  return (
+    <div className="rounded-xl border border-white/10 bg-white/[.03] overflow-hidden">
+      <div className="flex items-center justify-between px-3 py-2 border-b border-white/10">
+        <span className="text-[11.5px] text-white/75 font-medium inline-flex items-center gap-1.5">
+          {icon} {label}
+        </span>
+        <a
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-[11px] text-white/70 hover:text-white inline-flex items-center gap-1"
+        >
+          Open <ExternalLink className="w-3 h-3" />
+        </a>
+      </div>
+      <a href={url} target="_blank" rel="noopener noreferrer" className="block">
+        <img
+          src={url}
+          alt={label}
+          loading="lazy"
+          className="w-full max-h-[360px] object-contain bg-black/40"
+        />
+      </a>
+    </div>
   );
 }
 
