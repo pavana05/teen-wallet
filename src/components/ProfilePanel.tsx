@@ -23,6 +23,7 @@ import { InlineEditCard } from "./profile/InlineEditCard";
 import { useMotionLevel, type MotionLevel } from "@/lib/motionPrefs";
 import { qrColors } from "@/lib/themeTokens";
 import { ReferralProgram } from "@/screens/ReferralProgram";
+import { FloatingDock } from "@/components/FloatingDock";
 
 interface Props {
   onClose: () => void;
@@ -782,6 +783,14 @@ export function ProfilePanel({ onClose }: Props) {
       )}
 
       {appLockOpen && <AppLockSettings onBack={() => setAppLockOpen(false)} />}
+
+      {/* Pinned floating dock — Home & Profile share the same dock so the
+          QR scan FAB is always one tap away. Hidden when any modal is open. */}
+      <FloatingDock
+        active="profile"
+        onHome={onClose}
+        hidden={editPhoneOpen || qrOpen || confirmLogout || confirmDelete || vcardOpen || referralOpen || igOpen || schoolOpen || appLockOpen}
+      />
     </div>
   );
 }
