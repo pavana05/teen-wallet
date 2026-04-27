@@ -168,13 +168,19 @@ function Index() {
         {booting ? (
           <ScreenFallback />
         ) : stage === "STAGE_0" || stage === "STAGE_1" ? (
-          <Onboarding onDone={() => setStage("STAGE_2")} />
+          <Onboarding onDone={() => {
+            // Never downgrade — if persisted/profile-derived stage is already
+            // past auth, resume there instead of forcing the user back to STAGE_2.
+            const s = useApp.getState().stage;
+            const rank: Record<Stage, number> = { STAGE_0:0, STAGE_1:1, STAGE_2:2, STAGE_3:3, STAGE_4:4, STAGE_5:5 };
+            setStage(rank[s] >= rank["STAGE_2"] ? s : "STAGE_2");
+          }} />
         ) : stage === "STAGE_2" ? (
           <AuthPhone onDone={() => {
             const s = useApp.getState().stage;
-            if (s === "STAGE_0" || s === "STAGE_1" || s === "STAGE_2") {
-              setStage("STAGE_3");
-            }
+            const rank: Record<Stage, number> = { STAGE_0:0, STAGE_1:1, STAGE_2:2, STAGE_3:3, STAGE_4:4, STAGE_5:5 };
+            // Resume to whichever is more advanced (persisted/profile vs STAGE_3).
+            setStage(rank[s] > rank["STAGE_3"] ? s : "STAGE_3");
           }} />
         ) : referralPending && (stage === "STAGE_3" || stage === "STAGE_4" || stage === "STAGE_5") ? (
           <OnboardingReferral onDone={markReferralDone} />
