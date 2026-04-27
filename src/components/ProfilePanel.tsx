@@ -783,6 +783,14 @@ export function ProfilePanel({ onClose }: Props) {
       )}
 
       {appLockOpen && <AppLockSettings onBack={() => setAppLockOpen(false)} />}
+
+      {/* Pinned floating dock — Home & Profile share the same dock so the
+          QR scan FAB is always one tap away. Hidden when any modal is open. */}
+      <FloatingDock
+        active="profile"
+        onHome={onClose}
+        hidden={editPhoneOpen || qrOpen || confirmLogout || confirmDelete || vcardOpen || referralOpen || igOpen || schoolOpen || appLockOpen}
+      />
     </div>
   );
 }
