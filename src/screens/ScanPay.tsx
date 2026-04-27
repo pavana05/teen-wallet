@@ -6,7 +6,15 @@ import { scanTransaction, logFraudFlags, type FraudFlag } from "@/lib/fraud";
 import { useApp } from "@/lib/store";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { downloadReceiptPdf, shareReceiptPdf, buildReceiptSummary, type ReceiptData } from "@/lib/receipt";
+import { downloadReceiptPdf, shareReceiptPdf, shareReceiptToWhatsApp, buildReceiptSummary, type ReceiptData } from "@/lib/receipt";
+import {
+  recordReceiptDelivery,
+  getLastDelivery,
+  channelLabel,
+  statusLabel,
+  relativeTime,
+  type ReceiptDelivery,
+} from "@/lib/receiptDelivery";
 import { callWithAuth } from "@/lib/serverFnAuth";
 import { breadcrumb, captureError } from "@/lib/breadcrumbs";
 import { PaymentStepper, type StepperStage } from "@/components/PaymentStepper";
