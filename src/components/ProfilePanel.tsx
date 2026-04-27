@@ -20,6 +20,7 @@ import { QuickActions } from "./profile/QuickActions";
 import { InlineEditCard } from "./profile/InlineEditCard";
 import { useMotionLevel, type MotionLevel } from "@/lib/motionPrefs";
 import { qrColors } from "@/lib/themeTokens";
+import { ReferralProgram } from "@/screens/ReferralProgram";
 
 interface Props {
   onClose: () => void;
@@ -64,6 +65,7 @@ export function ProfilePanel({ onClose }: Props) {
   const [copied, setCopied] = useState<string | null>(null);
   const [confirmLogout, setConfirmLogout] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [referralOpen, setReferralOpen] = useState(false);
   const [qrOpen, setQrOpen] = useState(false);
   const [editPhoneOpen, setEditPhoneOpen] = useState(false);
   // Virtual Card is on the roadmap but not shipped yet. Tapping the section
@@ -435,6 +437,12 @@ export function ProfilePanel({ onClose }: Props) {
                   hint={<span className="text-amber-300 font-semibold">3 active</span>}
                   onClick={() => toast("Vouchers", { description: "Amazon ₹100 · Zomato 20% off · Myntra ₹250" })}
                 />
+                <Row
+                  icon={Users}
+                  label="Referral Program"
+                  hint={<span className="text-fuchsia-300 font-semibold">Invite & earn</span>}
+                  onClick={() => setReferralOpen(true)}
+                />
               </div>
 
               {/* UPI group */}
@@ -727,6 +735,11 @@ export function ProfilePanel({ onClose }: Props) {
         />
       )}
       {vcardOpen && <VirtualCardModal onClose={() => setVcardOpen(false)} />}
+      {referralOpen && (
+        <div className="absolute inset-0 z-50 bg-[#0B0B0B] flex flex-col">
+          <ReferralProgram onBack={() => setReferralOpen(false)} />
+        </div>
+      )}
       {igOpen && (
         <InstagramSheet
           initial={instagram}

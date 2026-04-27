@@ -702,6 +702,63 @@ export type Database = {
         }
         Relationships: []
       }
+      referral_codes: {
+        Row: {
+          code: string
+          created_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      referrals: {
+        Row: {
+          code: string
+          completed_at: string | null
+          created_at: string
+          id: string
+          referred_reward: number
+          referred_user_id: string
+          referrer_reward: number
+          referrer_user_id: string
+          status: Database["public"]["Enums"]["referral_status"]
+        }
+        Insert: {
+          code: string
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          referred_reward?: number
+          referred_user_id: string
+          referrer_reward?: number
+          referrer_user_id: string
+          status?: Database["public"]["Enums"]["referral_status"]
+        }
+        Update: {
+          code?: string
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          referred_reward?: number
+          referred_user_id?: string
+          referrer_reward?: number
+          referrer_user_id?: string
+          status?: Database["public"]["Enums"]["referral_status"]
+        }
+        Relationships: []
+      }
       transactions: {
         Row: {
           amount: number
@@ -754,6 +811,15 @@ export type Database = {
           transaction_id: string
         }[]
       }
+      get_or_create_my_referral_code: { Args: never; Returns: string }
+      redeem_referral_code: {
+        Args: { _code: string }
+        Returns: {
+          message: string
+          ok: boolean
+          referred_reward: number
+        }[]
+      }
     }
     Enums: {
       admin_status: "active" | "locked" | "disabled" | "pending"
@@ -779,6 +845,7 @@ export type Database = {
         | "success"
         | "failed"
         | "cancelled"
+      referral_status: "pending" | "completed" | "rejected"
       txn_status: "success" | "pending" | "failed"
     }
     CompositeTypes: {
@@ -933,6 +1000,7 @@ export const Constants = {
         "failed",
         "cancelled",
       ],
+      referral_status: ["pending", "completed", "rejected"],
       txn_status: ["success", "pending", "failed"],
     },
   },

@@ -15,6 +15,7 @@ import { Route as PreviewIndexRouteImport } from './routes/preview.index'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as PreviewSplashRouteImport } from './routes/preview.splash'
 import { Route as PreviewScanPayRouteImport } from './routes/preview.scan-pay'
+import { Route as PreviewReferralProgramRouteImport } from './routes/preview.referral-program'
 import { Route as PreviewProfileHelpRouteImport } from './routes/preview.profile-help'
 import { Route as PreviewPhoneVerifiedRouteImport } from './routes/preview.phone-verified'
 import { Route as PreviewPermissionsRouteImport } from './routes/preview.permissions'
@@ -65,6 +66,11 @@ const PreviewSplashRoute = PreviewSplashRouteImport.update({
 const PreviewScanPayRoute = PreviewScanPayRouteImport.update({
   id: '/preview/scan-pay',
   path: '/preview/scan-pay',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PreviewReferralProgramRoute = PreviewReferralProgramRouteImport.update({
+  id: '/preview/referral-program',
+  path: '/preview/referral-program',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PreviewProfileHelpRoute = PreviewProfileHelpRouteImport.update({
@@ -195,6 +201,7 @@ export interface FileRoutesByFullPath {
   '/preview/permissions': typeof PreviewPermissionsRoute
   '/preview/phone-verified': typeof PreviewPhoneVerifiedRoute
   '/preview/profile-help': typeof PreviewProfileHelpRoute
+  '/preview/referral-program': typeof PreviewReferralProgramRoute
   '/preview/scan-pay': typeof PreviewScanPayRoute
   '/preview/splash': typeof PreviewSplashRoute
   '/admin/': typeof AdminIndexRoute
@@ -223,6 +230,7 @@ export interface FileRoutesByTo {
   '/preview/permissions': typeof PreviewPermissionsRoute
   '/preview/phone-verified': typeof PreviewPhoneVerifiedRoute
   '/preview/profile-help': typeof PreviewProfileHelpRoute
+  '/preview/referral-program': typeof PreviewReferralProgramRoute
   '/preview/scan-pay': typeof PreviewScanPayRoute
   '/preview/splash': typeof PreviewSplashRoute
   '/admin': typeof AdminIndexRoute
@@ -253,6 +261,7 @@ export interface FileRoutesById {
   '/preview/permissions': typeof PreviewPermissionsRoute
   '/preview/phone-verified': typeof PreviewPhoneVerifiedRoute
   '/preview/profile-help': typeof PreviewProfileHelpRoute
+  '/preview/referral-program': typeof PreviewReferralProgramRoute
   '/preview/scan-pay': typeof PreviewScanPayRoute
   '/preview/splash': typeof PreviewSplashRoute
   '/admin/': typeof AdminIndexRoute
@@ -284,6 +293,7 @@ export interface FileRouteTypes {
     | '/preview/permissions'
     | '/preview/phone-verified'
     | '/preview/profile-help'
+    | '/preview/referral-program'
     | '/preview/scan-pay'
     | '/preview/splash'
     | '/admin/'
@@ -312,6 +322,7 @@ export interface FileRouteTypes {
     | '/preview/permissions'
     | '/preview/phone-verified'
     | '/preview/profile-help'
+    | '/preview/referral-program'
     | '/preview/scan-pay'
     | '/preview/splash'
     | '/admin'
@@ -341,6 +352,7 @@ export interface FileRouteTypes {
     | '/preview/permissions'
     | '/preview/phone-verified'
     | '/preview/profile-help'
+    | '/preview/referral-program'
     | '/preview/scan-pay'
     | '/preview/splash'
     | '/admin/'
@@ -362,6 +374,7 @@ export interface RootRouteChildren {
   PreviewPermissionsRoute: typeof PreviewPermissionsRoute
   PreviewPhoneVerifiedRoute: typeof PreviewPhoneVerifiedRoute
   PreviewProfileHelpRoute: typeof PreviewProfileHelpRoute
+  PreviewReferralProgramRoute: typeof PreviewReferralProgramRoute
   PreviewScanPayRoute: typeof PreviewScanPayRoute
   PreviewSplashRoute: typeof PreviewSplashRoute
   PreviewIndexRoute: typeof PreviewIndexRoute
@@ -410,6 +423,13 @@ declare module '@tanstack/react-router' {
       path: '/preview/scan-pay'
       fullPath: '/preview/scan-pay'
       preLoaderRoute: typeof PreviewScanPayRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/preview/referral-program': {
+      id: '/preview/referral-program'
+      path: '/preview/referral-program'
+      fullPath: '/preview/referral-program'
+      preLoaderRoute: typeof PreviewReferralProgramRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/preview/profile-help': {
@@ -615,6 +635,7 @@ const rootRouteChildren: RootRouteChildren = {
   PreviewPermissionsRoute: PreviewPermissionsRoute,
   PreviewPhoneVerifiedRoute: PreviewPhoneVerifiedRoute,
   PreviewProfileHelpRoute: PreviewProfileHelpRoute,
+  PreviewReferralProgramRoute: PreviewReferralProgramRoute,
   PreviewScanPayRoute: PreviewScanPayRoute,
   PreviewSplashRoute: PreviewSplashRoute,
   PreviewIndexRoute: PreviewIndexRoute,
