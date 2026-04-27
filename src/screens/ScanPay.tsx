@@ -7,11 +7,22 @@ import { useApp } from "@/lib/store";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { downloadReceiptPdf, shareReceiptPdf, buildReceiptSummary, type ReceiptData } from "@/lib/receipt";
-import { payUpi } from "@/lib/payments.functions";
 import { callWithAuth } from "@/lib/serverFnAuth";
 import { breadcrumb, captureError } from "@/lib/breadcrumbs";
+import { PaymentStepper, type StepperStage } from "@/components/PaymentStepper";
+import {
+  createAttempt,
+  startProcessing,
+  pollAttempt,
+  cancelAttempt,
+  findResumableAttempt,
+  type AttemptSnapshot,
+} from "@/lib/paymentAttempts.functions";
 
 const SCANPAY_PERSIST_KEY = "tw-scanpay-flow-v1";
+const SCANPAY_ATTEMPT_KEY = "tw-scanpay-attempt-id-v1";
+const POLL_INTERVAL_MS = 1500;
+const POLL_MAX_MS = 60_000;
 
 interface PersistedFlow {
   phase: Phase;
