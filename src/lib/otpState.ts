@@ -23,6 +23,8 @@ export interface PersistedOtp {
   correlationId: string | null;
   busy: boolean;
   resendBlockedUntil: number | null; // epoch ms
+  resendCount?: number;              // # of resends in this attempt window
+  cooldownTotalMs?: number | null;   // total duration of the *current* cooldown
   savedAt: number;
 }
 
