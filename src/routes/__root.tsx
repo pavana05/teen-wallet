@@ -110,6 +110,7 @@ function RootComponent() {
   useEffect(() => {
     installConsoleCapture();
     initNative();
+    installAppLockListeners();
     breadcrumb("system.boot", { platform: typeof navigator !== "undefined" ? navigator.userAgent : undefined });
 
     const onError = (e: ErrorEvent) => captureError(e.error ?? e.message, { where: "window.onerror" });
@@ -127,6 +128,8 @@ function RootComponent() {
       <Outlet />
       <Toaster />
       <ShakeToReport />
+      <AppLockSetupPrompt />
+      <AppLockGate />
     </>
   );
 }
