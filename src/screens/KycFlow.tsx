@@ -333,31 +333,52 @@ export function KycFlow({ onDone }: { onDone: () => void }) {
 
   async function submitStep1() {
     setError("");
-    if (name.trim().length < 2) return setError("Enter your full name");
+    // Collect all field-level errors at once so the user can see every problem
+    // and correct them in one pass instead of fixing one, retrying, repeating.
+    const fe: Record<string, string> = {};
+    if (name.trim().length < 2) fe.name = "Enter your full name (min 2 characters).";
     const age = ageFromDob(dob);
-    if (age == null) return setError("Enter DOB as DD/MM/YYYY");
-    if (age < 13 || age > 19) return setError("Teen Wallet is for ages 13–19");
-    if (!gender) return setError("Select gender");
-    if (schoolName.trim().length < 2) return setError("Enter your school or college name");
-    if (addrLine1.trim().length < 4) return setError("Enter your home address");
-    if (addrCity.trim().length < 2) return setError("Enter your city");
-    if (addrState.trim().length < 2) return setError("Enter your state");
-    if (!/^[0-9]{6}$/.test(addrPincode)) return setError("Enter a valid 6-digit pincode");
+    if (age == null) fe.dob = "Use DD/MM/YYYY format.";
+    else if (age < 13 || age > 19) fe.dob = "Teen Wallet is for ages 13–19.";
+    if (!gender) fe.gender = "Select your gender to continue.";
+    if (schoolName.trim().length < 2) fe.schoolName = "Enter your school or college name.";
+    if (addrLine1.trim().length < 4) fe.addrLine1 = "Enter your house no., street and locality.";
+    if (addrCity.trim().length < 2) fe.addrCity = "City is required.";
+    if (addrState.trim().length < 2) fe.addrState = "State is required.";
+    if (!/^[0-9]{6}$/.test(addrPincode)) fe.addrPincode = "Enter a valid 6-digit pincode.";
+
+    if (Object.keys(fe).length > 0) {
+      setFieldErrors(fe);
+      setError("Please fix the highlighted fields above.");
+      // Scroll the first invalid field into view for a smooth correction flow.
+      requestAnimationFrame(() => {
+        const firstKey = Object.keys(fe)[0];
+        const el = document.querySelector<HTMLElement>(`[data-kyc-field="${firstKey}"]`);
+        el?.scrollIntoView({ behavior: "smooth", block: "center" });
+      });
+      return;
+    }
+    setFieldErrors({});
     setBusy(true);
     const [d, m, y] = dob.split("/");
-    await updateProfileFields({
-      full_name: name.trim(),
-      dob: `${y}-${m}-${d}`,
-      gender,
-      school_name: schoolName.trim(),
-      address_line1: addrLine1.trim(),
-      address_city: addrCity.trim(),
-      address_state: addrState.trim(),
-      address_pincode: addrPincode,
-      onboarding_stage: "STAGE_2",
-    });
-    setBusy(false);
-    setStep(2);
+    try {
+      await updateProfileFields({
+        full_name: name.trim(),
+        dob: `${y}-${m}-${d}`,
+        gender,
+        school_name: schoolName.trim(),
+        address_line1: addrLine1.trim(),
+        address_city: addrCity.trim(),
+        address_state: addrState.trim(),
+        address_pincode: addrPincode,
+        onboarding_stage: "STAGE_2",
+      });
+      setStep(2);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn't save your details. Please try again.");
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function submitStep2() {
