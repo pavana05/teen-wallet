@@ -10,7 +10,7 @@ import { useEffect, useState } from "react";
 import { Fingerprint, LogOut, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { callAppLock, getBiometricAssertion, useAppLock } from "@/lib/appLock";
+import { callAppLock, useAppLock, verifyBiometricUnlock } from "@/lib/appLock";
 import { PinPad } from "./PinPad";
 
 export function AppLockGate() {
@@ -38,20 +38,12 @@ export function AppLockGate() {
     setBusy(true);
     setMessage(null);
     try {
-      const credId = await getBiometricAssertion(status.biometric_credential_id);
-      if (!credId) {
-        setMessage("Biometric cancelled");
-        return;
-      }
-      const { error } = await callAppLock({ action: "verify_biometric", credential_id: credId });
-      if (error) {
-        setMessage(error.message);
-        setErrorKey((k) => k + 1);
-        return;
-      }
+      const ok = await verifyBiometricUnlock();
+      if (!ok) { setMessage("Biometric cancelled"); return; }
       markUnlocked();
     } catch (e) {
       setMessage((e as Error).message);
+      setErrorKey((k) => k + 1);
     } finally {
       setBusy(false);
     }

@@ -3,7 +3,7 @@ import { useState } from "react";
 import { ArrowLeft, Fingerprint, ShieldCheck, X } from "lucide-react";
 import { toast } from "sonner";
 import { useApp } from "@/lib/store";
-import { callAppLock, createBiometricCredential, isBiometricSupported, useAppLock } from "@/lib/appLock";
+import { callAppLock, enrollBiometric as runEnrollBiometric, isBiometricSupported, useAppLock } from "@/lib/appLock";
 import { PinPad } from "./PinPad";
 
 interface Props {
@@ -44,18 +44,8 @@ export function AppLockSetup({ onClose }: Props) {
     if (!userId) return;
     setBusy(true);
     try {
-      const cred = await createBiometricCredential(userId, fullName ?? "Teen Wallet User");
-      if (!cred) {
-        toast.message("Biometric setup cancelled");
-        setStep("done");
-        return;
-      }
-      const { error } = await callAppLock({
-        action: "register_biometric",
-        credential_id: cred.credentialId,
-        public_key: cred.publicKey,
-      });
-      if (error) throw new Error(error.message);
+      const ok = await runEnrollBiometric();
+      if (!ok) { toast.message("Biometric setup cancelled"); setStep("done"); return; }
       await refresh();
       toast.success("Biometric enrolled");
       setStep("done");

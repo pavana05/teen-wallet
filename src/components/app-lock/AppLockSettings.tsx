@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { useApp } from "@/lib/store";
 import {
   callAppLock,
-  createBiometricCredential,
+  enrollBiometric as runEnrollBiometric,
   isBiometricSupported,
   useAppLock,
 } from "@/lib/appLock";
@@ -50,14 +50,8 @@ export function AppLockSettings({ onBack }: Props) {
   const enrollBiometric = async () => {
     if (!userId) return;
     try {
-      const cred = await createBiometricCredential(userId, fullName ?? "Teen Wallet User");
-      if (!cred) { toast.message("Biometric setup cancelled"); return; }
-      const { error } = await callAppLock({
-        action: "register_biometric",
-        credential_id: cred.credentialId,
-        public_key: cred.publicKey,
-      });
-      if (error) throw new Error(error.message);
+      const ok = await runEnrollBiometric();
+      if (!ok) { toast.message("Biometric setup cancelled"); return; }
       await refresh();
       toast.success("Biometric enrolled");
     } catch (e) {
