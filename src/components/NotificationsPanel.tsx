@@ -58,6 +58,13 @@ export function NotificationsPanel({ onClose }: Props) {
 
   const filtered = useMemo(() => {
     if (filter === "all") return notifs;
+    if (filter === "transaction") {
+      // "Payments" chip groups all money-movement notifications
+      return notifs.filter((n) =>
+        n.type === "transaction" || n.type === "payment_sent" ||
+        n.type === "payment_received" || n.type === "low_balance",
+      );
+    }
     return notifs.filter((n) => n.type === filter);
   }, [notifs, filter]);
 
