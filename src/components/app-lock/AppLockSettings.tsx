@@ -66,13 +66,32 @@ export function AppLockSettings({ onBack }: Props) {
     toast.success("Biometric removed");
   };
 
+  // Friendly error text for PIN-related failures from the edge function.
+  const friendlyPinError = (
+    error: { message: string; payload?: unknown },
+    fallback: string,
+  ): string => {
+    const p = error.payload as
+      | { error?: string; attempts_until_cooldown?: number; attempts_remaining?: number; locked_until?: string }
+      | undefined;
+    if (p?.locked_until) {
+      const secs = Math.max(1, Math.ceil((new Date(p.locked_until).getTime() - Date.now()) / 1000));
+      return `Too many attempts — try again in ${secs}s`;
+    }
+    const remaining = p?.attempts_until_cooldown ?? p?.attempts_remaining;
+    if (typeof remaining === "number") {
+      return `Incorrect PIN — ${remaining} ${remaining === 1 ? "try" : "tries"} left`;
+    }
+    return error.message || fallback;
+  };
+
   // ===== Disable flow =====
   const submitDisable = async (pin: string) => {
     setBusy(true);
     const { error } = await callAppLock({ action: "disable", pin });
     setBusy(false);
     if (error) {
-      toast.error("Couldn't disable", { description: error.message });
+      toast.error("Couldn't disable App Lock", { description: friendlyPinError(error, "Please try again") });
       setErrorKey((k) => k + 1);
       return;
     }
@@ -87,7 +106,7 @@ export function AppLockSettings({ onBack }: Props) {
     const { error } = await callAppLock({ action: "change_pin", current_pin: current, new_pin: next });
     setBusy(false);
     if (error) {
-      toast.error("Couldn't change PIN", { description: error.message });
+      toast.error("Couldn't change PIN", { description: friendlyPinError(error, "Please try again") });
       setChangePin("current");
       setCurrentPin(""); setNewPin("");
       setErrorKey((k) => k + 1);
