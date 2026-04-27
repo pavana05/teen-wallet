@@ -151,9 +151,18 @@ function FraudPage() {
         : <span style={{ color: "var(--a-warn)", fontSize: 12 }}><AlertTriangle size={12} style={{ display: "inline", verticalAlign: "-2px" }} /> Open</span>,
     },
     {
-      key: "act", header: "Actions", width: "200px", align: "right",
+      key: "act", header: "Actions", width: "240px", align: "right",
       cell: (r) => (
         <div style={{ display: "inline-flex", gap: 4, alignItems: "center" }}>
+          <button
+            type="button"
+            onClick={() => setSelected(r)}
+            title="View details"
+            className="a-btn-ghost"
+            style={{ fontSize: 11, padding: "4px 8px", display: "inline-flex", alignItems: "center", gap: 4 }}
+          >
+            <Eye size={12} /> View
+          </button>
           <Link
             to="/admin/users/$id"
             params={{ id: r.user_id }}
