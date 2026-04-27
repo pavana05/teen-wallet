@@ -8,6 +8,7 @@ import { QuickActionsPanel, type QuickActionKind } from "@/components/QuickActio
 import { NotificationsPanel } from "@/components/NotificationsPanel";
 import { ProfilePanel } from "@/components/ProfilePanel";
 import heroScan from "@/assets/home-hero-scan.jpg";
+import heroScanDiwali from "@/assets/home-hero-scan-diwali.png";
 import { haptics } from "@/lib/haptics";
 import { useGenderPersona } from "@/lib/genderPersona";
 import { notifyPaymentReceived } from "@/lib/notify";
