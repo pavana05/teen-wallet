@@ -17,6 +17,7 @@ import { NotificationPrefs, DEFAULT_NOTIF_PREFS, type NotifPrefs } from "./profi
 import { KycTimeline } from "./profile/KycTimeline";
 import { QuickActions } from "./profile/QuickActions";
 import { InlineEditCard } from "./profile/InlineEditCard";
+import { useMotionLevel, type MotionLevel } from "@/lib/motionPrefs";
 
 interface Props {
   onClose: () => void;
@@ -612,6 +613,16 @@ export function ProfilePanel({ onClose }: Props) {
                 <ToggleRow icon={Moon} label="Dark mode" desc="Follow app theme" value={prefs.darkMode} onChange={(v) => setPrefs({ ...prefs, darkMode: v })} />
                 <ToggleRow icon={Sparkles} label="Sounds & haptics" desc="Feedback on actions" value={prefs.sounds} onChange={(v) => setPrefs({ ...prefs, sounds: v })} />
                 <Row icon={Languages} label="Language" hint={prefs.lang} />
+              </CollapsibleSection>
+
+              <CollapsibleSection
+                id="pr-motion"
+                title="Motion & animations"
+                defaultOpen={false}
+                isOpen={isOpen("pr-motion", false)}
+                onToggle={() => toggleSection("pr-motion", false)}
+              >
+                <MotionPrefs />
               </CollapsibleSection>
             </>
           )}
@@ -1239,6 +1250,57 @@ function SchoolSheet({
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   Motion / animation preferences
+   ============================================================ */
+const MOTION_OPTIONS: { value: MotionLevel; title: string; desc: string }[] = [
+  { value: "full", title: "Full animations", desc: "Premium effects, perspective, particles." },
+  { value: "reduced", title: "Reduced motion", desc: "Subtle fades only. Skips heavy effects." },
+  { value: "off", title: "No motion", desc: "Static UI. Accessible & battery-friendly." },
+];
+
+function MotionPrefs() {
+  const [level, setLevel] = useMotionLevel();
+  return (
+    <div className="flex flex-col gap-2">
+      <p className="text-[11.5px] text-white/55 px-1 -mt-1">
+        Choose how lively the app feels. Applies everywhere — including the payment screen.
+      </p>
+      {MOTION_OPTIONS.map((opt) => {
+        const active = level === opt.value;
+        return (
+          <button
+            key={opt.value}
+            type="button"
+            onClick={() => setLevel(opt.value)}
+            aria-pressed={active}
+            className={`flex items-start gap-3 text-left rounded-xl px-3 py-3 border transition-colors ${
+              active
+                ? "bg-primary/10 border-primary/50"
+                : "bg-white/5 border-white/10 hover:bg-white/8"
+            }`}
+          >
+            <span
+              aria-hidden
+              className={`mt-1 w-4 h-4 rounded-full border-2 flex-shrink-0 flex items-center justify-center ${
+                active ? "border-primary" : "border-white/30"
+              }`}
+            >
+              {active && <span className="w-2 h-2 rounded-full bg-primary" />}
+            </span>
+            <span className="flex-1 min-w-0">
+              <span className={`block text-[14px] font-semibold ${active ? "text-white" : "text-white/85"}`}>
+                {opt.title}
+              </span>
+              <span className="block text-[11.5px] text-white/55 mt-0.5">{opt.desc}</span>
+            </span>
+          </button>
+        );
+      })}
     </div>
   );
 }

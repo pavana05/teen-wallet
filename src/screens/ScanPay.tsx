@@ -7,11 +7,22 @@ import { useApp } from "@/lib/store";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { downloadReceiptPdf, shareReceiptPdf, buildReceiptSummary, type ReceiptData } from "@/lib/receipt";
-import { payUpi } from "@/lib/payments.functions";
 import { callWithAuth } from "@/lib/serverFnAuth";
 import { breadcrumb, captureError } from "@/lib/breadcrumbs";
+import { PaymentStepper, type StepperStage } from "@/components/PaymentStepper";
+import {
+  createAttempt,
+  startProcessing,
+  pollAttempt,
+  cancelAttempt,
+  findResumableAttempt,
+  type AttemptSnapshot,
+} from "@/lib/paymentAttempts.functions";
 
 const SCANPAY_PERSIST_KEY = "tw-scanpay-flow-v1";
+const SCANPAY_ATTEMPT_KEY = "tw-scanpay-attempt-id-v1";
+const POLL_INTERVAL_MS = 1500;
+const POLL_MAX_MS = 60_000;
 
 interface PersistedFlow {
   phase: Phase;
@@ -52,6 +63,10 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
   // Bump this to force-remount the ScannerView and dispose its camera + Html5Qrcode instance.
   const [scannerKey, setScannerKey] = useState(0);
 
+  // Persisted server-side payment attempt id. When present, we are mid-flow
+  // and polling the backend for status updates rather than running a timer.
+  const [attemptId, setAttemptId] = useState<string | null>(() => readAttemptId());
+
   // Keep persistence in sync; clear on terminal states. Including `note` so a
   // user-typed memo survives accidental nav-away mid-flow.
   useEffect(() => {
@@ -61,6 +76,13 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
       clearPersisted();
     }
   }, [phase, payload, amount, note]);
+
+  // Mirror attemptId into localStorage so a refresh during processing
+  // resumes against the same backend record.
+  useEffect(() => {
+    if (attemptId) writeAttemptId(attemptId);
+    else clearAttemptId();
+  }, [attemptId]);
 
   const navLockRef = useRef(false);
   const handleDecoded = useCallback((parsed: UpiPayload) => {
@@ -74,18 +96,133 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
     setPhase("confirm");
   }, []);
 
+  // ── Resume on mount ──
+  // If we have a persisted attempt id (or the backend reports an in-progress
+  // attempt for this user), rehydrate the UI into the correct stage instead
+  // of dropping the user back into the scanner. This is the heart of "reopen
+  // the app and continue from the same payment screen state".
+  const resumedRef = useRef(false);
+  useEffect(() => {
+    if (resumedRef.current) return;
+    if (!userId) return;
+    resumedRef.current = true;
+    void resumeFromBackend({
+      userId,
+      cachedAttemptId: attemptId,
+      onResume: ({ snap }) => {
+        setPayload({
+          upiId: snap.upiId,
+          payeeName: snap.payeeName,
+          amount: snap.amount,
+          amountRaw: String(snap.amount),
+          amountSource: "rupees",
+          note: snap.note,
+          currency: "INR",
+        });
+        setAmount(snap.amount);
+        setNote(snap.note ?? "");
+        setAttemptId(snap.id);
+        if (snap.stage === "processing") {
+          setPhase("processing");
+        } else if (snap.stage === "confirm") {
+          setPhase("confirm");
+        } else if (snap.stage === "success" && snap.transactionId) {
+          // Already done — show success screen with what we know.
+          setSavedTxn(snapToSavedTxn(snap));
+          setPhase("success");
+        } else if (snap.stage === "failed") {
+          setResultMsg(snap.failureReason ?? "Payment failed");
+          setFailKind("generic");
+          setPhase("failed");
+        }
+      },
+    });
+  }, [userId, attemptId]);
+
+  // ── Polling loop while processing ──
+  // The success transition is driven by the backend (simulated PSP webhook
+  // finalizes the attempt after ~3s). The UI just polls and reacts.
+  useEffect(() => {
+    if (phase !== "processing" || !attemptId) return;
+    let cancelled = false;
+    const startedAt = Date.now();
+
+    const tick = async () => {
+      if (cancelled) return;
+      try {
+        const res = await callWithAuth(pollAttempt, { attemptId });
+        if (cancelled) return;
+        if (!res.ok) {
+          // Network blip — keep polling unless we've timed out overall.
+          if (Date.now() - startedAt > POLL_MAX_MS) {
+            setResultMsg(res.message);
+            setFailKind("generic");
+            setPhase("failed");
+            return;
+          }
+          setTimeout(tick, POLL_INTERVAL_MS);
+          return;
+        }
+        const snap = res.attempt;
+        if (typeof res.newBalance === "number") {
+          useApp.setState({ balance: res.newBalance });
+        }
+        if (snap.stage === "success" && snap.transactionId) {
+          breadcrumb("payment.success", { txnId: snap.transactionId, amount: snap.amount, durationMs: Date.now() - startedAt });
+          setSavedTxn(snapToSavedTxn(snap));
+          setResultMsg(`₹${snap.amount.toFixed(0)} sent to ${snap.payeeName}`);
+          if (navigator.vibrate) navigator.vibrate([30, 60, 30]);
+          setAttemptId(null);
+          setPhase("success");
+          return;
+        }
+        if (snap.stage === "failed") {
+          breadcrumb("payment.failed", { amount: snap.amount, reason: snap.failureReason ?? undefined }, "warning");
+          setResultMsg(snap.failureReason ?? "Payment failed");
+          setFailKind("generic");
+          setAttemptId(null);
+          setPhase("failed");
+          return;
+        }
+        // Still processing — schedule next tick.
+        if (Date.now() - startedAt > POLL_MAX_MS) {
+          setResultMsg("Payment is taking longer than expected. We'll keep trying in the background.");
+          setFailKind("generic");
+          setPhase("failed");
+          return;
+        }
+        setTimeout(tick, POLL_INTERVAL_MS);
+      } catch (err) {
+        if (cancelled) return;
+        captureError(err, { where: "scanpay.poll", attemptId });
+        if (Date.now() - startedAt > POLL_MAX_MS) {
+          setResultMsg("Lost connection to payment service.");
+          setFailKind("generic");
+          setPhase("failed");
+          return;
+        }
+        setTimeout(tick, POLL_INTERVAL_MS);
+      }
+    };
+
+    // Slight delay so the premium animation has a beat to settle in.
+    const initial = setTimeout(tick, 800);
+    return () => {
+      cancelled = true;
+      clearTimeout(initial);
+    };
+  }, [phase, attemptId]);
+
   const handlePay = useCallback(async () => {
     if (!userId || !payload) return;
-    setPhase("processing");
     const amt = amount;
     const noteToSave = note.trim() || payload.note || null;
-    const startedAt = Date.now();
     breadcrumb("payment.submit_started", { amount: amt, upiId: payload.upiId, payee: payload.payeeName });
 
     // ── Pre-flight client-side fraud check ──
     // Mirrors the server rules so the user gets instant feedback for things
-    // like daily-limit blocks without the round-trip. The server re-runs
-    // these on submit so the check cannot be bypassed.
+    // like daily-limit blocks without the round-trip. The backend re-runs
+    // these on settlement so the check cannot be bypassed.
     const preflight = await scanTransaction({ userId, amount: amt, upiId: payload.upiId });
     if (preflight.blocked) {
       const blockFlag = preflight.flags.find((f) => f.severity === "block");
@@ -104,177 +241,53 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
       return;
     }
 
-    // Minimum visible processing window so the premium animation has time to play.
-    await new Promise((r) => setTimeout(r, 1800));
-
-    // ── Server-side payment ──
-    // Calls the authenticated `payUpi` server function which re-runs fraud
-    // rules, re-checks balance, inserts the transaction, debits the wallet,
-    // and returns a `upi://pay?...` deep link the client can hand off to a
-    // real UPI app on mobile.
-    let serverResult: Awaited<ReturnType<typeof payUpi>> | null = null;
+    // ── Create + start the server-side payment attempt ──
+    // The attempt row is the source of truth. Polling against it drives the
+    // Processing → Success transition (no client setTimeout deciding success).
+    let id = attemptId;
     try {
-      serverResult = await callWithAuth(payUpi, {
-        amount: amt,
-        upiId: payload.upiId,
-        payeeName: payload.payeeName,
-        note: noteToSave,
-      });
-    } catch (err) {
-      // Network / server function unavailable — fall back to direct insert
-      // so the demo flow keeps working in environments where the server
-      // function isn't deployed yet.
-      captureError(err, { where: "payment.payUpi", amount: amt, upiId: payload.upiId });
-      serverResult = null;
-    }
-
-    if (serverResult && !serverResult.ok) {
-      // Surface the typed reason to the failure screen.
-      if (serverResult.reason === "blocked") {
-        setFailKind("blocked");
-      } else if (serverResult.reason === "insufficient") {
-        setFailKind("insufficient");
-        if (typeof serverResult.newBalance === "number") {
-          useApp.setState({ balance: serverResult.newBalance });
+      if (!id) {
+        const created = await callWithAuth(createAttempt, {
+          amount: amt,
+          upiId: payload.upiId,
+          payeeName: payload.payeeName,
+          note: noteToSave,
+          method: "upi",
+        });
+        if (!created.ok) {
+          setResultMsg(created.message);
+          setFailKind("generic");
+          setPhase("failed");
+          return;
         }
-      } else {
+        id = created.attempt.id;
+        setAttemptId(id);
+      }
+      const started = await callWithAuth(startProcessing, { attemptId: id });
+      if (!started.ok) {
+        setResultMsg(started.message);
         setFailKind("generic");
+        setPhase("failed");
+        return;
       }
-      breadcrumb("payment.failed", {
-        amount: amt,
-        upiId: payload.upiId,
-        reason: serverResult.reason,
-        message: serverResult.message,
-        durationMs: Date.now() - startedAt,
-      }, "warning");
-      setResultMsg(serverResult.message);
-      setPhase("failed");
-      return;
-    }
-
-    if (serverResult && serverResult.ok) {
-      useApp.setState({ balance: serverResult.newBalance });
-      // Post-payment reconciliation: re-fetch live balance from Supabase and
-      // detect drift between the server function's reported newBalance and the
-      // actual profile row (e.g., a parental top-up landed mid-transaction).
-      void reconcileBalance(userId, serverResult.newBalance);
-      const txn: SavedTxn = {
-        id: serverResult.txnId,
-        amount: amt,
-        payee: payload.payeeName,
-        upiId: payload.upiId,
-        note: noteToSave,
-        createdAt: serverResult.createdAt,
-        upiDeepLink: serverResult.upiDeepLink,
-      };
-      setSavedTxn(txn);
-      breadcrumb("payment.success", {
-        amount: amt,
-        upiId: payload.upiId,
-        txnId: serverResult.txnId,
-        newBalance: serverResult.newBalance,
-        durationMs: Date.now() - startedAt,
-      });
-      setResultMsg(`₹${amt.toFixed(0)} sent to ${payload.payeeName}`);
-      if (navigator.vibrate) navigator.vibrate([30, 60, 30]);
-      // On a real mobile device, hand off to the user's UPI app immediately.
-      // The success screen still renders so the user has a receipt + retry path.
-      if (canOpenUpiApp() && serverResult.upiDeepLink) {
-        try { window.location.href = serverResult.upiDeepLink; } catch { /* ignore */ }
-      }
-      setPhase("success");
-      return;
-    }
-
-    // ── Fallback path (server function unreachable) ──
-    // Re-check balance just before insert.
-    const { data: fresh, error: balErr } = await supabase
-      .from("profiles")
-      .select("balance")
-      .eq("id", userId)
-      .single();
-    if (balErr || !fresh) {
-      setResultMsg("Couldn't verify balance. Please try again.");
-      setFailKind("generic");
-      setPhase("failed");
-      return;
-    }
-    const liveBalance = Number(fresh.balance);
-    if (Math.abs(liveBalance - balance) > 0.001) {
-      useApp.setState({ balance: liveBalance });
-      if (amt > liveBalance) {
-        setResultMsg(`Your balance changed to ₹${liveBalance.toFixed(2)} and is no longer enough for this payment.`);
-      } else {
-        setResultMsg(`Your wallet balance changed to ₹${liveBalance.toFixed(2)}. Please scan the QR again to confirm.`);
-      }
-      setFailKind("balance_changed");
-      setPhase("failed");
-      return;
-    }
-
-    const { data: txn, error } = await supabase
-      .from("transactions")
-      .insert({
-        user_id: userId,
-        amount: amt,
-        merchant_name: payload.payeeName,
-        upi_id: payload.upiId,
-        note: noteToSave,
-        status: "success",
-        fraud_flags: preflight.flags as never,
-      })
-      .select()
-      .single();
-
-    if (error || !txn) {
-      setResultMsg(error?.message ?? "Payment failed");
+    } catch (err) {
+      captureError(err, { where: "scanpay.startProcessing", amount: amt });
+      setResultMsg("Couldn't start payment. Please try again.");
       setFailKind("generic");
       setPhase("failed");
       return;
     }
 
-    await logFraudFlags(userId, txn.id, preflight.flags, preflight.flags.length === 0 ? "auto_passed" : "user_confirmed");
-    const newBal = liveBalance - amt;
-    await supabase.from("profiles").update({ balance: newBal }).eq("id", userId);
-    useApp.setState({ balance: newBal });
-    // Reconcile against the canonical DB row in case another tab/server
-    // changed the balance between our update and now.
-    void reconcileBalance(userId, newBal);
-    await supabase.from("notifications").insert({
-      user_id: userId,
-      type: "transaction",
-      title: `₹${amt.toFixed(2)} paid to ${payload.payeeName}`,
-      body: payload.upiId,
-    });
-
-    // Build a deep link locally so the success screen can still offer "Open in UPI app".
-    const { buildUpiDeepLink } = await import("@/lib/upi");
-    const fallbackDeepLink = buildUpiDeepLink({
-      upiId: payload.upiId,
-      payeeName: payload.payeeName,
-      amount: amt,
-      note: noteToSave,
-      txnRef: txn.id,
-    });
-
-    setSavedTxn({
-      id: txn.id,
-      amount: amt,
-      payee: payload.payeeName,
-      upiId: payload.upiId,
-      note: noteToSave,
-      createdAt: txn.created_at ?? new Date().toISOString(),
-      upiDeepLink: fallbackDeepLink,
-    });
-    setResultMsg(`₹${amt.toFixed(0)} sent to ${payload.payeeName}`);
-    if (navigator.vibrate) navigator.vibrate([30, 60, 30]);
-    if (canOpenUpiApp()) {
-      try { window.location.href = fallbackDeepLink; } catch { /* ignore */ }
-    }
-    setPhase("success");
-  }, [userId, payload, amount, balance, note]);
+    // Hand off to the polling effect by switching phase.
+    setPhase("processing");
+  }, [userId, payload, amount, balance, note, attemptId]);
 
   const reset = useCallback(() => {
+    // Best-effort: cancel the server attempt if one is in-flight.
+    if (attemptId) {
+      void callWithAuth(cancelAttempt, { attemptId }).catch(() => {});
+    }
+    setAttemptId(null);
     setPayload(null);
     setAmount(0);
     setNote("");
@@ -283,23 +296,31 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
     setSavedTxn(null);
     navLockRef.current = false;
     clearPersisted();
+    clearAttemptId();
     setScannerKey((k) => k + 1);
     setPhase("scanning");
-  }, []);
+  }, [attemptId]);
 
   // Retry the last attempted payment without re-scanning. Used by the failure
   // screen when the failure was transient (network/insufficient balance fixed).
   const retryPay = useCallback(() => {
     if (!payload) { reset(); return; }
+    // Old attempt is terminal — start a fresh one on next Confirm.
+    setAttemptId(null);
+    clearAttemptId();
     setResultMsg("");
     setFailKind("generic");
     setPhase("confirm");
   }, [payload, reset]);
 
   const handleHardBack = useCallback(() => {
+    if (attemptId && (phase === "confirm" || phase === "processing")) {
+      void callWithAuth(cancelAttempt, { attemptId }).catch(() => {});
+    }
     clearPersisted();
+    clearAttemptId();
     onBack();
-  }, [onBack]);
+  }, [onBack, attemptId, phase]);
 
 
   if (phase === "processing") return <ProcessingView amount={amount} />;
@@ -368,6 +389,61 @@ function writePersisted(p: PersistedFlow) {
 function clearPersisted() {
   if (typeof window === "undefined") return;
   try { window.sessionStorage.removeItem(SCANPAY_PERSIST_KEY); } catch { /* ignore */ }
+}
+
+// ── Attempt-id cache (localStorage so it survives a full restart) ──
+function readAttemptId(): string | null {
+  if (typeof window === "undefined") return null;
+  try { return window.localStorage.getItem(SCANPAY_ATTEMPT_KEY); } catch { return null; }
+}
+function writeAttemptId(id: string) {
+  if (typeof window === "undefined") return;
+  try { window.localStorage.setItem(SCANPAY_ATTEMPT_KEY, id); } catch { /* quota — ignore */ }
+}
+function clearAttemptId() {
+  if (typeof window === "undefined") return;
+  try { window.localStorage.removeItem(SCANPAY_ATTEMPT_KEY); } catch { /* ignore */ }
+}
+
+/** Convert a server attempt snapshot into the local SavedTxn shape used by SuccessView. */
+function snapToSavedTxn(snap: AttemptSnapshot): SavedTxn {
+  return {
+    id: snap.transactionId ?? snap.id,
+    amount: snap.amount,
+    payee: snap.payeeName,
+    upiId: snap.upiId,
+    note: snap.note,
+    createdAt: snap.completedAt ?? snap.createdAt,
+    upiDeepLink: "", // built lazily by SuccessView fallback if user taps "Open in UPI app"
+  };
+}
+
+/**
+ * Resolve which payment attempt (if any) the user should resume into.
+ * Tries the cached attempt id first, then falls back to a server lookup of
+ * the most recent in-progress attempt for this user.
+ */
+async function resumeFromBackend(opts: {
+  userId: string;
+  cachedAttemptId: string | null;
+  onResume: (args: { snap: AttemptSnapshot }) => void;
+}) {
+  const { cachedAttemptId, onResume } = opts;
+  try {
+    if (cachedAttemptId) {
+      const res = await callWithAuth(pollAttempt, { attemptId: cachedAttemptId });
+      if (res.ok) {
+        onResume({ snap: res.attempt });
+        return;
+      }
+    }
+    const found = await callWithAuth(findResumableAttempt, {});
+    if (found.ok && found.attempt) {
+      onResume({ snap: found.attempt });
+    }
+  } catch (err) {
+    captureError(err, { where: "scanpay.resumeFromBackend" });
+  }
 }
 
 /**
@@ -931,7 +1007,11 @@ function ConfirmView({
         </button>
       </div>
 
-      {/* Merchant verified card */}
+      {/* Stepper: Confirm → Processing → Success */}
+      <div className="px-4 pb-3 pt-1">
+        <PaymentStepper stage="confirm" />
+      </div>
+
       <div className="sp2-merchant-card" role="group" aria-label={`Paying ${payload.payeeName || payload.upiId}`}>
         <div className="sp2-merchant-avatar" aria-hidden="true">
           {initial || "?"}
@@ -1235,6 +1315,12 @@ function ProcessingView({ amount }: { amount: number }) {
       {/* Soft top vignette to add depth */}
       <div className="sp-pay-vignette" aria-hidden />
 
+      {/* Stepper pinned to top */}
+      <div className="absolute top-6 left-0 right-0 px-4 z-30">
+        <PaymentStepper stage="processing" />
+      </div>
+
+
       {/* Perspective grid floor */}
       <div className="sp-pay-floor" aria-hidden>
         <div className="sp-pay-floor-grid" />
@@ -1397,6 +1483,9 @@ function SuccessView({
 
   return (
     <div className="sp-success-root sp-success-vlines" role="region" aria-label="Payment successful">
+      <div className="absolute top-6 left-0 right-0 px-4 z-30">
+        <PaymentStepper stage="success" />
+      </div>
       <div className="relative z-10 flex-1 flex flex-col items-center justify-start pt-10 px-6 text-center overflow-y-auto">
         <div className="relative w-[140px] h-[140px] flex items-center justify-center">
           <span className="sp-success-ring" />
@@ -1565,6 +1654,9 @@ function FailedView({
       role="alert"
       aria-live="assertive"
     >
+      <div className="w-full max-w-sm mb-6">
+        <PaymentStepper stage="failed" />
+      </div>
       <div className="w-20 h-20 rounded-full bg-destructive/15 border border-destructive/40 flex items-center justify-center tw-shake">
         <X className="w-10 h-10 text-destructive" strokeWidth={2} />
       </div>

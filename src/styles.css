@@ -5550,3 +5550,115 @@ button:focus-visible .hp-tile{
   border: 1px solid color-mix(in oklab, var(--persona-accent) 35%, transparent);
   color: color-mix(in oklab, var(--persona-accent) 75%, white);
 }
+
+/* ============================================================
+   Motion preference gates (.motion-full / .motion-reduced / .motion-off)
+   Set on <html> by src/lib/motionPrefs.ts.
+   ============================================================ */
+
+/* REDUCED: kill the heavy ambient payment animations but keep amount/orb subtle. */
+html.motion-reduced .sp-pay-floor,
+html.motion-reduced .sp-pay-ribbons,
+html.motion-reduced .sp-pay-mote { display: none !important; }
+html.motion-reduced .sp-pay-orb-wrap,
+html.motion-reduced .sp-pay-halo,
+html.motion-reduced .sp-pay-halo-2,
+html.motion-reduced .sp-pay-orb-ring,
+html.motion-reduced .sp-pay-orb-ring-2 { animation: none !important; }
+html.motion-reduced .tw-shake,
+html.motion-reduced .tw-slide-up { animation: none !important; }
+
+/* OFF: nuke every animation/transition globally. */
+html.motion-off *,
+html.motion-off *::before,
+html.motion-off *::after {
+  animation: none !important;
+  transition: none !important;
+  scroll-behavior: auto !important;
+}
+html.motion-off .sp-pay-floor,
+html.motion-off .sp-pay-ribbons,
+html.motion-off .sp-pay-mote,
+html.motion-off .sp-pay-halo,
+html.motion-off .sp-pay-halo-2 { display: none !important; }
+
+/* ============================================================
+   Payment stepper
+   ============================================================ */
+.ps-stepper {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0;
+  width: 100%;
+  max-width: 360px;
+  margin: 0 auto;
+  padding: 0;
+  list-style: none;
+}
+.ps-step {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  position: relative;
+}
+.ps-step:last-child .ps-connector { display: none; }
+.ps-step-row {
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+.ps-dot {
+  flex: 0 0 auto;
+  width: 24px; height: 24px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  border: 1.5px solid;
+  transition: background-color 220ms ease, border-color 220ms ease, color 220ms ease, transform 220ms ease;
+}
+.ps-dot-num { line-height: 1; }
+.ps-dot-x { font-size: 16px; line-height: 1; font-weight: 700; }
+.ps-dot-pending {
+  background: transparent;
+  border-color: color-mix(in oklab, currentColor 18%, transparent);
+  color: color-mix(in oklab, currentColor 55%, transparent);
+}
+.ps-dot-current {
+  background: color-mix(in oklab, var(--primary) 18%, transparent);
+  border-color: var(--primary);
+  color: var(--primary);
+  transform: scale(1.08);
+  box-shadow: 0 0 0 4px color-mix(in oklab, var(--primary) 14%, transparent);
+}
+.ps-dot-done {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--primary-foreground);
+}
+.ps-dot-failed {
+  background: var(--destructive);
+  border-color: var(--destructive);
+  color: var(--destructive-foreground);
+}
+.ps-connector {
+  flex: 1 1 auto;
+  height: 2px;
+  margin: 0 6px;
+  border-radius: 2px;
+  transition: background-color 280ms ease;
+}
+.ps-connector-pending { background: color-mix(in oklab, currentColor 14%, transparent); }
+.ps-connector-done { background: var(--primary); }
+.ps-connector-failed { background: var(--destructive); }
+.ps-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: color-mix(in oklab, currentColor 60%, transparent);
+  letter-spacing: 0.01em;
+}
+.ps-label-current { color: var(--primary); font-weight: 700; }
+.ps-label-failed { color: var(--destructive); font-weight: 700; }
