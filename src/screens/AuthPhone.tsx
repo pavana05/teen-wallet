@@ -62,6 +62,10 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
       setErrorKind(persisted.errorKind);
       setErrorId(persisted.correlationId);
       setResendBlockedUntil(persisted.resendBlockedUntil);
+      const rc = persisted.resendCount ?? 0;
+      setResendCount(rc);
+      const totalMs = persisted.cooldownTotalMs ?? cooldownForCount(rc) * 1000;
+      setCooldownTotalMs(totalMs);
       setStep("otp");
     }
   }, []);
