@@ -56,6 +56,7 @@ function AdminLayout() {
     { to: "/admin/fraud", label: "Fraud", icon: ShieldAlert, kbd: "g f" },
     { to: "/admin/reports", label: "Issue Reports", icon: MessageSquareWarning, kbd: "g r" },
     { to: "/admin/campaigns", label: "Gender Campaigns", icon: Bell, kbd: "g c" },
+    { to: "/admin/app-images", label: "App Images", icon: ImageIcon, kbd: "g i" },
     { to: "/admin/diagnostics", label: "Diagnostics", icon: Activity },
     { to: "/admin/settings", label: "Settings", icon: Settings },
   ];
