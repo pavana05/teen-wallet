@@ -3,6 +3,7 @@ import { useApp } from "@/lib/store";
 import { useEffect, useState, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { ScanPay } from "@/screens/ScanPay";
+import { Transactions } from "@/screens/Transactions";
 import { QuickActionsPanel, type QuickActionKind } from "@/components/QuickActionsPanel";
 import { NotificationsPanel } from "@/components/NotificationsPanel";
 import { ProfilePanel } from "@/components/ProfilePanel";
@@ -110,7 +111,7 @@ export function Home() {
   const { fullName, userId } = useApp();
   const persona = useGenderPersona();
   const first = fullName?.split(" ")[0] ?? "Alex";
-  const [view, setView] = useState<"home" | "scan">("home");
+  const [view, setView] = useState<"home" | "scan" | "transactions">("home");
   const [quickAction, setQuickAction] = useState<QuickActionKind | null>(null);
   const [showNotifs, setShowNotifs] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
@@ -297,6 +298,7 @@ export function Home() {
   }, []);
 
   if (view === "scan") return <ScanPay onBack={() => { setView("home"); void fetchTxns(); }} />;
+  if (view === "transactions") return <Transactions onBack={() => { setView("home"); void fetchTxns(); }} />;
 
   return (
     <div
@@ -501,7 +503,7 @@ export function Home() {
           <QuickAction icon={ArrowUpRight} label={"Pay\nfriends"} onClick={() => setQuickAction("pay-friends")} />
           <QuickAction icon={Building2} label={"To bank &\nself a/c"} onClick={() => setQuickAction("to-bank")} />
           <QuickAction icon={Wallet} label={"Check\nbalance"} onClick={() => setQuickAction("balance")} />
-          <QuickAction icon={History} label={"Transaction\nhistory"} onClick={() => setQuickAction("history")} />
+          <QuickAction icon={History} label={"Transaction\nhistory"} onClick={() => setView("transactions")} />
         </div>
       </div>
 
@@ -540,14 +542,24 @@ export function Home() {
             <span className="hp-section-eyebrow">Activity</span>
             <h3 className="hp-section-title">Payment history</h3>
           </div>
-          <button
-            type="button"
-            onClick={handleRefresh}
-            aria-label={refreshing ? "Refreshing payment history" : "Refresh payment history"}
-            className="hp-section-link inline-flex items-center gap-1.5"
-          >
-            <RefreshCw className={`w-3 h-3 ${refreshing ? "animate-spin" : ""}`} aria-hidden="true" /> Refresh
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => { void haptics.tap(); setView("transactions"); }}
+              aria-label="See all transactions"
+              className="hp-section-link inline-flex items-center gap-1"
+            >
+              See all <ArrowUpRight className="w-3 h-3" aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              onClick={handleRefresh}
+              aria-label={refreshing ? "Refreshing payment history" : "Refresh payment history"}
+              className="hp-section-link inline-flex items-center gap-1.5"
+            >
+              <RefreshCw className={`w-3 h-3 ${refreshing ? "animate-spin" : ""}`} aria-hidden="true" /> Refresh
+            </button>
+          </div>
         </div>
         {loading ? (
           <div className="space-y-2" aria-hidden="true">

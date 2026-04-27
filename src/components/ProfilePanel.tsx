@@ -15,6 +15,7 @@ import { logout } from "@/lib/auth";
 import { usePersistentState } from "./profile/usePersistentState";
 import { NotificationPrefs, DEFAULT_NOTIF_PREFS, type NotifPrefs } from "./profile/NotificationPrefs";
 import { KycTimeline } from "./profile/KycTimeline";
+import { ProfileCompletionMeter } from "./profile/ProfileCompletionMeter";
 import { QuickActions } from "./profile/QuickActions";
 import { InlineEditCard } from "./profile/InlineEditCard";
 import { useMotionLevel, type MotionLevel } from "@/lib/motionPrefs";
@@ -401,6 +402,19 @@ export function ProfilePanel({ onClose }: Props) {
         >
           {tab === "overview" && (
             <>
+              {/* Profile completion — phone, email, DOB, gender, KYC */}
+              <ProfileCompletionMeter
+                profile={profile ? {
+                  phone: profile.phone, email: profile.email, dob: profile.dob,
+                  gender: profile.gender, kyc_status: profile.kyc_status,
+                } : null}
+                loading={profileLoading}
+                onCompleteClick={(key) => {
+                  if (key === "phone") setEditPhoneOpen(true);
+                  else setTab("account");
+                }}
+              />
+
               {/* Rewards group — claimed cashback + vouchers */}
               <p className="pp-group-label">Rewards</p>
               <div className="pp-card divide-y divide-white/5">
@@ -551,7 +565,11 @@ export function ProfilePanel({ onClose }: Props) {
                   onToggle={() => toggleSection("ac-kyc-timeline", true)}
                 >
                   <div className="px-3.5 py-3.5">
-                    <KycTimeline userId={userId} currentStatus={kyc} />
+                    <KycTimeline
+                      userId={userId}
+                      currentStatus={kyc}
+                      onStatusChange={(s) => setProfile((prev) => prev ? { ...prev, kyc_status: s } : prev)}
+                    />
                   </div>
                 </CollapsibleSection>
               </>
