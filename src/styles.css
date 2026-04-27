@@ -5914,95 +5914,248 @@ html.motion-off    .otp-resend-ladder-dot.is-active { animation: none !important
 html.motion-off    .otp-resend-ring svg circle { transition: none !important; }
 
 /* ============================================================
- * ONBOARDING — PREMIUM OVERRIDE
- * Replaces the colorful neon ambient + multi-color accent words
- * with a quiet champagne / platinum palette. Appended last so
- * source order wins over the older .ob-* declarations.
+ * ONBOARDING — ULTRA-PREMIUM (Deep Emerald + Gold Leaf)
+ * Private-bank aesthetic: jewel-tone canvas, hairline gold rules,
+ * gold-leaf gradient accents, serif display headings, breathing
+ * gold halo behind the hero. Appended last so source order wins.
  * ============================================================ */
 
-/* Deep, quiet stage */
+/* Gold-leaf + emerald tokens — scoped so we don't pollute the global theme. */
 .ob-root {
+  --gold-50:  oklch(0.96 0.04 88);
+  --gold-100: oklch(0.92 0.07 86);
+  --gold-300: oklch(0.82 0.11 84);
+  --gold-500: oklch(0.72 0.13 82);
+  --gold-700: oklch(0.55 0.10 80);
+  --emerald-deep:   oklch(0.18 0.05 165);
+  --emerald-shadow: oklch(0.10 0.04 170);
+  --emerald-ink:    oklch(0.06 0.02 170);
+
+  /* Quad-layer canvas: top gold halo → emerald jewel → vignette → ink */
   background:
-    radial-gradient(120% 80% at 50% -10%, rgba(212,189,144,.07), transparent 60%),
-    radial-gradient(80% 60% at 50% 110%, rgba(255,255,255,.04), transparent 70%),
-    #07070a;
+    radial-gradient(120% 90% at 50% -20%, color-mix(in oklch, var(--gold-300) 14%, transparent) 0%, transparent 55%),
+    radial-gradient(95% 70% at 50% 18%, color-mix(in oklch, var(--emerald-deep) 65%, transparent) 0%, transparent 60%),
+    radial-gradient(90% 60% at 50% 115%, color-mix(in oklch, var(--emerald-shadow) 80%, transparent) 0%, transparent 70%),
+    var(--emerald-ink) !important;
 }
 
-/* Neutralize the per-slide colored washes — soft champagne halo only */
+/* Per-slide ambient washes neutralized → uniform gold halo at the apex. */
 .ob-ambient,
 .ob-ambient-0,
 .ob-ambient-1,
 .ob-ambient-2,
 .ob-ambient-3 {
   background:
-    radial-gradient(55% 38% at 50% 28%, rgba(220,200,160,.10), transparent 70%),
-    radial-gradient(50% 35% at 50% 85%, rgba(255,255,255,.04), transparent 75%) !important;
+    radial-gradient(45% 32% at 50% 22%, color-mix(in oklch, var(--gold-300) 18%, transparent), transparent 70%),
+    radial-gradient(60% 40% at 50% 90%, color-mix(in oklch, var(--emerald-shadow) 60%, transparent), transparent 75%) !important;
   opacity: 1 !important;
+  animation: ob-halo-drift 14s ease-in-out infinite alternate;
+}
+@keyframes ob-halo-drift {
+  0%   { transform: translate3d(0, 0, 0)        scale(1);    }
+  100% { transform: translate3d(0, -1.2%, 0)    scale(1.04); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ob-ambient { animation: none !important; }
 }
 
-/* Slightly less grain — premium surfaces breathe */
-.ob-grain { opacity: .025 !important; }
+/* Soften the grain — premium surfaces breathe. */
+.ob-grain { opacity: .035 !important; }
 
-/* Monochrome accent words — champagne shimmer instead of pink/blue/purple/orange */
+/* Hairline gold rule under the wordmark. */
+.ob-brand-word {
+  color: color-mix(in oklch, var(--gold-100) 88%, transparent) !important;
+  letter-spacing: 0.42em !important;
+  font-weight: 500 !important;
+  position: relative;
+  padding-bottom: 10px;
+}
+.ob-brand-word::after {
+  content: "";
+  position: absolute;
+  left: 50%; bottom: 0;
+  width: 56px; height: 1px;
+  transform: translateX(-50%);
+  background: linear-gradient(90deg,
+    transparent 0%,
+    color-mix(in oklch, var(--gold-500) 70%, transparent) 50%,
+    transparent 100%);
+}
+
+/* Title — serif display for "private bank" feel. Real gold-leaf gradient on accents. */
+.ob-title {
+  font-family: ui-serif, "Iowan Old Style", "Apple Garamond", "Hoefler Text", Georgia, "Times New Roman", serif !important;
+  font-weight: 500 !important;
+  font-size: clamp(28px, 7.6vw, 36px) !important;
+  letter-spacing: -0.012em !important;
+  line-height: 1.12 !important;
+  color: color-mix(in oklch, white 92%, transparent) !important;
+}
 .ob-accent,
 .ob-accent-pink,
 .ob-accent-blue,
 .ob-accent-purple,
 .ob-accent-orange {
-  background-image: linear-gradient(135deg, #f5ead0 0%, #d8c290 50%, #b89a5a 100%) !important;
+  background-image: linear-gradient(
+    100deg,
+    var(--gold-500) 0%,
+    var(--gold-100) 28%,
+    var(--gold-50)  46%,
+    var(--gold-300) 62%,
+    var(--gold-700) 100%
+  ) !important;
+  background-size: 220% 100%;
+  background-position: 20% 50%;
   background-clip: text;
   -webkit-background-clip: text;
   color: transparent !important;
   -webkit-text-fill-color: transparent !important;
-  filter: drop-shadow(0 1px 0 rgba(0,0,0,.25));
+  font-style: italic;
+  font-weight: 600;
+  filter: drop-shadow(0 1px 0 rgba(0,0,0,.35));
+  animation: ob-gold-sheen 8s ease-in-out infinite;
+}
+@keyframes ob-gold-sheen {
+  0%, 100% { background-position: 20% 50%; }
+  50%      { background-position: 80% 50%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ob-accent, .ob-accent-pink, .ob-accent-blue, .ob-accent-purple, .ob-accent-orange {
+    animation: none !important;
+  }
 }
 
-/* Hero halo — neutral light, no color */
+/* Subtitle — softer, slightly wider tracking. */
+.ob-sub {
+  color: color-mix(in oklch, white 62%, transparent) !important;
+  letter-spacing: 0.01em !important;
+}
+
+/* Hero — emerald-tinted gold halo, deeper float, soft inset frame. */
 .ob-hero-glow {
-  background: radial-gradient(60% 50% at 50% 60%, rgba(255,255,255,.10), transparent 72%) !important;
-  filter: blur(28px) !important;
+  background: radial-gradient(
+    58% 48% at 50% 56%,
+    color-mix(in oklch, var(--gold-300) 22%, transparent) 0%,
+    color-mix(in oklch, var(--emerald-deep) 28%, transparent) 45%,
+    transparent 75%
+  ) !important;
+  filter: blur(36px) !important;
 }
-
-/* CTA — premium platinum with subtle inner highlight, no colored glow */
-.ob-cta-pill {
-  background: linear-gradient(180deg, #f7f4ec 0%, #d9d2c0 100%) !important;
-  color: #0c0c10 !important;
-  border: 1px solid rgba(255,255,255,.55) !important;
+.ob-hero-img,
+.ob-hero-fallback {
+  border-radius: 28px;
   box-shadow:
-    0 1px 0 rgba(255,255,255,.7) inset,
-    0 -1px 0 rgba(0,0,0,.08) inset,
-    0 14px 30px -14px rgba(0,0,0,.7),
-    0 0 0 1px rgba(184,154,90,.15) !important;
-}
-.ob-cta-pill:hover { filter: brightness(1.02); }
-.ob-cta-arrow {
-  background: #0a0a0c !important;
-  box-shadow: 0 0 0 1px rgba(184,154,90,.35);
+    0 1px 0 color-mix(in oklch, var(--gold-100) 30%, transparent) inset,
+    0 0 0 1px color-mix(in oklch, var(--gold-500) 18%, transparent),
+    0 30px 60px -28px rgba(0,0,0,.85),
+    0 12px 28px -16px color-mix(in oklch, var(--gold-700) 30%, transparent);
 }
 
-/* Nav circles — quieter glass */
+/* CTA — brushed gold-leaf pill with hairline emerald shadow. */
+.ob-cta-pill {
+  position: relative;
+  background:
+    linear-gradient(180deg,
+      color-mix(in oklch, var(--gold-50)  92%, white) 0%,
+      color-mix(in oklch, var(--gold-300) 96%, white) 48%,
+      color-mix(in oklch, var(--gold-500) 88%, black) 100%) !important;
+  color: var(--emerald-ink) !important;
+  border: 1px solid color-mix(in oklch, var(--gold-500) 55%, white) !important;
+  letter-spacing: 0.02em !important;
+  font-weight: 600 !important;
+  box-shadow:
+    0 1px 0 rgba(255,255,255,.85) inset,
+    0 -1px 0 color-mix(in oklch, var(--gold-700) 40%, transparent) inset,
+    0 18px 40px -18px color-mix(in oklch, var(--emerald-shadow) 90%, black),
+    0 0 0 1px color-mix(in oklch, var(--gold-500) 20%, transparent),
+    0 0 28px -10px color-mix(in oklch, var(--gold-300) 35%, transparent) !important;
+  overflow: hidden;
+}
+/* Slow shimmer pass across the CTA — premium, not flashy. */
+.ob-cta-pill::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    115deg,
+    transparent 30%,
+    rgba(255,255,255,.55) 50%,
+    transparent 70%
+  );
+  transform: translateX(-110%);
+  animation: ob-cta-shimmer 4.8s cubic-bezier(.4,0,.2,1) 1.6s infinite;
+  pointer-events: none;
+}
+@keyframes ob-cta-shimmer {
+  0%, 18% { transform: translateX(-110%); }
+  38%, 100% { transform: translateX(110%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ob-cta-pill::before { animation: none; display: none; }
+}
+.ob-cta-pill:hover { filter: brightness(1.03) saturate(1.05); }
+.ob-cta-arrow {
+  background: var(--emerald-ink) !important;
+  border: 1px solid color-mix(in oklch, var(--gold-500) 60%, transparent) !important;
+  box-shadow:
+    0 0 0 1px color-mix(in oklch, var(--gold-300) 25%, transparent),
+    0 4px 10px -4px rgba(0,0,0,.6) !important;
+}
+.ob-cta-arrow svg { color: color-mix(in oklch, var(--gold-100) 92%, white) !important; }
+
+/* Nav circles — quiet emerald glass, gold ring on the primary one. */
 .ob-nav-circle {
-  background: rgba(255,255,255,.04) !important;
-  border: 1px solid rgba(255,255,255,.10) !important;
+  background: color-mix(in oklch, var(--emerald-deep) 55%, transparent) !important;
+  border: 1px solid color-mix(in oklch, var(--gold-500) 18%, transparent) !important;
+  backdrop-filter: blur(12px);
 }
 .ob-nav-circle-light {
-  background: linear-gradient(180deg, #f7f4ec, #ddd5c2) !important;
-  border-color: rgba(255,255,255,.55) !important;
-  box-shadow: 0 8px 22px -10px rgba(0,0,0,.55) !important;
+  background: linear-gradient(180deg,
+    color-mix(in oklch, var(--gold-50) 95%, white),
+    color-mix(in oklch, var(--gold-300) 92%, white)) !important;
+  border-color: color-mix(in oklch, var(--gold-500) 50%, white) !important;
+  box-shadow:
+    0 1px 0 rgba(255,255,255,.8) inset,
+    0 12px 26px -12px color-mix(in oklch, var(--emerald-shadow) 90%, black),
+    0 0 0 1px color-mix(in oklch, var(--gold-500) 25%, transparent) !important;
 }
 
-/* Active dot — champagne instead of harsh white glow */
+/* Top dot pagination — gold leaf for active. */
+.ob-top-dot {
+  background: color-mix(in oklch, var(--gold-100) 18%, transparent) !important;
+}
 .ob-top-dot[data-active="true"] {
-  background: linear-gradient(90deg, #f5ead0, #d8c290) !important;
-  box-shadow: 0 0 6px rgba(220,200,160,.35) !important;
+  background: linear-gradient(90deg, var(--gold-100), var(--gold-500)) !important;
+  box-shadow: 0 0 8px color-mix(in oklch, var(--gold-300) 50%, transparent) !important;
 }
-
-/* Focus ring — champagne, not lime */
 .ob-top-dot-btn:focus-visible {
   box-shadow:
-    0 0 0 2px rgba(220,200,160,.85),
-    0 0 0 4px rgba(220,200,160,.20) !important;
+    0 0 0 2px color-mix(in oklch, var(--gold-300) 90%, transparent),
+    0 0 0 4px color-mix(in oklch, var(--gold-500) 25%, transparent) !important;
+  border-radius: 999px;
 }
 
-/* Brand wordmark — slightly warmer */
-.ob-brand-word { color: rgba(245,234,208,.72) !important; }
+/* Subtle staggered entrance for slide elements (overrides the existing slide
+   animation timing — keeps the swipe transition but adds inner choreography). */
+.ob-stage .ob-logo-wrap { animation: ob-rise .7s cubic-bezier(.2,.8,.2,1) both; animation-delay: .04s; }
+.ob-stage .ob-hero-wrap { animation: ob-rise .8s cubic-bezier(.2,.8,.2,1) both; animation-delay: .12s; }
+.ob-stage .ob-title     { animation: ob-rise .8s cubic-bezier(.2,.8,.2,1) both; animation-delay: .22s; }
+.ob-stage .ob-sub       { animation: ob-rise .8s cubic-bezier(.2,.8,.2,1) both; animation-delay: .32s; }
+@keyframes ob-rise {
+  from { opacity: 0; transform: translateY(14px); filter: blur(4px); }
+  to   { opacity: 1; transform: translateY(0);     filter: blur(0);  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ob-stage .ob-logo-wrap,
+  .ob-stage .ob-hero-wrap,
+  .ob-stage .ob-title,
+  .ob-stage .ob-sub { animation: none !important; }
+}
+
+/* "Safe. Simple. Built for teens." footer microcopy — gold-tinted. */
+.ob-root .ob-cta-pill + p,
+.ob-root p.text-center {
+  color: color-mix(in oklch, var(--gold-100) 55%, transparent) !important;
+  letter-spacing: 0.06em;
+}
+
