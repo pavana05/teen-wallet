@@ -3,6 +3,7 @@ import { useApp } from "@/lib/store";
 import { useEffect, useState, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { ScanPay } from "@/screens/ScanPay";
+import { Transactions } from "@/screens/Transactions";
 import { QuickActionsPanel, type QuickActionKind } from "@/components/QuickActionsPanel";
 import { NotificationsPanel } from "@/components/NotificationsPanel";
 import { ProfilePanel } from "@/components/ProfilePanel";
@@ -110,7 +111,7 @@ export function Home() {
   const { fullName, userId } = useApp();
   const persona = useGenderPersona();
   const first = fullName?.split(" ")[0] ?? "Alex";
-  const [view, setView] = useState<"home" | "scan">("home");
+  const [view, setView] = useState<"home" | "scan" | "transactions">("home");
   const [quickAction, setQuickAction] = useState<QuickActionKind | null>(null);
   const [showNotifs, setShowNotifs] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
@@ -297,6 +298,7 @@ export function Home() {
   }, []);
 
   if (view === "scan") return <ScanPay onBack={() => { setView("home"); void fetchTxns(); }} />;
+  if (view === "transactions") return <Transactions onBack={() => { setView("home"); void fetchTxns(); }} />;
 
   return (
     <div
