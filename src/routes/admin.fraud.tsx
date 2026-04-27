@@ -328,6 +328,57 @@ function FraudPage() {
 
             <div className="a-label" style={{ marginBottom: 6 }}>Quick actions</div>
             <div style={{ display: "grid", gap: 8 }}>
+              {/* Copy actions — UPI/txn ID, rule trigger, or full bundle */}
+              <div style={{ display: "grid", gridTemplateColumns: selected.transaction ? "1fr 1fr" : "1fr", gap: 6 }}>
+                {selected.transaction && (
+                  <button
+                    type="button"
+                    className="a-btn-ghost"
+                    onClick={() => copyToClipboard(
+                      `${selected.transaction!.upi_id}${selected.transaction_id ? ` (txn ${selected.transaction_id})` : ""}`,
+                      "upi",
+                    )}
+                    title="Copy UPI ID and transaction ID"
+                    style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6, fontSize: 12 }}
+                  >
+                    {copied === "upi" ? <Check size={13} /> : <Copy size={13} />}
+                    {copied === "upi" ? "Copied UPI" : "Copy UPI / txn"}
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="a-btn-ghost"
+                  onClick={() => copyToClipboard(selected.rule_triggered, "rule")}
+                  title="Copy fraud rule trigger"
+                  style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6, fontSize: 12 }}
+                >
+                  {copied === "rule" ? <Check size={13} /> : <Copy size={13} />}
+                  {copied === "rule" ? "Copied rule" : "Copy rule"}
+                </button>
+              </div>
+              <button
+                type="button"
+                className="a-btn-ghost"
+                onClick={() => {
+                  const lines = [
+                    `Fraud rule: ${selected.rule_triggered}`,
+                    `Status: ${selected.resolution ? `Resolved — ${selected.resolution}` : "Open"}`,
+                    `User: ${selected.profile?.full_name || "—"} (${selected.user_id})`,
+                    selected.profile?.phone ? `Phone: ${selected.profile.phone}` : null,
+                    selected.transaction
+                      ? `Txn: ₹${Number(selected.transaction.amount).toFixed(2)} · ${selected.transaction.merchant_name} · ${selected.transaction.upi_id} · ${selected.transaction.status}`
+                      : null,
+                    selected.transaction_id ? `Txn ID: ${selected.transaction_id}` : null,
+                    `Triggered: ${new Date(selected.created_at).toISOString()}`,
+                  ].filter(Boolean).join("\n");
+                  copyToClipboard(lines, "all");
+                }}
+                title="Copy all fraud details"
+                style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6, fontSize: 12 }}
+              >
+                {copied === "all" ? <Check size={13} /> : <Copy size={13} />}
+                {copied === "all" ? "Copied details" : "Copy all details"}
+              </button>
               <Link
                 to="/admin/users/$id"
                 params={{ id: selected.user_id }}
