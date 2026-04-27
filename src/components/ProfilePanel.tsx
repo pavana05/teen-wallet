@@ -20,6 +20,7 @@ import { QuickActions } from "./profile/QuickActions";
 import { InlineEditCard } from "./profile/InlineEditCard";
 import { useMotionLevel, type MotionLevel } from "@/lib/motionPrefs";
 import { qrColors } from "@/lib/themeTokens";
+import { ReferralProgram } from "@/screens/ReferralProgram";
 
 interface Props {
   onClose: () => void;
