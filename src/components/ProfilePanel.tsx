@@ -565,7 +565,11 @@ export function ProfilePanel({ onClose }: Props) {
                   onToggle={() => toggleSection("ac-kyc-timeline", true)}
                 >
                   <div className="px-3.5 py-3.5">
-                    <KycTimeline userId={userId} currentStatus={kyc} />
+                    <KycTimeline
+                      userId={userId}
+                      currentStatus={kyc}
+                      onStatusChange={(s) => setProfile((prev) => prev ? { ...prev, kyc_status: s } : prev)}
+                    />
                   </div>
                 </CollapsibleSection>
               </>
