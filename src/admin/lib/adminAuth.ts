@@ -64,6 +64,15 @@ export async function callAdminFn<T = unknown>(payload: Record<string, unknown>)
   // Lazy import to avoid pulling perfBus into modules that don't already use it.
   const { recordRequest } = await import("./perfBus");
   recordRequest(typeof payload.action === "string" ? payload.action : undefined);
+
+  // Auto-attach the stored sessionToken if the caller didn't supply one.
+  // Almost every admin action requires it, so missing it produced "unauthorized" 401s.
+  let body = payload;
+  if (typeof body.sessionToken !== "string" || !body.sessionToken) {
+    const s = readAdminSession();
+    if (s?.sessionToken) body = { ...body, sessionToken: s.sessionToken };
+  }
+
   const res = await fetch(FN_URL, {
     method: "POST",
     headers: {
@@ -71,7 +80,7 @@ export async function callAdminFn<T = unknown>(payload: Record<string, unknown>)
       apikey: ANON,
       Authorization: `Bearer ${ANON}`,
     },
-    body: JSON.stringify(payload),
+    body: JSON.stringify(body),
   });
   const json = (await res.json().catch(() => ({}))) as Record<string, unknown>;
   const cid = (json.correlationId as string | undefined) ?? res.headers.get("X-Correlation-Id");
