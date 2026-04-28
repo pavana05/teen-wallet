@@ -1047,7 +1047,7 @@ function formatBirthday(dob: string): string {
   return age >= 0 && age < 130 ? `${pretty} · ${age}y` : pretty;
 }
 
-/* ───────── My QR sheet ───────── */
+/* ───────── My QR lightbox ───────── */
 function MyQrSheet({ upiId, payeeName, onClose }: { upiId: string; payeeName: string; onClose: () => void }) {
   const upiLink = useMemo(
     () => `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(payeeName)}&cu=INR`,
@@ -1059,48 +1059,120 @@ function MyQrSheet({ upiId, payeeName, onClose }: { upiId: string; payeeName: st
   useEffect(() => {
     let active = true;
     const { dark, light } = qrColors();
-    QRCode.toDataURL(upiLink, { errorCorrectionLevel: "M", margin: 2, width: 320, color: { dark, light } })
+    QRCode.toDataURL(upiLink, { errorCorrectionLevel: "M", margin: 2, width: 512, color: { dark, light } })
       .then((url) => { if (active) setDataUrl(url); })
       .catch((e: unknown) => { if (active) setErr(e instanceof Error ? e.message : "Couldn't generate QR"); });
     return () => { active = false; };
   }, [upiLink]);
 
-  const download = () => {
+  // Lock background scroll while the lightbox is open and close on ESC.
+  useEffect(() => {
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [onClose]);
+
+  const fileName = `teenwallet-${upiId.replace(/[^a-z0-9]/gi, "_")}.png`;
+
+  const download = async () => {
     if (!dataUrl) return;
+    try {
+      const { Capacitor } = await import("@capacitor/core");
+      if (Capacitor.isNativePlatform()) {
+        const { Filesystem, Directory } = await import("@capacitor/filesystem");
+        const base64 = dataUrl.split(",")[1] ?? "";
+        await Filesystem.writeFile({
+          path: fileName,
+          data: base64,
+          directory: Directory.Documents,
+          recursive: true,
+        });
+        toast.success("QR saved to Documents");
+        return;
+      }
+    } catch { /* fall through to web */ }
+    // Web fallback — trigger a real browser download.
     const a = document.createElement("a");
     a.href = dataUrl;
-    a.download = `teenwallet-${upiId.replace(/[^a-z0-9]/gi, "_")}.png`;
+    a.download = fileName;
     document.body.appendChild(a); a.click(); a.remove();
     toast.success("QR saved to downloads");
   };
 
   const share = async () => {
+    if (!dataUrl) return;
     try {
-      if (navigator.share) { await navigator.share({ title: "Pay me on TeenWallet", text: `Pay ${payeeName} via UPI`, url: upiLink }); return; }
+      const { Capacitor } = await import("@capacitor/core");
+      if (Capacitor.isNativePlatform()) {
+        const { Filesystem, Directory } = await import("@capacitor/filesystem");
+        const { Share } = await import("@capacitor/share");
+        const base64 = dataUrl.split(",")[1] ?? "";
+        const written = await Filesystem.writeFile({
+          path: `share-${fileName}`,
+          data: base64,
+          directory: Directory.Cache,
+          recursive: true,
+        });
+        await Share.share({
+          title: "Pay me on TeenWallet",
+          text: `Pay ${payeeName} via UPI: ${upiLink}`,
+          url: written.uri,
+          dialogTitle: "Share my UPI QR",
+        });
+        return;
+      }
+
+      // Web — prefer Web Share with the file (Android Chrome opens the OS sheet).
+      const blob = await (await fetch(dataUrl)).blob();
+      const file = new File([blob], fileName, { type: "image/png" });
+      const nav = navigator as Navigator & { canShare?: (data: ShareData) => boolean };
+      if (nav.canShare?.({ files: [file] }) && navigator.share) {
+        await navigator.share({ files: [file], title: "Pay me on TeenWallet", text: `Pay ${payeeName} via UPI`, url: upiLink });
+        return;
+      }
+      if (navigator.share) {
+        await navigator.share({ title: "Pay me on TeenWallet", text: `Pay ${payeeName} via UPI`, url: upiLink });
+        return;
+      }
       await navigator.clipboard.writeText(upiLink);
       toast.success("Payment link copied");
-    } catch { /* user cancelled */ }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "";
+      if (msg && !/abort|cancel/i.test(msg)) toast.error("Couldn't open share sheet");
+    }
   };
 
   return (
-    <div className="absolute inset-0 z-[80] flex items-end pp-sheet-backdrop" onClick={onClose} role="dialog" aria-modal="true" aria-labelledby="pp-qr-title">
-      <div className="pp-sheet" onClick={(e) => e.stopPropagation()}>
-        <div className="pp-sheet-grab" />
-        <div className="flex items-center justify-between px-1 mb-3">
+    <div
+      className="fixed inset-0 z-[120] flex items-center justify-center pp-qr-lightbox"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="pp-qr-title"
+    >
+      <div className="pp-qr-lightbox-card" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-4">
           <p id="pp-qr-title" className="text-[15px] font-semibold text-white">My UPI QR</p>
           <button onClick={onClose} aria-label="Close" className="qa-icon-btn"><X className="w-4 h-4 text-white/80" /></button>
         </div>
         <div className="flex flex-col items-center">
           <div className="rounded-2xl bg-white p-3 shadow-2xl">
-            {dataUrl ? <img src={dataUrl} alt="UPI QR code" width={240} height={240} className="block rounded-md" /> : <div className="w-[240px] h-[240px] rounded-md bg-neutral-200 animate-pulse" />}
+            {dataUrl
+              ? <img src={dataUrl} alt="UPI QR code" width={260} height={260} className="block rounded-md" />
+              : <div className="w-[260px] h-[260px] rounded-md bg-neutral-200 animate-pulse" />}
           </div>
-          <p className="mt-4 text-[13px] text-white font-medium">{payeeName}</p>
+          <p className="mt-4 text-[14px] text-white font-semibold">{payeeName}</p>
           <p className="text-[12px] text-white/60 num-mono">{upiId}</p>
           {err && <p className="text-[12px] text-red-300 mt-2">{err}</p>}
         </div>
         <div className="flex gap-2 mt-5">
           <button onClick={download} disabled={!dataUrl} className="pp-btn-ghost flex-1 disabled:opacity-50"><Download className="w-4 h-4 inline -mt-0.5 mr-1.5" /> Save</button>
-          <button onClick={share} className="pp-btn-primary flex-1"><Share2 className="w-4 h-4 inline -mt-0.5 mr-1.5" /> Share</button>
+          <button onClick={share} disabled={!dataUrl} className="pp-btn-primary flex-1 disabled:opacity-50"><Share2 className="w-4 h-4 inline -mt-0.5 mr-1.5" /> Share</button>
         </div>
         <p className="text-[11px] text-white/45 text-center mt-3">Scan this QR in any UPI app to pay you instantly.</p>
       </div>

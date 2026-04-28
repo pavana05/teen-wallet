@@ -8548,3 +8548,34 @@ html.motion-off    .otp-resend-ring svg circle { transition: none !important; }
     animation: none !important; transition: none !important;
   }
 }
+
+/* ───────── My QR lightbox ───────── */
+.pp-qr-lightbox {
+  background: rgba(0, 0, 0, 0.78);
+  backdrop-filter: blur(14px) saturate(140%);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  padding: 20px;
+  animation: pp-qr-fade-in 220ms cubic-bezier(.22,1,.36,1) both;
+}
+.pp-qr-lightbox-card {
+  width: min(360px, 100%);
+  background: linear-gradient(160deg, rgba(22,22,28,0.96), rgba(12,12,16,0.96));
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 24px;
+  padding: 20px;
+  box-shadow:
+    0 30px 80px -20px rgba(0,0,0,0.85),
+    inset 0 1px 0 rgba(255,255,255,0.06);
+  animation: pp-qr-pop-in 280ms cubic-bezier(.22,1,.36,1) both;
+}
+@keyframes pp-qr-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes pp-qr-pop-in {
+  from { opacity: 0; transform: scale(0.92) translateY(8px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pp-qr-lightbox, .pp-qr-lightbox-card { animation: none; }
+}
