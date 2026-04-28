@@ -18,7 +18,7 @@ import {
 } from "@/lib/receiptDelivery";
 import { callWithAuth } from "@/lib/serverFnAuth";
 import { breadcrumb, captureError } from "@/lib/breadcrumbs";
-import { PaymentStepper, type StepperStage } from "@/components/PaymentStepper";
+
 import {
   createAttempt,
   startProcessing,
@@ -2323,12 +2323,6 @@ function ProcessingView({ amount }: { amount: number }) {
           into the orb. Pairs with .sp2-frame-locked::after bloom for a
           continuous scan→pay choreography. */}
       <span className="sp-handoff-arc" aria-hidden />
-
-      {/* Stepper pinned to top */}
-      <div className="absolute top-6 left-0 right-0 px-4 z-30">
-        <PaymentStepper stage="processing" />
-      </div>
-
 
       {/* Perspective grid floor */}
       <div className="sp-pay-floor" aria-hidden>
