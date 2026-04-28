@@ -699,22 +699,82 @@ function ScannerView({ onBack, onDecoded }: { onBack: () => void; onDecoded: (p:
     const file = e.target.files?.[0];
     if (!file) return;
     try {
+      // ── 1. Validate the file before touching the decoder ──
+      // The decoder is expensive; reject obvious non-images, oversized files,
+      // and empty files up-front so we surface a precise reason to the user.
+      if (!file.type.startsWith("image/")) {
+        setUploadError("That file isn't an image. Pick a JPG, PNG, or WebP photo of a QR.");
+        setInvalidDecodeCount((c) => c + 1);
+        return;
+      }
+      if (file.size === 0) {
+        setUploadError("This image looks empty. Try another photo.");
+        setInvalidDecodeCount((c) => c + 1);
+        return;
+      }
+      if (file.size > 12 * 1024 * 1024) {
+        setUploadError("Image is too large (max 12 MB). Use a smaller photo.");
+        setInvalidDecodeCount((c) => c + 1);
+        return;
+      }
+
       const scanner = scannerRef.current ?? new Html5Qrcode(containerId, { verbose: false });
       if (scanner.isScanning) await scanner.stop().catch(() => {});
-      const decoded = await scanner.scanFile(file, false);
-      const result = parseUpiQrWithReason(decoded);
-      setDebug({ raw: decoded, result, at: Date.now() });
-      if (result.payload) {
-        onDecoded(result.payload);
-      } else {
-        // Gallery decode succeeded but the QR isn't a UPI payment — count it
-        // toward the invalid streak so the recovery panel stays visible.
-        setInvalidDecodeCount((c) => c + 1);
-        toast.error(result.reason ?? "Not a valid UPI QR code");
+
+      // ── 2. Try multiple decode passes ──
+      // Real-world photos often contain more than one QR, partial occlusion,
+      // or framing that confuses the decoder on the first attempt. We try the
+      // raw file first, then a downscaled copy as a fallback. Each pass that
+      // returns text is parsed against the UPI grammar; the first valid UPI
+      // payload wins. We collect all decoded strings so we can show a clearer
+      // reason when none of them are UPI.
+      const decoded: string[] = [];
+      const tryDecode = async (input: File | Blob) => {
+        try {
+          const text = await scanner.scanFile(input as File, false);
+          if (text && !decoded.includes(text)) decoded.push(text);
+        } catch {
+          /* swallow — fall through to the next strategy */
+        }
+      };
+
+      await tryDecode(file);
+      if (!decoded.some((t) => parseUpiQr(t))) {
+        // Downscale and retry — helps with very large photos where the QR is
+        // small relative to the frame.
+        const downscaled = await downscaleImage(file, 1200).catch(() => null);
+        if (downscaled) await tryDecode(downscaled);
       }
-    } catch {
+
+      // Pick the first decoded string that parses as UPI; otherwise surface
+      // the most specific parse reason from the candidates we collected.
+      let chosen: UpiParseResult | null = null;
+      for (const text of decoded) {
+        const r = parseUpiQrWithReason(text);
+        if (r.payload) { chosen = r; break; }
+        if (!chosen) chosen = r; // remember first non-UPI decode for messaging
+      }
+      setDebug({ raw: decoded[0] ?? "", result: chosen ?? { payload: null, reason: "No QR detected", matched: null }, at: Date.now() });
+
+      if (chosen?.payload) {
+        setUploadError(null);
+        onDecoded(chosen.payload);
+        return;
+      }
+
+      // No usable UPI QR — pick the friendliest reason we have.
+      const reason =
+        decoded.length === 0
+          ? "We couldn't find a QR in this image. Try a sharper, better-lit photo."
+          : decoded.length > 1
+            ? "Multiple QR codes detected — none of them are UPI payment codes."
+            : chosen?.reason ?? "This QR isn't a UPI payment code.";
+      setUploadError(reason);
       setInvalidDecodeCount((c) => c + 1);
-      toast.error("Could not read QR from image. Try a clearer photo.");
+    } catch (err) {
+      captureError(err, { where: "scanpay.handleUpload" });
+      setUploadError("Could not read QR from image. Try a clearer photo.");
+      setInvalidDecodeCount((c) => c + 1);
     } finally {
       // Always clear the input so picking the same file again still triggers onChange.
       if (e.target) e.target.value = "";
