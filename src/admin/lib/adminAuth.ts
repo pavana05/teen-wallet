@@ -72,31 +72,40 @@ export async function callAdminFn<T = unknown>(payload: Record<string, unknown>)
   const action = typeof payload.action === "string" ? payload.action : undefined;
   recordRequest(action);
 
-  // Auto-attach the stored sessionToken if the caller didn't supply one.
-  // Almost every admin action requires it, so missing it produced "unauthorized" 401s.
-  let body = payload;
-  const providedSessionToken =
-    typeof body.sessionToken === "string" && body.sessionToken ? body.sessionToken : "";
-  const storedSessionToken = providedSessionToken ? "" : (readAdminSession()?.sessionToken ?? "");
-  const sessionToken = providedSessionToken || storedSessionToken;
-  const shouldAttachSession = !!sessionToken && !SESSIONLESS_ACTIONS.has(action ?? "");
-  if (shouldAttachSession && !providedSessionToken) {
-    body = { ...body, sessionToken };
+  const requiresAdminSession = !!action && !SESSIONLESS_ACTIONS.has(action);
+  let body = { ...payload };
+  let sessionToken = typeof body.sessionToken === "string" ? body.sessionToken : "";
+  if (requiresAdminSession && !sessionToken) sessionToken = readAdminSession()?.sessionToken ?? "";
+  if (requiresAdminSession && !sessionToken) {
+    throw new AdminFnError("not_authenticated", 401, null);
   }
+  if (requiresAdminSession) body = { ...body, sessionToken };
 
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-    apikey: ANON,
-    Authorization: `Bearer ${ANON}`,
+  const send = (requestBody: Record<string, unknown>, token: string) => {
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+      apikey: ANON,
+      Authorization: `Bearer ${ANON}`,
+    };
+    if (requiresAdminSession && token) headers["X-Admin-Session-Token"] = token;
+    return fetch(FN_URL, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(requestBody),
+    });
   };
-  if (shouldAttachSession) headers["X-Admin-Session-Token"] = sessionToken;
 
-  const res = await fetch(FN_URL, {
-    method: "POST",
-    headers,
-    body: JSON.stringify(body),
-  });
-  const json = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+  let res = await send(body, sessionToken);
+  let json = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+  if (res.status === 401 && json.error === "unauthorized" && requiresAdminSession) {
+    const latestSessionToken = readAdminSession()?.sessionToken ?? "";
+    if (latestSessionToken && latestSessionToken !== sessionToken) {
+      sessionToken = latestSessionToken;
+      body = { ...body, sessionToken };
+      res = await send(body, sessionToken);
+      json = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+    }
+  }
   const cid = (json.correlationId as string | undefined) ?? res.headers.get("X-Correlation-Id");
   if (!res.ok) {
     const errCode = (json?.error as string) || "";
@@ -105,7 +114,10 @@ export async function callAdminFn<T = unknown>(payload: Record<string, unknown>)
     // and bounce to the admin login (unless we're already there).
     const isSessionDead =
       res.status === 401 &&
-      (errCode === "expired" || errCode === "invalid_session" || errCode === "session_not_found");
+      (errCode === "expired" ||
+        errCode === "invalid_session" ||
+        errCode === "session_not_found" ||
+        (requiresAdminSession && errCode === "unauthorized"));
     if (isSessionDead) {
       clearAdminSession();
       if (typeof window !== "undefined" && !window.location.pathname.startsWith("/admin/login")) {
