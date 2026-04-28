@@ -76,7 +76,19 @@ export async function callAdminFn<T = unknown>(payload: Record<string, unknown>)
   const json = (await res.json().catch(() => ({}))) as Record<string, unknown>;
   const cid = (json.correlationId as string | undefined) ?? res.headers.get("X-Correlation-Id");
   if (!res.ok) {
-    const msg = (json?.reason as string) || (json?.error as string) || `HTTP ${res.status}`;
+    const errCode = (json?.error as string) || "";
+    const msg = (json?.reason as string) || errCode || `HTTP ${res.status}`;
+    // Auto-recover from expired/invalid session tokens: clear local state
+    // and bounce to the admin login (unless we're already there).
+    const isSessionDead =
+      res.status === 401 &&
+      (errCode === "expired" || errCode === "invalid_session" || errCode === "session_not_found");
+    if (isSessionDead) {
+      clearAdminSession();
+      if (typeof window !== "undefined" && !window.location.pathname.startsWith("/admin/login")) {
+        window.location.assign("/admin/login");
+      }
+    }
     throw new AdminFnError(msg, res.status, cid ?? null);
   }
   return json as T;
