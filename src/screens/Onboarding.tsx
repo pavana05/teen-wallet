@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { ArrowRight, ArrowLeft, Zap, ShieldCheck, Gift, Wallet, Sparkles } from "lucide-react";
-import walletImg from "@/assets/onboarding-wallet.jpg";
-import paymentImg from "@/assets/onboarding-payment.jpg";
-import shieldImg from "@/assets/onboarding-shield.jpg";
-import giftImg from "@/assets/onboarding-gift.jpg";
+import walletImg from "@/assets/onboarding-wallet.webp";
+import paymentImg from "@/assets/onboarding-payment.webp";
+import shieldImg from "@/assets/onboarding-shield.webp";
+import giftImg from "@/assets/onboarding-gift.webp";
 import { TWLogo } from "@/components/TWLogo";
 import { recordCheckpoint } from "@/lib/navState";
 
