@@ -3272,9 +3272,9 @@ button:focus-visible .hp-tile{
   background: linear-gradient(
     90deg,
     rgba(200, 241, 53, 0.05) 0%,
-    rgba(200, 241, 53, 0.18) 40%,
+    rgba(212,180,131,0.18) 40%,
     rgba(200, 241, 53, 0.32) 50%,
-    rgba(200, 241, 53, 0.18) 60%,
+    rgba(212,180,131,0.18) 60%,
     rgba(200, 241, 53, 0.05) 100%
   );
   background-size: 220% 100%;
@@ -3328,17 +3328,17 @@ button:focus-visible .hp-tile{
   padding: 8px 12px;
   border-radius: 999px;
   background: rgba(15, 15, 15, 0.92);
-  border: 1px solid var(--a-accent, #c8f135);
-  color: var(--a-accent, #c8f135);
+  border: 1px solid var(--a-accent, #d4b483);
+  color: var(--a-accent, #d4b483);
   font-size: 12px;
   cursor: pointer;
-  box-shadow: 0 0 16px rgba(200, 241, 53, 0.25), 0 4px 12px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 0 16px rgba(212,180,131,0.22), 0 4px 12px rgba(0, 0, 0, 0.4);
   backdrop-filter: blur(10px);
   transition: transform 120ms ease, box-shadow 120ms ease;
 }
 .perf-fab:hover {
   transform: translateY(-1px);
-  box-shadow: 0 0 24px rgba(200, 241, 53, 0.45), 0 6px 16px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 0 24px rgba(212,180,131,0.35), 0 6px 16px rgba(0, 0, 0, 0.5);
 }
 
 .perf-overlay {
@@ -3352,8 +3352,8 @@ button:focus-visible .hp-tile{
   padding: 12px;
   border-radius: 14px;
   background: rgba(12, 12, 12, 0.96);
-  border: 1px solid rgba(200, 241, 53, 0.4);
-  box-shadow: 0 0 30px rgba(200, 241, 53, 0.18), 0 12px 32px rgba(0, 0, 0, 0.55);
+  border: 1px solid rgba(212,180,131,0.35);
+  box-shadow: 0 0 30px rgba(212,180,131,0.18), 0 12px 32px rgba(0, 0, 0, 0.55);
   backdrop-filter: blur(12px);
   color: var(--a-text, #f2f2f2);
   font-size: 12px;
@@ -3374,8 +3374,8 @@ button:focus-visible .hp-tile{
   transition: color 120ms, background-color 120ms;
 }
 .perf-icon-btn:hover {
-  color: var(--a-accent, #c8f135);
-  background: rgba(200, 241, 53, 0.08);
+  color: var(--a-accent, #d4b483);
+  background: rgba(212,180,131,0.10);
 }
 
 .perf-row {
@@ -3400,7 +3400,7 @@ button:focus-visible .hp-tile{
   font-size: 18px;
   font-weight: 700;
   font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
-  color: var(--a-accent, #c8f135);
+  color: var(--a-accent, #d4b483);
   margin-top: 2px;
 }
 
