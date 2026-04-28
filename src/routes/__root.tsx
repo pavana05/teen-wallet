@@ -1,5 +1,6 @@
 import { useEffect } from "react";
-import { Outlet, Link, createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
+import { Outlet, Link, createRootRoute, HeadContent, Scripts, useRouterState } from "@tanstack/react-router";
+import { isNative } from "@/lib/native";
 import { Toaster } from "@/components/ui/sonner";
 import { ShakeToReport } from "@/components/ShakeToReport";
 import { AppLockGate } from "@/components/app-lock/AppLockGate";
@@ -110,7 +111,8 @@ function RootComponent() {
   useEffect(() => {
     installConsoleCapture();
     initNative();
-    installAppLockListeners();
+    // Only the native app needs App Lock visibility/idle listeners.
+    if (isNative()) installAppLockListeners();
     breadcrumb("system.boot", { platform: typeof navigator !== "undefined" ? navigator.userAgent : undefined });
 
     const onError = (e: ErrorEvent) => captureError(e.error ?? e.message, { where: "window.onerror" });
@@ -123,13 +125,19 @@ function RootComponent() {
     };
   }, []);
 
+  // App Lock is for the user-facing app on native devices only.
+  // Hide it on /admin/* and on web (where the OS-level lock isn't part of UX).
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const isAdminRoute = pathname.startsWith("/admin");
+  const showAppLock = !isAdminRoute && isNative();
+
   return (
     <>
       <Outlet />
       <Toaster />
       <ShakeToReport />
-      <AppLockSetupPrompt />
-      <AppLockGate />
+      {showAppLock && <AppLockSetupPrompt />}
+      {showAppLock && <AppLockGate />}
     </>
   );
 }
