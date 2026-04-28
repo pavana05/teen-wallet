@@ -28,6 +28,8 @@ import {
   type AttemptSnapshot,
 } from "@/lib/paymentAttempts.functions";
 import { sampleFrames } from "@/lib/fpsGuard";
+import { haptics } from "@/lib/haptics";
+import { prefersReducedMotion } from "@/lib/motionPrefs";
 
 const SCANPAY_PERSIST_KEY = "tw-scanpay-flow-v1";
 const SCANPAY_ATTEMPT_KEY = "tw-scanpay-attempt-id-v1";
