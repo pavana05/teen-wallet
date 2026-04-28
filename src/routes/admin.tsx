@@ -1,22 +1,51 @@
 import { createFileRoute, Outlet, useNavigate, Link, useRouterState } from "@tanstack/react-router";
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
-import { useAdminSession, ROLE_LABELS, ROLE_BADGE, callAdminFn, readAdminSession, can, type PERMS } from "@/admin/lib/adminAuth";
 import {
-  LayoutDashboard, Users, ShieldAlert, FileCheck2, Wallet, Settings, LogOut,
-  Bell, Activity, Search, ChevronLeft, ChevronRight, Command, MessageSquareWarning, ImageIcon,
-  Sun, Moon, Rows3, Rows2, Sparkles,
+  useAdminSession,
+  ROLE_LABELS,
+  ROLE_BADGE,
+  callAdminFn,
+  readAdminSession,
+  can,
+  type PERMS,
+} from "@/admin/lib/adminAuth";
+import {
+  LayoutDashboard,
+  Users,
+  ShieldAlert,
+  FileCheck2,
+  Wallet,
+  Settings,
+  LogOut,
+  Bell,
+  Activity,
+  Search,
+  ChevronLeft,
+  ChevronRight,
+  Command,
+  MessageSquareWarning,
+  ImageIcon,
+  Sun,
+  Moon,
+  Rows3,
+  Rows2,
+  Sparkles,
 } from "lucide-react";
 
-const PerfOverlay = lazy(() => import("@/admin/components/PerfOverlay").then((m) => ({ default: m.PerfOverlay })));
-const CommandPalette = lazy(() => import("@/admin/components/CommandPalette").then((m) => ({ default: m.CommandPalette })));
+const PerfOverlay = lazy(() =>
+  import("@/admin/components/PerfOverlay").then((m) => ({ default: m.PerfOverlay })),
+);
+const CommandPalette = lazy(() =>
+  import("@/admin/components/CommandPalette").then((m) => ({ default: m.CommandPalette })),
+);
 
 export const Route = createFileRoute("/admin")({
   component: AdminLayout,
 });
 
 const SIDEBAR_KEY = "tw_admin_sidebar_collapsed_v1";
-const THEME_KEY = "tw_admin_theme_v1";        // 'dark' | 'light'
-const DENSITY_KEY = "tw_admin_density_v1";    // 'comfortable' | 'compact'
+const THEME_KEY = "tw_admin_theme_v1"; // 'dark' | 'light'
+const DENSITY_KEY = "tw_admin_density_v1"; // 'comfortable' | 'compact'
 
 type AdminTheme = "dark" | "light";
 type AdminDensity = "comfortable" | "compact";
@@ -40,16 +69,33 @@ function AdminLayout() {
       if (t === "light" || t === "dark") setTheme(t);
       const d = localStorage.getItem(DENSITY_KEY) as AdminDensity | null;
       if (d === "compact" || d === "comfortable") setDensity(d);
-    } catch { /* noop */ }
+    } catch {
+      /* noop */
+    }
   }, []);
   useEffect(() => {
-    if (mounted) try { localStorage.setItem(SIDEBAR_KEY, collapsed ? "1" : "0"); } catch { /* noop */ }
+    if (mounted)
+      try {
+        localStorage.setItem(SIDEBAR_KEY, collapsed ? "1" : "0");
+      } catch {
+        /* noop */
+      }
   }, [collapsed, mounted]);
   useEffect(() => {
-    if (mounted) try { localStorage.setItem(THEME_KEY, theme); } catch { /* noop */ }
+    if (mounted)
+      try {
+        localStorage.setItem(THEME_KEY, theme);
+      } catch {
+        /* noop */
+      }
   }, [theme, mounted]);
   useEffect(() => {
-    if (mounted) try { localStorage.setItem(DENSITY_KEY, density); } catch { /* noop */ }
+    if (mounted)
+      try {
+        localStorage.setItem(DENSITY_KEY, density);
+      } catch {
+        /* noop */
+      }
   }, [density, mounted]);
 
   useEffect(() => {
@@ -61,7 +107,9 @@ function AdminLayout() {
   useEffect(() => {
     if (!mounted || !admin || isLoginRoute) return;
     const start = () => setAdminToolsReady(true);
-    const idle = (window as any).requestIdleCallback as ((cb: () => void, opts?: { timeout?: number }) => number) | undefined;
+    const idle = (window as any).requestIdleCallback as
+      | ((cb: () => void, opts?: { timeout?: number }) => number)
+      | undefined;
     const cancelIdle = (window as any).cancelIdleCallback as ((id: number) => void) | undefined;
     if (idle) {
       const id = idle(start, { timeout: 2500 });
@@ -72,21 +120,52 @@ function AdminLayout() {
   }, [admin, isLoginRoute, mounted]);
 
   if (!mounted) return <div className="admin-shell" suppressHydrationWarning />;
-  const shellAttrs = { "data-admin-theme": theme, "data-admin-density": density } as Record<string, string>;
-  if (isLoginRoute) return <div className="admin-shell" {...shellAttrs}><Outlet /></div>;
+  const shellAttrs = { "data-admin-theme": theme, "data-admin-density": density } as Record<
+    string,
+    string
+  >;
+  if (isLoginRoute)
+    return (
+      <div className="admin-shell" {...shellAttrs}>
+        <Outlet />
+      </div>
+    );
   if (loading) {
     return (
-      <div className="admin-shell flex items-center justify-center" {...shellAttrs} style={{ minHeight: "100vh" }}>
-        <div className="a-mono text-sm" style={{ color: "var(--a-muted)" }}>Verifying session…</div>
+      <div
+        className="admin-shell flex items-center justify-center"
+        {...shellAttrs}
+        style={{ minHeight: "100vh" }}
+      >
+        <div className="a-mono text-sm" style={{ color: "var(--a-muted)" }}>
+          Verifying session…
+        </div>
       </div>
     );
   }
   if (!admin) return <div className="admin-shell" {...shellAttrs} />;
 
-  const navSectionsAll: Array<{ label?: string; items: Array<{ to: string; label: string; icon: any; end?: boolean; kbd?: string; perm?: keyof typeof PERMS }> }> = [
+  const navSectionsAll: Array<{
+    label?: string;
+    items: Array<{
+      to: string;
+      label: string;
+      icon: any;
+      end?: boolean;
+      kbd?: string;
+      perm?: keyof typeof PERMS;
+    }>;
+  }> = [
     {
       items: [
-        { to: "/admin", label: "Command Center", icon: LayoutDashboard, end: true, kbd: "g d", perm: "viewDashboard" },
+        {
+          to: "/admin",
+          label: "Command Center",
+          icon: LayoutDashboard,
+          end: true,
+          kbd: "g d",
+          perm: "viewDashboard",
+        },
       ],
     },
     {
@@ -94,17 +173,47 @@ function AdminLayout() {
       items: [
         { to: "/admin/users", label: "Users", icon: Users, kbd: "g u", perm: "viewUsers" },
         { to: "/admin/kyc", label: "KYC Queue", icon: FileCheck2, kbd: "g k", perm: "viewKyc" },
-        { to: "/admin/kyc-followups", label: "KYC Follow-ups", icon: MessageSquareWarning, kbd: "g n", perm: "viewKyc" },
-        { to: "/admin/transactions", label: "Transactions", icon: Wallet, kbd: "g t", perm: "viewTransactions" },
+        {
+          to: "/admin/kyc-followups",
+          label: "KYC Follow-ups",
+          icon: MessageSquareWarning,
+          kbd: "g n",
+          perm: "viewKyc",
+        },
+        {
+          to: "/admin/transactions",
+          label: "Transactions",
+          icon: Wallet,
+          kbd: "g t",
+          perm: "viewTransactions",
+        },
         { to: "/admin/fraud", label: "Fraud", icon: ShieldAlert, kbd: "g f", perm: "viewFraud" },
-        { to: "/admin/reports", label: "Support Tickets", icon: MessageSquareWarning, kbd: "g r", perm: "viewReports" },
+        {
+          to: "/admin/reports",
+          label: "Support Tickets",
+          icon: MessageSquareWarning,
+          kbd: "g r",
+          perm: "viewReports",
+        },
       ],
     },
     {
       label: "Growth",
       items: [
-        { to: "/admin/campaigns", label: "Gender Campaigns", icon: Sparkles, kbd: "g c", perm: "viewCampaigns" },
-        { to: "/admin/app-images", label: "App Images", icon: ImageIcon, kbd: "g i", perm: "viewAppImages" },
+        {
+          to: "/admin/campaigns",
+          label: "Gender Campaigns",
+          icon: Sparkles,
+          kbd: "g c",
+          perm: "viewCampaigns",
+        },
+        {
+          to: "/admin/app-images",
+          label: "App Images",
+          icon: ImageIcon,
+          kbd: "g i",
+          perm: "viewAppImages",
+        },
       ],
     },
     {
@@ -117,7 +226,10 @@ function AdminLayout() {
   ];
   // RBAC gate: hide items the current admin role can't access.
   const navSections = navSectionsAll
-    .map((sec) => ({ ...sec, items: sec.items.filter((it) => !it.perm || can(admin.role, it.perm)) }))
+    .map((sec) => ({
+      ...sec,
+      items: sec.items.filter((it) => !it.perm || can(admin.role, it.perm)),
+    }))
     .filter((sec) => sec.items.length > 0);
   const sideW = collapsed ? 68 : 248;
 
@@ -126,28 +238,68 @@ function AdminLayout() {
       {/* ── Sidebar ─────────────────────────────────────────────────────── */}
       <aside
         style={{
-          width: sideW, transition: "width 200ms cubic-bezier(.2,.8,.25,1)",
+          width: sideW,
+          transition: "width 200ms cubic-bezier(.2,.8,.25,1)",
           borderRight: "1px solid var(--a-border)",
           background: "linear-gradient(180deg, var(--a-surface) 0%, var(--a-bg) 100%)",
-          minHeight: "100vh", display: "flex", flexDirection: "column",
-          position: "sticky", top: 0,
+          minHeight: "100vh",
+          display: "flex",
+          flexDirection: "column",
+          position: "sticky",
+          top: 0,
         }}
       >
-        <div style={{ padding: collapsed ? "18px 8px" : "20px 16px", borderBottom: "1px solid var(--a-border)", display: "flex", alignItems: "center", gap: 10 }}>
+        <div
+          style={{
+            padding: collapsed ? "18px 8px" : "20px 16px",
+            borderBottom: "1px solid var(--a-border)",
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+          }}
+        >
           <div
             style={{
-              width: 32, height: 32, borderRadius: 9,
+              width: 32,
+              height: 32,
+              borderRadius: 9,
               background: "var(--a-grad-accent)",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              fontWeight: 800, color: "var(--a-accent-fg)", fontSize: 13,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontWeight: 800,
+              color: "var(--a-accent-fg)",
+              fontSize: 13,
               boxShadow: "0 6px 18px -6px var(--a-accent-ring)",
-              flexShrink: 0, letterSpacing: "0.02em",
+              flexShrink: 0,
+              letterSpacing: "0.02em",
             }}
-          >TW</div>
+          >
+            TW
+          </div>
           {!collapsed && (
             <div style={{ minWidth: 0 }}>
-              <div className="a-mono" style={{ fontSize: 12, letterSpacing: "0.14em", color: "var(--a-text)", fontWeight: 600 }}>TEEN WALLET</div>
-              <div style={{ fontSize: 10, color: "var(--a-muted)", marginTop: 2, letterSpacing: "0.06em" }}>ADMIN CONSOLE</div>
+              <div
+                className="a-mono"
+                style={{
+                  fontSize: 12,
+                  letterSpacing: "0.14em",
+                  color: "var(--a-text)",
+                  fontWeight: 600,
+                }}
+              >
+                TEEN WALLET
+              </div>
+              <div
+                style={{
+                  fontSize: 10,
+                  color: "var(--a-muted)",
+                  marginTop: 2,
+                  letterSpacing: "0.06em",
+                }}
+              >
+                ADMIN CONSOLE
+              </div>
             </div>
           )}
         </div>
@@ -174,7 +326,12 @@ function AdminLayout() {
                   <it.icon size={16} />
                   {!collapsed && <span style={{ flex: 1 }}>{it.label}</span>}
                   {!collapsed && it.kbd && (
-                    <span className="a-mono" style={{ fontSize: 9, color: "var(--a-muted)", letterSpacing: "0.05em" }}>{it.kbd}</span>
+                    <span
+                      className="a-mono"
+                      style={{ fontSize: 9, color: "var(--a-muted)", letterSpacing: "0.05em" }}
+                    >
+                      {it.kbd}
+                    </span>
                   )}
                 </Link>
               ))}
@@ -186,10 +343,16 @@ function AdminLayout() {
           onClick={() => setCollapsed((c) => !c)}
           aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           style={{
-            margin: 8, padding: "6px", borderRadius: 8,
-            background: "var(--a-surface-2)", border: "1px solid var(--a-border)",
-            color: "var(--a-muted)", cursor: "pointer",
-            display: "flex", alignItems: "center", justifyContent: "center",
+            margin: 8,
+            padding: "6px",
+            borderRadius: 8,
+            background: "var(--a-surface-2)",
+            border: "1px solid var(--a-border)",
+            color: "var(--a-muted)",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
             transition: "color 140ms ease, border-color 140ms ease",
           }}
         >
@@ -199,9 +362,22 @@ function AdminLayout() {
         <div style={{ padding: collapsed ? 8 : 12, borderTop: "1px solid var(--a-border)" }}>
           {collapsed ? (
             <button
-              onClick={async () => { await logout(); nav({ to: "/admin/login" }); }}
+              onClick={async () => {
+                await logout();
+                nav({ to: "/admin/login" });
+              }}
               title={`Logout (${admin.email})`}
-              style={{ width: "100%", padding: 8, borderRadius: 8, background: "var(--a-surface-2)", border: "1px solid var(--a-border)", color: "var(--a-text)", cursor: "pointer", display: "flex", justifyContent: "center" }}
+              style={{
+                width: "100%",
+                padding: 8,
+                borderRadius: 8,
+                background: "var(--a-surface-2)",
+                border: "1px solid var(--a-border)",
+                color: "var(--a-text)",
+                cursor: "pointer",
+                display: "flex",
+                justifyContent: "center",
+              }}
             >
               <LogOut size={14} />
             </button>
@@ -211,22 +387,64 @@ function AdminLayout() {
                 <div
                   aria-hidden="true"
                   style={{
-                    width: 34, height: 34, borderRadius: 999,
+                    width: 34,
+                    height: 34,
+                    borderRadius: 999,
                     background: "var(--a-grad-accent)",
-                    display: "grid", placeItems: "center",
-                    color: "var(--a-accent-fg)", fontWeight: 700, fontSize: 13,
+                    display: "grid",
+                    placeItems: "center",
+                    color: "var(--a-accent-fg)",
+                    fontWeight: 700,
+                    fontSize: 13,
                     boxShadow: "0 6px 18px -8px var(--a-accent-ring)",
                   }}
-                >{(admin.name || admin.email).slice(0, 1).toUpperCase()}</div>
+                >
+                  {(admin.name || admin.email).slice(0, 1).toUpperCase()}
+                </div>
                 <div style={{ minWidth: 0, flex: 1 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{admin.name}</div>
-                  <div className="a-mono" style={{ fontSize: 10, color: "var(--a-muted)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{admin.email}</div>
+                  <div
+                    style={{
+                      fontSize: 13,
+                      fontWeight: 600,
+                      whiteSpace: "nowrap",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                    }}
+                  >
+                    {admin.name}
+                  </div>
+                  <div
+                    className="a-mono"
+                    style={{
+                      fontSize: 10,
+                      color: "var(--a-muted)",
+                      whiteSpace: "nowrap",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                    }}
+                  >
+                    {admin.email}
+                  </div>
                 </div>
               </div>
-              <div style={{ marginTop: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <span className={`inline-block px-2 py-0.5 rounded border text-[10px] uppercase tracking-wider ${ROLE_BADGE[admin.role]}`}>{ROLE_LABELS[admin.role]}</span>
+              <div
+                style={{
+                  marginTop: 8,
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                }}
+              >
+                <span
+                  className={`inline-block px-2 py-0.5 rounded border text-[10px] uppercase tracking-wider ${ROLE_BADGE[admin.role]}`}
+                >
+                  {ROLE_LABELS[admin.role]}
+                </span>
                 <button
-                  onClick={async () => { await logout(); nav({ to: "/admin/login" }); }}
+                  onClick={async () => {
+                    await logout();
+                    nav({ to: "/admin/login" });
+                  }}
                   className="a-btn-ghost"
                   style={{ padding: "5px 10px", fontSize: 11 }}
                   title="Sign out"
@@ -247,7 +465,9 @@ function AdminLayout() {
           theme={theme}
           onToggleTheme={() => setTheme((t) => (t === "dark" ? "light" : "dark"))}
           density={density}
-          onToggleDensity={() => setDensity((d) => (d === "comfortable" ? "compact" : "comfortable"))}
+          onToggleDensity={() =>
+            setDensity((d) => (d === "comfortable" ? "compact" : "comfortable"))
+          }
         />
         <main style={{ flex: 1, padding: 24, width: "100%", maxWidth: 1440, margin: "0 auto" }}>
           <Outlet />
@@ -267,11 +487,19 @@ function AdminLayout() {
 // Topbar — breadcrumbs · ⌘K · live notifications · theme/density toggles
 // ─────────────────────────────────────────────────────────────────────────────
 function Topbar({
-  pathname, expiresAt, theme, onToggleTheme, density, onToggleDensity,
+  pathname,
+  expiresAt,
+  theme,
+  onToggleTheme,
+  density,
+  onToggleDensity,
 }: {
-  pathname: string; expiresAt: string | null;
-  theme: AdminTheme; onToggleTheme: () => void;
-  density: AdminDensity; onToggleDensity: () => void;
+  pathname: string;
+  expiresAt: string | null;
+  theme: AdminTheme;
+  onToggleTheme: () => void;
+  density: AdminDensity;
+  onToggleDensity: () => void;
 }) {
   const crumbs = useMemo(() => {
     const parts = pathname.split("/").filter(Boolean);
@@ -281,9 +509,12 @@ function Topbar({
     }));
   }, [pathname]);
 
-  const env = (typeof window !== "undefined" && window.location.hostname.includes("lovable.app"))
-    ? (window.location.hostname.includes("preview") ? "PREVIEW" : "PROD")
-    : "DEV";
+  const env =
+    typeof window !== "undefined" && window.location.hostname.includes("lovable.app")
+      ? window.location.hostname.includes("preview")
+        ? "PREVIEW"
+        : "PROD"
+      : "DEV";
 
   const openPalette = () => {
     window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true }));
@@ -292,33 +523,62 @@ function Topbar({
   return (
     <header
       style={{
-        height: 60, borderBottom: "1px solid var(--a-border)",
-        display: "flex", alignItems: "center", justifyContent: "space-between",
+        height: 60,
+        borderBottom: "1px solid var(--a-border)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
         padding: "0 20px",
         background: "color-mix(in oklab, var(--a-surface) 80%, transparent)",
         backdropFilter: "blur(12px)",
-        position: "sticky", top: 0, zIndex: 10,
+        position: "sticky",
+        top: 0,
+        zIndex: 10,
       }}
     >
       <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0, flex: 1 }}>
         <span
           className="a-mono"
           style={{
-            fontSize: 9, padding: "3px 7px", borderRadius: 4,
+            fontSize: 9,
+            padding: "3px 7px",
+            borderRadius: 4,
             border: `1px solid ${env === "PROD" ? "var(--a-success)" : env === "PREVIEW" ? "var(--a-warn)" : "var(--a-border)"}`,
-            color: env === "PROD" ? "var(--a-success)" : env === "PREVIEW" ? "var(--a-warn)" : "var(--a-muted)",
-            letterSpacing: "0.1em", fontWeight: 600,
+            color:
+              env === "PROD"
+                ? "var(--a-success)"
+                : env === "PREVIEW"
+                  ? "var(--a-warn)"
+                  : "var(--a-muted)",
+            letterSpacing: "0.1em",
+            fontWeight: 600,
           }}
-        >{env}</span>
+        >
+          {env}
+        </span>
         <span className="a-pulse" aria-hidden="true" title="Realtime stream live" />
-        <nav style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--a-muted)", overflow: "hidden" }}>
+        <nav
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            fontSize: 12,
+            color: "var(--a-muted)",
+            overflow: "hidden",
+          }}
+        >
           {crumbs.map((c, i) => (
             <span key={c.href} style={{ display: "flex", alignItems: "center", gap: 6 }}>
               {i > 0 && <span style={{ color: "var(--a-border-strong)" }}>/</span>}
               <Link
                 to={c.href as never}
-                style={{ color: i === crumbs.length - 1 ? "var(--a-text)" : "var(--a-muted)", fontWeight: i === crumbs.length - 1 ? 500 : 400 }}
-              >{c.label}</Link>
+                style={{
+                  color: i === crumbs.length - 1 ? "var(--a-text)" : "var(--a-muted)",
+                  fontWeight: i === crumbs.length - 1 ? 500 : 400,
+                }}
+              >
+                {c.label}
+              </Link>
             </span>
           ))}
         </nav>
@@ -328,24 +588,52 @@ function Topbar({
         <button
           onClick={openPalette}
           style={{
-            display: "flex", alignItems: "center", gap: 8,
-            padding: "7px 12px", minWidth: 240,
-            background: "var(--a-surface-2)", border: "1px solid var(--a-border)",
-            borderRadius: 10, color: "var(--a-muted)", fontSize: 12, cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            padding: "7px 12px",
+            minWidth: 240,
+            background: "var(--a-surface-2)",
+            border: "1px solid var(--a-border)",
+            borderRadius: 10,
+            color: "var(--a-muted)",
+            fontSize: 12,
+            cursor: "pointer",
             transition: "border-color 120ms, color 120ms",
           }}
-          onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--a-border-strong)"; e.currentTarget.style.color = "var(--a-text)"; }}
-          onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--a-border)"; e.currentTarget.style.color = "var(--a-muted)"; }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.borderColor = "var(--a-border-strong)";
+            e.currentTarget.style.color = "var(--a-text)";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.borderColor = "var(--a-border)";
+            e.currentTarget.style.color = "var(--a-muted)";
+          }}
         >
           <Search size={13} />
           <span style={{ flex: 1, textAlign: "left" }}>Search or jump…</span>
-          <span className="a-mono" style={{ display: "flex", alignItems: "center", gap: 2, fontSize: 10, color: "var(--a-muted)" }}>
+          <span
+            className="a-mono"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 2,
+              fontSize: 10,
+              color: "var(--a-muted)",
+            }}
+          >
             <Command size={10} /> K
           </span>
         </button>
 
-        <span className="a-mono" style={{ fontSize: 11, color: "var(--a-muted)", padding: "0 6px" }}>
-          Session {expiresAt ? new Date(expiresAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "—"}
+        <span
+          className="a-mono"
+          style={{ fontSize: 11, color: "var(--a-muted)", padding: "0 6px" }}
+        >
+          Session{" "}
+          {expiresAt
+            ? new Date(expiresAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+            : "—"}
         </span>
 
         <NotificationsBell />
@@ -376,9 +664,14 @@ function Topbar({
 // Notifications bell — wired to admin_notifications via admin-auth function
 // ─────────────────────────────────────────────────────────────────────────────
 interface AdminNotif {
-  id: string; type: string; priority: string;
-  title: string; body: string | null; link: string | null;
-  read: boolean; created_at: string;
+  id: string;
+  type: string;
+  priority: string;
+  title: string;
+  body: string | null;
+  link: string | null;
+  read: boolean;
+  created_at: string;
 }
 
 function NotificationsBell() {
@@ -397,7 +690,9 @@ function NotificationsBell() {
     setErr(null);
     try {
       const r = await callAdminFn<{ items: AdminNotif[]; unread: number }>({
-        action: "admin_notifications_list", sessionToken: s.sessionToken, limit: 30,
+        action: "admin_notifications_list",
+        sessionToken: s.sessionToken,
+        limit: 30,
       });
       setItems(r.items || []);
       setUnread(r.unread || 0);
@@ -431,7 +726,9 @@ function NotificationsBell() {
       if (btnRef.current?.contains(e.target as Node)) return;
       setOpen(false);
     };
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
     document.addEventListener("mousedown", onDown);
     document.addEventListener("keydown", onKey);
     return () => {
@@ -448,8 +745,14 @@ function NotificationsBell() {
     setItems((prev) => prev.map((i) => ({ ...i, read: true })));
     setUnread(0);
     try {
-      await callAdminFn({ action: "admin_notifications_mark_read", sessionToken: s.sessionToken, ids });
-    } catch { /* swallow — UI already optimistic */ }
+      await callAdminFn({
+        action: "admin_notifications_mark_read",
+        sessionToken: s.sessionToken,
+        ids,
+      });
+    } catch {
+      /* swallow — UI already optimistic */
+    }
   }
 
   return (
@@ -472,21 +775,39 @@ function NotificationsBell() {
           className="a-pop"
           role="menu"
           style={{
-            position: "absolute", top: "calc(100% + 8px)", right: 0,
-            width: 360, maxHeight: 480, display: "flex", flexDirection: "column", zIndex: 30,
+            position: "absolute",
+            top: "calc(100% + 8px)",
+            right: 0,
+            width: 360,
+            maxHeight: 480,
+            display: "flex",
+            flexDirection: "column",
+            zIndex: 30,
           }}
         >
-          <div style={{ padding: "12px 14px", borderBottom: "1px solid var(--a-border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div
+            style={{
+              padding: "12px 14px",
+              borderBottom: "1px solid var(--a-border)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+            }}
+          >
             <div>
               <div style={{ fontSize: 13, fontWeight: 600 }}>Notifications</div>
-              <div className="a-label" style={{ marginTop: 2 }}>{unread > 0 ? `${unread} unread` : "All caught up"}</div>
+              <div className="a-label" style={{ marginTop: 2 }}>
+                {unread > 0 ? `${unread} unread` : "All caught up"}
+              </div>
             </div>
             {unread > 0 && (
               <button
                 onClick={markAllRead}
                 className="a-btn-ghost"
                 style={{ padding: "5px 10px", fontSize: 11 }}
-              >Mark all read</button>
+              >
+                Mark all read
+              </button>
             )}
           </div>
 
@@ -500,7 +821,9 @@ function NotificationsBell() {
               </div>
             )}
             {!loading && !err && items.length === 0 && (
-              <div style={{ padding: 24, textAlign: "center", fontSize: 12, color: "var(--a-muted)" }}>
+              <div
+                style={{ padding: 24, textAlign: "center", fontSize: 12, color: "var(--a-muted)" }}
+              >
                 <Bell size={18} style={{ opacity: 0.5, marginBottom: 8 }} />
                 <div>No notifications yet</div>
               </div>
@@ -517,21 +840,46 @@ function NotificationsBell() {
 
 function NotifRow({ n, onClick }: { n: AdminNotif; onClick: () => void }) {
   const tone =
-    n.priority === "high" ? "var(--a-danger)" :
-    n.priority === "medium" ? "var(--a-warn)" :
-    "var(--a-info)";
+    n.priority === "high"
+      ? "var(--a-danger)"
+      : n.priority === "medium"
+        ? "var(--a-warn)"
+        : "var(--a-info)";
   const body = (
     <>
-      <span style={{
-        width: 6, height: 6, borderRadius: 999, background: tone, marginTop: 7, flexShrink: 0,
-        boxShadow: n.read ? "none" : `0 0 8px ${tone}`,
-      }} />
+      <span
+        style={{
+          width: 6,
+          height: 6,
+          borderRadius: 999,
+          background: tone,
+          marginTop: 7,
+          flexShrink: 0,
+          boxShadow: n.read ? "none" : `0 0 8px ${tone}`,
+        }}
+      />
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 12.5, fontWeight: n.read ? 400 : 600, color: n.read ? "var(--a-muted)" : "var(--a-text)" }}>
+        <div
+          style={{
+            fontSize: 12.5,
+            fontWeight: n.read ? 400 : 600,
+            color: n.read ? "var(--a-muted)" : "var(--a-text)",
+          }}
+        >
           {n.title}
         </div>
         {n.body && (
-          <div style={{ fontSize: 11.5, color: "var(--a-muted)", marginTop: 2, lineHeight: 1.45, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+          <div
+            style={{
+              fontSize: 11.5,
+              color: "var(--a-muted)",
+              marginTop: 2,
+              lineHeight: 1.45,
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+            }}
+          >
             {n.body}
           </div>
         )}
@@ -542,10 +890,14 @@ function NotifRow({ n, onClick }: { n: AdminNotif; onClick: () => void }) {
     </>
   );
   const sharedStyle: React.CSSProperties = {
-    display: "flex", gap: 10, padding: "10px 14px",
+    display: "flex",
+    gap: 10,
+    padding: "10px 14px",
     borderBottom: "1px solid var(--a-border)",
     background: n.read ? "transparent" : "var(--a-accent-soft)",
-    textDecoration: "none", color: "inherit", cursor: n.link ? "pointer" : "default",
+    textDecoration: "none",
+    color: "inherit",
+    cursor: n.link ? "pointer" : "default",
   };
   if (n.link) {
     return (

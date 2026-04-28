@@ -1,4 +1,24 @@
-import { Bell, Home as HomeIcon, ScanLine, ShoppingBag, CreditCard, ArrowUpRight, Building2, Wallet, History, Smartphone, Zap, MoreHorizontal, Gift, ArrowDownLeft, RefreshCw, User, Sparkles, Inbox, Send } from "lucide-react";
+import {
+  Bell,
+  Home as HomeIcon,
+  ScanLine,
+  ShoppingBag,
+  CreditCard,
+  ArrowUpRight,
+  Building2,
+  Wallet,
+  History,
+  Smartphone,
+  Zap,
+  MoreHorizontal,
+  Gift,
+  ArrowDownLeft,
+  RefreshCw,
+  User,
+  Sparkles,
+  Inbox,
+  Send,
+} from "lucide-react";
 import { useApp } from "@/lib/store";
 import { lazy, Suspense, useEffect, useState, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -13,10 +33,18 @@ import { notifyPaymentReceived } from "@/lib/notify";
 import { toast } from "sonner";
 
 const ScanPayPanel = lazy(() => import("@/screens/ScanPay").then((m) => ({ default: m.ScanPay })));
-const TransactionsPanel = lazy(() => import("@/screens/Transactions").then((m) => ({ default: m.Transactions })));
-const QuickActionsPanelLazy = lazy(() => import("@/components/QuickActionsPanel").then((m) => ({ default: m.QuickActionsPanel })));
-const NotificationsPanelLazy = lazy(() => import("@/components/NotificationsPanel").then((m) => ({ default: m.NotificationsPanel })));
-const ProfilePanelLazy = lazy(() => import("@/components/ProfilePanel").then((m) => ({ default: m.ProfilePanel })));
+const TransactionsPanel = lazy(() =>
+  import("@/screens/Transactions").then((m) => ({ default: m.Transactions })),
+);
+const QuickActionsPanelLazy = lazy(() =>
+  import("@/components/QuickActionsPanel").then((m) => ({ default: m.QuickActionsPanel })),
+);
+const NotificationsPanelLazy = lazy(() =>
+  import("@/components/NotificationsPanel").then((m) => ({ default: m.NotificationsPanel })),
+);
+const ProfilePanelLazy = lazy(() =>
+  import("@/components/ProfilePanel").then((m) => ({ default: m.ProfilePanel })),
+);
 
 interface PersonaOffer {
   id: string;
@@ -80,7 +108,6 @@ function isHoliSeason(now: Date = new Date()): boolean {
   return now.getTime() >= peak - 5 * day && now.getTime() <= peak + 2 * day;
 }
 
-
 interface Txn {
   id: string;
   amount: number;
@@ -91,28 +118,51 @@ interface Txn {
   created_at: string;
 }
 
-function QuickAction({ icon: Icon, label, onClick }: { icon: React.ComponentType<{ className?: string; strokeWidth?: number }>; label: string; onClick?: () => void }) {
+function QuickAction({
+  icon: Icon,
+  label,
+  onClick,
+}: {
+  icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
+  label: string;
+  onClick?: () => void;
+}) {
   const accessibleLabel = label.replace(/\n/g, " ");
   return (
     <button
       type="button"
-      onClick={() => { void haptics.tap(); onClick?.(); }}
+      onClick={() => {
+        void haptics.tap();
+        onClick?.();
+      }}
       aria-label={accessibleLabel}
       className="flex flex-col items-center gap-2 group rounded-2xl focus:outline-none"
     >
       <div className="hp-tile" aria-hidden="true">
         <Icon className="w-6 h-6 text-white/90" strokeWidth={1.6} />
       </div>
-      <span className="text-[11px] text-white/70 leading-tight text-center whitespace-pre-line">{label}</span>
+      <span className="text-[11px] text-white/70 leading-tight text-center whitespace-pre-line">
+        {label}
+      </span>
     </button>
   );
 }
 
-function RechargeTile({ icon: Icon, label, tint }: { icon: React.ComponentType<{ className?: string; strokeWidth?: number }>; label: string; tint: string }) {
+function RechargeTile({
+  icon: Icon,
+  label,
+  tint,
+}: {
+  icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
+  label: string;
+  tint: string;
+}) {
   return (
     <button
       type="button"
-      onClick={() => { void haptics.tap(); }}
+      onClick={() => {
+        void haptics.tap();
+      }}
       aria-label={label}
       className="flex flex-col items-center gap-2 rounded-2xl focus:outline-none"
     >
@@ -126,7 +176,12 @@ function RechargeTile({ icon: Icon, label, tint }: { icon: React.ComponentType<{
 
 function TxnRow({ txn }: { txn: Txn }) {
   const date = new Date(txn.created_at);
-  const time = date.toLocaleString("en-IN", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
+  const time = date.toLocaleString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
   const failed = txn.status === "failed";
   const amountStr = `−₹${Number(txn.amount).toFixed(2)}`;
   return (
@@ -136,26 +191,55 @@ function TxnRow({ txn }: { txn: Txn }) {
       aria-label={`Payment to ${txn.merchant_name}, ${amountStr}, status ${txn.status}, on ${time}`}
       tabIndex={0}
     >
-      <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${failed ? "bg-destructive/15" : "bg-primary/15"}`} aria-hidden="true">
-        <ArrowDownLeft className={`w-5 h-5 ${failed ? "text-destructive" : "text-primary"}`} strokeWidth={2} />
+      <div
+        className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${failed ? "bg-destructive/15" : "bg-primary/15"}`}
+        aria-hidden="true"
+      >
+        <ArrowDownLeft
+          className={`w-5 h-5 ${failed ? "text-destructive" : "text-primary"}`}
+          strokeWidth={2}
+        />
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-[13px] font-medium text-white truncate">{txn.merchant_name}</p>
-        <p className="text-[11px] text-white/50 truncate">{txn.note ? txn.note : txn.upi_id} · {time}</p>
+        <p className="text-[11px] text-white/50 truncate">
+          {txn.note ? txn.note : txn.upi_id} · {time}
+        </p>
       </div>
       <div className="text-right shrink-0">
-        <p className={`text-[14px] font-semibold num-mono ${failed ? "text-destructive line-through" : "text-white"}`}>{amountStr}</p>
-        <p className={`text-[10px] uppercase tracking-wider ${txn.status === "success" ? "text-primary/80" : txn.status === "pending" ? "text-yellow-400/80" : "text-destructive/80"}`}>{txn.status}</p>
+        <p
+          className={`text-[14px] font-semibold num-mono ${failed ? "text-destructive line-through" : "text-white"}`}
+        >
+          {amountStr}
+        </p>
+        <p
+          className={`text-[10px] uppercase tracking-wider ${txn.status === "success" ? "text-primary/80" : txn.status === "pending" ? "text-yellow-400/80" : "text-destructive/80"}`}
+        >
+          {txn.status}
+        </p>
       </div>
     </div>
   );
 }
 
-function NavItem({ icon: Icon, label, active, onClick }: { icon: React.ComponentType<{ className?: string; strokeWidth?: number }>; label: string; active?: boolean; onClick?: () => void }) {
+function NavItem({
+  icon: Icon,
+  label,
+  active,
+  onClick,
+}: {
+  icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
+  label: string;
+  active?: boolean;
+  onClick?: () => void;
+}) {
   return (
     <button
       type="button"
-      onClick={() => { void haptics.select(); onClick?.(); }}
+      onClick={() => {
+        void haptics.select();
+        onClick?.();
+      }}
       aria-label={label}
       aria-current={active ? "page" : undefined}
       className={`flex-1 flex flex-col items-center py-2 rounded-full transition-colors focus:outline-none ${active ? "hp-nav-active text-white" : "text-white/55 hover:text-white/80"}`}
@@ -172,7 +256,11 @@ export function Home() {
   const first = fullName?.split(" ")[0] ?? "Alex";
   // Admin-managed scan hero images (live via Realtime). Falls back to bundled assets.
   const scanHeroDefault = useAppImage("home.scan_hero", heroScan, "Scan and pay");
-  const scanHeroDiwali = useAppImage("home.scan_hero_diwali", heroScanDiwali, "Diwali scan and pay");
+  const scanHeroDiwali = useAppImage(
+    "home.scan_hero_diwali",
+    heroScanDiwali,
+    "Diwali scan and pay",
+  );
   const scanHeroHoli = useAppImage("home.scan_hero_holi", heroScanHoli, "Holi scan and pay");
   const [view, setView] = useState<"home" | "scan" | "transactions">("home");
   const [quickAction, setQuickAction] = useState<QuickActionKind | null>(null);
@@ -193,12 +281,21 @@ export function Home() {
   const [showGreetingTip, setShowGreetingTip] = useState(false);
   const [waveEnabled, setWaveEnabled] = useState<boolean>(() => {
     if (typeof window === "undefined") return true;
-    try { const v = localStorage.getItem("tw_greeting_wave"); return v === null ? true : v === "1"; } catch { return true; }
+    try {
+      const v = localStorage.getItem("tw_greeting_wave");
+      return v === null ? true : v === "1";
+    } catch {
+      return true;
+    }
   });
   const toggleWave = useCallback(() => {
     setWaveEnabled((prev) => {
       const next = !prev;
-      try { localStorage.setItem("tw_greeting_wave", next ? "1" : "0"); } catch { /* ignore */ }
+      try {
+        localStorage.setItem("tw_greeting_wave", next ? "1" : "0");
+      } catch {
+        /* ignore */
+      }
       void haptics.select();
       return next;
     });
@@ -214,7 +311,10 @@ export function Home() {
   const loadStartRef = useRef<number>(performance.now());
 
   const fetchTxns = useCallback(async () => {
-    if (!userId) { setLoading(false); return; }
+    if (!userId) {
+      setLoading(false);
+      return;
+    }
     loadStartRef.current = performance.now();
     const { data, error: err } = await supabase
       .from("transactions")
@@ -239,7 +339,9 @@ export function Home() {
     setLoading(false);
   }, [userId]);
 
-  useEffect(() => { void fetchTxns(); }, [fetchTxns]);
+  useEffect(() => {
+    void fetchTxns();
+  }, [fetchTxns]);
 
   // Persona-targeted offers feed (admin-managed via gender_offers)
   useEffect(() => {
@@ -254,18 +356,31 @@ export function Home() {
         .limit(8);
       if (!cancelled) setPersonaOffers((data ?? []) as PersonaOffer[]);
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [persona.offerFilter]);
 
   useEffect(() => {
     if (!userId) return;
     const ch = supabase
       .channel("home-txns")
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "transactions", filter: `user_id=eq.${userId}` }, () => {
-        void fetchTxns();
-      })
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "transactions",
+          filter: `user_id=eq.${userId}`,
+        },
+        () => {
+          void fetchTxns();
+        },
+      )
       .subscribe();
-    return () => { supabase.removeChannel(ch); };
+    return () => {
+      supabase.removeChannel(ch);
+    };
   }, [userId, fetchTxns]);
 
   // Payment-received watcher — listens for balance credits on the user's
@@ -309,7 +424,10 @@ export function Home() {
         },
       )
       .subscribe();
-    return () => { cancelled = true; supabase.removeChannel(ch); };
+    return () => {
+      cancelled = true;
+      supabase.removeChannel(ch);
+    };
   }, [userId]);
 
   // Unread notifications badge — count + realtime
@@ -326,11 +444,17 @@ export function Home() {
     void fetchUnread();
     const ch = supabase
       .channel("home-notifs")
-      .on("postgres_changes", { event: "*", schema: "public", table: "notifications", filter: `user_id=eq.${userId}` }, () => {
-        void fetchUnread();
-      })
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "notifications", filter: `user_id=eq.${userId}` },
+        () => {
+          void fetchUnread();
+        },
+      )
       .subscribe();
-    return () => { supabase.removeChannel(ch); };
+    return () => {
+      supabase.removeChannel(ch);
+    };
   }, [userId, showNotifs]);
 
   const handleRefresh = useCallback(async () => {
@@ -350,7 +474,10 @@ export function Home() {
     if (dy > 0) setPullY(Math.min(dy * 0.5, 80));
   };
   const onTouchEnd = () => {
-    if (pullY > 60) { void haptics.swipe(); void handleRefresh(); }
+    if (pullY > 60) {
+      void haptics.swipe();
+      void handleRefresh();
+    }
     setPullY(0);
     touchStartY.current = null;
   };
@@ -406,14 +533,24 @@ export function Home() {
   if (view === "scan") {
     return (
       <Suspense fallback={<div className="hp-root flex-1" />}>
-        <ScanPayPanel onBack={() => { setView("home"); void fetchTxns(); }} />
+        <ScanPayPanel
+          onBack={() => {
+            setView("home");
+            void fetchTxns();
+          }}
+        />
       </Suspense>
     );
   }
   if (view === "transactions") {
     return (
       <Suspense fallback={<div className="hp-root flex-1" />}>
-        <TransactionsPanel onBack={() => { setView("home"); void fetchTxns(); }} />
+        <TransactionsPanel
+          onBack={() => {
+            setView("home");
+            void fetchTxns();
+          }}
+        />
       </Suspense>
     );
   }
@@ -425,10 +562,15 @@ export function Home() {
       onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}
       className={`hp-root ${persona.accentClass} flex-1 flex flex-col tw-slide-up pb-32 overflow-y-auto relative`}
-      style={{ transform: pullY ? `translateY(${pullY}px)` : undefined, transition: pullY ? "none" : "transform 220ms ease" }}
+      style={{
+        transform: pullY ? `translateY(${pullY}px)` : undefined,
+        transition: pullY ? "none" : "transform 220ms ease",
+      }}
     >
       {/* Keyboard skip-link to payment history */}
-      <a href="#hp-payment-history" className="hp-skip-link">Skip to payment history</a>
+      <a href="#hp-payment-history" className="hp-skip-link">
+        Skip to payment history
+      </a>
 
       {/* Pull-to-refresh indicator */}
       {(pullY > 0 || refreshing) && (
@@ -437,8 +579,14 @@ export function Home() {
           aria-live="polite"
           className="absolute top-2 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/60 backdrop-blur-md border border-white/10"
         >
-          <RefreshCw className={`w-3.5 h-3.5 text-white ${refreshing ? "animate-spin" : ""}`} style={{ transform: !refreshing ? `rotate(${pullY * 4}deg)` : undefined }} aria-hidden="true" />
-          <span className="text-[11px] text-white/80">{refreshing ? "Refreshing…" : pullY > 60 ? "Release to refresh" : "Pull to refresh"}</span>
+          <RefreshCw
+            className={`w-3.5 h-3.5 text-white ${refreshing ? "animate-spin" : ""}`}
+            style={{ transform: !refreshing ? `rotate(${pullY * 4}deg)` : undefined }}
+            aria-hidden="true"
+          />
+          <span className="text-[11px] text-white/80">
+            {refreshing ? "Refreshing…" : pullY > 60 ? "Release to refresh" : "Pull to refresh"}
+          </span>
         </div>
       )}
       {/* ===== HERO (orange grid bg + scan card image) ===== */}
@@ -457,7 +605,8 @@ export function Home() {
             className="hp-greeting-tap text-left"
           >
             <p key={greetingPulse} className="hp-greeting hp-greeting-pulse">
-              Hey, {first}{waveEnabled ? ` ${persona.emoji}` : ""}
+              Hey, {first}
+              {waveEnabled ? ` ${persona.emoji}` : ""}
             </p>
             <p className="hp-greeting-sub">{persona.subtitle}</p>
             <span
@@ -470,13 +619,22 @@ export function Home() {
           </button>
           <button
             type="button"
-            onClick={() => { void haptics.tap(); setShowNotifs(true); }}
+            onClick={() => {
+              void haptics.tap();
+              setShowNotifs(true);
+            }}
             aria-label={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : "Notifications"}
             className="hp-bell"
           >
-            <Bell className="w-[18px] h-[18px] text-white/90" strokeWidth={1.6} aria-hidden="true" />
+            <Bell
+              className="w-[18px] h-[18px] text-white/90"
+              strokeWidth={1.6}
+              aria-hidden="true"
+            />
             {unreadCount > 0 && (
-              <span className="hp-bell-badge" aria-hidden="true">{unreadCount > 9 ? "9+" : unreadCount}</span>
+              <span className="hp-bell-badge" aria-hidden="true">
+                {unreadCount > 9 ? "9+" : unreadCount}
+              </span>
             )}
           </button>
         </div>
@@ -505,28 +663,36 @@ export function Home() {
       </div>
 
       {/* ===== OFFERS CAROUSEL ===== */}
-      <section
-        aria-label="Offers"
-        aria-busy={loading}
-        aria-live="polite"
-        className="px-5 mt-6"
-      >
+      <section aria-label="Offers" aria-busy={loading} aria-live="polite" className="px-5 mt-6">
         {loading ? (
           <div className="flex gap-3 overflow-hidden pb-1" aria-hidden="true">
             {[0, 1].map((i) => (
-              <div key={i} className="hp-skeleton snap-start shrink-0" style={{ width: "84%", minHeight: 140 }} />
+              <div
+                key={i}
+                className="hp-skeleton snap-start shrink-0"
+                style={{ width: "84%", minHeight: 140 }}
+              />
             ))}
           </div>
         ) : error ? (
-          <div key={`offers-err-${shakeKey}`} role="alert" className="hp-empty hp-shake-error hp-fade-in">
+          <div
+            key={`offers-err-${shakeKey}`}
+            role="alert"
+            className="hp-empty hp-shake-error hp-fade-in"
+          >
             <div className="hp-empty-illu" aria-hidden="true">
               <Sparkles className="w-7 h-7 text-white/85" strokeWidth={1.6} />
             </div>
             <p className="hp-empty-title">Couldn't load offers</p>
-            <p className="hp-empty-sub">Check your connection and try again — your rewards will be right back.</p>
+            <p className="hp-empty-sub">
+              Check your connection and try again — your rewards will be right back.
+            </p>
             <button
               type="button"
-              onClick={() => { setLoading(true); void fetchTxns(); }}
+              onClick={() => {
+                setLoading(true);
+                void fetchTxns();
+              }}
               className="hp-cta-pill"
               aria-label="Retry loading offers"
             >
@@ -550,7 +716,10 @@ export function Home() {
                 >
                   <div className="relative z-10">
                     <p className="hp-offer-eyebrow">{o.eyebrow}</p>
-                    <p className="hp-offer-headline">{o.headline}<em>{o.emphasis}</em></p>
+                    <p className="hp-offer-headline">
+                      {o.headline}
+                      <em>{o.emphasis}</em>
+                    </p>
                     <p className="hp-offer-sub">{o.subtitle}</p>
                     <button
                       type="button"
@@ -559,7 +728,11 @@ export function Home() {
                       aria-label={`${o.cta_label} — ${o.headline} ${o.emphasis}`}
                     >
                       <span>{o.cta_label}</span>
-                      <ArrowUpRight className="w-3.5 h-3.5 hp-offer-cta-icon" strokeWidth={2.2} aria-hidden="true" />
+                      <ArrowUpRight
+                        className="w-3.5 h-3.5 hp-offer-cta-icon"
+                        strokeWidth={2.2}
+                        aria-hidden="true"
+                      />
                     </button>
                   </div>
                 </div>
@@ -569,22 +742,44 @@ export function Home() {
                 <div className="hp-offer hp-offer-1 snap-start shrink-0" role="listitem">
                   <div className="relative z-10">
                     <p className="hp-offer-eyebrow">P2P UPI · Limited</p>
-                    <p className="hp-offer-headline">20%<em>flat off</em></p>
+                    <p className="hp-offer-headline">
+                      20%<em>flat off</em>
+                    </p>
                     <p className="hp-offer-sub">On every peer transfer this month</p>
-                    <button type="button" onClick={() => void haptics.success()} className="hp-offer-cta" aria-label="Apply 20% flat off offer on peer transfers">
+                    <button
+                      type="button"
+                      onClick={() => void haptics.success()}
+                      className="hp-offer-cta"
+                      aria-label="Apply 20% flat off offer on peer transfers"
+                    >
                       <span>Apply offer</span>
-                      <ArrowUpRight className="w-3.5 h-3.5 hp-offer-cta-icon" strokeWidth={2.2} aria-hidden="true" />
+                      <ArrowUpRight
+                        className="w-3.5 h-3.5 hp-offer-cta-icon"
+                        strokeWidth={2.2}
+                        aria-hidden="true"
+                      />
                     </button>
                   </div>
                 </div>
                 <div className="hp-offer hp-offer-2 snap-start shrink-0" role="listitem">
                   <div className="relative z-10">
                     <p className="hp-offer-eyebrow">First recharge</p>
-                    <p className="hp-offer-headline">40%<em>cashback</em></p>
+                    <p className="hp-offer-headline">
+                      40%<em>cashback</em>
+                    </p>
                     <p className="hp-offer-sub">Credited instantly to your wallet</p>
-                    <button type="button" onClick={() => void haptics.success()} className="hp-offer-cta" aria-label="Claim 40% cashback offer on your first recharge">
+                    <button
+                      type="button"
+                      onClick={() => void haptics.success()}
+                      className="hp-offer-cta"
+                      aria-label="Claim 40% cashback offer on your first recharge"
+                    >
                       <span>Claim now</span>
-                      <Sparkles className="w-3.5 h-3.5 hp-offer-cta-icon" strokeWidth={2.2} aria-hidden="true" />
+                      <Sparkles
+                        className="w-3.5 h-3.5 hp-offer-cta-icon"
+                        strokeWidth={2.2}
+                        aria-hidden="true"
+                      />
                     </button>
                   </div>
                 </div>
@@ -607,7 +802,10 @@ export function Home() {
         {/* Primary P2P CTA — phone or UPI ID, instant transfer */}
         <button
           type="button"
-          onClick={() => { void haptics.bloom(); setQuickAction("send-money"); }}
+          onClick={() => {
+            void haptics.bloom();
+            setQuickAction("send-money");
+          }}
           aria-label="Send money to anyone using a phone number or UPI ID"
           className="hp-send-cta group"
         >
@@ -623,14 +821,34 @@ export function Home() {
               Phone number or UPI ID · End-to-end secure
             </span>
           </span>
-          <ArrowUpRight className="w-4 h-4 text-white/70 group-hover:text-white shrink-0" strokeWidth={2} aria-hidden="true" />
+          <ArrowUpRight
+            className="w-4 h-4 text-white/70 group-hover:text-white shrink-0"
+            strokeWidth={2}
+            aria-hidden="true"
+          />
         </button>
 
         <div className="grid grid-cols-4 gap-3 mt-4">
-          <QuickAction icon={ArrowUpRight} label={"Pay\nfriends"} onClick={() => setQuickAction("pay-friends")} />
-          <QuickAction icon={Building2} label={"To bank &\nself a/c"} onClick={() => setQuickAction("to-bank")} />
-          <QuickAction icon={Wallet} label={"Check\nbalance"} onClick={() => setQuickAction("balance")} />
-          <QuickAction icon={History} label={"Transaction\nhistory"} onClick={() => setView("transactions")} />
+          <QuickAction
+            icon={ArrowUpRight}
+            label={"Pay\nfriends"}
+            onClick={() => setQuickAction("pay-friends")}
+          />
+          <QuickAction
+            icon={Building2}
+            label={"To bank &\nself a/c"}
+            onClick={() => setQuickAction("to-bank")}
+          />
+          <QuickAction
+            icon={Wallet}
+            label={"Check\nbalance"}
+            onClick={() => setQuickAction("balance")}
+          />
+          <QuickAction
+            icon={History}
+            label={"Transaction\nhistory"}
+            onClick={() => setView("transactions")}
+          />
         </div>
       </div>
 
@@ -646,8 +864,16 @@ export function Home() {
           <button className="hp-section-link">View all</button>
         </div>
         <div className="grid grid-cols-4 gap-3">
-          <RechargeTile icon={Smartphone} label="Recharge" tint="from-indigo-500/40 to-fuchsia-500/30" />
-          <RechargeTile icon={CreditCard} label="Credit card bill" tint="from-emerald-500/40 to-teal-500/20" />
+          <RechargeTile
+            icon={Smartphone}
+            label="Recharge"
+            tint="from-indigo-500/40 to-fuchsia-500/30"
+          />
+          <RechargeTile
+            icon={CreditCard}
+            label="Credit card bill"
+            tint="from-emerald-500/40 to-teal-500/20"
+          />
           <RechargeTile icon={Zap} label="Utilities" tint="from-violet-500/40 to-purple-600/30" />
           <RechargeTile icon={MoreHorizontal} label="More" tint="from-white/10 to-white/5" />
         </div>
@@ -672,7 +898,10 @@ export function Home() {
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={() => { void haptics.tap(); setView("transactions"); }}
+              onClick={() => {
+                void haptics.tap();
+                setView("transactions");
+              }}
               aria-label="See all transactions"
               className="hp-section-link inline-flex items-center gap-1"
             >
@@ -684,7 +913,11 @@ export function Home() {
               aria-label={refreshing ? "Refreshing payment history" : "Refresh payment history"}
               className="hp-section-link inline-flex items-center gap-1.5"
             >
-              <RefreshCw className={`w-3 h-3 ${refreshing ? "animate-spin" : ""}`} aria-hidden="true" /> Refresh
+              <RefreshCw
+                className={`w-3 h-3 ${refreshing ? "animate-spin" : ""}`}
+                aria-hidden="true"
+              />{" "}
+              Refresh
             </button>
           </div>
         </div>
@@ -695,15 +928,24 @@ export function Home() {
             ))}
           </div>
         ) : error ? (
-          <div key={`hist-err-${shakeKey}`} role="alert" className="hp-empty hp-shake-error hp-fade-in">
+          <div
+            key={`hist-err-${shakeKey}`}
+            role="alert"
+            className="hp-empty hp-shake-error hp-fade-in"
+          >
             <div className="hp-empty-illu" aria-hidden="true">
               <RefreshCw className="w-7 h-7 text-white/85" strokeWidth={1.6} />
             </div>
             <p className="hp-empty-title">Couldn't load payments</p>
-            <p className="hp-empty-sub">We hit a snag fetching your history. Tap retry — we'll fix it on the next try.</p>
+            <p className="hp-empty-sub">
+              We hit a snag fetching your history. Tap retry — we'll fix it on the next try.
+            </p>
             <button
               type="button"
-              onClick={() => { setLoading(true); void fetchTxns(); }}
+              onClick={() => {
+                setLoading(true);
+                void fetchTxns();
+              }}
               className="hp-cta-pill"
               aria-label="Retry loading payment history"
             >
@@ -717,11 +959,15 @@ export function Home() {
               <Inbox className="w-7 h-7 text-white/85" strokeWidth={1.6} />
             </div>
             <p className="hp-empty-title">No transactions yet</p>
-            <p className="hp-empty-sub">Tap the scan button below to make your first payment — it'll show up here instantly.</p>
+            <p className="hp-empty-sub">
+              Tap the scan button below to make your first payment — it'll show up here instantly.
+            </p>
           </div>
         ) : (
           <div className="space-y-2 hp-fade-in" role="list" aria-label="Recent transactions">
-            {txns.map((t) => <TxnRow key={t.id} txn={t} />)}
+            {txns.map((t) => (
+              <TxnRow key={t.id} txn={t} />
+            ))}
           </div>
         )}
       </section>
@@ -776,7 +1022,9 @@ export function Home() {
       )}
 
       <Suspense fallback={null}>
-        {quickAction && <QuickActionsPanelLazy kind={quickAction} onClose={() => setQuickAction(null)} />}
+        {quickAction && (
+          <QuickActionsPanelLazy kind={quickAction} onClose={() => setQuickAction(null)} />
+        )}
         {showNotifs && <NotificationsPanelLazy onClose={() => setShowNotifs(false)} />}
         {showProfile && <ProfilePanelLazy onClose={closeProfile} />}
       </Suspense>
