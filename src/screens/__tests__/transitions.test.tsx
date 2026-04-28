@@ -34,10 +34,10 @@ vi.mock("@/lib/auth", () => ({
 }));
 
 // Onboarding hero assets — keep tests filesystem-light.
-vi.mock("@/assets/onboarding-wallet.jpg", () => ({ default: "w.jpg" }));
-vi.mock("@/assets/onboarding-payment.jpg", () => ({ default: "p.jpg" }));
-vi.mock("@/assets/onboarding-shield.jpg", () => ({ default: "s.jpg" }));
-vi.mock("@/assets/onboarding-gift.jpg", () => ({ default: "g.jpg" }));
+vi.mock("@/assets/onboarding-wallet.webp", () => ({ default: "w.webp" }));
+vi.mock("@/assets/onboarding-payment.webp", () => ({ default: "p.webp" }));
+vi.mock("@/assets/onboarding-shield.webp", () => ({ default: "s.webp" }));
+vi.mock("@/assets/onboarding-gift.webp", () => ({ default: "g.webp" }));
 
 beforeEach(() => {
   localStorage.clear();
