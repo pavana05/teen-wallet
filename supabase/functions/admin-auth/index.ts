@@ -1760,6 +1760,68 @@ Deno.serve(async (req) => {
     return json({ rows: data ?? [], total: count ?? 0, page, pageSize });
   }
 
+  // ---------------------------------------------------------------
+  // zavu_send — send a WhatsApp (or SMS) nudge via Zavu
+  // Body: { to: string (E.164), text: string, channel?: "whatsapp" | "sms",
+  //         userId?: string  // optional; for audit log }
+  // ---------------------------------------------------------------
+  if (action === "zavu_send") {
+    if (!can(me.role, "viewKyc")) return json({ error: "forbidden" }, 403);
+
+    const apiKey = Deno.env.get("ZAVU_API_KEY");
+    if (!apiKey) return json({ error: "zavu_not_configured" }, 500);
+
+    const to = String(body.to ?? "").trim();
+    const text = String(body.text ?? "").trim();
+    const channel = String(body.channel ?? "whatsapp");
+    const userId = body.userId ? String(body.userId) : null;
+
+    if (!/^\+?\d{8,15}$/.test(to.replace(/\s+/g, "")))
+      return json({ error: "invalid_phone" }, 400);
+    if (!text || text.length > 4096)
+      return json({ error: "invalid_text" }, 400);
+    if (!["whatsapp", "sms", "auto"].includes(channel))
+      return json({ error: "invalid_channel" }, 400);
+
+    // Per-admin rate limit: 30 sends/min
+    const rl = rateCheck(`zavu:${me.id}`, 30, 60_000, 60_000);
+    if (!rl.ok) return json({ error: "rate_limited", retryAfterSec: rl.retryAfterSec }, 429);
+
+    const e164 = to.startsWith("+") ? to : `+${to}`;
+    let zavuRes: Response;
+    try {
+      zavuRes = await fetch("https://api.zavu.dev/v1/messages", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ to: e164, text, channel }),
+      });
+    } catch (e) {
+      return json({ error: "zavu_network_error", reason: String(e) }, 502);
+    }
+
+    const zavuJson = await zavuRes.json().catch(() => ({} as any));
+    if (!zavuRes.ok) {
+      await audit(me.id, me.email, me.role, "zavu_send_failed", {
+        target_id: userId, to: e164, channel, status: zavuRes.status, response: zavuJson,
+      });
+      return json({ error: "zavu_send_failed", status: zavuRes.status, response: zavuJson }, 502);
+    }
+
+    await audit(me.id, me.email, me.role, "zavu_send", {
+      target_id: userId, to: e164, channel,
+      messageId: zavuJson?.message?.id ?? null,
+    });
+
+    return json({
+      ok: true,
+      messageId: zavuJson?.message?.id ?? null,
+      status: zavuJson?.message?.status ?? "queued",
+    });
+  }
+
   return json({ error: "unknown_action" }, 400);
 });
 
