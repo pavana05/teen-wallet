@@ -746,11 +746,13 @@ function ScannerView({ onBack, onDecoded }: { onBack: () => void; onDecoded: (p:
 
   return (
     <div className="flex-1 flex flex-col bg-[#0B0B0B] relative overflow-hidden">
+      {/* Full-screen camera feed — no vignette mask, edge-to-edge for an
+          immersive, premium viewing experience. */}
       <div id={containerId} className="absolute inset-0 [&_video]:object-cover [&_video]:w-full [&_video]:h-full" />
-      {/* Cinematic vignette mask around the viewfinder */}
-      <div className="absolute inset-0 bg-black/60 z-10 pointer-events-none"
-        style={{ maskImage: "radial-gradient(circle at 50% 44%, transparent 142px, black 158px)", WebkitMaskImage: "radial-gradient(circle at 50% 44%, transparent 142px, black 158px)" }}
-      />
+      {/* Soft top + bottom edge gradients only — keep camera fully visible
+          across the rest of the screen so users see what they're scanning. */}
+      <div className="sp2-edge-fade-top" aria-hidden="true" />
+      <div className="sp2-edge-fade-bottom" aria-hidden="true" />
 
       {/* Torch active glow — warm-yellow pulse around the entire viewport so
           the user gets immediate "flash is on" feedback even before the camera
