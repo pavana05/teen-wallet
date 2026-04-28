@@ -3,6 +3,12 @@ import { useEffect, useState, useCallback, useRef } from "react";
 const SESSION_KEY = "tw_admin_session_v1";
 const FN_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/admin-auth`;
 const ANON = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
+const SESSIONLESS_ACTIONS = new Set([
+  "login_password",
+  "set_password",
+  "verify_totp",
+  "totp_reset_login",
+]);
 
 export type AdminRole =
   | "super_admin"
@@ -63,23 +69,31 @@ export class AdminFnError extends Error {
 export async function callAdminFn<T = unknown>(payload: Record<string, unknown>): Promise<T> {
   // Lazy import to avoid pulling perfBus into modules that don't already use it.
   const { recordRequest } = await import("./perfBus");
-  recordRequest(typeof payload.action === "string" ? payload.action : undefined);
+  const action = typeof payload.action === "string" ? payload.action : undefined;
+  recordRequest(action);
 
   // Auto-attach the stored sessionToken if the caller didn't supply one.
   // Almost every admin action requires it, so missing it produced "unauthorized" 401s.
   let body = payload;
-  if (typeof body.sessionToken !== "string" || !body.sessionToken) {
-    const s = readAdminSession();
-    if (s?.sessionToken) body = { ...body, sessionToken: s.sessionToken };
+  const providedSessionToken =
+    typeof body.sessionToken === "string" && body.sessionToken ? body.sessionToken : "";
+  const storedSessionToken = providedSessionToken ? "" : (readAdminSession()?.sessionToken ?? "");
+  const sessionToken = providedSessionToken || storedSessionToken;
+  const shouldAttachSession = !!sessionToken && !SESSIONLESS_ACTIONS.has(action ?? "");
+  if (shouldAttachSession && !providedSessionToken) {
+    body = { ...body, sessionToken };
   }
+
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    apikey: ANON,
+    Authorization: `Bearer ${ANON}`,
+  };
+  if (shouldAttachSession) headers["X-Admin-Session-Token"] = sessionToken;
 
   const res = await fetch(FN_URL, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      apikey: ANON,
-      Authorization: `Bearer ${ANON}`,
-    },
+    headers,
     body: JSON.stringify(body),
   });
   const json = (await res.json().catch(() => ({}))) as Record<string, unknown>;
@@ -125,20 +139,38 @@ export const ROLE_BADGE: Record<AdminRole, string> = {
 // The DB function is the source of truth; this client copy is for UI gating
 // (hiding buttons, sidebar items) so users don't see things they can't use.
 export const PERMS = {
-  viewDashboard: ["super_admin", "operations_manager", "compliance_officer", "customer_support", "fraud_analyst", "finance_manager"] as AdminRole[],
+  viewDashboard: [
+    "super_admin",
+    "operations_manager",
+    "compliance_officer",
+    "customer_support",
+    "fraud_analyst",
+    "finance_manager",
+  ] as AdminRole[],
   viewUsers: ["super_admin", "operations_manager", "customer_support"] as AdminRole[],
   manageUsers: ["super_admin", "operations_manager"] as AdminRole[],
   viewAuditLog: ["super_admin", "compliance_officer"] as AdminRole[],
   viewKyc: ["super_admin", "operations_manager", "compliance_officer"] as AdminRole[],
   decideKyc: ["super_admin", "operations_manager"] as AdminRole[],
-  viewTransactions: ["super_admin", "operations_manager", "finance_manager", "compliance_officer", "fraud_analyst"] as AdminRole[],
+  viewTransactions: [
+    "super_admin",
+    "operations_manager",
+    "finance_manager",
+    "compliance_officer",
+    "fraud_analyst",
+  ] as AdminRole[],
   manageTransactions: ["super_admin", "operations_manager"] as AdminRole[],
   viewFraud: ["super_admin", "fraud_analyst", "compliance_officer"] as AdminRole[],
   manageFraud: ["super_admin", "fraud_analyst"] as AdminRole[],
   manageAdmins: ["super_admin"] as AdminRole[],
   manageSettings: ["super_admin"] as AdminRole[],
   viewFinance: ["super_admin", "finance_manager"] as AdminRole[],
-  viewReports: ["super_admin", "operations_manager", "customer_support", "compliance_officer"] as AdminRole[],
+  viewReports: [
+    "super_admin",
+    "operations_manager",
+    "customer_support",
+    "compliance_officer",
+  ] as AdminRole[],
   manageReports: ["super_admin", "operations_manager", "customer_support"] as AdminRole[],
   viewCampaigns: ["super_admin", "operations_manager"] as AdminRole[],
   viewAppImages: ["super_admin", "operations_manager"] as AdminRole[],
@@ -156,7 +188,9 @@ const VERIFY_TTL_MS = 60_000;
 let _cached: { admin: AdminMe; expiresAt: string; at: number } | null = null;
 let _inflight: Promise<{ admin: AdminMe; expiresAt: string } | null> | null = null;
 
-async function verifySessionShared(force = false): Promise<{ admin: AdminMe; expiresAt: string } | null> {
+async function verifySessionShared(
+  force = false,
+): Promise<{ admin: AdminMe; expiresAt: string } | null> {
   if (!force && _cached && Date.now() - _cached.at < VERIFY_TTL_MS) {
     return { admin: _cached.admin, expiresAt: _cached.expiresAt };
   }
@@ -201,7 +235,9 @@ export function useAdminSession() {
     setLoading(false);
   }, []);
 
-  useEffect(() => { void verify(); }, [verify]);
+  useEffect(() => {
+    void verify();
+  }, [verify]);
 
   // Idle logout
   useEffect(() => {

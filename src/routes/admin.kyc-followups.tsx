@@ -10,7 +10,7 @@ import {
   ExternalLink, Filter, Users as UsersIcon, Send, Clock, AlertCircle, FileText, Save, X,
 } from "lucide-react";
 import { toast } from "sonner";
-import { callAdminFn, can, useAdminSession } from "@/admin/lib/adminAuth";
+import { callAdminFn, can, readAdminSession, useAdminSession } from "@/admin/lib/adminAuth";
 import { PermissionBanner, ShakeErrorPanel } from "@/admin/components/AdminFeedback";
 
 export const Route = createFileRoute("/admin/kyc-followups")({
@@ -212,7 +212,7 @@ function cooldownRemaining(lastSentAt: string | null, hours: number): number {
 // ---------- Component -------------------------------------------------------
 
 function KycFollowupsPage() {
-  const { admin } = useAdminSession();
+  const { admin, loading: sessionLoading } = useAdminSession();
   const allowed = can(admin?.role, "viewKyc");
 
   const [rows, setRows] = useState<FollowupRow[]>([]);
@@ -233,14 +233,19 @@ function KycFollowupsPage() {
 
   // Load templates into the in-memory cache.
   useEffect(() => {
-    if (!allowed) return;
+    if (sessionLoading || !allowed) return;
+    const s = readAdminSession();
+    if (!s?.sessionToken) return;
     void (async () => {
       try {
-        const r = await callAdminFn<{ rows: TemplateRow[] }>({ action: "kyc_templates_list" });
+        const r = await callAdminFn<{ rows: TemplateRow[] }>({
+          action: "kyc_templates_list",
+          sessionToken: s.sessionToken,
+        });
         for (const t of r.rows ?? []) templateCache[t.stage] = t;
       } catch { /* templates are optional; fallback copy is used */ }
     })();
-  }, [allowed]);
+  }, [allowed, sessionLoading]);
 
   const handleZavuSend = useCallback(async (r: FollowupRow, force = false) => {
     setSendingId(r.id);
@@ -263,15 +268,16 @@ function KycFollowupsPage() {
     }
   }, [cooldownHours]);
 
-
   const load = useCallback(async () => {
-    if (!allowed) return;
+    if (sessionLoading || !allowed) return;
+    const s = readAdminSession();
+    if (!s?.sessionToken) return;
     setLoading(true);
     setErr(null);
     try {
       const r = await callAdminFn<ListResp>({
         action: "kyc_followups",
-        sessionToken: undefined, // admin-auth reads it from local; left for symmetry
+        sessionToken: s.sessionToken,
         search,
         stage,
         page,
@@ -284,7 +290,7 @@ function KycFollowupsPage() {
     } finally {
       setLoading(false);
     }
-  }, [allowed, search, stage, page, pageSize]);
+  }, [allowed, sessionLoading, search, stage, page, pageSize]);
 
   useEffect(() => { load(); }, [load]);
 
