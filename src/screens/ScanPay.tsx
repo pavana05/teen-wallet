@@ -998,6 +998,74 @@ function ScannerView({ onBack, onDecoded }: { onBack: () => void; onDecoded: (p:
         </div>
       )}
 
+      {/* Inline upload-error banner — uses the spec'd #FF4444 accent so a
+          failed gallery decode is impossible to miss. Stays put until the
+          user taps Retry (which clears it and re-opens the picker). */}
+      {uploadError && (
+        <div
+          className="sp2-upload-error"
+          role="alert"
+          aria-live="assertive"
+          style={{
+            position: "absolute",
+            left: 16, right: 16, bottom: 168, zIndex: 35,
+            display: "flex", alignItems: "flex-start", gap: 12,
+            padding: "12px 14px", borderRadius: 18,
+            background: "rgba(20,8,8,0.92)",
+            border: "1px solid #FF4444",
+            boxShadow: "0 18px 40px -16px rgba(255,68,68,0.55)",
+            backdropFilter: "blur(14px)",
+            WebkitBackdropFilter: "blur(14px)",
+            color: "#fff",
+          }}
+        >
+          <span
+            aria-hidden
+            style={{
+              flex: "0 0 auto", width: 32, height: 32, borderRadius: 999,
+              display: "grid", placeItems: "center",
+              background: "rgba(255,68,68,0.18)", color: "#FF4444",
+            }}
+          >
+            <AlertTriangle className="w-4 h-4" strokeWidth={2.4} />
+          </span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p style={{ fontSize: 13, fontWeight: 600, lineHeight: 1.25 }}>
+              Couldn't read that QR
+            </p>
+            <p style={{ fontSize: 12, marginTop: 2, color: "rgba(255,255,255,0.72)", lineHeight: 1.35 }}>
+              {uploadError}
+            </p>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <button
+              type="button"
+              onClick={openGalleryPickerFresh}
+              style={{
+                fontSize: 12, fontWeight: 600,
+                padding: "7px 12px", borderRadius: 999,
+                background: "#FF4444", color: "#fff",
+                display: "inline-flex", alignItems: "center", gap: 6,
+              }}
+            >
+              <RotateCcw className="w-3.5 h-3.5" /> Retry
+            </button>
+            <button
+              type="button"
+              onClick={() => setUploadError(null)}
+              style={{
+                fontSize: 11, fontWeight: 500,
+                padding: "5px 10px", borderRadius: 999,
+                background: "transparent", color: "rgba(255,255,255,0.7)",
+                border: "1px solid rgba(255,255,255,0.14)",
+              }}
+            >
+              Dismiss
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Hidden file input used by the recovery panel's "Use gallery" CTA. */}
       <input
         ref={fallbackInputRef}
