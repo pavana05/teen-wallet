@@ -1396,12 +1396,12 @@ function ConfirmView({
       {/* Stage A: keypad + circular Next button */}
       {stage === "enter" && (
         <div className="sp3-keypad-wrap" data-stage="enter">
-          {/* Floating circular Next button on the right */}
           <button
+            ref={nextFabRef}
             type="button"
-            onClick={() => { if (canPay) setStage("review"); }}
+            onClick={goReview}
             disabled={!canPay}
-            aria-label="Next"
+            aria-label="Next — review payment"
             className="sp3-next-fab"
           >
             <ArrowRight className="w-5 h-5" strokeWidth={2.6} />
@@ -1423,13 +1423,14 @@ function ConfirmView({
         </div>
       )}
 
-      {/* Stage B: Slide-to-Pay with bank/method row */}
+      {/* Stage B: Slide-to-Pay → confirmation card. Inline error replaces the
+          slide on failure so the user can retry without losing context. */}
       {stage === "review" && (
-        <div className="sp3-pay-wrap safe-bottom" data-stage="review">
+        <div ref={slideShellRef} className="sp3-pay-wrap safe-bottom" data-stage="review">
           <div className="sp3-method-row">
             <button
               type="button"
-              onClick={() => setStage("enter")}
+              onClick={() => { void haptics.tap(); setStage("enter"); }}
               className="sp3-method-pill focus-visible:ring-2 focus-visible:ring-primary"
               aria-label="Change amount"
             >
@@ -1437,12 +1438,92 @@ function ConfirmView({
               <span className="sp3-method-name">Teen Wallet • {balance.toFixed(0)}</span>
               <ChevronDown className="w-3.5 h-3.5 opacity-70" />
             </button>
-            <button type="button" className="sp3-balance-link" onClick={() => setStage("enter")}>
+            <button type="button" className="sp3-balance-link" onClick={() => { void haptics.tap(); setStage("enter"); }}>
               Edit amount <ArrowRight className="w-3 h-3" />
             </button>
           </div>
 
-          <SlideToPay disabled={!canPay} onComplete={onConfirm} amount={amount} />
+          {payError && (
+            <div className="sp3-pay-error" role="alert" aria-live="assertive">
+              <div className="sp3-pay-error-head">
+                <AlertTriangle className="w-4 h-4" strokeWidth={2.6} />
+                <span>Payment failed</span>
+              </div>
+              <p className="sp3-pay-error-msg">{payError}</p>
+              <div className="sp3-pay-error-actions">
+                <button
+                  ref={errorRetryRef}
+                  type="button"
+                  className="sp3-pay-error-retry"
+                  onClick={onRetry}
+                >
+                  <RotateCcw className="w-4 h-4" /> Retry payment
+                </button>
+                <button
+                  type="button"
+                  className="sp3-pay-error-cancel"
+                  onClick={() => { void haptics.tap(); onBack(); }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+
+          {!payError && confirming && (
+            <div
+              className="sp3-confirm-card"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="sp3-confirm-title"
+            >
+              <h3 id="sp3-confirm-title" className="sp3-confirm-title">Confirm payment</h3>
+              <dl className="sp3-confirm-list">
+                <div className="sp3-confirm-row">
+                  <dt>To</dt>
+                  <dd className="sp3-confirm-strong">{payload.payeeName || "Unknown payee"}</dd>
+                </div>
+                <div className="sp3-confirm-row">
+                  <dt>UPI ID</dt>
+                  <dd className="num-mono">{payload.upiId}</dd>
+                </div>
+                <div className="sp3-confirm-row">
+                  <dt>Amount</dt>
+                  <dd className="sp3-confirm-amount num-mono">₹{amount.toFixed(2)}</dd>
+                </div>
+                {(note || payload.note) && (
+                  <div className="sp3-confirm-row">
+                    <dt>Note</dt>
+                    <dd>{note || payload.note}</dd>
+                  </div>
+                )}
+              </dl>
+              <div className="sp3-confirm-actions">
+                <button
+                  type="button"
+                  className="sp3-confirm-cancel"
+                  onClick={onCancelConfirm}
+                >
+                  Cancel
+                </button>
+                <button
+                  ref={confirmBtnRef}
+                  type="button"
+                  className="sp3-confirm-pay"
+                  onClick={onConfirmTap}
+                >
+                  Confirm & Pay ₹{amount.toFixed(2)}
+                </button>
+              </div>
+              <p className="sp3-confirm-hint">Tap to finalise — this cannot be undone.</p>
+            </div>
+          )}
+
+          {!payError && !confirming && (
+            <div ref={slideKnobWrapRef}>
+              <SlideToPay disabled={!canPay} onComplete={onSlideComplete} amount={amount} />
+            </div>
+          )}
 
           <p className="sp3-secure">
             {fraudLoading ? "Checking payment safety…" : (
