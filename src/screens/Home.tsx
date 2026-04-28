@@ -222,11 +222,10 @@ export function Home() {
       .eq("user_id", userId)
       .order("created_at", { ascending: false })
       .limit(20);
-    // Anti-flicker: keep skeleton on screen for at least 480ms total so it
-    // never flashes briefly on instant network responses, then crossfades into
-    // the loaded content via the .hp-fade-in 400ms ease-out animation.
+    // Keep the load transition short so the home screen feels instant while
+    // still avoiding a one-frame skeleton flash on very fast responses.
     const elapsed = performance.now() - loadStartRef.current;
-    const minSkeletonMs = 480;
+    const minSkeletonMs = 120;
     if (elapsed < minSkeletonMs) {
       await new Promise((r) => setTimeout(r, minSkeletonMs - elapsed));
     }
