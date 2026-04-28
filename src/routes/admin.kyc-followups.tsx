@@ -7,7 +7,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Loader2, RefreshCw, Search, MessageCircle, MessageSquare, Copy, Check,
-  ExternalLink, Filter, Users as UsersIcon,
+  ExternalLink, Filter, Users as UsersIcon, Send,
 } from "lucide-react";
 import { toast } from "sonner";
 import { callAdminFn, can, useAdminSession } from "@/admin/lib/adminAuth";
@@ -135,6 +135,24 @@ function openSms(row: FollowupRow): "ok" | "no_phone" {
   return "ok";
 }
 
+// Send the message automatically via Zavu (WhatsApp). Falls back to error toast.
+async function sendViaZavu(row: FollowupRow): Promise<{ ok: boolean; error?: string; messageId?: string }> {
+  const p = normalisePhone(row.phone);
+  if (!p) return { ok: false, error: "no_phone" };
+  try {
+    const r = await callAdminFn<{ ok: boolean; messageId: string | null }>({
+      action: "zavu_send",
+      to: p.sms,            // E.164 with leading '+'
+      text: buildMessage(row),
+      channel: "whatsapp",
+      userId: row.id,
+    });
+    return { ok: !!r.ok, messageId: r.messageId ?? undefined };
+  } catch (e: any) {
+    return { ok: false, error: e?.message ?? "send_failed" };
+  }
+}
+
 // ---------- Component -------------------------------------------------------
 
 function KycFollowupsPage() {
@@ -152,6 +170,26 @@ function KycFollowupsPage() {
 
   const [previewFor, setPreviewFor] = useState<FollowupRow | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [sendingId, setSendingId] = useState<string | null>(null);
+  const [sentIds, setSentIds] = useState<Record<string, true>>({});
+
+  const handleZavuSend = useCallback(async (r: FollowupRow) => {
+    setSendingId(r.id);
+    const t = toast.loading(`Sending WhatsApp to ${r.full_name || r.phone}…`);
+    try {
+      const res = await sendViaZavu(r);
+      if (res.ok) {
+        setSentIds((s) => ({ ...s, [r.id]: true }));
+        toast.success("WhatsApp sent via Zavu", { id: t });
+      } else if (res.error === "no_phone") {
+        toast.error("This user has no phone number on file", { id: t });
+      } else {
+        toast.error(`Couldn't send: ${res.error}`, { id: t });
+      }
+    } finally {
+      setSendingId(null);
+    }
+  }, []);
 
   const load = useCallback(async () => {
     if (!allowed) return;
@@ -288,6 +326,8 @@ function KycFollowupsPage() {
               key={r.id}
               row={r}
               copied={copiedId === r.id}
+              sending={sendingId === r.id}
+              sent={!!sentIds[r.id]}
               onCopy={async () => {
                 try {
                   await navigator.clipboard.writeText(buildMessage(r));
@@ -304,6 +344,7 @@ function KycFollowupsPage() {
               onSms={() => {
                 if (openSms(r) === "no_phone") toast.error("This user has no phone number on file");
               }}
+              onSend={() => handleZavuSend(r)}
               onPreview={() => setPreviewFor(r)}
             />
           ))
@@ -343,13 +384,16 @@ function StatCard({ label, value, accent }: { label: string; value: number; acce
 }
 
 function FollowupRowItem({
-  row, copied, onCopy, onWhatsApp, onSms, onPreview,
+  row, copied, sending, sent, onCopy, onWhatsApp, onSms, onSend, onPreview,
 }: {
   row: FollowupRow;
   copied: boolean;
+  sending: boolean;
+  sent: boolean;
   onCopy: () => void;
   onWhatsApp: () => void;
   onSms: () => void;
+  onSend: () => void;
   onPreview: () => void;
 }) {
   const phone = normalisePhone(row.phone);
@@ -407,6 +451,23 @@ function FollowupRowItem({
       </div>
 
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+        <button
+          onClick={onSend}
+          disabled={!phone || sending}
+          title={phone ? "Auto-send WhatsApp via Zavu" : "No phone on file"}
+          className="a-btn-ghost"
+          style={{
+            display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600,
+            color: sent ? "#22c55e" : phone ? "#a78bfa" : undefined,
+            borderColor: sent ? "rgba(34,197,94,0.5)" : phone ? "rgba(167,139,250,0.45)" : undefined,
+            background: phone && !sent ? "rgba(167,139,250,0.08)" : undefined,
+          }}
+        >
+          {sending
+            ? <Loader2 size={13} className="animate-spin" />
+            : sent ? <Check size={13} /> : <Send size={13} />}
+          {sending ? "Sending…" : sent ? "Sent" : "Send Now"}
+        </button>
         <button
           onClick={onWhatsApp}
           disabled={!phone}
@@ -548,6 +609,22 @@ function MessagePreview({ row, onClose }: { row: FollowupRow; onClose: () => voi
             style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, color: "#22c55e", borderColor: "rgba(34,197,94,0.4)" }}
           >
             <MessageCircle size={13} /> WhatsApp
+          </button>
+          <button
+            onClick={async () => {
+              const t = toast.loading("Sending via Zavu…");
+              const res = await sendViaZavu(row);
+              if (res.ok) toast.success("WhatsApp sent via Zavu", { id: t });
+              else if (res.error === "no_phone") toast.error("No phone on file", { id: t });
+              else toast.error(`Couldn't send: ${res.error}`, { id: t });
+            }}
+            className="a-btn-ghost"
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600,
+              color: "#a78bfa", borderColor: "rgba(167,139,250,0.5)", background: "rgba(167,139,250,0.08)",
+            }}
+          >
+            <Send size={13} /> Send Now
           </button>
         </div>
       </div>
