@@ -66,7 +66,11 @@ function AdminLogin() {
         action: "verify_totp", challengeToken, code,
       });
       writeAdminSession(r);
-      nav({ to: "/admin" });
+      // Force a full reload so AdminLayout's useAdminSession() re-mounts and
+      // reads the freshly written session token from sessionStorage. Without
+      // this, the already-mounted hook still has admin=null from the initial
+      // (pre-login) verify() call and bounces us right back to /admin/login.
+      window.location.assign("/admin");
     } catch (e) {
       // Friendly translation of known TOTP error codes — preserve correlation ID.
       const cid = e instanceof AdminFnError ? e.correlationId : null;
