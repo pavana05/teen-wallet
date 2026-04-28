@@ -1,13 +1,14 @@
 import { createFileRoute, Outlet, useNavigate, Link, useRouterState } from "@tanstack/react-router";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useAdminSession, ROLE_LABELS, ROLE_BADGE, callAdminFn, readAdminSession, can, type PERMS } from "@/admin/lib/adminAuth";
 import {
   LayoutDashboard, Users, ShieldAlert, FileCheck2, Wallet, Settings, LogOut,
   Bell, Activity, Search, ChevronLeft, ChevronRight, Command, MessageSquareWarning, ImageIcon,
   Sun, Moon, Rows3, Rows2, Sparkles,
 } from "lucide-react";
-import { PerfOverlay } from "@/admin/components/PerfOverlay";
-import { CommandPalette } from "@/admin/components/CommandPalette";
+
+const PerfOverlay = lazy(() => import("@/admin/components/PerfOverlay").then((m) => ({ default: m.PerfOverlay })));
+const CommandPalette = lazy(() => import("@/admin/components/CommandPalette").then((m) => ({ default: m.CommandPalette })));
 
 export const Route = createFileRoute("/admin")({
   component: AdminLayout,
@@ -239,8 +240,10 @@ function AdminLayout() {
           <Outlet />
         </main>
       </div>
-      <PerfOverlay />
-      <CommandPalette />
+      <Suspense fallback={null}>
+        <PerfOverlay />
+        <CommandPalette />
+      </Suspense>
     </div>
   );
 }
