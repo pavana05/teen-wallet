@@ -3,7 +3,12 @@ import { useEffect, useState, useCallback, useRef } from "react";
 const SESSION_KEY = "tw_admin_session_v1";
 const FN_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/admin-auth`;
 const ANON = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
-const SESSIONLESS_ACTIONS = new Set(["login_password", "set_password", "verify_totp", "totp_reset_login"]);
+const SESSIONLESS_ACTIONS = new Set([
+  "login_password",
+  "set_password",
+  "verify_totp",
+  "totp_reset_login",
+]);
 
 export type AdminRole =
   | "super_admin"
@@ -70,8 +75,9 @@ export async function callAdminFn<T = unknown>(payload: Record<string, unknown>)
   // Auto-attach the stored sessionToken if the caller didn't supply one.
   // Almost every admin action requires it, so missing it produced "unauthorized" 401s.
   let body = payload;
-  const providedSessionToken = typeof body.sessionToken === "string" && body.sessionToken ? body.sessionToken : "";
-  const storedSessionToken = providedSessionToken ? "" : readAdminSession()?.sessionToken ?? "";
+  const providedSessionToken =
+    typeof body.sessionToken === "string" && body.sessionToken ? body.sessionToken : "";
+  const storedSessionToken = providedSessionToken ? "" : (readAdminSession()?.sessionToken ?? "");
   const sessionToken = providedSessionToken || storedSessionToken;
   const shouldAttachSession = !!sessionToken && !SESSIONLESS_ACTIONS.has(action ?? "");
   if (shouldAttachSession && !providedSessionToken) {
