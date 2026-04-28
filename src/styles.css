@@ -1862,21 +1862,23 @@ button:focus-visible .hp-tile{
   background:
     radial-gradient(120% 140% at 50% 130%, rgba(244, 63, 94, .55) 0%, rgba(190, 18, 60, .35) 35%, transparent 70%),
     linear-gradient(180deg, #1a0608 0%, #0d0306 100%);
-  border: 1px solid rgba(255, 255, 255, .06);
+  border: 1px solid rgba(255, 255, 255, .08);
   overflow: hidden;
   isolation: isolate;
+  padding: 4px; /* defines the inner safe area for the knob */
   box-shadow:
-    0 18px 50px -22px rgba(244, 63, 94, .55),
-    inset 0 1px 0 rgba(255, 255, 255, .06),
-    inset 0 -1px 0 rgba(0, 0, 0, .5);
-  transition: opacity 200ms ease, box-shadow 280ms ease;
+    0 24px 60px -22px rgba(244, 63, 94, .55),
+    0 2px 0 rgba(255, 255, 255, .04) inset,
+    inset 0 1px 0 rgba(255, 255, 255, .07),
+    inset 0 -1px 0 rgba(0, 0, 0, .55);
+  transition: opacity 220ms ease, box-shadow 320ms cubic-bezier(.22,1,.36,1);
   contain: layout paint;
 }
 .sp-slide-track-disabled { opacity: .55; }
 .sp-slide-track-completed {
   box-shadow:
-    0 22px 60px -18px rgba(244, 63, 94, .75),
-    inset 0 1px 0 rgba(255, 255, 255, .1);
+    0 28px 70px -16px rgba(244, 63, 94, .8),
+    inset 0 1px 0 rgba(255, 255, 255, .12);
 }
 
 /* Soft inner glow that gently breathes */
@@ -1886,22 +1888,42 @@ button:focus-visible .hp-tile{
   border-radius: inherit;
   background: radial-gradient(60% 100% at 50% 100%, rgba(244, 63, 94, .35), transparent 70%);
   pointer-events: none;
-  animation: sp-slide-breathe 3.6s ease-in-out infinite;
+  animation: sp-slide-breathe 4.2s ease-in-out infinite;
   will-change: opacity, transform;
 }
 @keyframes sp-slide-breathe {
-  0%, 100% { opacity: .6; transform: scale(1); }
-  50%      { opacity: 1;  transform: scale(1.04); }
+  0%, 100% { opacity: .55; transform: scale(1); }
+  50%      { opacity: 1;   transform: scale(1.05); }
+}
+
+/* Subtle sheen sweep for premium feel */
+.sp-slide-track::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(110deg, transparent 30%, rgba(255,255,255,.08) 48%, rgba(255,255,255,.16) 50%, rgba(255,255,255,.08) 52%, transparent 70%);
+  background-size: 280% 100%;
+  background-position: 200% 0;
+  animation: sp-slide-sheen 5.5s cubic-bezier(.4,0,.2,1) infinite;
+  pointer-events: none;
+  mix-blend-mode: overlay;
+  opacity: .9;
+}
+@keyframes sp-slide-sheen {
+  0%   { background-position: 200% 0; }
+  60%  { background-position: -120% 0; }
+  100% { background-position: -120% 0; }
 }
 
 /* Fill follows the knob; uses scaleX (GPU) instead of width */
 .sp-slide-fill {
   position: absolute; inset: 0;
   border-radius: inherit;
-  background: linear-gradient(90deg, rgba(244, 63, 94, .55) 0%, rgba(225, 29, 72, .85) 60%, rgba(190, 18, 60, .95) 100%);
+  background: linear-gradient(90deg, rgba(244, 63, 94, .55) 0%, rgba(225, 29, 72, .85) 60%, rgba(190, 18, 60, .98) 100%);
   transform-origin: left center;
   transform: scaleX(0);
-  transition: transform 180ms cubic-bezier(.2,.85,.2,1), opacity 200ms ease;
+  transition: transform 220ms cubic-bezier(.22,1,.36,1), opacity 240ms ease;
   pointer-events: none;
   will-change: transform, opacity;
   mix-blend-mode: screen;
@@ -1911,55 +1933,74 @@ button:focus-visible .hp-tile{
   position: absolute; inset: 0;
   display: flex; align-items: center; justify-content: center;
   font-weight: 600;
-  font-size: 17px;
-  letter-spacing: .005em;
+  font-size: 16px;
+  letter-spacing: .01em;
   color: rgba(255, 255, 255, .96);
   pointer-events: none;
   user-select: none;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, .35);
-  transition: opacity 180ms ease;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, .4);
+  transition: opacity 220ms ease, transform 220ms ease;
 }
 
 /* Right-side chevron arrows (>>>) — fading staircase */
 .sp-slide-hints {
   position: absolute;
-  top: 0; bottom: 0; right: 22px;
+  top: 0; bottom: 0; right: 26px;
   display: flex; align-items: center; gap: 2px;
   pointer-events: none;
-  transition: opacity 180ms ease;
+  transition: opacity 220ms ease;
 }
 .sp-slide-hint {
-  color: rgba(255, 255, 255, .55);
-  animation: sp-slide-hint-pulse 1.6s ease-in-out infinite;
+  color: rgba(255, 255, 255, .6);
+  animation: sp-slide-hint-pulse 1.8s cubic-bezier(.4,0,.2,1) infinite;
   will-change: opacity, transform;
 }
 .sp-slide-hint-1 { opacity: .25; animation-delay: 0s; }
-.sp-slide-hint-2 { opacity: .45; animation-delay: .2s; }
-.sp-slide-hint-3 { opacity: .75; animation-delay: .4s; }
+.sp-slide-hint-2 { opacity: .45; animation-delay: .18s; }
+.sp-slide-hint-3 { opacity: .8;  animation-delay: .36s; }
 @keyframes sp-slide-hint-pulse {
   0%, 100% { transform: translateX(0);   opacity: .25; }
-  50%      { transform: translateX(4px); opacity: .9; }
+  50%      { transform: translateX(5px); opacity: .95; }
 }
 
-/* White rounded-square knob with soft chevron */
+/* Pearl-white circular knob — flush to the track corners */
 .sp-slide-knob {
   position: absolute;
-  top: 8px; left: 8px;
-  width: 56px; height: 56px;
-  border-radius: 18px;
-  background: linear-gradient(180deg, #ffffff 0%, #f4f4f6 100%);
+  top: 4px; left: 4px;
+  width: 64px; height: 64px;
+  border-radius: 999px;
+  background:
+    radial-gradient(120% 120% at 30% 25%, #ffffff 0%, #f7f7f9 45%, #e9e9ee 100%);
   display: flex; align-items: center; justify-content: center;
-  color: #4a4a55;
+  color: #2a2a33;
   cursor: grab;
   touch-action: none;
   will-change: transform;
   box-shadow:
-    0 8px 22px rgba(0, 0, 0, .5),
-    0 2px 6px rgba(0, 0, 0, .35),
-    inset 0 -2px 4px rgba(0, 0, 0, .06),
-    inset 0 1px 0 rgba(255, 255, 255, .9);
+    0 10px 26px rgba(0, 0, 0, .55),
+    0 3px 8px rgba(0, 0, 0, .4),
+    inset 0 -3px 6px rgba(0, 0, 0, .08),
+    inset 0 2px 0 rgba(255, 255, 255, .95);
 }
-.sp-slide-knob:active { cursor: grabbing; }
+.sp-slide-knob::after {
+  /* Subtle inner ring for jewel-like depth */
+  content: "";
+  position: absolute;
+  inset: 4px;
+  border-radius: inherit;
+  border: 1px solid rgba(255,255,255,.6);
+  background: radial-gradient(120% 120% at 30% 25%, rgba(255,255,255,.6), transparent 60%);
+  pointer-events: none;
+  mix-blend-mode: overlay;
+}
+.sp-slide-knob:active {
+  cursor: grabbing;
+  box-shadow:
+    0 6px 18px rgba(0, 0, 0, .55),
+    0 2px 5px rgba(0, 0, 0, .4),
+    inset 0 -3px 6px rgba(0, 0, 0, .12),
+    inset 0 2px 0 rgba(255, 255, 255, .95);
+}
 
 /* Light theme — keep the crimson but lift the surface */
 [data-theme="light"] .sp-slide-track {
@@ -1971,7 +2012,8 @@ button:focus-visible .hp-tile{
 
 @media (prefers-reduced-motion: reduce) {
   .sp-slide-glow,
-  .sp-slide-hint { animation: none !important; }
+  .sp-slide-hint,
+  .sp-slide-track::before { animation: none !important; }
   .sp-slide-fill,
   .sp-slide-knob { transition: none !important; }
 }

@@ -2162,7 +2162,7 @@ function SlideToPay({ disabled, onComplete, amount }: { disabled: boolean; onCom
   const [completed, setCompleted] = useState(false);
   const startX = useRef(0);
 
-  const knobSize = 56;
+  const knobSize = 64;
   const padding = 4;
 
   const getMaxX = () => {
@@ -2275,7 +2275,7 @@ function SlideToPay({ disabled, onComplete, amount }: { disabled: boolean; onCom
         className="sp-slide-knob focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
         style={{
           transform: `translate3d(${dragX}px, 0, 0)`,
-          transition: dragging ? "none" : "transform 320ms cubic-bezier(.2,.85,.2,1)",
+          transition: dragging ? "none" : "transform 520ms cubic-bezier(.16,1,.3,1)",
         }}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
