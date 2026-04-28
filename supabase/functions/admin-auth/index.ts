@@ -1873,12 +1873,21 @@ Deno.serve(async (req) => {
   if (action === "zavu_send") {
     if (!can(me.role, "viewKyc")) return json({ error: "forbidden" }, 403);
 
-    const apiKey = Deno.env.get("ZAVU_API_KEY");
-    if (!apiKey) return json({ error: "zavu_not_configured" }, 500);
-
     const to = String(body.to ?? "").trim();
     const text = String(body.text ?? "").trim();
     const channel = String(body.channel ?? "whatsapp");
+
+    // Pick the correct Zavu credential per channel.
+    // - SMS uses ZAVU_SMS_API_KEY (sample/testing provider)
+    // - WhatsApp (and "auto") uses ZAVU_API_KEY
+    const waKey = Deno.env.get("ZAVU_API_KEY");
+    const smsKey = Deno.env.get("ZAVU_SMS_API_KEY");
+    const apiKey = channel === "sms" ? smsKey : waKey;
+    if (!apiKey) {
+      return json({
+        error: channel === "sms" ? "zavu_sms_not_configured" : "zavu_not_configured",
+      }, 500);
+    }
     const userId = body.userId ? String(body.userId) : null;
     const stage = body.stage ? String(body.stage) : null;
     const cooldownHours = Math.max(0, Math.min(72, Number(body.cooldownHours ?? 24)));
