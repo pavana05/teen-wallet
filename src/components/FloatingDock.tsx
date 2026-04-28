@@ -195,14 +195,16 @@ export function FloatingDock({ active, onHome, onProfile, hidden }: DockProps) {
                 opacity: indicator.ready ? 1 : 0,
               }}
             />
-            <DockTab
-              ref={homeTabRef}
-              icon={HomeIcon}
-              label="Home"
-              active={active === "home"}
-              collapsed={collapsed && active !== "home"}
-              onClick={() => { void haptics.select(); onHome?.(); }}
-            />
+            {active !== "profile" && (
+              <DockTab
+                ref={homeTabRef}
+                icon={HomeIcon}
+                label="Home"
+                active={active === "home"}
+                collapsed={collapsed && active !== "home"}
+                onClick={() => { void haptics.select(); onHome?.(); }}
+              />
+            )}
             <DockTab
               ref={profileTabRef}
               icon={User}
@@ -212,16 +214,18 @@ export function FloatingDock({ active, onHome, onProfile, hidden }: DockProps) {
               onClick={() => { void haptics.select(); onProfile?.(); }}
             />
           </div>
-          <button
-            type="button"
-            onClick={launchScan}
-            className="fd-fab"
-            aria-label="Scan to pay"
-            data-launching={scanLaunching ? "true" : "false"}
-          >
-            <span className="fd-fab-halo" aria-hidden="true" />
-            <ScanLine className="w-6 h-6 text-black relative z-10" strokeWidth={2.4} aria-hidden="true" />
-          </button>
+          {active !== "profile" && (
+            <button
+              type="button"
+              onClick={launchScan}
+              className="fd-fab"
+              aria-label="Scan to pay"
+              data-launching={scanLaunching ? "true" : "false"}
+            >
+              <span className="fd-fab-halo" aria-hidden="true" />
+              <ScanLine className="w-6 h-6 text-black relative z-10" strokeWidth={2.4} aria-hidden="true" />
+            </button>
+          )}
         </div>
       </nav>
 
