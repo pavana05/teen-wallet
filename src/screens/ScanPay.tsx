@@ -376,6 +376,8 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
         onBack={reset}
         balance={balance}
         userId={userId}
+        payError={payError}
+        onClearError={() => setPayError(null)}
       />
     );
   }
