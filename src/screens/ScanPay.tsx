@@ -1387,26 +1387,68 @@ function ScannerActions({
   const [upiOpen, setUpiOpen] = useState(false);
   const [contactOpen, setContactOpen] = useState(false);
   const [qrOpen, setQrOpen] = useState(false);
-  const startYRef = useRef<number | null>(null);
+  const wrapRef = useRef<HTMLDivElement | null>(null);
 
-  // Touch-driven reveal: scrolling/swiping UP shows the FAB; swiping DOWN
-  // (toward the camera) hides it so the viewfinder stays unobstructed.
+  // ── Scroll/viewport observer ──
+  // Replaces the older touchstart/touchmove gesture (which silently broke on
+  // desktop, on iOS Safari with passive listeners disabled, and inside any
+  // nested scroll container). Instead we:
+  //   1. Find the nearest scrollable ancestor (the PhoneShell screen or the
+  //      window itself) once the FAB mounts.
+  //   2. On every scroll, compare the new scrollTop to the previous value:
+  //        downward delta  → hide   (user is reading content)
+  //        upward delta    → reveal (user wants to act)
+  //        near top        → always reveal
+  //   3. We coalesce updates with requestAnimationFrame so the scroll handler
+  //      stays cheap on low-end Android devices.
   useEffect(() => {
-    const onTouchStart = (e: TouchEvent) => {
-      startYRef.current = e.touches[0]?.clientY ?? null;
+    if (typeof window === "undefined") return;
+
+    // Find the scrollable ancestor of the FAB. PhoneShell scrolls internally,
+    // but on the web preview the document scrolls. Walk up until we find an
+    // element whose computed overflow allows scrolling AND whose scrollHeight
+    // exceeds its clientHeight; otherwise fall back to window.
+    const findScrollParent = (node: HTMLElement | null): HTMLElement | Window => {
+      let el: HTMLElement | null = node?.parentElement ?? null;
+      while (el && el !== document.body) {
+        const style = getComputedStyle(el);
+        const oy = style.overflowY;
+        const scrollable = (oy === "auto" || oy === "scroll" || oy === "overlay") &&
+          el.scrollHeight > el.clientHeight + 4;
+        if (scrollable) return el;
+        el = el.parentElement;
+      }
+      return window;
     };
-    const onTouchMove = (e: TouchEvent) => {
-      const start = startYRef.current;
-      if (start == null) return;
-      const dy = (e.touches[0]?.clientY ?? start) - start;
-      if (dy > 24) setHidden(true);
-      else if (dy < -24) setHidden(false);
+
+    const target = findScrollParent(wrapRef.current);
+    const getY = () => target instanceof Window
+      ? (window.scrollY || document.documentElement.scrollTop || 0)
+      : (target as HTMLElement).scrollTop;
+
+    let lastY = getY();
+    let raf = 0;
+    const onScroll = () => {
+      if (raf) return;
+      raf = requestAnimationFrame(() => {
+        raf = 0;
+        const y = getY();
+        const dy = y - lastY;
+        // Always reveal at the very top so the FAB is reachable on first paint.
+        if (y < 8) setHidden(false);
+        else if (dy > 6) setHidden(true);
+        else if (dy < -6) setHidden(false);
+        lastY = y;
+      });
     };
-    window.addEventListener("touchstart", onTouchStart, { passive: true });
-    window.addEventListener("touchmove", onTouchMove, { passive: true });
+
+    target.addEventListener("scroll", onScroll, { passive: true });
+    // Resize/orientation can change which ancestor scrolls — re-evaluate.
+    window.addEventListener("resize", onScroll, { passive: true });
     return () => {
-      window.removeEventListener("touchstart", onTouchStart);
-      window.removeEventListener("touchmove", onTouchMove);
+      target.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+      if (raf) cancelAnimationFrame(raf);
     };
   }, []);
 
@@ -1425,6 +1467,7 @@ function ScannerActions({
       )}
 
       <div
+        ref={wrapRef}
         className={`sp2-fab-wrap ${hidden ? "sp2-fab-hidden" : ""}`}
         data-open={open ? "true" : "false"}
       >
