@@ -1738,10 +1738,8 @@ Deno.serve(async (req) => {
         "id,full_name,phone,kyc_status,onboarding_stage,created_at,updated_at,aadhaar_last4",
         { count: "exact" },
       )
-      // phone present (verified during OTP step)
       .not("phone", "is", null)
       .neq("phone", "")
-      // phone-verified or further along, but NOT yet KYC-approved
       .in("onboarding_stage", ["STAGE_3", "STAGE_4", "STAGE_5"])
       .neq("kyc_status", "approved");
 
@@ -1757,7 +1755,90 @@ Deno.serve(async (req) => {
     const { data, count, error } = await q;
     if (error) return json({ error: error.message }, 500);
 
-    return json({ rows: data ?? [], total: count ?? 0, page, pageSize });
+    // Hydrate phone validity + last reminder for each row.
+    const rows = (data ?? []) as Array<Record<string, unknown>>;
+    const ids = rows.map((r) => String(r.id));
+    let lastByUser: Record<string, string> = {};
+    if (ids.length) {
+      const { data: log } = await sb
+        .from("kyc_reminder_log")
+        .select("user_id,created_at")
+        .in("user_id", ids)
+        .eq("status", "sent")
+        .order("created_at", { ascending: false });
+      if (log) {
+        for (const e of log) {
+          const uid = String((e as any).user_id);
+          if (!lastByUser[uid]) lastByUser[uid] = String((e as any).created_at);
+        }
+      }
+    }
+    const enriched = rows.map((r) => {
+      const phone = String(r.phone ?? "");
+      const v = validatePhone(phone);
+      return {
+        ...r,
+        phone_normalized: v.ok ? v.e164 : null,
+        phone_valid: v.ok,
+        phone_invalid_reason: v.ok ? null : v.reason,
+        last_reminder_at: lastByUser[String(r.id)] ?? null,
+      };
+    });
+
+    return json({ rows: enriched, total: count ?? 0, page, pageSize });
+  }
+
+  // ---------------------------------------------------------------
+  // KYC message templates: list + upsert
+  // ---------------------------------------------------------------
+  if (action === "kyc_templates_list") {
+    if (!can(me.role, "viewKyc")) return json({ error: "forbidden" }, 403);
+    const { data, error } = await sb
+      .from("kyc_message_templates")
+      .select("id,stage,title,body,updated_by_email,updated_at")
+      .order("stage", { ascending: true });
+    if (error) return json({ error: error.message }, 500);
+    return json({ rows: data ?? [] });
+  }
+
+  if (action === "kyc_template_upsert") {
+    if (!can(me.role, "viewKyc")) return json({ error: "forbidden" }, 403);
+    const stage = String(body.stage ?? "");
+    const title = String(body.title ?? "").trim();
+    const tplBody = String(body.body ?? "").trim();
+    const allowed = ["STAGE_3", "STAGE_4_PENDING", "STAGE_4_REJECTED", "STAGE_4_OTHER", "STAGE_5"];
+    if (!allowed.includes(stage)) return json({ error: "invalid_stage" }, 400);
+    if (title.length < 1 || title.length > 200) return json({ error: "invalid_title" }, 400);
+    if (tplBody.length < 1 || tplBody.length > 4000) return json({ error: "invalid_body" }, 400);
+
+    const { data, error } = await sb
+      .from("kyc_message_templates")
+      .upsert(
+        { stage, title, body: tplBody, updated_by_email: me.email, updated_at: new Date().toISOString() },
+        { onConflict: "stage" },
+      )
+      .select()
+      .maybeSingle();
+    if (error) return json({ error: error.message }, 500);
+    await audit(me.id, me.email, me.role, "kyc_template_upsert", { stage, title });
+    return json({ row: data });
+  }
+
+  // ---------------------------------------------------------------
+  // Reminder log: list recent reminders for one user
+  // ---------------------------------------------------------------
+  if (action === "kyc_reminder_log") {
+    if (!can(me.role, "viewKyc")) return json({ error: "forbidden" }, 403);
+    const userId = String(body.userId ?? "");
+    if (!userId) return json({ error: "missing_user" }, 400);
+    const { data, error } = await sb
+      .from("kyc_reminder_log")
+      .select("id,channel,stage,sent_by_email,status,error,created_at")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(20);
+    if (error) return json({ error: error.message }, 500);
+    return json({ rows: data ?? [] });
   }
 
   // ---------------------------------------------------------------
