@@ -452,6 +452,23 @@ function FollowupRowItem({
 
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
         <button
+          onClick={onSend}
+          disabled={!phone || sending}
+          title={phone ? "Auto-send WhatsApp via Zavu" : "No phone on file"}
+          className="a-btn-ghost"
+          style={{
+            display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600,
+            color: sent ? "#22c55e" : phone ? "#a78bfa" : undefined,
+            borderColor: sent ? "rgba(34,197,94,0.5)" : phone ? "rgba(167,139,250,0.45)" : undefined,
+            background: phone && !sent ? "rgba(167,139,250,0.08)" : undefined,
+          }}
+        >
+          {sending
+            ? <Loader2 size={13} className="animate-spin" />
+            : sent ? <Check size={13} /> : <Send size={13} />}
+          {sending ? "Sending…" : sent ? "Sent" : "Send Now"}
+        </button>
+        <button
           onClick={onWhatsApp}
           disabled={!phone}
           title={phone ? "Open WhatsApp with pre-filled message" : "No phone on file"}
