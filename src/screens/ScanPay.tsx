@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { Html5Qrcode } from "html5-qrcode";
 import QRCode from "qrcode";
 import { ArrowLeft, ArrowRight, Image as ImageIcon, Zap, ZapOff, X, Share2, Check, Bug, ShieldCheck, Wallet, Users, User as UserIcon, QrCode, Download, RotateCcw, Copy, ScanLine, ExternalLink, AlertTriangle, Info, Mail, MessageCircle, Phone, Plus, Hash, Send, Delete, ChevronDown } from "lucide-react";
-import { parseUpiQr, parseUpiQrWithReason, canOpenUpiApp, type UpiPayload, type UpiParseResult } from "@/lib/upi";
+import { parseUpiQr, parseUpiQrWithReason, canOpenUpiApp, buildUpiDeepLink, type UpiPayload, type UpiParseResult } from "@/lib/upi";
 import { scanTransaction, logFraudFlags, type FraudFlag } from "@/lib/fraud";
 import { useApp } from "@/lib/store";
 import { supabase } from "@/integrations/supabase/client";
@@ -415,6 +415,48 @@ function clearAttemptId() {
   try { window.localStorage.removeItem(SCANPAY_ATTEMPT_KEY); } catch { /* ignore */ }
 }
 
+/**
+ * Downscale an image File so the QR decoder has a sharper, smaller frame to
+ * work with. Many phone photos are 4000+ px wide which makes the QR a tiny
+ * fraction of the frame; html5-qrcode's scanFile heuristics struggle with
+ * that. We cap the longest edge at `maxEdge` (default 1200) and re-encode
+ * as a JPEG blob.
+ *
+ * Returns null if the browser can't load the image (corrupt file, unsupported
+ * format, etc.) — callers should fall back to the original.
+ */
+async function downscaleImage(file: File, maxEdge = 1200): Promise<File | null> {
+  if (typeof window === "undefined") return null;
+  try {
+    const url = URL.createObjectURL(file);
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const el = new Image();
+      el.onload = () => resolve(el);
+      el.onerror = () => reject(new Error("img-load"));
+      el.src = url;
+    });
+    const longest = Math.max(img.naturalWidth, img.naturalHeight);
+    if (longest <= maxEdge) {
+      URL.revokeObjectURL(url);
+      return file; // already small enough
+    }
+    const scale = maxEdge / longest;
+    const w = Math.round(img.naturalWidth * scale);
+    const h = Math.round(img.naturalHeight * scale);
+    const canvas = document.createElement("canvas");
+    canvas.width = w; canvas.height = h;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) { URL.revokeObjectURL(url); return null; }
+    ctx.drawImage(img, 0, 0, w, h);
+    URL.revokeObjectURL(url);
+    const blob: Blob | null = await new Promise((res) => canvas.toBlob(res, "image/jpeg", 0.92));
+    if (!blob) return null;
+    return new File([blob], file.name.replace(/\.[^.]+$/, "") + "-small.jpg", { type: "image/jpeg" });
+  } catch {
+    return null;
+  }
+}
+
 /** Convert a server attempt snapshot into the local SavedTxn shape used by SuccessView. */
 function snapToSavedTxn(snap: AttemptSnapshot): SavedTxn {
   return {
@@ -542,6 +584,9 @@ function ScannerView({ onBack, onDecoded }: { onBack: () => void; onDecoded: (p:
   // panel offering an inline retry + a one-tap fallback to gallery upload.
   const [invalidDecodeCount, setInvalidDecodeCount] = useState(0);
   const [cameraStartError, setCameraStartError] = useState<string | null>(null);
+  // Inline #FF4444 banner shown after a failed gallery upload. Persists until
+  // the user retries (re-opens the picker) or successfully decodes a QR.
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const fallbackInputRef = useRef<HTMLInputElement | null>(null);
   // Real-time camera state for the on-screen feedback strip:
   //   "starting" → still warming up the camera
@@ -677,10 +722,13 @@ function ScannerView({ onBack, onDecoded }: { onBack: () => void; onDecoded: (p:
 
   // Trigger gallery picker programmatically — used by the recovery panel so
   // a struggling user can fall back from camera scanning to file upload in
-  // a single tap, without hunting for the small Upload chip in the dock.
-  const openGalleryPicker = () => {
+  // Wraps `openGalleryPicker` to clear any prior #FF4444 banner first so the
+  // user gets a clean retry state when they tap "Retry".
+  const openGalleryPickerFresh = () => {
+    setUploadError(null);
     fallbackInputRef.current?.click();
   };
+  const openGalleryPicker = openGalleryPickerFresh;
 
   const toggleTorch = async () => {
     const s = scannerRef.current;
@@ -699,22 +747,82 @@ function ScannerView({ onBack, onDecoded }: { onBack: () => void; onDecoded: (p:
     const file = e.target.files?.[0];
     if (!file) return;
     try {
+      // ── 1. Validate the file before touching the decoder ──
+      // The decoder is expensive; reject obvious non-images, oversized files,
+      // and empty files up-front so we surface a precise reason to the user.
+      if (!file.type.startsWith("image/")) {
+        setUploadError("That file isn't an image. Pick a JPG, PNG, or WebP photo of a QR.");
+        setInvalidDecodeCount((c) => c + 1);
+        return;
+      }
+      if (file.size === 0) {
+        setUploadError("This image looks empty. Try another photo.");
+        setInvalidDecodeCount((c) => c + 1);
+        return;
+      }
+      if (file.size > 12 * 1024 * 1024) {
+        setUploadError("Image is too large (max 12 MB). Use a smaller photo.");
+        setInvalidDecodeCount((c) => c + 1);
+        return;
+      }
+
       const scanner = scannerRef.current ?? new Html5Qrcode(containerId, { verbose: false });
       if (scanner.isScanning) await scanner.stop().catch(() => {});
-      const decoded = await scanner.scanFile(file, false);
-      const result = parseUpiQrWithReason(decoded);
-      setDebug({ raw: decoded, result, at: Date.now() });
-      if (result.payload) {
-        onDecoded(result.payload);
-      } else {
-        // Gallery decode succeeded but the QR isn't a UPI payment — count it
-        // toward the invalid streak so the recovery panel stays visible.
-        setInvalidDecodeCount((c) => c + 1);
-        toast.error(result.reason ?? "Not a valid UPI QR code");
+
+      // ── 2. Try multiple decode passes ──
+      // Real-world photos often contain more than one QR, partial occlusion,
+      // or framing that confuses the decoder on the first attempt. We try the
+      // raw file first, then a downscaled copy as a fallback. Each pass that
+      // returns text is parsed against the UPI grammar; the first valid UPI
+      // payload wins. We collect all decoded strings so we can show a clearer
+      // reason when none of them are UPI.
+      const decoded: string[] = [];
+      const tryDecode = async (input: File | Blob) => {
+        try {
+          const text = await scanner.scanFile(input as File, false);
+          if (text && !decoded.includes(text)) decoded.push(text);
+        } catch {
+          /* swallow — fall through to the next strategy */
+        }
+      };
+
+      await tryDecode(file);
+      if (!decoded.some((t) => parseUpiQr(t))) {
+        // Downscale and retry — helps with very large photos where the QR is
+        // small relative to the frame.
+        const downscaled = await downscaleImage(file, 1200).catch(() => null);
+        if (downscaled) await tryDecode(downscaled);
       }
-    } catch {
+
+      // Pick the first decoded string that parses as UPI; otherwise surface
+      // the most specific parse reason from the candidates we collected.
+      let chosen: UpiParseResult | null = null;
+      for (const text of decoded) {
+        const r = parseUpiQrWithReason(text);
+        if (r.payload) { chosen = r; break; }
+        if (!chosen) chosen = r; // remember first non-UPI decode for messaging
+      }
+      setDebug({ raw: decoded[0] ?? "", result: chosen ?? { payload: null, reason: "No QR detected", matched: null }, at: Date.now() });
+
+      if (chosen?.payload) {
+        setUploadError(null);
+        onDecoded(chosen.payload);
+        return;
+      }
+
+      // No usable UPI QR — pick the friendliest reason we have.
+      const reason =
+        decoded.length === 0
+          ? "We couldn't find a QR in this image. Try a sharper, better-lit photo."
+          : decoded.length > 1
+            ? "Multiple QR codes detected — none of them are UPI payment codes."
+            : chosen?.reason ?? "This QR isn't a UPI payment code.";
+      setUploadError(reason);
       setInvalidDecodeCount((c) => c + 1);
-      toast.error("Could not read QR from image. Try a clearer photo.");
+    } catch (err) {
+      captureError(err, { where: "scanpay.handleUpload" });
+      setUploadError("Could not read QR from image. Try a clearer photo.");
+      setInvalidDecodeCount((c) => c + 1);
     } finally {
       // Always clear the input so picking the same file again still triggers onChange.
       if (e.target) e.target.value = "";
@@ -885,6 +993,74 @@ function ScannerView({ onBack, onDecoded }: { onBack: () => void; onDecoded: (p:
             >
               <ImageIcon className="w-3.5 h-3.5" />
               Use gallery
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Inline upload-error banner — uses the spec'd #FF4444 accent so a
+          failed gallery decode is impossible to miss. Stays put until the
+          user taps Retry (which clears it and re-opens the picker). */}
+      {uploadError && (
+        <div
+          className="sp2-upload-error"
+          role="alert"
+          aria-live="assertive"
+          style={{
+            position: "absolute",
+            left: 16, right: 16, bottom: 168, zIndex: 35,
+            display: "flex", alignItems: "flex-start", gap: 12,
+            padding: "12px 14px", borderRadius: 18,
+            background: "rgba(20,8,8,0.92)",
+            border: "1px solid #FF4444",
+            boxShadow: "0 18px 40px -16px rgba(255,68,68,0.55)",
+            backdropFilter: "blur(14px)",
+            WebkitBackdropFilter: "blur(14px)",
+            color: "#fff",
+          }}
+        >
+          <span
+            aria-hidden
+            style={{
+              flex: "0 0 auto", width: 32, height: 32, borderRadius: 999,
+              display: "grid", placeItems: "center",
+              background: "rgba(255,68,68,0.18)", color: "#FF4444",
+            }}
+          >
+            <AlertTriangle className="w-4 h-4" strokeWidth={2.4} />
+          </span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p style={{ fontSize: 13, fontWeight: 600, lineHeight: 1.25 }}>
+              Couldn't read that QR
+            </p>
+            <p style={{ fontSize: 12, marginTop: 2, color: "rgba(255,255,255,0.72)", lineHeight: 1.35 }}>
+              {uploadError}
+            </p>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <button
+              type="button"
+              onClick={openGalleryPickerFresh}
+              style={{
+                fontSize: 12, fontWeight: 600,
+                padding: "7px 12px", borderRadius: 999,
+                background: "#FF4444", color: "#fff",
+                display: "inline-flex", alignItems: "center", gap: 6,
+              }}
+            >
+              <RotateCcw className="w-3.5 h-3.5" /> Retry
+            </button>
+            <button
+              type="button"
+              onClick={() => setUploadError(null)}
+              style={{
+                fontSize: 11, fontWeight: 500,
+                padding: "5px 10px", borderRadius: 999,
+                background: "transparent", color: "rgba(255,255,255,0.7)",
+                border: "1px solid rgba(255,255,255,0.14)",
+              }}
+            >
+              Dismiss
             </button>
           </div>
         </div>
@@ -1211,26 +1387,68 @@ function ScannerActions({
   const [upiOpen, setUpiOpen] = useState(false);
   const [contactOpen, setContactOpen] = useState(false);
   const [qrOpen, setQrOpen] = useState(false);
-  const startYRef = useRef<number | null>(null);
+  const wrapRef = useRef<HTMLDivElement | null>(null);
 
-  // Touch-driven reveal: scrolling/swiping UP shows the FAB; swiping DOWN
-  // (toward the camera) hides it so the viewfinder stays unobstructed.
+  // ── Scroll/viewport observer ──
+  // Replaces the older touchstart/touchmove gesture (which silently broke on
+  // desktop, on iOS Safari with passive listeners disabled, and inside any
+  // nested scroll container). Instead we:
+  //   1. Find the nearest scrollable ancestor (the PhoneShell screen or the
+  //      window itself) once the FAB mounts.
+  //   2. On every scroll, compare the new scrollTop to the previous value:
+  //        downward delta  → hide   (user is reading content)
+  //        upward delta    → reveal (user wants to act)
+  //        near top        → always reveal
+  //   3. We coalesce updates with requestAnimationFrame so the scroll handler
+  //      stays cheap on low-end Android devices.
   useEffect(() => {
-    const onTouchStart = (e: TouchEvent) => {
-      startYRef.current = e.touches[0]?.clientY ?? null;
+    if (typeof window === "undefined") return;
+
+    // Find the scrollable ancestor of the FAB. PhoneShell scrolls internally,
+    // but on the web preview the document scrolls. Walk up until we find an
+    // element whose computed overflow allows scrolling AND whose scrollHeight
+    // exceeds its clientHeight; otherwise fall back to window.
+    const findScrollParent = (node: HTMLElement | null): HTMLElement | Window => {
+      let el: HTMLElement | null = node?.parentElement ?? null;
+      while (el && el !== document.body) {
+        const style = getComputedStyle(el);
+        const oy = style.overflowY;
+        const scrollable = (oy === "auto" || oy === "scroll" || oy === "overlay") &&
+          el.scrollHeight > el.clientHeight + 4;
+        if (scrollable) return el;
+        el = el.parentElement;
+      }
+      return window;
     };
-    const onTouchMove = (e: TouchEvent) => {
-      const start = startYRef.current;
-      if (start == null) return;
-      const dy = (e.touches[0]?.clientY ?? start) - start;
-      if (dy > 24) setHidden(true);
-      else if (dy < -24) setHidden(false);
+
+    const target = findScrollParent(wrapRef.current);
+    const getY = () => target instanceof Window
+      ? (window.scrollY || document.documentElement.scrollTop || 0)
+      : (target as HTMLElement).scrollTop;
+
+    let lastY = getY();
+    let raf = 0;
+    const onScroll = () => {
+      if (raf) return;
+      raf = requestAnimationFrame(() => {
+        raf = 0;
+        const y = getY();
+        const dy = y - lastY;
+        // Always reveal at the very top so the FAB is reachable on first paint.
+        if (y < 8) setHidden(false);
+        else if (dy > 6) setHidden(true);
+        else if (dy < -6) setHidden(false);
+        lastY = y;
+      });
     };
-    window.addEventListener("touchstart", onTouchStart, { passive: true });
-    window.addEventListener("touchmove", onTouchMove, { passive: true });
+
+    target.addEventListener("scroll", onScroll, { passive: true });
+    // Resize/orientation can change which ancestor scrolls — re-evaluate.
+    window.addEventListener("resize", onScroll, { passive: true });
     return () => {
-      window.removeEventListener("touchstart", onTouchStart);
-      window.removeEventListener("touchmove", onTouchMove);
+      target.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+      if (raf) cancelAnimationFrame(raf);
     };
   }, []);
 
@@ -1249,6 +1467,7 @@ function ScannerActions({
       )}
 
       <div
+        ref={wrapRef}
         className={`sp2-fab-wrap ${hidden ? "sp2-fab-hidden" : ""}`}
         data-open={open ? "true" : "false"}
       >
@@ -1538,14 +1757,22 @@ function PayContactSheet({
   );
 }
 
-/* My QR — generates the user's UPI QR so others can scan to pay them. */
+/* My QR — generates the user's UPI QR so others can scan to pay them.
+ *
+ * The wallet handle is sourced from the user's saved profile (verified phone +
+ * full name). If either required field is missing we DO NOT silently fall back
+ * to a "user@teenwallet" stub — that would generate a UPI deep-link that
+ * routes nowhere. Instead we render a clear validation panel and link the
+ * user to their profile so they can complete onboarding first.
+ */
 function MyQrSheet({ onClose }: { onClose: () => void }) {
   const { userId, fullName } = useApp();
   const [profile, setProfile] = useState<{ phone: string | null; full_name: string | null } | null>(null);
+  const [loading, setLoading] = useState(true);
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!userId) return;
+    if (!userId) { setLoading(false); return; }
     let cancelled = false;
     void (async () => {
       const { data } = await supabase
@@ -1555,31 +1782,58 @@ function MyQrSheet({ onClose }: { onClose: () => void }) {
         .maybeSingle();
       if (cancelled) return;
       setProfile(data ?? { phone: null, full_name: fullName });
+      setLoading(false);
     })();
     return () => { cancelled = true; };
   }, [userId, fullName]);
 
-  // Build a UPI deep-link from the user's phone (used as their wallet handle).
-  const upiId = profile?.phone ? `${profile.phone.replace(/\D/g, "")}@teenwallet` : "user@teenwallet";
-  const displayName = profile?.full_name || fullName || "Teen Wallet User";
-  const deepLink = `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(displayName)}&cu=INR`;
+  // ── Validate required fields BEFORE building the QR ──
+  // The wallet handle is the canonical identifier other users will scan and
+  // pay to. We require:
+  //   • a phone (used as the wallet local-part — Teen Wallet maps phone → user)
+  //   • a display name so the payer sees who they're paying
+  // Anything missing → show a validation panel instead of a broken QR.
+  const phoneDigits = (profile?.phone ?? "").replace(/\D/g, "");
+  const displayName = (profile?.full_name || fullName || "").trim();
+  const missingFields: string[] = [];
+  if (!phoneDigits || phoneDigits.length < 10) missingFields.push("verified phone number");
+  if (!displayName) missingFields.push("full name");
+  const isValid = missingFields.length === 0;
+
+  // Wallet handle = saved phone @ teenwallet. Built only when valid so the
+  // deep-link is guaranteed to be payable.
+  const upiId = isValid ? `${phoneDigits}@teenwallet` : "";
+  const deepLink = isValid
+    ? buildUpiDeepLink({
+        upiId,
+        payeeName: displayName,
+        amount: 0, // amount-less collect QR — payer chooses the amount
+        txnRef: `myqr-${(userId ?? "anon").slice(0, 8)}`,
+        currency: "INR",
+      // Drop "am=0.00" so installed UPI apps prompt the payer for an amount.
+      }).replace(/&?am=0\.00/, "")
+    : "";
 
   useEffect(() => {
+    if (!deepLink) { setQrDataUrl(null); return; }
     let cancelled = false;
     void QRCode.toDataURL(deepLink, {
       width: 280,
       margin: 1,
       color: { dark: "#0a0a0a", light: "#ffffff" },
       errorCorrectionLevel: "H",
-    }).then((url) => { if (!cancelled) setQrDataUrl(url); });
+    }).then((url) => { if (!cancelled) setQrDataUrl(url); })
+      .catch((err) => { captureError(err, { where: "myqr.generate" }); });
     return () => { cancelled = true; };
   }, [deepLink]);
 
   const copyId = async () => {
+    if (!isValid) return;
     try { await navigator.clipboard.writeText(upiId); toast.success("UPI ID copied"); }
     catch { toast.error("Couldn't copy"); }
   };
   const share = async () => {
+    if (!isValid) return;
     if (typeof navigator !== "undefined" && navigator.share) {
       try { await navigator.share({ title: "Pay me on Teen Wallet", text: `Pay me at ${upiId}`, url: deepLink }); }
       catch { /* user cancelled */ }
@@ -1588,7 +1842,7 @@ function MyQrSheet({ onClose }: { onClose: () => void }) {
     }
   };
   const download = () => {
-    if (!qrDataUrl) return;
+    if (!qrDataUrl || !isValid) return;
     const a = document.createElement("a");
     a.href = qrDataUrl;
     a.download = `teenwallet-${upiId.replace(/[^a-z0-9]/gi, "-")}.png`;
@@ -1604,37 +1858,91 @@ function MyQrSheet({ onClose }: { onClose: () => void }) {
           <div className="sp2-sheet-icon sp2-fab-tone-champagne"><QrCode className="w-5 h-5" /></div>
           <div>
             <h2 className="sp2-sheet-title">My QR code</h2>
-            <p className="sp2-sheet-sub">Anyone can scan this to pay you</p>
-          </div>
-        </div>
-
-        <div className="sp2-qr-card">
-          <div className="sp2-qr-frame">
-            {qrDataUrl ? (
-              <img src={qrDataUrl} alt="Your UPI QR" className="sp2-qr-img" />
-            ) : (
-              <div className="sp2-qr-skeleton" />
-            )}
-          </div>
-          <div className="sp2-qr-meta">
-            <p className="sp2-qr-name">{displayName}</p>
-            <p className="sp2-qr-upi">
-              {upiId}
-              <button type="button" onClick={copyId} className="sp2-qr-copy" aria-label="Copy UPI ID">
-                <Copy className="w-3.5 h-3.5" />
-              </button>
+            <p className="sp2-sheet-sub">
+              {isValid ? "Anyone can scan this to pay you" : "Finish your profile to generate a QR"}
             </p>
           </div>
         </div>
 
-        <div className="sp2-qr-actions">
-          <button type="button" onClick={share} className="sp2-qr-btn">
-            <Share2 className="w-4 h-4" /> Share
-          </button>
-          <button type="button" onClick={download} className="sp2-qr-btn" disabled={!qrDataUrl}>
-            <Download className="w-4 h-4" /> Save
-          </button>
-        </div>
+        {loading ? (
+          <div className="sp2-qr-card"><div className="sp2-qr-frame"><div className="sp2-qr-skeleton" /></div></div>
+        ) : !isValid ? (
+          // ── Validation panel — required profile fields missing ──
+          <div
+            role="alert"
+            style={{
+              margin: "8px 4px 4px",
+              padding: "14px 14px 16px",
+              borderRadius: 18,
+              background: "rgba(20,8,8,0.85)",
+              border: "1px solid #FF4444",
+              color: "#fff",
+              display: "flex", flexDirection: "column", gap: 10,
+            }}
+          >
+            <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+              <span
+                aria-hidden
+                style={{
+                  flex: "0 0 auto", width: 32, height: 32, borderRadius: 999,
+                  display: "grid", placeItems: "center",
+                  background: "rgba(255,68,68,0.18)", color: "#FF4444",
+                }}
+              >
+                <AlertTriangle className="w-4 h-4" strokeWidth={2.4} />
+              </span>
+              <div style={{ flex: 1 }}>
+                <p style={{ fontSize: 13, fontWeight: 600 }}>Can't generate your QR yet</p>
+                <p style={{ fontSize: 12, marginTop: 4, color: "rgba(255,255,255,0.72)", lineHeight: 1.4 }}>
+                  We need your {missingFields.join(" and ")} to build a payable wallet handle. Without these, the QR would route nowhere.
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => { onClose(); window.location.assign("/preview/profile-help"); }}
+              style={{
+                alignSelf: "flex-start",
+                fontSize: 12, fontWeight: 600,
+                padding: "8px 14px", borderRadius: 999,
+                background: "#FF4444", color: "#fff",
+                display: "inline-flex", alignItems: "center", gap: 6,
+              }}
+            >
+              <UserIcon className="w-3.5 h-3.5" /> Complete profile
+            </button>
+          </div>
+        ) : (
+          <>
+            <div className="sp2-qr-card">
+              <div className="sp2-qr-frame">
+                {qrDataUrl ? (
+                  <img src={qrDataUrl} alt="Your UPI QR" className="sp2-qr-img" />
+                ) : (
+                  <div className="sp2-qr-skeleton" />
+                )}
+              </div>
+              <div className="sp2-qr-meta">
+                <p className="sp2-qr-name">{displayName}</p>
+                <p className="sp2-qr-upi">
+                  {upiId}
+                  <button type="button" onClick={copyId} className="sp2-qr-copy" aria-label="Copy UPI ID">
+                    <Copy className="w-3.5 h-3.5" />
+                  </button>
+                </p>
+              </div>
+            </div>
+
+            <div className="sp2-qr-actions">
+              <button type="button" onClick={share} className="sp2-qr-btn" disabled={!qrDataUrl}>
+                <Share2 className="w-4 h-4" /> Share
+              </button>
+              <button type="button" onClick={download} className="sp2-qr-btn" disabled={!qrDataUrl}>
+                <Download className="w-4 h-4" /> Save
+              </button>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
