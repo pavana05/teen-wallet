@@ -87,7 +87,6 @@ export async function callAdminFn<T = unknown>(payload: Record<string, unknown>)
       apikey: ANON,
       Authorization: `Bearer ${ANON}`,
     };
-    if (requiresAdminSession && token) headers["X-Admin-Session-Token"] = token;
     return fetch(FN_URL, {
       method: "POST",
       headers,
@@ -253,7 +252,11 @@ export function useAdminSession() {
 
   // Idle logout
   useEffect(() => {
+    let lastResetAt = 0;
     const reset = () => {
+      const now = Date.now();
+      if (now - lastResetAt < 15_000) return;
+      lastResetAt = now;
       if (idleTimer.current) window.clearTimeout(idleTimer.current);
       idleTimer.current = window.setTimeout(() => {
         clearAdminSession();
@@ -261,7 +264,7 @@ export function useAdminSession() {
         window.location.href = "/admin/login";
       }, IDLE_MS);
     };
-    const events = ["mousemove", "keydown", "click", "scroll"];
+    const events = ["pointerdown", "keydown", "touchstart", "visibilitychange"];
     events.forEach((e) => window.addEventListener(e, reset, { passive: true }));
     reset();
     return () => {
