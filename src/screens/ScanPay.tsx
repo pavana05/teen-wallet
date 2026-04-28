@@ -28,6 +28,12 @@ import {
   type AttemptSnapshot,
 } from "@/lib/paymentAttempts.functions";
 import { sampleFrames } from "@/lib/fpsGuard";
+import { haptics } from "@/lib/haptics";
+
+const reducedMotion = () => {
+  if (typeof window === "undefined") return false;
+  try { return window.matchMedia("(prefers-reduced-motion: reduce)").matches; } catch { return false; }
+};
 
 const SCANPAY_PERSIST_KEY = "tw-scanpay-flow-v1";
 const SCANPAY_ATTEMPT_KEY = "tw-scanpay-attempt-id-v1";
@@ -66,6 +72,10 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
   const [amount, setAmount] = useState<number>(persisted?.amount ?? 0);
   const [resultMsg, setResultMsg] = useState("");
   const [failKind, setFailKind] = useState<FailKind>("generic");
+  // Inline error shown directly within the Confirm screen (does not eject the
+  // user to the full FailedView). Used for transient/recoverable failures so
+  // the slide area can shake + show retry without losing entered context.
+  const [payError, setPayError] = useState<string | null>(null);
   // The actual transaction returned from the API after a successful insert.
   // Drives the success screen's reference ID + receipt PDF.
   const [savedTxn, setSavedTxn] = useState<SavedTxn | null>(null);
@@ -227,12 +237,10 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
     if (!userId || !payload) return;
     const amt = amount;
     const noteToSave = note.trim() || payload.note || null;
+    setPayError(null);
     breadcrumb("payment.submit_started", { amount: amt, upiId: payload.upiId, payee: payload.payeeName });
 
     // ── Pre-flight client-side fraud check ──
-    // Mirrors the server rules so the user gets instant feedback for things
-    // like daily-limit blocks without the round-trip. The backend re-runs
-    // these on settlement so the check cannot be bypassed.
     const preflight = await scanTransaction({ userId, amount: amt, upiId: payload.upiId });
     if (preflight.blocked) {
       const blockFlag = preflight.flags.find((f) => f.severity === "block");
@@ -241,6 +249,7 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
       setResultMsg(blockFlag?.message ?? "Payment blocked");
       setFailKind("blocked");
       setPhase("failed");
+      void haptics.error();
       return;
     }
     if (amt > balance) {
@@ -248,12 +257,11 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
       setResultMsg("Insufficient balance");
       setFailKind("insufficient");
       setPhase("failed");
+      void haptics.error();
       return;
     }
 
     // ── Create + start the server-side payment attempt ──
-    // The attempt row is the source of truth. Polling against it drives the
-    // Processing → Success transition (no client setTimeout deciding success).
     let id = attemptId;
     try {
       if (!id) {
@@ -265,9 +273,8 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
           method: "upi",
         });
         if (!created.ok) {
-          setResultMsg(created.message);
-          setFailKind("generic");
-          setPhase("failed");
+          setPayError(created.message || "Couldn't start payment. Please try again.");
+          void haptics.error();
           return;
         }
         id = created.attempt.id;
@@ -275,16 +282,14 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
       }
       const started = await callWithAuth(startProcessing, { attemptId: id });
       if (!started.ok) {
-        setResultMsg(started.message);
-        setFailKind("generic");
-        setPhase("failed");
+        setPayError(started.message || "Couldn't start payment. Please try again.");
+        void haptics.error();
         return;
       }
     } catch (err) {
       captureError(err, { where: "scanpay.startProcessing", amount: amt });
-      setResultMsg("Couldn't start payment. Please try again.");
-      setFailKind("generic");
-      setPhase("failed");
+      setPayError("Couldn't start payment. Please check your connection and try again.");
+      void haptics.error();
       return;
     }
 
@@ -303,6 +308,7 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
     setNote("");
     setResultMsg("");
     setFailKind("generic");
+    setPayError(null);
     setSavedTxn(null);
     navLockRef.current = false;
     clearPersisted();
@@ -370,6 +376,8 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
         onBack={reset}
         balance={balance}
         userId={userId}
+        payError={payError}
+        onClearError={() => setPayError(null)}
       />
     );
   }
@@ -1094,6 +1102,7 @@ function ScannerView({ onBack, onDecoded }: { onBack: () => void; onDecoded: (p:
 
 function ConfirmView({
   payload, amount, onAmountChange, note, onNoteChange, onConfirm, onBack, balance, userId,
+  payError, onClearError,
 }: {
   payload: UpiPayload;
   amount: number;
@@ -1104,6 +1113,8 @@ function ConfirmView({
   onBack: () => void;
   balance: number;
   userId: string | null;
+  payError: string | null;
+  onClearError: () => void;
 }) {
   const initial = (payload.payeeName || payload.upiId).trim().charAt(0).toUpperCase();
   const insufficient = amount > 0 && amount > balance;
@@ -1158,19 +1169,68 @@ function ConfirmView({
 
 
 
-  // Two-stage flow: Stage A keypad → tap "Next" → Stage B Slide-to-Pay button.
-  // The user can collapse back to the keypad by tapping the chevron on Stage B.
+  // Two-stage flow: Stage A keypad → tap "Next" → Stage B Slide-to-Pay → tap
+  // confirmation card to actually pay. The extra confirmation step prevents
+  // accidental sends and shows the exact merchant/amount/note one last time.
   const [stage, setStage] = useState<"enter" | "review">("enter");
+  const [confirming, setConfirming] = useState(false);
+
+  // Refs for focus management between stages and the confirmation step.
+  const nextFabRef = useRef<HTMLButtonElement | null>(null);
+  const slideKnobWrapRef = useRef<HTMLDivElement | null>(null);
+  const confirmBtnRef = useRef<HTMLButtonElement | null>(null);
+  const errorRetryRef = useRef<HTMLButtonElement | null>(null);
+  // Slide-area ref for the shake animation when payment fails.
+  const slideShellRef = useRef<HTMLDivElement | null>(null);
 
   // Reset to keypad whenever the amount becomes invalid or merchant changes.
   useEffect(() => {
-    if (amount <= 0) setStage("enter");
+    if (amount <= 0) {
+      setStage("enter");
+      setConfirming(false);
+    }
   }, [amount, payload.upiId]);
+
+  // Move focus when stage changes — helps keyboard + screen-reader users
+  // immediately reach the next interactive control without hunting.
+  useEffect(() => {
+    if (stage === "review") {
+      // Focus the slide knob so keyboard users can press Enter / arrows.
+      requestAnimationFrame(() => {
+        const knob = slideKnobWrapRef.current?.querySelector<HTMLElement>('[role="slider"]');
+        knob?.focus();
+      });
+    } else {
+      requestAnimationFrame(() => nextFabRef.current?.focus({ preventScroll: true }));
+    }
+  }, [stage]);
+
+  // When the confirmation step opens, focus the confirm button so a quick
+  // "Enter"/double-tap completes payment.
+  useEffect(() => {
+    if (confirming) requestAnimationFrame(() => confirmBtnRef.current?.focus());
+  }, [confirming]);
+
+  // Shake the slide region + focus retry button whenever a new payment error
+  // arrives. Honour reduced-motion: skip shake but still announce + focus.
+  useEffect(() => {
+    if (!payError) return;
+    setConfirming(false);
+    const el = slideShellRef.current;
+    if (el && !reducedMotion()) {
+      el.classList.remove("sp3-shake");
+      // force reflow so animation can re-trigger on consecutive errors
+      void el.offsetWidth;
+      el.classList.add("sp3-shake");
+    }
+    requestAnimationFrame(() => errorRetryRef.current?.focus());
+  }, [payError]);
 
   // Format amount for display: hide leading "0", show typed digits.
   const amountStr = amount === 0 ? "" : String(amount);
 
   const onKey = (k: string) => {
+    void haptics.tap();
     if (k === "del") {
       const next = amountStr.slice(0, -1);
       onAmountChange(next === "" ? 0 : Number(next));
@@ -1194,11 +1254,42 @@ function ConfirmView({
     onAmountChange(Number(next));
   };
 
+  const goReview = () => {
+    if (!canPay) return;
+    void haptics.bloom();
+    setStage("review");
+  };
+
+  // Slide handler: do NOT pay yet — open the confirmation card. The user
+  // must tap "Confirm payment" to actually submit.
+  const onSlideComplete = () => {
+    void haptics.success();
+    onClearError();
+    setConfirming(true);
+  };
+
+  const onConfirmTap = () => {
+    void haptics.press();
+    setConfirming(false);
+    onConfirm();
+  };
+
+  const onCancelConfirm = () => {
+    void haptics.tap();
+    setConfirming(false);
+  };
+
+  const onRetry = () => {
+    void haptics.select();
+    onClearError();
+    // stay in review stage so the slide is right there to use again
+    setStage("review");
+  };
+
   const onFormKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && canPay) {
       e.preventDefault();
-      if (stage === "enter") setStage("review");
-      else onConfirm();
+      if (stage === "enter") goReview();
     }
   };
 
@@ -1305,12 +1396,12 @@ function ConfirmView({
       {/* Stage A: keypad + circular Next button */}
       {stage === "enter" && (
         <div className="sp3-keypad-wrap" data-stage="enter">
-          {/* Floating circular Next button on the right */}
           <button
+            ref={nextFabRef}
             type="button"
-            onClick={() => { if (canPay) setStage("review"); }}
+            onClick={goReview}
             disabled={!canPay}
-            aria-label="Next"
+            aria-label="Next — review payment"
             className="sp3-next-fab"
           >
             <ArrowRight className="w-5 h-5" strokeWidth={2.6} />
@@ -1332,13 +1423,14 @@ function ConfirmView({
         </div>
       )}
 
-      {/* Stage B: Slide-to-Pay with bank/method row */}
+      {/* Stage B: Slide-to-Pay → confirmation card. Inline error replaces the
+          slide on failure so the user can retry without losing context. */}
       {stage === "review" && (
-        <div className="sp3-pay-wrap safe-bottom" data-stage="review">
+        <div ref={slideShellRef} className="sp3-pay-wrap safe-bottom" data-stage="review">
           <div className="sp3-method-row">
             <button
               type="button"
-              onClick={() => setStage("enter")}
+              onClick={() => { void haptics.tap(); setStage("enter"); }}
               className="sp3-method-pill focus-visible:ring-2 focus-visible:ring-primary"
               aria-label="Change amount"
             >
@@ -1346,12 +1438,92 @@ function ConfirmView({
               <span className="sp3-method-name">Teen Wallet • {balance.toFixed(0)}</span>
               <ChevronDown className="w-3.5 h-3.5 opacity-70" />
             </button>
-            <button type="button" className="sp3-balance-link" onClick={() => setStage("enter")}>
+            <button type="button" className="sp3-balance-link" onClick={() => { void haptics.tap(); setStage("enter"); }}>
               Edit amount <ArrowRight className="w-3 h-3" />
             </button>
           </div>
 
-          <SlideToPay disabled={!canPay} onComplete={onConfirm} amount={amount} />
+          {payError && (
+            <div className="sp3-pay-error" role="alert" aria-live="assertive">
+              <div className="sp3-pay-error-head">
+                <AlertTriangle className="w-4 h-4" strokeWidth={2.6} />
+                <span>Payment failed</span>
+              </div>
+              <p className="sp3-pay-error-msg">{payError}</p>
+              <div className="sp3-pay-error-actions">
+                <button
+                  ref={errorRetryRef}
+                  type="button"
+                  className="sp3-pay-error-retry"
+                  onClick={onRetry}
+                >
+                  <RotateCcw className="w-4 h-4" /> Retry payment
+                </button>
+                <button
+                  type="button"
+                  className="sp3-pay-error-cancel"
+                  onClick={() => { void haptics.tap(); onBack(); }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+
+          {!payError && confirming && (
+            <div
+              className="sp3-confirm-card"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="sp3-confirm-title"
+            >
+              <h3 id="sp3-confirm-title" className="sp3-confirm-title">Confirm payment</h3>
+              <dl className="sp3-confirm-list">
+                <div className="sp3-confirm-row">
+                  <dt>To</dt>
+                  <dd className="sp3-confirm-strong">{payload.payeeName || "Unknown payee"}</dd>
+                </div>
+                <div className="sp3-confirm-row">
+                  <dt>UPI ID</dt>
+                  <dd className="num-mono">{payload.upiId}</dd>
+                </div>
+                <div className="sp3-confirm-row">
+                  <dt>Amount</dt>
+                  <dd className="sp3-confirm-amount num-mono">₹{amount.toFixed(2)}</dd>
+                </div>
+                {(note || payload.note) && (
+                  <div className="sp3-confirm-row">
+                    <dt>Note</dt>
+                    <dd>{note || payload.note}</dd>
+                  </div>
+                )}
+              </dl>
+              <div className="sp3-confirm-actions">
+                <button
+                  type="button"
+                  className="sp3-confirm-cancel"
+                  onClick={onCancelConfirm}
+                >
+                  Cancel
+                </button>
+                <button
+                  ref={confirmBtnRef}
+                  type="button"
+                  className="sp3-confirm-pay"
+                  onClick={onConfirmTap}
+                >
+                  Confirm & Pay ₹{amount.toFixed(2)}
+                </button>
+              </div>
+              <p className="sp3-confirm-hint">Tap to finalise — this cannot be undone.</p>
+            </div>
+          )}
+
+          {!payError && !confirming && (
+            <div ref={slideKnobWrapRef}>
+              <SlideToPay disabled={!canPay} onComplete={onSlideComplete} amount={amount} />
+            </div>
+          )}
 
           <p className="sp3-secure">
             {fraudLoading ? "Checking payment safety…" : (

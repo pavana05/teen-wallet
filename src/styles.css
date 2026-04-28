@@ -8115,3 +8115,133 @@ html.motion-off    .otp-resend-ring svg circle { transition: none !important; }
     animation: none !important; transition: none !important;
   }
 }
+
+/* ============================================================
+   ScanPay — inline error shake + confirmation card
+   ============================================================ */
+@keyframes sp3-shake {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  15% { transform: translate3d(-10px, 0, 0); }
+  30% { transform: translate3d(9px, 0, 0); }
+  45% { transform: translate3d(-7px, 0, 0); }
+  60% { transform: translate3d(5px, 0, 0); }
+  75% { transform: translate3d(-3px, 0, 0); }
+  90% { transform: translate3d(2px, 0, 0); }
+}
+.sp3-shake { animation: sp3-shake 520ms cubic-bezier(.36,.07,.19,.97) both; }
+
+/* Inline error banner — replaces the slide on failure */
+.sp3-pay-error {
+  border: 1px solid rgba(255, 68, 68, .55);
+  background: linear-gradient(180deg, rgba(255, 68, 68, .14), rgba(255, 68, 68, .06));
+  border-radius: 18px;
+  padding: 14px 16px;
+  color: #fff;
+  box-shadow: 0 14px 40px -18px rgba(255, 68, 68, .55);
+  animation: sp3-stage-in 320ms cubic-bezier(.22,1,.36,1) both;
+}
+.sp3-pay-error-head {
+  display: flex; align-items: center; gap: 8px;
+  font-weight: 700; font-size: 14px;
+  color: #FF4444;
+  letter-spacing: .01em;
+}
+.sp3-pay-error-msg {
+  margin: 6px 0 12px;
+  font-size: 13px; line-height: 1.45;
+  color: rgba(255,255,255,.86);
+}
+.sp3-pay-error-actions {
+  display: flex; gap: 10px;
+}
+.sp3-pay-error-retry {
+  flex: 1;
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  height: 44px; border-radius: 12px;
+  background: #FF4444; color: #fff; border: 0;
+  font-weight: 700; font-size: 14px;
+  cursor: pointer;
+  box-shadow: 0 8px 24px -10px rgba(255, 68, 68, .8);
+  transition: transform 140ms cubic-bezier(.22,1,.36,1), filter 160ms ease;
+}
+.sp3-pay-error-retry:hover { filter: brightness(1.06); }
+.sp3-pay-error-retry:active { transform: scale(.97); }
+.sp3-pay-error-cancel {
+  height: 44px; padding: 0 16px; border-radius: 12px;
+  background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.1);
+  color: rgba(255,255,255,.85); font-weight: 600; font-size: 13px;
+  cursor: pointer;
+  transition: background 160ms ease, transform 140ms ease;
+}
+.sp3-pay-error-cancel:hover { background: rgba(255,255,255,.1); }
+.sp3-pay-error-cancel:active { transform: scale(.97); }
+
+/* Confirmation card — second-tap-to-pay */
+.sp3-confirm-card {
+  border-radius: 22px;
+  background: linear-gradient(180deg, rgba(255,255,255,.07), rgba(255,255,255,.03));
+  border: 1px solid rgba(255,255,255,.1);
+  padding: 18px 18px 16px;
+  color: #fff;
+  box-shadow: 0 28px 60px -28px rgba(0,0,0,.7), inset 0 1px 0 rgba(255,255,255,.05);
+  backdrop-filter: blur(14px);
+  animation: sp3-stage-in 360ms cubic-bezier(.22,1,.36,1) both;
+}
+.sp3-confirm-title {
+  font-size: 15px; font-weight: 700; letter-spacing: .01em;
+  color: rgba(255,255,255,.95);
+  margin: 0 0 12px;
+}
+.sp3-confirm-list { margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.sp3-confirm-row {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 16px;
+  font-size: 13px;
+}
+.sp3-confirm-row dt { color: rgba(255,255,255,.55); font-weight: 500; flex-shrink: 0; }
+.sp3-confirm-row dd { margin: 0; color: rgba(255,255,255,.92); font-weight: 600; text-align: right; word-break: break-all; }
+.sp3-confirm-strong { font-weight: 700; }
+.sp3-confirm-amount {
+  font-size: 18px; font-weight: 700;
+  color: #FF8A3C;
+  text-shadow: 0 0 18px rgba(255, 138, 60, .35);
+}
+.sp3-confirm-actions {
+  margin-top: 16px;
+  display: flex; gap: 10px;
+}
+.sp3-confirm-cancel {
+  height: 48px; padding: 0 18px; border-radius: 14px;
+  background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.12);
+  color: rgba(255,255,255,.85); font-weight: 600; font-size: 14px;
+  cursor: pointer;
+  transition: background 160ms ease, transform 140ms ease;
+}
+.sp3-confirm-cancel:hover { background: rgba(255,255,255,.1); }
+.sp3-confirm-cancel:active { transform: scale(.97); }
+.sp3-confirm-pay {
+  flex: 1;
+  height: 48px; border-radius: 14px;
+  background: linear-gradient(135deg, #FF8A3C, #F5C16C);
+  color: #1a1208; border: 0;
+  font-weight: 800; font-size: 14px; letter-spacing: .01em;
+  cursor: pointer;
+  box-shadow: 0 14px 36px -14px rgba(255, 138, 60, .85);
+  transition: transform 140ms cubic-bezier(.22,1,.36,1), filter 160ms ease, box-shadow 200ms ease;
+}
+.sp3-confirm-pay:hover { filter: brightness(1.05); box-shadow: 0 18px 44px -14px rgba(255, 138, 60, .95); }
+.sp3-confirm-pay:active { transform: scale(.97); }
+.sp3-confirm-pay:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
+.sp3-confirm-hint {
+  margin-top: 10px;
+  font-size: 11px; text-align: center;
+  color: rgba(255,255,255,.5); letter-spacing: .02em;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sp3-shake, .sp3-pay-error, .sp3-confirm-card {
+    animation: none !important;
+  }
+  .sp3-pay-error-retry, .sp3-confirm-pay, .sp3-confirm-cancel, .sp3-pay-error-cancel {
+    transition: none !important;
+  }
+}
