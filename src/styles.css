@@ -8408,44 +8408,86 @@ html.motion-off    .otp-resend-ring svg circle { transition: none !important; }
   box-shadow: 0 0 0 1px rgba(255,138,60,.12), 0 8px 24px -10px rgba(255,138,60,.45);
 }
 
-/* Inline expanded panel under the row */
+/* Inline expanded panel under the row — premium glass + dark accent */
 .sp3-balance-inline {
-  margin: 8px 0 0;
-  padding: 12px 14px;
-  border-radius: 18px;
-  background: linear-gradient(180deg, rgba(255,255,255,.075), rgba(255,255,255,.035));
-  border: 1px solid rgba(255,255,255,.10);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 16px 34px -22px rgba(0,0,0,.85);
-  backdrop-filter: blur(16px);
+  position: relative;
+  margin: 10px 0 0;
+  padding: 14px 16px 14px;
+  border-radius: 20px;
+  background:
+    radial-gradient(120% 80% at 0% 0%, rgba(255,138,60,.10), transparent 55%),
+    linear-gradient(180deg, rgba(20,14,10,.78), rgba(12,9,7,.72));
+  border: 1px solid rgba(255,255,255,.08);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.07),
+    inset 0 0 0 1px rgba(255,138,60,.06),
+    0 22px 48px -24px rgba(0,0,0,.9),
+    0 0 24px -10px rgba(255,138,60,.18);
+  backdrop-filter: blur(22px) saturate(140%);
+  -webkit-backdrop-filter: blur(22px) saturate(140%);
   overflow: hidden;
-  animation: sp3-balance-inline-in 320ms cubic-bezier(.22,1,.36,1) both;
+  animation: sp3-balance-inline-in 360ms cubic-bezier(.22,1,.36,1) both;
   transform-origin: top left;
 }
+.sp3-balance-inline::before {
+  content: "";
+  position: absolute; inset: 0;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(255,255,255,.06), transparent 35%);
+  border-radius: inherit;
+}
+.sp3-balance-inline::after {
+  content: "";
+  position: absolute; left: 14px; right: 14px; top: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255,138,60,.55), transparent);
+  opacity: .55;
+}
 @keyframes sp3-balance-inline-in {
-  from { opacity: 0; transform: translateY(-12px) scale(.985); max-height: 0; padding-top: 0; padding-bottom: 0; margin-top: 0; margin-bottom: 0; }
-  to   { opacity: 1; transform: translateY(0) scaleY(1); max-height: 200px; }
+  from { opacity: 0; transform: translateY(-10px) scale(.985); max-height: 0; padding-top: 0; padding-bottom: 0; margin-top: 0; }
+  to   { opacity: 1; transform: translateY(0) scale(1); max-height: 240px; }
 }
 .sp3-balance-inline-row {
-  display: flex; align-items: baseline; justify-content: space-between;
-  padding: 4px 0;
-  animation: sp3-balance-row-up 420ms cubic-bezier(.22,1,.36,1) both;
+  position: relative;
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px;
+  padding: 6px 0;
+  animation: sp3-balance-row-up 460ms cubic-bezier(.22,1,.36,1) both;
 }
 .sp3-balance-inline-row--after {
-  margin-top: 6px; padding-top: 10px;
-  border-top: 1px solid rgba(255,255,255,.08);
-  animation-delay: 80ms;
+  margin-top: 8px; padding-top: 12px;
+  border-top: 1px dashed rgba(255,255,255,.10);
+  animation-delay: 90ms;
 }
 @keyframes sp3-balance-row-up {
-  from { opacity: 0; transform: translateY(10px); }
+  from { opacity: 0; transform: translateY(8px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 .sp3-balance-inline-label {
-  font-size: 11px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase;
-  color: rgba(255,255,255,.55);
+  font-size: 10.5px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase;
+  color: rgba(255,255,255,.5);
 }
 .sp3-balance-inline-value {
-  font-size: 18px; font-weight: 800; color: #FF8A3C;
-  text-shadow: 0 0 16px rgba(255,138,60,.35);
+  font-family: ui-monospace, "SF Mono", "JetBrains Mono", "Roboto Mono", Menlo, Consolas, monospace;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1, "lnum" 1;
+  font-size: 17px; font-weight: 700; letter-spacing: -.01em;
+  color: #FFB37A;
+  text-shadow: 0 0 18px rgba(255,138,60,.35);
+  padding: 4px 10px;
+  border-radius: 10px;
+  background: linear-gradient(180deg, rgba(255,138,60,.10), rgba(255,138,60,.04));
+  border: 1px solid rgba(255,138,60,.18);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.06);
+}
+.sp3-balance-inline-row--after .sp3-balance-inline-value {
+  color: #fff;
+  background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.03));
+  border-color: rgba(255,255,255,.12);
+  text-shadow: none;
+}
+.num-mono {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1, "lnum" 1;
 }
 
 @media (prefers-reduced-motion: reduce) {
