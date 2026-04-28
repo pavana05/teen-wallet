@@ -468,20 +468,24 @@ export function Home() {
           </button>
         </div>
 
-        {/* Scan hero card — swaps to a Diwali-themed banner during the festival */}
-        <button
-          type="button"
-          onClick={() => setView("scan")}
-          className="hp-scan-card group"
-          aria-label="Open scanner to scan and pay"
-          data-festival={isDiwaliSeason() ? "diwali" : undefined}
-        >
-          <img
-            src={isDiwaliSeason() ? scanHeroDiwali.url : scanHeroDefault.url}
-            alt={isDiwaliSeason() ? scanHeroDiwali.alt : scanHeroDefault.alt}
-            className="hp-scan-img"
-          />
-        </button>
+        {/* Scan hero card — swaps to a Holi or Diwali themed banner during the festival */}
+        {(() => {
+          const holi = isHoliSeason();
+          const diwali = !holi && isDiwaliSeason();
+          const hero = holi ? scanHeroHoli : diwali ? scanHeroDiwali : scanHeroDefault;
+          const festival = holi ? "holi" : diwali ? "diwali" : undefined;
+          return (
+            <button
+              type="button"
+              onClick={() => setView("scan")}
+              className="hp-scan-card group"
+              aria-label="Open scanner to scan and pay"
+              data-festival={festival}
+            >
+              <img src={hero.url} alt={hero.alt} className="hp-scan-img" />
+            </button>
+          );
+        })()}
 
         {/* Grass to black blend */}
         <div className="hp-hero-fade" aria-hidden="true" />
