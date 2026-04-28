@@ -5,6 +5,8 @@ import { useApp, type Stage } from "@/lib/store";
 import { PhoneShell } from "@/components/PhoneShell";
 import { lazyWithRetry } from "@/lib/lazyWithRetry";
 import { shouldShowReferralPrompt } from "@/lib/referral";
+import { OnboardingSkeleton } from "@/components/BootSkeletons";
+import { recordRedirect } from "@/lib/redirectLog";
 
 const Onboarding = lazyWithRetry(() => import("@/screens/Onboarding").then(m => ({ default: m.Onboarding })));
 const AuthPhone = lazyWithRetry(() => import("@/screens/AuthPhone").then(m => ({ default: m.AuthPhone })));
@@ -48,13 +50,18 @@ function OnboardingPage() {
   // If onboarding is fully complete, go to /home.
   useEffect(() => {
     if (stage === "STAGE_5" && permsSeen && !referralPending) {
+      recordRedirect({
+        from: "/onboarding", to: "/home",
+        stage, session: !!useApp.getState().userId,
+        reason: "onboarding_complete",
+      });
       void navigate({ to: "/home", replace: true });
     }
   }, [stage, permsSeen, referralPending, navigate]);
 
   return (
     <PhoneShell>
-      <Suspense fallback={<div className="flex-1" />}>
+      <Suspense fallback={<OnboardingSkeleton />}>
         {stage === "STAGE_0" || stage === "STAGE_1" ? (
           <Onboarding onDone={() => {
             const s = useApp.getState().stage;
@@ -74,7 +81,7 @@ function OnboardingPage() {
         ) : stage === "STAGE_4" ? (
           <KycPending onApproved={() => setStage("STAGE_5")} />
         ) : (
-          <div className="flex-1" />
+          <OnboardingSkeleton />
         )}
       </Suspense>
     </PhoneShell>

@@ -9,6 +9,7 @@ import { initNative } from "@/lib/native";
 import { breadcrumb, captureError } from "@/lib/breadcrumbs";
 import { installConsoleCapture } from "@/lib/consoleCapture";
 import { installAppLockListeners } from "@/lib/appLock";
+import { DebugPanel } from "@/components/DebugPanel";
 
 import appCss from "../styles.css?url";
 
@@ -138,6 +139,7 @@ function RootComponent() {
       <ShakeToReport />
       {showAppLock && <AppLockSetupPrompt />}
       {showAppLock && <AppLockGate />}
+      <DebugPanel />
     </>
   );
 }
