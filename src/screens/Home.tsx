@@ -53,6 +53,31 @@ function isDiwaliSeason(now: Date = new Date()): boolean {
   return now.getTime() >= peak - 14 * day && now.getTime() <= peak + 7 * day;
 }
 
+// Returns true during the Holi festival window. Holi (Rangwali Holi / Dhulandi)
+// dates: 2025-03-14, 2026-03-04, 2027-03-22, 2028-03-11, 2029-02-28.
+// Window: 5 days before (covers Holika Dahan eve) → 2 days after.
+// `?festival=holi` query param forces it on for testing/preview.
+function isHoliSeason(now: Date = new Date()): boolean {
+  if (typeof window !== "undefined") {
+    const sp = new URLSearchParams(window.location.search);
+    const f = sp.get("festival");
+    if (f === "holi") return true;
+    if (f === "off") return false;
+  }
+  const HOLI: Record<number, string> = {
+    2025: "2025-03-14",
+    2026: "2026-03-04",
+    2027: "2027-03-22",
+    2028: "2028-03-11",
+    2029: "2029-02-28",
+  };
+  const iso = HOLI[now.getUTCFullYear()];
+  if (!iso) return false;
+  const peak = new Date(iso + "T00:00:00Z").getTime();
+  const day = 86400000;
+  return now.getTime() >= peak - 5 * day && now.getTime() <= peak + 2 * day;
+}
+
 
 interface Txn {
   id: string;
