@@ -104,15 +104,16 @@ export async function callAppLock<T = unknown>(
     origError(...args);
   };
 
+  type InvokeError = { message: string; context?: Response };
   let data: unknown = null;
-  let error: { message: string; context?: Response } | null = null;
+  let error: InvokeError | null = null;
   try {
     const res = await supabase.functions.invoke("app-lock", {
       headers: { Authorization: `Bearer ${accessToken}` },
       body,
     });
     data = res.data;
-    error = res.error as typeof error;
+    error = (res.error as InvokeError | null) ?? null;
   } finally {
     console.error = origError;
   }
