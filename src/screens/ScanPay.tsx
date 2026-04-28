@@ -1445,51 +1445,55 @@ function ConfirmView({
       {stage === "review" && (
         <div ref={slideShellRef} className="sp3-pay-wrap safe-bottom" data-stage="review">
           <div className="sp3-method-row">
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                e.preventDefault();
-                void haptics.tap();
-                setBalanceOpen((v) => !v);
-              }}
-              className={`sp3-method-pill focus-visible:ring-2 focus-visible:ring-primary ${balanceOpen ? "is-open" : ""}`}
-              aria-label={`Wallet balance ₹${balance.toFixed(2)} — tap to ${balanceOpen ? "hide" : "view"} details`}
-              aria-expanded={balanceOpen}
-            >
-              <span className="sp3-method-logo" aria-hidden><Wallet className="w-3.5 h-3.5" /></span>
-              <span className="sp3-method-pill-stack" aria-live="polite">
-                <span className={`sp3-method-pill-line sp3-method-pill-line--label ${balanceOpen ? "is-up" : ""}`}>
-                  Teen Wallet • ₹{balance.toFixed(0)}
-                </span>
-                <span className={`sp3-method-pill-line sp3-method-pill-line--balance num-mono ${balanceOpen ? "is-up" : ""}`}>
-                  ₹{balance.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </span>
-              </span>
-              <ChevronDown className={`w-3.5 h-3.5 opacity-70 sp3-method-chevron ${balanceOpen ? "is-open" : ""}`} />
-            </button>
-            <button type="button" className="sp3-balance-link" onClick={(e) => { e.stopPropagation(); void haptics.tap(); setStage("enter"); }}>
-              Edit amount <ArrowRight className="w-3 h-3" />
-            </button>
-          </div>
-          {balanceOpen && (
-            <div className="sp3-balance-inline" role="region" aria-label="Wallet balance details">
-              <div className="sp3-balance-inline-row">
-                <span className="sp3-balance-inline-label">Available balance</span>
-                <span className="sp3-balance-inline-value num-mono">
-                  ₹{balance.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </span>
-              </div>
-              {amount > 0 && (
-                <div className="sp3-balance-inline-row sp3-balance-inline-row--after">
-                  <span className="sp3-balance-inline-label">After this payment</span>
-                  <span className="sp3-balance-inline-value num-mono">
-                    ₹{Math.max(0, balance - amount).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            <div className="sp3-wallet-reveal">
+              <button
+                type="button"
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  void haptics.tap();
+                  setBalanceOpen((v) => !v);
+                }}
+                className={`sp3-method-pill focus-visible:ring-2 focus-visible:ring-primary ${balanceOpen ? "is-open" : ""}`}
+                aria-label={`Wallet balance ₹${balance.toFixed(2)} — tap to ${balanceOpen ? "hide" : "view"} details`}
+                aria-expanded={balanceOpen}
+                aria-controls="sp3-wallet-balance-panel"
+              >
+                <span className="sp3-method-logo" aria-hidden><Wallet className="w-3.5 h-3.5" /></span>
+                <span className="sp3-method-pill-stack" aria-live="polite">
+                  <span className={`sp3-method-pill-line sp3-method-pill-line--label ${balanceOpen ? "is-up" : ""}`}>
+                    Teen Wallet • ₹{balance.toFixed(0)}
                   </span>
+                  <span className={`sp3-method-pill-line sp3-method-pill-line--balance num-mono ${balanceOpen ? "is-up" : ""}`}>
+                    ₹{balance.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </span>
+                </span>
+                <ChevronDown className={`w-3.5 h-3.5 opacity-70 sp3-method-chevron ${balanceOpen ? "is-open" : ""}`} />
+              </button>
+              {balanceOpen && (
+                <div id="sp3-wallet-balance-panel" className="sp3-balance-inline" role="region" aria-label="Wallet balance details">
+                  <div className="sp3-balance-inline-row">
+                    <span className="sp3-balance-inline-label">Available balance</span>
+                    <span className="sp3-balance-inline-value num-mono">
+                      ₹{balance.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                  {amount > 0 && (
+                    <div className="sp3-balance-inline-row sp3-balance-inline-row--after">
+                      <span className="sp3-balance-inline-label">After this payment</span>
+                      <span className="sp3-balance-inline-value num-mono">
+                        ₹{Math.max(0, balance - amount).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
-          )}
+            <button type="button" className="sp3-balance-link" onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); void haptics.tap(); setBalanceOpen(false); setStage("enter"); }}>
+              Edit amount <ArrowRight className="w-3 h-3" />
+            </button>
+          </div>
 
           {payError && (
             <div className="sp3-pay-error" role="alert" aria-live="assertive">
