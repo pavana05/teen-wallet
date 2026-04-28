@@ -886,14 +886,6 @@ function ScannerView({ onBack, onDecoded }: { onBack: () => void; onDecoded: (p:
         </div>
         <div className="flex items-center gap-2">
           <button
-            onClick={() => setDebugOpen((v) => !v)}
-            aria-label={debugOpen ? "Hide debug overlay" : "Show debug overlay"}
-            aria-pressed={debugOpen}
-            className={`sp2-icon-btn ${debugOpen ? "on" : ""}`}
-          >
-            <Bug className="w-5 h-5" />
-          </button>
-          <button
             onClick={toggleTorch}
             aria-label={torch ? "Turn flash off" : "Turn flash on"}
             aria-pressed={torch}
@@ -940,26 +932,6 @@ function ScannerView({ onBack, onDecoded }: { onBack: () => void; onDecoded: (p:
           </button>
         )}
       </div>
-
-      {debugOpen && (
-        <div className="absolute bottom-[140px] left-4 right-4 z-30 rounded-2xl bg-black/85 border border-white/10 backdrop-blur-md p-3 text-[11px] font-mono text-white/85 max-h-[36%] overflow-auto">
-          <p className="text-primary mb-1">⚙ {tuningRef.current.profile} · fps {tuningRef.current.fps} · qrbox {tuningRef.current.qrbox.width}px · cores {tuningRef.current.cores} · mem {tuningRef.current.mem}GB · soft-resets {softResetCount}</p>
-          {debug ? (
-            <>
-              <p className="text-white/55">raw:</p>
-              <p className="break-all text-white/95">{debug.raw}</p>
-              <p className="text-white/55 mt-2">matched: <span className="text-white/95">{debug.result.matched ?? "—"}</span></p>
-              <p className="text-white/55">parsed: <span className={debug.result.payload ? "text-[#6ee7a3]" : "text-[#ff8585]"}>{debug.result.payload ? "valid" : "invalid"}</span></p>
-              {debug.result.reason && <p className="text-[#ff8585]">reason: {debug.result.reason}</p>}
-              {debug.result.payload && (
-                <pre className="text-white/85 whitespace-pre-wrap mt-1">{JSON.stringify(debug.result.payload, null, 2)}</pre>
-              )}
-            </>
-          ) : (
-            <p className="text-white/55">Waiting for first decode…</p>
-          )}
-        </div>
-      )}
 
       {/* ── QR scan recovery panel ──
           Shown when the user has hit 3+ invalid QR decodes, has done 2+ soft

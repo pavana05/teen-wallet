@@ -9,7 +9,7 @@ import { initNative } from "@/lib/native";
 import { breadcrumb, captureError } from "@/lib/breadcrumbs";
 import { installConsoleCapture } from "@/lib/consoleCapture";
 import { installAppLockListeners } from "@/lib/appLock";
-import { DebugPanel } from "@/components/DebugPanel";
+
 import { OfflineOverlay } from "@/components/OfflineOverlay";
 import { GlobalErrorOverlay } from "@/components/GlobalErrorOverlay";
 
@@ -149,7 +149,7 @@ function RootComponent() {
       <ShakeToReport />
       {showAppLock && <AppLockSetupPrompt />}
       {showAppLock && <AppLockGate />}
-      <DebugPanel />
+      
       <OfflineOverlay />
       <GlobalErrorOverlay />
     </>
