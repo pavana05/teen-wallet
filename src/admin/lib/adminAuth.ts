@@ -253,7 +253,11 @@ export function useAdminSession() {
 
   // Idle logout
   useEffect(() => {
+    let lastResetAt = 0;
     const reset = () => {
+      const now = Date.now();
+      if (now - lastResetAt < 15_000) return;
+      lastResetAt = now;
       if (idleTimer.current) window.clearTimeout(idleTimer.current);
       idleTimer.current = window.setTimeout(() => {
         clearAdminSession();
@@ -261,7 +265,7 @@ export function useAdminSession() {
         window.location.href = "/admin/login";
       }, IDLE_MS);
     };
-    const events = ["mousemove", "keydown", "click", "scroll"];
+    const events = ["pointerdown", "keydown", "touchstart", "visibilitychange"];
     events.forEach((e) => window.addEventListener(e, reset, { passive: true }));
     reset();
     return () => {
