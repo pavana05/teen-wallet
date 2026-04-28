@@ -1,12 +1,8 @@
 import { Bell, Home as HomeIcon, ScanLine, ShoppingBag, CreditCard, ArrowUpRight, Building2, Wallet, History, Smartphone, Zap, MoreHorizontal, Gift, ArrowDownLeft, RefreshCw, User, Sparkles, Inbox, Send } from "lucide-react";
 import { useApp } from "@/lib/store";
-import { useEffect, useState, useCallback, useRef } from "react";
+import { lazy, Suspense, useEffect, useState, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { ScanPay } from "@/screens/ScanPay";
-import { Transactions } from "@/screens/Transactions";
-import { QuickActionsPanel, type QuickActionKind } from "@/components/QuickActionsPanel";
-import { NotificationsPanel } from "@/components/NotificationsPanel";
-import { ProfilePanel } from "@/components/ProfilePanel";
+import type { QuickActionKind } from "@/components/QuickActionsPanel";
 import heroScan from "@/assets/home-hero-scan.jpg";
 import heroScanDiwali from "@/assets/home-hero-scan-diwali.png";
 import heroScanHoli from "@/assets/home-hero-scan-holi.png";
@@ -15,6 +11,12 @@ import { haptics } from "@/lib/haptics";
 import { useGenderPersona } from "@/lib/genderPersona";
 import { notifyPaymentReceived } from "@/lib/notify";
 import { toast } from "sonner";
+
+const ScanPayPanel = lazy(() => import("@/screens/ScanPay").then((m) => ({ default: m.ScanPay })));
+const TransactionsPanel = lazy(() => import("@/screens/Transactions").then((m) => ({ default: m.Transactions })));
+const QuickActionsPanelLazy = lazy(() => import("@/components/QuickActionsPanel").then((m) => ({ default: m.QuickActionsPanel })));
+const NotificationsPanelLazy = lazy(() => import("@/components/NotificationsPanel").then((m) => ({ default: m.NotificationsPanel })));
+const ProfilePanelLazy = lazy(() => import("@/components/ProfilePanel").then((m) => ({ default: m.ProfilePanel })));
 
 interface PersonaOffer {
   id: string;
