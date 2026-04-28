@@ -1271,23 +1271,50 @@ function SlideToPay({ disabled, onComplete }: { disabled: boolean; onComplete: (
     }
   };
 
-  const fillWidth = `${Math.min(100, ((dragX + knobSize + padding * 2) / (trackRef.current?.offsetWidth || 1)) * 100)}%`;
-  const valueNow = Math.round((dragX / (getMaxX() || 1)) * 100);
+  const max = getMaxX();
+  const progress = Math.min(1, dragX / (max || 1));
+  const valueNow = Math.round(progress * 100);
 
   return (
     <div
       ref={trackRef}
-      className="sp-slide-track"
-      style={{ opacity: disabled ? 0.45 : 1 }}
+      className={`sp-slide-track ${disabled ? "sp-slide-track-disabled" : ""} ${completed ? "sp-slide-track-completed" : ""}`}
     >
-      <div className="sp-slide-fill" style={{ width: completed ? "100%" : fillWidth, opacity: dragX > 4 ? 1 : 0 }} />
-      <div className="sp-slide-label" style={{ opacity: dragX > 60 ? 0 : 1 }} aria-hidden="true">
-        {disabled ? "ENTER A VALID AMOUNT" : "SLIDE TO PAY"}
+      <div className="sp-slide-glow" aria-hidden />
+      <div
+        className="sp-slide-fill"
+        style={{
+          transform: `scaleX(${completed ? 1 : progress})`,
+          opacity: dragX > 4 || completed ? 1 : 0,
+        }}
+        aria-hidden
+      />
+      <div
+        className="sp-slide-label"
+        style={{ opacity: completed ? 0 : Math.max(0, 1 - progress * 1.6) }}
+        aria-hidden="true"
+      >
+        {disabled ? "Enter a valid amount" : "Swipe to send"}
       </div>
+
+      {/* Animated chevron arrows hint (right side) */}
+      <div
+        className="sp-slide-hints"
+        style={{ opacity: completed ? 0 : Math.max(0, 1 - progress * 2) }}
+        aria-hidden
+      >
+        <ArrowRight className="sp-slide-hint sp-slide-hint-1 w-5 h-5" />
+        <ArrowRight className="sp-slide-hint sp-slide-hint-2 w-5 h-5" />
+        <ArrowRight className="sp-slide-hint sp-slide-hint-3 w-5 h-5" />
+      </div>
+
       <div
         ref={knobRef}
-        className="sp-slide-knob focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-black"
-        style={{ transform: `translateX(${dragX}px)`, transition: dragging ? "none" : "transform 220ms cubic-bezier(.2,.8,.2,1)" }}
+        className="sp-slide-knob focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
+        style={{
+          transform: `translate3d(${dragX}px, 0, 0)`,
+          transition: dragging ? "none" : "transform 320ms cubic-bezier(.2,.85,.2,1)",
+        }}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
@@ -1295,15 +1322,14 @@ function SlideToPay({ disabled, onComplete }: { disabled: boolean; onComplete: (
         onKeyDown={handleKeyDown}
         role="slider"
         tabIndex={disabled ? -1 : 0}
-        aria-label="Slide to pay. Use arrow keys or press Enter to confirm payment."
+        aria-label="Swipe to send. Use arrow keys or press Enter to confirm payment."
         aria-valuemin={0}
         aria-valuemax={100}
         aria-valuenow={completed ? 100 : valueNow}
         aria-valuetext={completed ? "Payment confirmed" : disabled ? "Disabled — enter a valid amount" : `${valueNow} percent`}
         aria-disabled={disabled || undefined}
       >
-        {completed ? <Check className="w-6 h-6" /> : <ArrowRight className="w-6 h-6" />}
-        {!dragging && !completed && <span className="sp-knob-shine" />}
+        {completed ? <Check className="w-6 h-6" strokeWidth={3} /> : <ArrowRight className="w-6 h-6" strokeWidth={2.5} />}
       </div>
     </div>
   );
