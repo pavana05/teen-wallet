@@ -1648,5 +1648,37 @@ Deno.serve(async (req) => {
     return json({ ok: true });
   }
 
+  // ===============================================================
+  // Admin notifications (in-console bell)
+  // ===============================================================
+  if (action === "admin_notifications_list") {
+    const limit = Math.min(100, Math.max(5, Number(body.limit ?? 30)));
+    const { data, error } = await sb
+      .from("admin_notifications")
+      .select("id,type,priority,title,body,link,read,created_at")
+      .eq("admin_id", me.id)
+      .order("created_at", { ascending: false })
+      .limit(limit);
+    if (error) return json({ error: error.message }, 500);
+    const { count } = await sb
+      .from("admin_notifications")
+      .select("id", { count: "exact", head: true })
+      .eq("admin_id", me.id)
+      .eq("read", false);
+    return json({ items: data ?? [], unread: count ?? 0 });
+  }
+
+  if (action === "admin_notifications_mark_read") {
+    const ids: string[] = Array.isArray(body.ids)
+      ? body.ids.filter((x: unknown) => typeof x === "string").slice(0, 200)
+      : [];
+    let q = sb.from("admin_notifications").update({ read: true }).eq("admin_id", me.id);
+    if (ids.length) q = q.in("id", ids);
+    const { error } = await q;
+    if (error) return json({ error: error.message }, 500);
+    return json({ ok: true });
+  }
+
   return json({ error: "unknown_action" }, 400);
 });
+
