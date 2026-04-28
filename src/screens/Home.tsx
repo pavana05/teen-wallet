@@ -404,8 +404,20 @@ export function Home() {
     }, 420);
   }, []);
 
-  if (view === "scan") return <ScanPay onBack={() => { setView("home"); void fetchTxns(); }} />;
-  if (view === "transactions") return <Transactions onBack={() => { setView("home"); void fetchTxns(); }} />;
+  if (view === "scan") {
+    return (
+      <Suspense fallback={<div className="hp-root flex-1" />}>
+        <ScanPayPanel onBack={() => { setView("home"); void fetchTxns(); }} />
+      </Suspense>
+    );
+  }
+  if (view === "transactions") {
+    return (
+      <Suspense fallback={<div className="hp-root flex-1" />}>
+        <TransactionsPanel onBack={() => { setView("home"); void fetchTxns(); }} />
+      </Suspense>
+    );
+  }
 
   return (
     <div
@@ -764,9 +776,11 @@ export function Home() {
         </div>
       )}
 
-      {quickAction && <QuickActionsPanel kind={quickAction} onClose={() => setQuickAction(null)} />}
-      {showNotifs && <NotificationsPanel onClose={() => setShowNotifs(false)} />}
-      {showProfile && <ProfilePanel onClose={closeProfile} />}
+      <Suspense fallback={null}>
+        {quickAction && <QuickActionsPanelLazy kind={quickAction} onClose={() => setQuickAction(null)} />}
+        {showNotifs && <NotificationsPanelLazy onClose={() => setShowNotifs(false)} />}
+        {showProfile && <ProfilePanelLazy onClose={closeProfile} />}
+      </Suspense>
     </div>
   );
 }
