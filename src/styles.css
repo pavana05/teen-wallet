@@ -8110,7 +8110,7 @@ html.motion-off    .otp-resend-ring svg circle { transition: none !important; }
   animation: sp3-stage-in 380ms cubic-bezier(.22,1,.36,1) both;
 }
 .sp3-method-row {
-  display: flex; align-items: center; justify-content: space-between;
+  display: flex; align-items: flex-start; justify-content: space-between;
   gap: 12px;
   margin-bottom: 12px;
   font-size: 13px;
@@ -8147,6 +8147,7 @@ html.motion-off    .otp-resend-ring svg circle { transition: none !important; }
   flex: 0 0 auto;
   background: transparent; border: 0; color: rgba(255,255,255,.65);
   font-weight: 600; font-size: 12px;
+  min-height: 38px;
   display: inline-flex; align-items: center; gap: 4px;
   cursor: pointer;
 }
