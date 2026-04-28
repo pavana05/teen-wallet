@@ -27,6 +27,7 @@ function AdminLayout() {
   const [collapsed, setCollapsed] = useState(false);
   const [theme, setTheme] = useState<AdminTheme>("dark");
   const [density, setDensity] = useState<AdminDensity>("comfortable");
+  const [adminToolsReady, setAdminToolsReady] = useState(false);
   const { admin, loading, logout, expiresAt } = useAdminSession();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const isLoginRoute = pathname === "/admin/login";
@@ -57,6 +58,18 @@ function AdminLayout() {
       nav({ to: "/admin/login" });
     }
   }, [mounted, loading, admin, isLoginRoute, nav]);
+  useEffect(() => {
+    if (!mounted || !admin || isLoginRoute) return;
+    const start = () => setAdminToolsReady(true);
+    const idle = (window as any).requestIdleCallback as ((cb: () => void, opts?: { timeout?: number }) => number) | undefined;
+    const cancelIdle = (window as any).cancelIdleCallback as ((id: number) => void) | undefined;
+    if (idle) {
+      const id = idle(start, { timeout: 2500 });
+      return () => cancelIdle?.(id);
+    }
+    const id = window.setTimeout(start, 1800);
+    return () => window.clearTimeout(id);
+  }, [admin, isLoginRoute, mounted]);
 
   if (!mounted) return <div className="admin-shell" suppressHydrationWarning />;
   const shellAttrs = { "data-admin-theme": theme, "data-admin-density": density } as Record<string, string>;
@@ -240,10 +253,12 @@ function AdminLayout() {
           <Outlet />
         </main>
       </div>
-      <Suspense fallback={null}>
-        <PerfOverlay />
-        <CommandPalette />
-      </Suspense>
+      {adminToolsReady && (
+        <Suspense fallback={null}>
+          <PerfOverlay />
+          <CommandPalette />
+        </Suspense>
+      )}
     </div>
   );
 }
