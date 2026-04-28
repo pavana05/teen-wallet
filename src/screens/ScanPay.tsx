@@ -1646,7 +1646,7 @@ function MyQrSheet({ onClose }: { onClose: () => void }) {
 }
 
 
-function SlideToPay({ disabled, onComplete }: { disabled: boolean; onComplete: () => void }) {
+function SlideToPay({ disabled, onComplete, amount }: { disabled: boolean; onComplete: () => void; amount?: number }) {
   const trackRef = useRef<HTMLDivElement | null>(null);
   const knobRef = useRef<HTMLDivElement | null>(null);
   const [dragX, setDragX] = useState(0);
