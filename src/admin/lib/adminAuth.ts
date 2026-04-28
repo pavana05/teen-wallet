@@ -87,7 +87,6 @@ export async function callAdminFn<T = unknown>(payload: Record<string, unknown>)
       apikey: ANON,
       Authorization: `Bearer ${ANON}`,
     };
-    if (requiresAdminSession && token) headers["X-Admin-Session-Token"] = token;
     return fetch(FN_URL, {
       method: "POST",
       headers,
