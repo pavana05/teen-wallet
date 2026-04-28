@@ -2162,7 +2162,7 @@ function SlideToPay({ disabled, onComplete, amount }: { disabled: boolean; onCom
   const [completed, setCompleted] = useState(false);
   const startX = useRef(0);
 
-  const knobSize = 56;
+  const knobSize = 64;
   const padding = 4;
 
   const getMaxX = () => {
