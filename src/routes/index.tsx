@@ -1,34 +1,18 @@
 import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useApp, type Stage } from "@/lib/store";
 import { PhoneShell } from "@/components/PhoneShell";
 import { shouldShowReferralPrompt } from "@/lib/referral";
 import { HomeSkeleton } from "@/components/BootSkeletons";
 import { recordRedirect } from "@/lib/redirectLog";
+import { runSelfCheck, stageRank, PERMISSIONS_DONE_KEY, type SelfCheckResult } from "@/lib/bootSelfCheck";
+import { StartupErrorScreen } from "@/components/StartupErrorScreen";
 
-const PERMISSIONS_DONE_KEY = "tw_permissions_seen_v1";
-const PERSIST_KEY = "teenwallet-app";
-
-const stageRank: Record<Stage, number> = {
-  STAGE_0: 0, STAGE_1: 1, STAGE_2: 2, STAGE_3: 3, STAGE_4: 4, STAGE_5: 5,
-};
-
-/** Synchronously read persisted store snapshot from localStorage. */
-function readPersisted(): { stage: Stage; userId: string | null } {
-  if (typeof window === "undefined") return { stage: "STAGE_0", userId: null };
-  try {
-    const raw = window.localStorage.getItem(PERSIST_KEY);
-    if (!raw) return { stage: "STAGE_0", userId: null };
-    const parsed = JSON.parse(raw) as { state?: { stage?: Stage; userId?: string | null } };
-    return {
-      stage: parsed?.state?.stage ?? "STAGE_0",
-      userId: parsed?.state?.userId ?? null,
-    };
-  } catch {
-    return { stage: "STAGE_0", userId: null };
-  }
-}
+// Module-level flag set by beforeLoad when the self-check fails. The
+// component reads it on first render to decide whether to show the
+// startup error screen instead of attempting a redirect.
+let pendingSelfCheckFailure: SelfCheckResult | null = null;
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -37,17 +21,28 @@ export const Route = createFileRoute("/")({
       { name: "description", content: "India's first teen-first UPI wallet. Aadhaar-only KYC. Scan, pay, and earn rewards in seconds." },
     ],
   }),
-  // Synchronous redirect on the client based on persisted state. This runs
-  // BEFORE the component mounts, so logged-in returning users go straight to
-  // /home with zero flash of onboarding. The /home guard re-validates the
-  // live session and bounces them to /onboarding if it has expired.
+  // Synchronous boot decision: validate consistency, then redirect.
+  // If the self-check finds issues, do NOT redirect — render Index() which
+  // will show the one-tap recovery screen.
   beforeLoad: () => {
     if (typeof window === "undefined") return; // SSR: render Index() which mounts client effect
-    const { stage, userId } = readPersisted();
-    const permsSeen = (() => {
-      try { return window.localStorage.getItem(PERMISSIONS_DONE_KEY) === "1"; }
-      catch { return false; }
-    })();
+
+    const check = runSelfCheck();
+    if (!check.ok) {
+      pendingSelfCheckFailure = check;
+      recordRedirect({
+        from: "boot:/",
+        to: "/(error)",
+        stage: check.snapshot.stage,
+        session: check.snapshot.hasSession,
+        reason: `selfcheck_fail:${check.issues[0]?.code ?? "unknown"}`,
+      });
+      return; // fall through to component, which renders StartupErrorScreen
+    }
+
+    pendingSelfCheckFailure = null;
+    const { stage, userId } = check.snapshot;
+    const permsSeen = check.snapshot.permsSeen;
     const referralPending = shouldShowReferralPrompt();
     const target: "/home" | "/onboarding" =
       (userId && stageRank[stage] >= stageRank["STAGE_5"] && permsSeen && !referralPending)
@@ -65,12 +60,14 @@ export const Route = createFileRoute("/")({
   component: Index,
 });
 
-// Fallback component — only ever rendered during SSR (where beforeLoad bails
-// out because there's no window). On the client, beforeLoad always redirects.
+// Fallback component — rendered during SSR (where beforeLoad bails out)
+// or when the startup self-check fails on the client.
 function Index() {
   const navigate = useNavigate();
+  const [failure] = useState<SelfCheckResult | null>(() => pendingSelfCheckFailure);
 
   useEffect(() => {
+    if (failure) return; // self-check failed — show error screen, don't redirect.
     let cancelled = false;
     (async () => {
       let target: "/onboarding" | "/home" = "/onboarding";
@@ -104,7 +101,11 @@ function Index() {
       void navigate({ to: target, replace: true });
     })();
     return () => { cancelled = true; };
-  }, [navigate]);
+  }, [navigate, failure]);
+
+  if (failure) {
+    return <StartupErrorScreen result={failure} />;
+  }
 
   return (
     <PhoneShell>
@@ -112,3 +113,11 @@ function Index() {
     </PhoneShell>
   );
 }
+
+// Used by tests/devtools to clear cached failure between runs.
+export function __resetBootSelfCheckForTests() {
+  pendingSelfCheckFailure = null;
+}
+
+// Re-export for tests.
+export { type Stage };
