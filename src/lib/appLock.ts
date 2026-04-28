@@ -90,12 +90,35 @@ export async function callAppLock<T = unknown>(
   const { data: sess } = await supabase.auth.getSession();
   const accessToken = sess.session?.access_token;
   if (!accessToken) return { data: null, error: { message: "Sign in required" } };
-  const { data, error } = await supabase.functions.invoke("app-lock", {
-    headers: { Authorization: `Bearer ${accessToken}` },
-    body,
-  });
+
+  // supabase-js logs `FunctionsHttpError: Edge function returned 401...` to
+  // console.error for any non-2xx response. For app-lock, non-2xx (wrong PIN,
+  // cooldown, etc.) is *expected* business logic — not a runtime error. Silence
+  // the noise during this single call so our global error buffer / monitoring
+  // doesn't flag a wrong-PIN entry as a crash.
+  const origError = console.error;
+  console.error = (...args: unknown[]) => {
+    const first = args[0];
+    const msg = typeof first === "string" ? first : (first instanceof Error ? first.message : "");
+    if (msg.includes("Edge function returned") || msg.includes("FunctionsHttpError")) return;
+    origError(...args);
+  };
+
+  type InvokeError = { message: string; context?: Response };
+  let data: unknown = null;
+  let error: InvokeError | null = null;
+  try {
+    const res = await supabase.functions.invoke("app-lock", {
+      headers: { Authorization: `Bearer ${accessToken}` },
+      body,
+    });
+    data = res.data;
+    error = (res.error as InvokeError | null) ?? null;
+  } finally {
+    console.error = origError;
+  }
+
   if (error) {
-    // supabase-js stuffs the response into error.context; try to surface server message.
     let msg = error.message;
     let payload: unknown = undefined;
     try {
