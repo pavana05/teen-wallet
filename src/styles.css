@@ -1972,10 +1972,11 @@ button:focus-visible .hp-tile{
   width: 110px; height: 110px;
   display: flex; align-items: center; justify-content: center;
   animation: sp-pay-orb-bob 3.2s ease-in-out infinite;
+  will-change: transform;
 }
 @keyframes sp-pay-orb-bob {
-  0%,100% { transform: translateY(0); }
-  50%     { transform: translateY(-6px); }
+  0%,100% { transform: translate3d(0, 0, 0); }
+  50%     { transform: translate3d(0, -6px, 0); }
 }
 .sp-pay-orb {
   position: relative;
@@ -1990,23 +1991,28 @@ button:focus-visible .hp-tile{
     0 0 140px rgba(120,130,220,.45),
     inset -8px -10px 22px rgba(80,80,140,.35),
     inset 6px 8px 18px rgba(255,255,255,.7);
+  /* transform-only pulse for 60fps; aura handled by ::after via opacity */
   animation: sp-pay-orb-pulse 1.8s ease-in-out infinite;
+  will-change: transform;
+}
+.sp-pay-orb::after {
+  content: "";
+  position: absolute; inset: -14px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255,255,255,.5) 0%, rgba(200,210,255,.3) 35%, transparent 70%);
+  opacity: 0;
+  filter: blur(10px);
+  animation: sp-pay-orb-aura 1.8s ease-in-out infinite;
+  pointer-events: none;
+  will-change: opacity;
 }
 @keyframes sp-pay-orb-pulse {
-  0%,100% { box-shadow:
-    0 0 0 1px rgba(255,255,255,.6),
-    0 0 30px rgba(255,255,255,.55),
-    0 0 80px rgba(190,200,255,.55),
-    0 0 140px rgba(120,130,220,.45),
-    inset -8px -10px 22px rgba(80,80,140,.35),
-    inset 6px 8px 18px rgba(255,255,255,.7); }
-  50%     { box-shadow:
-    0 0 0 1px rgba(255,255,255,.7),
-    0 0 50px rgba(255,255,255,.85),
-    0 0 110px rgba(200,210,255,.7),
-    0 0 180px rgba(140,150,240,.55),
-    inset -8px -10px 22px rgba(80,80,140,.35),
-    inset 6px 8px 18px rgba(255,255,255,.85); }
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.045); }
+}
+@keyframes sp-pay-orb-aura {
+  0%, 100% { opacity: 0; }
+  50%      { opacity: 1; }
 }
 .sp-pay-orb-spec {
   position: absolute;
@@ -2014,7 +2020,6 @@ button:focus-visible .hp-tile{
   width: 28%; height: 22%;
   border-radius: 50%;
   background: radial-gradient(circle, rgba(255,255,255,.95), transparent 70%);
-  filter: blur(.6px);
 }
 .sp-pay-orb-ring {
   position: absolute;
@@ -2023,6 +2028,7 @@ button:focus-visible .hp-tile{
   border: 1px solid rgba(255,255,255,.18);
   border-top-color: rgba(255,255,255,.7);
   animation: sp-pay-orb-spin 2.4s linear infinite;
+  will-change: transform;
 }
 .sp-pay-orb-ring-2 {
   width: 138px; height: 138px;
@@ -2035,15 +2041,16 @@ button:focus-visible .hp-tile{
   position: absolute;
   bottom: -10px; left: 50%;
   width: 70px; height: 12px;
-  transform: translateX(-50%);
+  transform: translate3d(-50%, 0, 0);
   border-radius: 50%;
   background: radial-gradient(ellipse, rgba(120,130,220,.5), transparent 70%);
   filter: blur(6px);
   animation: sp-pay-shadow-pulse 1.8s ease-in-out infinite;
+  will-change: transform, opacity;
 }
 @keyframes sp-pay-shadow-pulse {
-  0%,100% { transform: translateX(-50%) scale(1); opacity: .8; }
-  50%     { transform: translateX(-50%) scale(.85); opacity: .55; }
+  0%,100% { transform: translate3d(-50%, 0, 0) scale(1);   opacity: .8; }
+  50%     { transform: translate3d(-50%, 0, 0) scale(.85); opacity: .55; }
 }
 .sp-pay-mote {
   position: absolute;
