@@ -26,6 +26,7 @@ import {
   findResumableAttempt,
   type AttemptSnapshot,
 } from "@/lib/paymentAttempts.functions";
+import { sampleFrames } from "@/lib/fpsGuard";
 
 const SCANPAY_PERSIST_KEY = "tw-scanpay-flow-v1";
 const SCANPAY_ATTEMPT_KEY = "tw-scanpay-attempt-id-v1";
@@ -1224,11 +1225,17 @@ function SlideToPay({ disabled, onComplete }: { disabled: boolean; onComplete: (
     setTimeout(onComplete, 220);
   }, [onComplete]);
 
+  // FPS guard: starts when the user begins dragging, stops on release. If the
+  // drag interaction janks (>30% dropped frames over the gesture) the guard
+  // auto-reduces motion app-wide so the next slide is buttery on this device.
+  const fpsStopRef = useRef<null | (() => unknown)>(null);
+
   const handlePointerDown = (e: React.PointerEvent) => {
     if (disabled || completed) return;
     setDragging(true);
     startX.current = e.clientX - dragX;
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    fpsStopRef.current = sampleFrames("slide", { minSamples: 20, dropThresholdPct: 0.30 });
   };
   const handlePointerMove = (e: React.PointerEvent) => {
     if (!dragging) return;
@@ -1239,6 +1246,8 @@ function SlideToPay({ disabled, onComplete }: { disabled: boolean; onComplete: (
   const handlePointerUp = () => {
     if (!dragging) return;
     setDragging(false);
+    fpsStopRef.current?.();
+    fpsStopRef.current = null;
     const max = getMaxX();
     if (dragX >= max - 6) {
       finish();
@@ -1246,6 +1255,7 @@ function SlideToPay({ disabled, onComplete }: { disabled: boolean; onComplete: (
       setDragX(0);
     }
   };
+
 
   // Keyboard accessibility — arrow keys nudge the knob, Enter/Space confirms.
   // This matches WAI-ARIA slider pattern and lets keyboard-only users pay.
@@ -1344,6 +1354,14 @@ function ProcessingView({ amount }: { amount: number }) {
   // The floor grid is rendered in CSS (perspective transform on a tiled gradient
   // panel). The colored ribbons are SVG sine paths animated via stroke-dashoffset
   // so they appear to draw across the floor in a smooth, hand-drawn motion.
+  //
+  // FPS guard: sample frame timing during this view. If sustained jank is
+  // detected the guard auto-reduces motion app-wide for the rest of the session.
+  useEffect(() => {
+    const stop = sampleFrames("processing", { minSamples: 60, dropThresholdPct: 0.22 });
+    return () => { stop(); };
+  }, []);
+
   return (
     <div className="sp-pay-root" role="status" aria-live="polite" aria-label={`Processing payment of ${amount} rupees`}>
       {/* Soft top vignette to add depth */}
