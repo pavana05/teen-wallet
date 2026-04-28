@@ -1574,7 +1574,7 @@ function SuccessView({
           <span className="sp-success-ring" />
           <span className="sp-success-ring delay" />
           <div className="sp-success-badge">
-            <svg viewBox="0 0 64 64" width="48" height="48" fill="none" stroke="#eafff1" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <svg viewBox="0 0 64 64" width="48" height="48" fill="none" stroke="#1a1208" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d="M16 33 L28 45 L48 22" className="sp-success-check" />
             </svg>
           </div>
