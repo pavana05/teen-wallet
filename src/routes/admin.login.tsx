@@ -12,7 +12,6 @@ export const Route = createFileRoute("/admin/login")({
 type Stage = "email" | "set_password" | "enroll_totp" | "totp";
 
 function AdminLogin() {
-  const nav = useNavigate();
   const [stage, setStage] = useState<Stage>("email");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
