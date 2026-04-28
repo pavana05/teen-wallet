@@ -3,6 +3,7 @@ import { useEffect, useState, useCallback, useRef } from "react";
 const SESSION_KEY = "tw_admin_session_v1";
 const FN_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/admin-auth`;
 const ANON = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
+const SESSIONLESS_ACTIONS = new Set(["login_password", "set_password", "verify_totp", "totp_reset_login"]);
 
 export type AdminRole =
   | "super_admin"
@@ -63,23 +64,30 @@ export class AdminFnError extends Error {
 export async function callAdminFn<T = unknown>(payload: Record<string, unknown>): Promise<T> {
   // Lazy import to avoid pulling perfBus into modules that don't already use it.
   const { recordRequest } = await import("./perfBus");
-  recordRequest(typeof payload.action === "string" ? payload.action : undefined);
+  const action = typeof payload.action === "string" ? payload.action : undefined;
+  recordRequest(action);
 
   // Auto-attach the stored sessionToken if the caller didn't supply one.
   // Almost every admin action requires it, so missing it produced "unauthorized" 401s.
   let body = payload;
-  if (typeof body.sessionToken !== "string" || !body.sessionToken) {
-    const s = readAdminSession();
-    if (s?.sessionToken) body = { ...body, sessionToken: s.sessionToken };
+  const providedSessionToken = typeof body.sessionToken === "string" && body.sessionToken ? body.sessionToken : "";
+  const storedSessionToken = providedSessionToken ? "" : readAdminSession()?.sessionToken ?? "";
+  const sessionToken = providedSessionToken || storedSessionToken;
+  const shouldAttachSession = !!sessionToken && !SESSIONLESS_ACTIONS.has(action ?? "");
+  if (shouldAttachSession && !providedSessionToken) {
+    body = { ...body, sessionToken };
   }
+
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    apikey: ANON,
+    Authorization: `Bearer ${ANON}`,
+  };
+  if (shouldAttachSession) headers["X-Admin-Session-Token"] = sessionToken;
 
   const res = await fetch(FN_URL, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      apikey: ANON,
-      Authorization: `Bearer ${ANON}`,
-    },
+    headers,
     body: JSON.stringify(body),
   });
   const json = (await res.json().catch(() => ({}))) as Record<string, unknown>;
