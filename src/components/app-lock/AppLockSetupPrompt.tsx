@@ -1,7 +1,7 @@
 // One-time bottom sheet shown after login if App Lock isn't set up yet.
 // Dismissed forever via the dismiss_app_lock_prompt() Postgres function.
 import { useEffect, useState } from "react";
-import { ShieldCheck, X } from "lucide-react";
+import { ScanFace } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAppLock } from "@/lib/appLock";
 import { AppLockSetup } from "./AppLockSetup";
@@ -21,6 +21,20 @@ export function AppLockSetupPrompt() {
     return () => clearTimeout(t);
   }, [ready, status]);
 
+  // Lock background scroll while open + close on Escape.
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") void dismiss(); };
+    window.addEventListener("keydown", onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prev;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
   const dismiss = async () => {
     setOpen(false);
     await supabase.rpc("dismiss_app_lock_prompt");
@@ -35,41 +49,53 @@ export function AppLockSetupPrompt() {
 
   return (
     <div
-      className="absolute inset-0 z-[140] flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-md tw-fade-in"
+      className="absolute inset-0 z-[140] flex items-center justify-center px-5 bio-prompt-backdrop"
       onClick={dismiss}
       role="dialog"
       aria-modal="true"
       aria-labelledby="al-prompt-title"
+      aria-describedby="al-prompt-desc"
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="w-full sm:max-w-[92%] bg-[#0e1424] text-white rounded-t-3xl sm:rounded-3xl border border-white/10 p-6 pb-8 tw-sheet-in"
+        className="bio-prompt-card w-full max-w-[360px]"
       >
-        <div className="flex items-start justify-between mb-5">
-          <div className="w-12 h-12 rounded-2xl bg-emerald-400/15 flex items-center justify-center">
-            <ShieldCheck className="w-6 h-6 text-emerald-300" strokeWidth={1.6} />
+        {/* Soft ambient glow underneath the card */}
+        <span className="bio-prompt-glow" aria-hidden />
+
+        {/* Biometric icon */}
+        <div className="bio-prompt-icon-wrap">
+          <span className="bio-prompt-icon-pulse" aria-hidden />
+          <span className="bio-prompt-icon-pulse bio-prompt-icon-pulse-2" aria-hidden />
+          <div className="bio-prompt-icon" aria-hidden>
+            <ScanFace className="w-12 h-12" strokeWidth={1.6} />
           </div>
-          <button onClick={dismiss} className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center" aria-label="Close">
-            <X className="w-4 h-4" />
-          </button>
         </div>
 
-        <h2 id="al-prompt-title" className="text-lg font-semibold">Lock your wallet with a PIN</h2>
-        <p className="text-sm text-white/60 mt-1.5 leading-relaxed">
-          Add a quick PIN (and fingerprint) so no one can open your wallet — even if they get your phone after you've used GPay or PhonePe.
+        <h2 id="al-prompt-title" className="bio-prompt-title">
+          Enable biometric lock
+        </h2>
+        <p id="al-prompt-desc" className="bio-prompt-desc">
+          Unlock your wallet instantly with Face ID or fingerprint — and keep
+          your money safe even if someone gets your phone.
         </p>
 
-        <div className="flex flex-col gap-2.5 mt-5">
+        <div className="bio-prompt-actions">
           <button
             type="button"
             onClick={() => setShowSetup(true)}
-            className="h-12 rounded-2xl bg-white text-black font-medium"
-          >Set up App Lock</button>
+            className="bio-prompt-cta"
+            autoFocus
+          >
+            <span>Enable biometric</span>
+          </button>
           <button
             type="button"
             onClick={dismiss}
-            className="h-12 rounded-2xl bg-white/5 text-white/70 text-sm"
-          >Not now</button>
+            className="bio-prompt-skip"
+          >
+            Maybe later
+          </button>
         </div>
       </div>
     </div>

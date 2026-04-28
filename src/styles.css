@@ -7070,3 +7070,186 @@ html.motion-off    .otp-resend-ring svg circle { transition: none !important; }
 @media (prefers-reduced-motion: reduce) {
   .sp-pay-root, .sp-handoff-arc, .sp2-frame-locked::after { animation: none !important; }
 }
+
+/* ============================================================
+   Biometric setup prompt — premium violet card with buttery
+   scale-in + glowing Face ID icon. Matches reference mock.
+   ============================================================ */
+@keyframes bio-prompt-backdrop-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes bio-prompt-card-in {
+  from { opacity: 0; transform: translate3d(0, 24px, 0) scale(.94); }
+  to   { opacity: 1; transform: translate3d(0, 0, 0)  scale(1); }
+}
+@keyframes bio-prompt-icon-in {
+  from { opacity: 0; transform: scale(.6); filter: blur(8px); }
+  to   { opacity: 1; transform: scale(1);  filter: blur(0); }
+}
+@keyframes bio-prompt-pulse {
+  0%   { opacity: .55; transform: scale(.92); }
+  60%  { opacity: 0;   transform: scale(1.45); }
+  100% { opacity: 0;   transform: scale(1.6); }
+}
+@keyframes bio-prompt-glow-pulse {
+  0%, 100% { opacity: .55; transform: translate3d(-50%, 0, 0) scale(1); }
+  50%      { opacity: .9;  transform: translate3d(-50%, 0, 0) scale(1.08); }
+}
+
+.bio-prompt-backdrop {
+  background: rgba(2, 2, 6, .55);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  animation: bio-prompt-backdrop-in 280ms cubic-bezier(.2,.8,.2,1) forwards;
+  will-change: opacity;
+}
+
+.bio-prompt-card {
+  position: relative;
+  isolation: isolate;
+  padding: 32px 26px 22px;
+  border-radius: 36px;
+  text-align: center;
+  color: #fff;
+  background:
+    radial-gradient(120% 60% at 50% 100%, rgba(124, 78, 240, .35) 0%, transparent 60%),
+    linear-gradient(180deg, #1a1132 0%, #120a26 50%, #0a0518 100%);
+  border: 1px solid rgba(167, 139, 250, .14);
+  box-shadow:
+    0 30px 80px -24px rgba(91, 33, 182, .55),
+    0 12px 30px -16px rgba(0, 0, 0, .65),
+    inset 0 1px 0 rgba(255, 255, 255, .06);
+  animation: bio-prompt-card-in 460ms cubic-bezier(.2,.85,.25,1.05) both;
+  will-change: transform, opacity;
+  overflow: hidden;
+}
+
+/* Soft underglow that bleeds out the bottom of the card */
+.bio-prompt-glow {
+  position: absolute;
+  left: 50%; bottom: -34px;
+  width: 70%; height: 60px;
+  transform: translate3d(-50%, 0, 0);
+  border-radius: 50%;
+  background: radial-gradient(ellipse at center, rgba(139, 92, 246, .65), transparent 70%);
+  filter: blur(22px);
+  pointer-events: none;
+  animation: bio-prompt-glow-pulse 3.4s ease-in-out infinite;
+  will-change: transform, opacity;
+  z-index: -1;
+}
+
+.bio-prompt-icon-wrap {
+  position: relative;
+  width: 108px; height: 108px;
+  margin: 4px auto 22px;
+  display: flex; align-items: center; justify-content: center;
+}
+.bio-prompt-icon {
+  position: relative;
+  width: 96px; height: 96px;
+  border-radius: 26px;
+  display: flex; align-items: center; justify-content: center;
+  color: #c4b5fd;
+  background:
+    radial-gradient(circle at 30% 25%, rgba(167, 139, 250, .22), transparent 60%),
+    linear-gradient(160deg, rgba(76, 49, 140, .55), rgba(33, 18, 73, .85));
+  border: 1px solid rgba(167, 139, 250, .28);
+  box-shadow:
+    0 0 0 1px rgba(167, 139, 250, .12),
+    0 0 30px rgba(139, 92, 246, .55),
+    0 0 70px rgba(124, 58, 237, .35),
+    inset 0 1px 0 rgba(255, 255, 255, .08);
+  filter: drop-shadow(0 0 12px rgba(167, 139, 250, .55));
+  animation: bio-prompt-icon-in 520ms cubic-bezier(.2,.9,.25,1.1) 80ms both;
+}
+.bio-prompt-icon-pulse {
+  position: absolute; inset: 6px;
+  border-radius: 28px;
+  border: 1.5px solid rgba(167, 139, 250, .55);
+  animation: bio-prompt-pulse 2.4s ease-out infinite;
+  pointer-events: none;
+  will-change: transform, opacity;
+}
+.bio-prompt-icon-pulse-2 { animation-delay: 1.2s; }
+
+.bio-prompt-title {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -.01em;
+  color: #f5f3ff;
+}
+.bio-prompt-desc {
+  margin-top: 10px;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: rgba(229, 222, 255, .68);
+  padding: 0 4px;
+}
+
+.bio-prompt-actions {
+  margin-top: 26px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.bio-prompt-cta {
+  position: relative;
+  height: 58px;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #0a0518;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -.005em;
+  box-shadow:
+    0 14px 36px -10px rgba(255, 255, 255, .35),
+    0 4px 14px -6px rgba(139, 92, 246, .55),
+    inset 0 -2px 4px rgba(0, 0, 0, .06),
+    inset 0 1px 0 rgba(255, 255, 255, .9);
+  transition: transform 160ms cubic-bezier(.2,.85,.2,1), box-shadow 220ms ease;
+  will-change: transform;
+}
+.bio-prompt-cta:hover {
+  box-shadow:
+    0 18px 44px -10px rgba(255, 255, 255, .45),
+    0 6px 18px -6px rgba(139, 92, 246, .7),
+    inset 0 -2px 4px rgba(0, 0, 0, .06),
+    inset 0 1px 0 rgba(255, 255, 255, .95);
+}
+.bio-prompt-cta:active { transform: scale(.985); }
+.bio-prompt-cta:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 3px rgba(167, 139, 250, .55),
+    0 14px 36px -10px rgba(255, 255, 255, .35);
+}
+
+.bio-prompt-skip {
+  height: 48px;
+  background: transparent;
+  color: rgba(229, 222, 255, .72);
+  font-size: 15px;
+  font-weight: 600;
+  border-radius: 999px;
+  transition: color 160ms ease, background 160ms ease;
+}
+.bio-prompt-skip:hover { color: #fff; background: rgba(255, 255, 255, .04); }
+.bio-prompt-skip:focus-visible {
+  outline: none;
+  background: rgba(255, 255, 255, .06);
+  box-shadow: 0 0 0 2px rgba(167, 139, 250, .4);
+}
+
+[data-theme="light"] .bio-prompt-backdrop { background: rgba(20, 12, 40, .45); }
+[data-theme="light"] .bio-prompt-desc { color: rgba(229, 222, 255, .78); }
+
+@media (prefers-reduced-motion: reduce) {
+  .bio-prompt-backdrop,
+  .bio-prompt-card,
+  .bio-prompt-icon,
+  .bio-prompt-icon-pulse,
+  .bio-prompt-glow { animation: none !important; }
+}
