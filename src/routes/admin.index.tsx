@@ -238,24 +238,24 @@ function KpiCard({ icon, label, value, delta, deltaLabel, spark, warn, danger, m
   const color = danger ? t.danger : warn ? t.warn : "var(--a-text)";
   const deltaColor = (delta ?? 0) >= 0 ? t.success : t.danger;
   return (
-    <div className="a-surface" style={{ padding: 14 }}>
+    <div className="a-kpi">
       <div className="a-label" style={{ display: "flex", alignItems: "center", gap: 6, color: "var(--a-muted)" }}>
         <span style={{ color: "var(--a-accent)" }}>{icon}</span> {label}
       </div>
-      <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginTop: 6, gap: 8 }}>
-        <div className={mono ? "a-mono" : ""} style={{ fontSize: 22, fontWeight: 700, color }}>{value}</div>
+      <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginTop: 8, gap: 8 }}>
+        <div className={mono ? "a-mono" : ""} style={{ fontSize: 24, fontWeight: 700, letterSpacing: "-0.01em", color }}>{value}</div>
         {spark && spark.length > 0 && (
-          <div style={{ width: 80, height: 28 }}>
+          <div style={{ width: 88, height: 30 }}>
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={spark}>
-                <Area dataKey="v" stroke={t.accent} fill={t.accent} fillOpacity={0.2} strokeWidth={1.5} />
+                <Area dataKey="v" stroke={t.accent} fill={t.accent} fillOpacity={0.18} strokeWidth={1.5} />
               </AreaChart>
             </ResponsiveContainer>
           </div>
         )}
       </div>
       {typeof delta === "number" && (
-        <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 4, fontSize: 11, color: deltaColor }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 6, fontSize: 11, color: deltaColor }}>
           {delta >= 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
           <span className="a-mono">{delta}</span>
           <span style={{ color: "var(--a-muted)" }}>{deltaLabel}</span>
