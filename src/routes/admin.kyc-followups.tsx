@@ -7,7 +7,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Loader2, RefreshCw, Search, MessageCircle, MessageSquare, Copy, Check,
-  ExternalLink, Filter, Users as UsersIcon, Send,
+  ExternalLink, Filter, Users as UsersIcon, Send, Clock, AlertCircle, FileText, Save, X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { callAdminFn, can, useAdminSession } from "@/admin/lib/adminAuth";
@@ -19,16 +19,21 @@ export const Route = createFileRoute("/admin/kyc-followups")({
 
 type Stage = "STAGE_3" | "STAGE_4" | "STAGE_5";
 type KycStatus = "not_started" | "pending" | "approved" | "rejected";
+type TemplateStage = "STAGE_3" | "STAGE_4_PENDING" | "STAGE_4_REJECTED" | "STAGE_4_OTHER" | "STAGE_5";
 
 interface FollowupRow {
   id: string;
   full_name: string | null;
   phone: string | null;
+  phone_normalized: string | null;
+  phone_valid: boolean;
+  phone_invalid_reason: string | null;
   kyc_status: KycStatus;
   onboarding_stage: Stage;
   created_at: string;
   updated_at: string;
   aadhaar_last4: string | null;
+  last_reminder_at: string | null;
 }
 
 interface ListResp {
@@ -36,6 +41,15 @@ interface ListResp {
   total: number;
   page: number;
   pageSize: number;
+}
+
+interface TemplateRow {
+  id: string;
+  stage: TemplateStage;
+  title: string;
+  body: string;
+  updated_by_email: string | null;
+  updated_at: string;
 }
 
 const STAGE_LABEL: Record<Stage, string> = {
@@ -49,6 +63,30 @@ const STAGE_PROGRESS: Record<Stage, { step: number; total: number }> = {
   STAGE_4: { step: 2, total: 3 },
   STAGE_5: { step: 3, total: 3 },
 };
+
+// 24h default cooldown — configurable via the UI selector.
+const DEFAULT_COOLDOWN_HOURS = 24;
+
+// Decide which template stage a row maps to.
+function templateStageFor(row: FollowupRow): TemplateStage {
+  if (row.onboarding_stage === "STAGE_3") return "STAGE_3";
+  if (row.onboarding_stage === "STAGE_5") return "STAGE_5";
+  if (row.kyc_status === "pending") return "STAGE_4_PENDING";
+  if (row.kyc_status === "rejected") return "STAGE_4_REJECTED";
+  return "STAGE_4_OTHER";
+}
+
+function invalidPhoneLabel(reason: string | null): string {
+  switch (reason) {
+    case "missing": return "No phone number on file";
+    case "empty": return "Phone is empty after normalisation";
+    case "bad_length": return "Phone has wrong number of digits";
+    case "bad_in_length": return "Indian number isn't 10 digits";
+    case "bad_in_prefix": return "Indian mobile must start with 6–9";
+    default: return "Phone is invalid";
+  }
+}
+
 
 // ---------- Message builder -------------------------------------------------
 
