@@ -253,55 +253,47 @@ interface DockTabProps {
   onClick?: () => void;
 }
 
-const DockTab = (() => {
-  // forwardRef wrapper so the parent can measure each tab for the indicator.
-  const inner = (
-    { icon: Icon, label, active, collapsed, onClick }: DockTabProps,
-    ref: React.Ref<HTMLButtonElement>,
-  ) => {
-    // Per-tap pulse key — increments on each click so the icon-pulse
-    // animation re-triggers even when pressing the same tab twice.
-    const [pulseKey, setPulseKey] = useState(0);
+const DockTab = forwardRef<HTMLButtonElement, DockTabProps>(function DockTab(
+  { icon: Icon, label, active, collapsed, onClick },
+  ref,
+) {
+  // Per-tap pulse key — increments on each click so the icon-pulse
+  // animation re-triggers even when pressing the same tab twice.
+  const [pulseKey, setPulseKey] = useState(0);
 
-    const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
-      // Spawn a soft ripple at the press location
-      const btn = e.currentTarget;
-      const rect = btn.getBoundingClientRect();
-      const ripple = document.createElement("span");
-      ripple.className = "fd-tab-ripple";
-      ripple.style.left = `${e.clientX - rect.left}px`;
-      ripple.style.top = `${e.clientY - rect.top}px`;
-      btn.appendChild(ripple);
-      window.setTimeout(() => ripple.remove(), 620);
+  const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+    // Spawn a soft ripple at the press location for tactile feedback
+    const btn = e.currentTarget;
+    const rect = btn.getBoundingClientRect();
+    const ripple = document.createElement("span");
+    ripple.className = "fd-tab-ripple";
+    ripple.style.left = `${e.clientX - rect.left}px`;
+    ripple.style.top = `${e.clientY - rect.top}px`;
+    btn.appendChild(ripple);
+    window.setTimeout(() => ripple.remove(), 620);
 
-      setPulseKey((k) => k + 1);
-      onClick?.();
-    };
-
-    return (
-      <button
-        ref={ref}
-        type="button"
-        onClick={handleClick}
-        aria-label={label}
-        aria-current={active ? "page" : undefined}
-        data-collapsed={collapsed ? "true" : "false"}
-        className={`fd-tab flex flex-col items-center py-2 px-5 rounded-full focus:outline-none ${active ? "fd-tab-active text-white" : "text-white/55 hover:text-white/80"}`}
-      >
-        <Icon
-          key={pulseKey}
-          className="w-5 h-5 fd-tab-icon"
-          strokeWidth={active ? 2 : 1.6}
-          aria-hidden="true"
-        />
-        <span className={`text-[11px] mt-0.5 fd-tab-label ${active ? "font-semibold" : ""}`}>{label}</span>
-      </button>
-    );
+    setPulseKey((k) => k + 1);
+    onClick?.();
   };
-  inner.displayName = "DockTab";
-  return Object.assign(
-    // eslint-disable-next-line react/display-name
-    (require("react") as typeof import("react")).forwardRef<HTMLButtonElement, DockTabProps>(inner),
-    {},
+
+  return (
+    <button
+      ref={ref}
+      type="button"
+      onClick={handleClick}
+      aria-label={label}
+      aria-current={active ? "page" : undefined}
+      data-collapsed={collapsed ? "true" : "false"}
+      className={`fd-tab flex flex-col items-center py-2 px-5 rounded-full focus:outline-none ${active ? "fd-tab-active text-white" : "text-white/55 hover:text-white/80"}`}
+    >
+      <Icon
+        key={pulseKey}
+        className="w-5 h-5 fd-tab-icon"
+        strokeWidth={active ? 2 : 1.6}
+        aria-hidden="true"
+      />
+      <span className={`text-[11px] mt-0.5 fd-tab-label ${active ? "font-semibold" : ""}`}>{label}</span>
+    </button>
   );
-})();
+});
+
