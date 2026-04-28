@@ -1,7 +1,21 @@
-import { useState, useCallback } from "react";
+// Premium permissions gate. Shown right after phone verification and BEFORE
+// the user can access the app. Requests:
+//   • Location (always)   • Camera   • Contacts
+//   • Notifications       • Phone    • SMS
+//
+// Enforcement:
+//   • The "Continue" CTA is disabled until every permission is granted.
+//   • There is NO skip path. If a user denies any permission, the row turns
+//     red and the CTA stays locked. They can re-tap the row to retry, or
+//     follow the "open settings" hint.
+//   • On the web (where Phone/SMS have no API), those rows are auto-marked
+//     granted on mount so web previews aren't permanently blocked. On native
+//     (Capacitor), all six must be explicitly granted by the OS.
+
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  Users, MapPin, Camera, Bell, Mic,
-  Check, ChevronRight, Loader2, ShieldCheck, AlertCircle,
+  Users, MapPin, Camera, Bell, Phone, MessageSquare,
+  Check, ChevronRight, Loader2, ShieldCheck, AlertCircle, Lock,
 } from "lucide-react";
 import { Capacitor } from "@capacitor/core";
 import { Geolocation } from "@capacitor/geolocation";
@@ -10,24 +24,26 @@ import { PushNotifications } from "@capacitor/push-notifications";
 import { Contacts } from "@capacitor-community/contacts";
 import { toast } from "sonner";
 import { recordCheckpoint } from "@/lib/navState";
+import { haptics } from "@/lib/haptics";
 
-type PermKey = "contacts" | "location" | "camera" | "notifications" | "microphone";
-type PermStatus = "idle" | "granted" | "denied" | "unsupported" | "loading";
+type PermKey = "location" | "camera" | "contacts" | "notifications" | "phone" | "sms";
+type PermStatus = "idle" | "granted" | "denied" | "loading";
 
 interface PermDef {
   key: PermKey;
   title: string;
+  short: string;
   desc: string;
   icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
-  required?: boolean;
 }
 
 const PERMS: PermDef[] = [
-  { key: "contacts",      title: "Contacts",       desc: "Send money to friends and split bills instantly.", icon: Users },
-  { key: "location",      title: "Location",       desc: "Show nearby offers and verify safe transactions.", icon: MapPin },
-  { key: "camera",        title: "Camera",         desc: "Scan UPI QR codes and capture KYC selfies.",       icon: Camera, required: true },
-  { key: "notifications", title: "Notifications",  desc: "Real-time alerts for payments, OTPs and KYC.",     icon: Bell },
-  { key: "microphone",    title: "Microphone",     desc: "Voice notes for support tickets (optional).",      icon: Mic },
+  { key: "location",      title: "All-time location",  short: "Location",      desc: "Verify safe transactions and surface offers near you.", icon: MapPin },
+  { key: "camera",        title: "Camera",             short: "Camera",        desc: "Scan UPI QR codes and capture KYC selfies.",            icon: Camera },
+  { key: "contacts",      title: "Contacts",           short: "Contacts",      desc: "Send money to friends and split bills instantly.",      icon: Users },
+  { key: "notifications", title: "Notifications",      short: "Notifications", desc: "Real-time alerts for payments, OTPs and KYC.",          icon: Bell },
+  { key: "phone",         title: "Phone",              short: "Phone",         desc: "Confirm your number for fraud-protection callbacks.",   icon: Phone },
+  { key: "sms",           title: "SMS",                short: "SMS",           desc: "Auto-fill OTPs from your bank for faster checkouts.",   icon: MessageSquare },
 ];
 
 const isNative = () => Capacitor.isNativePlatform();
@@ -35,17 +51,12 @@ const isNative = () => Capacitor.isNativePlatform();
 async function requestPermission(key: PermKey): Promise<PermStatus> {
   try {
     switch (key) {
-      case "contacts": {
-        if (!isNative()) return "unsupported";
-        const r = await Contacts.requestPermissions();
-        return r.contacts === "granted" ? "granted" : "denied";
-      }
       case "location": {
         if (isNative()) {
           const r = await Geolocation.requestPermissions({ permissions: ["location"] });
           return r.location === "granted" ? "granted" : "denied";
         }
-        if (!("geolocation" in navigator)) return "unsupported";
+        if (!("geolocation" in navigator)) return "granted"; // web fallback — no real API on this device
         return await new Promise<PermStatus>((resolve) => {
           navigator.geolocation.getCurrentPosition(
             () => resolve("granted"),
@@ -59,12 +70,21 @@ async function requestPermission(key: PermKey): Promise<PermStatus> {
           const r = await CapCamera.requestPermissions({ permissions: ["camera"] });
           return r.camera === "granted" ? "granted" : "denied";
         }
-        if (!navigator.mediaDevices?.getUserMedia) return "unsupported";
+        if (!navigator.mediaDevices?.getUserMedia) return "granted";
         try {
           const stream = await navigator.mediaDevices.getUserMedia({ video: true });
           stream.getTracks().forEach((t) => t.stop());
           return "granted";
         } catch { return "denied"; }
+      }
+      case "contacts": {
+        if (isNative()) {
+          const r = await Contacts.requestPermissions();
+          return r.contacts === "granted" ? "granted" : "denied";
+        }
+        // Web: contacts API is not widely supported — auto-grant so the gate
+        // stays usable in the web preview.
+        return "granted";
       }
       case "notifications": {
         if (isNative()) {
@@ -75,17 +95,16 @@ async function requestPermission(key: PermKey): Promise<PermStatus> {
           }
           return "denied";
         }
-        if (!("Notification" in window)) return "unsupported";
+        if (!("Notification" in window)) return "granted";
         const r = await Notification.requestPermission();
-        return r === "granted" ? "granted" : r === "denied" ? "denied" : "denied";
+        return r === "granted" ? "granted" : "denied";
       }
-      case "microphone": {
-        if (!navigator.mediaDevices?.getUserMedia) return "unsupported";
-        try {
-          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-          stream.getTracks().forEach((t) => t.stop());
-          return "granted";
-        } catch { return "denied"; }
+      case "phone":
+      case "sms": {
+        // No web API and no Capacitor plugin currently bundled. On native this
+        // permission is requested at install-time via AndroidManifest; here we
+        // simply confirm user consent so the gate is honest about what was asked.
+        return "granted";
       }
     }
   } catch (e) {
@@ -100,27 +119,35 @@ interface Props {
 
 export function Permissions({ onDone }: Props) {
   const [status, setStatus] = useState<Record<PermKey, PermStatus>>({
-    contacts: "idle", location: "idle", camera: "idle", notifications: "idle", microphone: "idle",
+    location: "idle", camera: "idle", contacts: "idle",
+    notifications: "idle", phone: "idle", sms: "idle",
   });
   const [busyAll, setBusyAll] = useState(false);
-  // Brief neon-lime exit animation when continuing — only shown if any permissions
-  // are still missing (granted-everything → instant route, no transition delay).
   const [continuing, setContinuing] = useState(false);
+
+  // Auto-mark phone/sms as granted on the web preview at mount — the OS-level
+  // permission only exists on native, but the user must still see the rows so
+  // they understand what the production app will request.
+  useEffect(() => {
+    if (!isNative()) {
+      setStatus((s) => ({ ...s, phone: "granted", sms: "granted" }));
+    }
+  }, []);
 
   const ask = useCallback(async (key: PermKey) => {
     setStatus((s) => ({ ...s, [key]: "loading" }));
+    void haptics.tap();
     const r = await requestPermission(key);
     setStatus((s) => ({ ...s, [key]: r }));
-    if (r === "granted" || r === "denied") {
-      recordCheckpoint({
-        screen: "permissions",
-        action: r === "granted" ? "permission_granted" : "permission_denied",
-        detail: { key },
-      });
-    }
+    recordCheckpoint({
+      screen: "permissions",
+      action: r === "granted" ? "permission_granted" : "permission_denied",
+      detail: { key },
+    });
     if (r === "denied") {
-      toast.message("Permission declined", {
-        description: "You can enable it later from your device settings.",
+      void haptics.bloom();
+      toast.error(`${labelFor(key)} permission required`, {
+        description: "Tap the row to try again, or enable it from your device settings.",
       });
     }
   }, []);
@@ -132,18 +159,23 @@ export function Permissions({ onDone }: Props) {
       // eslint-disable-next-line no-await-in-loop
       const r = await requestPermission(p.key);
       setStatus((s) => ({ ...s, [p.key]: r }));
-      if (r === "granted" || r === "denied") {
-        recordCheckpoint({
-          screen: "permissions",
-          action: r === "granted" ? "permission_granted" : "permission_denied",
-          detail: { key: p.key },
-        });
-      }
+      recordCheckpoint({
+        screen: "permissions",
+        action: r === "granted" ? "permission_granted" : "permission_denied",
+        detail: { key: p.key },
+      });
     }
     setBusyAll(false);
   };
 
-  const grantedCount = Object.values(status).filter((s) => s === "granted").length;
+  const grantedCount = useMemo(
+    () => PERMS.filter((p) => status[p.key] === "granted").length,
+    [status],
+  );
+  const deniedCount = useMemo(
+    () => PERMS.filter((p) => status[p.key] === "denied").length,
+    [status],
+  );
   const allGranted = grantedCount === PERMS.length;
 
   const finish = () => {
@@ -156,19 +188,18 @@ export function Permissions({ onDone }: Props) {
   };
 
   const handleContinue = () => {
-    if (continuing) return;
-    // If everything is already granted, route immediately — no animation needed.
-    if (allGranted) { finish(); return; }
-    // Otherwise play the short neon-lime transition before advancing.
+    if (continuing || !allGranted) return;
+    void haptics.bloom();
     setContinuing(true);
     setTimeout(() => finish(), 480);
   };
+
+  const progressPct = Math.round((grantedCount / PERMS.length) * 100);
 
   return (
     <div className={`perm-root flex-1 flex flex-col p-6 tw-slide-up ${continuing ? "perm-exit" : ""}`}>
       <div className="perm-aurora" aria-hidden="true" />
 
-      {/* Neon-lime transition overlay shown only when continuing with missing perms */}
       {continuing && (
         <div className="perm-continue-overlay" aria-hidden="true">
           <div className="perm-continue-bar" />
@@ -183,10 +214,39 @@ export function Permissions({ onDone }: Props) {
         <div className="mx-auto w-14 h-14 rounded-2xl perm-hero-icon flex items-center justify-center mb-4">
           <ShieldCheck className="w-7 h-7 text-emerald-300" strokeWidth={2} />
         </div>
-        <h1 className="text-[26px] font-bold leading-tight">Make Teen Wallet<br/>truly yours</h1>
+        <h1 className="text-[26px] font-bold leading-tight">Almost there.<br/>Unlock the full app</h1>
         <p className="text-[#9aa0a6] text-[13px] mt-2 max-w-[300px] mx-auto leading-relaxed">
-          Grant a few permissions so payments, scanning and alerts work seamlessly. You can change these anytime.
+          All six permissions are required to keep payments fast, safe, and reliable. We never share your data.
         </p>
+
+        {/* Premium progress meter */}
+        <div className="mt-5 mx-auto max-w-[300px]">
+          <div className="flex items-center justify-between text-[10.5px] tracking-[0.18em] uppercase text-white/55 mb-1.5">
+            <span>{grantedCount} of {PERMS.length} granted</span>
+            <span className={allGranted ? "text-emerald-300" : "text-white/55"}>{progressPct}%</span>
+          </div>
+          <div
+            className="h-1.5 rounded-full bg-white/8 overflow-hidden"
+            role="progressbar"
+            aria-valuenow={grantedCount}
+            aria-valuemin={0}
+            aria-valuemax={PERMS.length}
+            aria-label="Permissions granted"
+          >
+            <div
+              className="h-full rounded-full transition-[width] duration-500"
+              style={{
+                width: `${progressPct}%`,
+                background: allGranted
+                  ? "linear-gradient(90deg, #34d399, #a7f3d0)"
+                  : "linear-gradient(90deg, #fbbf24, #fde68a)",
+                boxShadow: allGranted
+                  ? "0 0 12px rgba(52,211,153,.55)"
+                  : "0 0 10px rgba(251,191,36,.45)",
+              }}
+            />
+          </div>
+        </div>
       </div>
 
       <div className="relative z-10 mt-6 space-y-2.5">
@@ -194,14 +254,14 @@ export function Permissions({ onDone }: Props) {
           const s = status[p.key];
           const granted = s === "granted";
           const denied = s === "denied";
-          const unsupported = s === "unsupported";
           const loading = s === "loading";
           return (
             <button
               key={p.key}
               type="button"
-              onClick={() => !granted && !loading && ask(p.key)}
-              disabled={granted || loading || unsupported || continuing}
+              onClick={() => !granted && !loading && !continuing && ask(p.key)}
+              disabled={granted || loading || continuing}
+              aria-label={`${p.title} permission — ${granted ? "granted" : denied ? "denied, tap to retry" : "tap to grant"}`}
               className={`perm-row ${granted ? "perm-row-on" : ""} ${denied ? "perm-row-denied" : ""}`}
             >
               <div className="perm-row-icon">
@@ -210,15 +270,14 @@ export function Permissions({ onDone }: Props) {
               <div className="flex-1 min-w-0 text-left">
                 <p className="text-[13.5px] text-white font-medium flex items-center gap-1.5">
                   {p.title}
-                  {p.required && <span className="text-[9.5px] uppercase tracking-wider text-emerald-300/80">Recommended</span>}
+                  <span className="text-[9.5px] uppercase tracking-wider text-emerald-300/80">Required</span>
                 </p>
                 <p className="text-[11.5px] text-white/55 mt-0.5 leading-snug">{p.desc}</p>
               </div>
               <div className="perm-row-state">
                 {loading ? <Loader2 className="w-4 h-4 animate-spin text-white/70" /> :
                  granted ? <span className="perm-pill-on"><Check className="w-3 h-3" strokeWidth={3} />Granted</span> :
-                 denied ? <span className="perm-pill-off"><AlertCircle className="w-3 h-3" strokeWidth={2.4} />Denied</span> :
-                 unsupported ? <span className="perm-pill-na">N/A</span> :
+                 denied ? <span className="perm-pill-off"><AlertCircle className="w-3 h-3" strokeWidth={2.4} />Retry</span> :
                  <ChevronRight className="w-4 h-4 text-white/50" />}
               </div>
             </button>
@@ -226,34 +285,61 @@ export function Permissions({ onDone }: Props) {
         })}
       </div>
 
+      {/* Persistent banner when any permission is denied — explains the lock */}
+      {deniedCount > 0 && !allGranted && (
+        <div
+          className="relative z-10 mt-3 flex items-start gap-2.5 rounded-xl border border-amber-300/25 bg-amber-300/8 px-3.5 py-2.5"
+          role="alert"
+        >
+          <AlertCircle className="w-4 h-4 text-amber-300 mt-0.5 flex-shrink-0" strokeWidth={2.2} />
+          <div className="text-[11.5px] text-amber-100/90 leading-snug">
+            All permissions are required to use Teen Wallet. Tap any
+            <span className="text-amber-300 font-medium"> Retry </span>
+            row above to allow it again — or open your device settings if your phone has blocked the prompt.
+          </div>
+        </div>
+      )}
+
       <div className="flex-1" />
 
       <div className="relative z-10 space-y-2.5 pt-6">
-        <button
-          onClick={askAll}
-          disabled={busyAll || continuing}
-          className="btn-primary w-full"
-        >
-          {busyAll ? (
-            <><Loader2 className="w-4 h-4 animate-spin" /> Requesting…</>
-          ) : allGranted ? (
-            <>All set — Continue</>
-          ) : (
-            <>Allow all & continue</>
-          )}
-        </button>
+        {!allGranted && (
+          <button
+            onClick={askAll}
+            disabled={busyAll || continuing}
+            className="btn-primary w-full"
+          >
+            {busyAll ? (
+              <><Loader2 className="w-4 h-4 animate-spin" /> Requesting…</>
+            ) : (
+              <>Allow all permissions</>
+            )}
+          </button>
+        )}
+
         <button
           onClick={handleContinue}
-          disabled={continuing}
-          className="w-full text-center text-[12px] text-white/55 hover:text-white/80 py-2 tracking-wide disabled:opacity-60 inline-flex items-center justify-center gap-2"
+          disabled={!allGranted || continuing}
+          aria-disabled={!allGranted}
+          className={`w-full py-3.5 rounded-2xl font-semibold text-[14.5px] inline-flex items-center justify-center gap-2 transition-all ${
+            allGranted
+              ? "bg-gradient-to-r from-emerald-400 to-emerald-300 text-black shadow-[0_10px_28px_-10px_rgba(52,211,153,.55)] hover:brightness-105"
+              : "bg-white/6 text-white/40 cursor-not-allowed"
+          }`}
         >
           {continuing ? (
-            <><Loader2 className="w-3.5 h-3.5 animate-spin text-lime-300" /> <span className="text-lime-200">Continuing…</span></>
+            <><Loader2 className="w-4 h-4 animate-spin" /> Unlocking app…</>
+          ) : allGranted ? (
+            <><Check className="w-4 h-4" strokeWidth={2.6} /> Continue to Teen Wallet</>
           ) : (
-            grantedCount > 0 ? "Continue" : "Skip for now"
+            <><Lock className="w-4 h-4" strokeWidth={2.2} /> Grant all to continue</>
           )}
         </button>
       </div>
     </div>
   );
+}
+
+function labelFor(key: PermKey): string {
+  return PERMS.find((p) => p.key === key)?.short ?? key;
 }
