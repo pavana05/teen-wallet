@@ -610,6 +610,22 @@ function MessagePreview({ row, onClose }: { row: FollowupRow; onClose: () => voi
           >
             <MessageCircle size={13} /> WhatsApp
           </button>
+          <button
+            onClick={async () => {
+              const t = toast.loading("Sending via Zavu…");
+              const res = await sendViaZavu(row);
+              if (res.ok) toast.success("WhatsApp sent via Zavu", { id: t });
+              else if (res.error === "no_phone") toast.error("No phone on file", { id: t });
+              else toast.error(`Couldn't send: ${res.error}`, { id: t });
+            }}
+            className="a-btn-ghost"
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600,
+              color: "#a78bfa", borderColor: "rgba(167,139,250,0.5)", background: "rgba(167,139,250,0.08)",
+            }}
+          >
+            <Send size={13} /> Send Now
+          </button>
         </div>
       </div>
     </div>
