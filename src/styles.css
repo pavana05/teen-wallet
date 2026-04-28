@@ -8110,9 +8110,17 @@ html.motion-off    .otp-resend-ring svg circle { transition: none !important; }
   animation: sp3-stage-in 380ms cubic-bezier(.22,1,.36,1) both;
 }
 .sp3-method-row {
-  display: flex; align-items: center; justify-content: space-between;
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: 12px;
   margin-bottom: 12px;
   font-size: 13px;
+}
+.sp3-wallet-reveal {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  border-radius: 22px;
+  overflow: hidden;
 }
 .sp3-method-pill {
   display: inline-flex; align-items: center; gap: 8px;
@@ -8122,6 +8130,7 @@ html.motion-off    .otp-resend-ring svg circle { transition: none !important; }
   border: 1px solid rgba(255,255,255,.08);
   color: #fff; font-weight: 600;
   cursor: pointer;
+  max-width: 100%;
   transition: background 160ms ease, border-color 160ms ease, transform 160ms ease;
 }
 .sp3-method-pill:hover { background: rgba(255,255,255,.08); }
@@ -8135,8 +8144,10 @@ html.motion-off    .otp-resend-ring svg circle { transition: none !important; }
 }
 .sp3-method-name { font-size: 13px; }
 .sp3-balance-link {
+  flex: 0 0 auto;
   background: transparent; border: 0; color: rgba(255,255,255,.65);
   font-weight: 600; font-size: 12px;
+  min-height: 38px;
   display: inline-flex; align-items: center; gap: 4px;
   cursor: pointer;
 }
@@ -8357,7 +8368,8 @@ html.motion-off    .otp-resend-ring svg circle { transition: none !important; }
   height: 1.15em;
   overflow: hidden;
   line-height: 1.15;
-  min-width: 130px;
+  min-width: 0;
+  width: clamp(126px, 44vw, 190px);
 }
 .sp3-method-pill-line {
   display: block;
@@ -8365,6 +8377,8 @@ html.motion-off    .otp-resend-ring svg circle { transition: none !important; }
   font-weight: 600;
   color: #fff;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   transition: transform 320ms cubic-bezier(.22,1,.36,1), opacity 220ms ease;
   will-change: transform, opacity;
 }
@@ -8396,19 +8410,19 @@ html.motion-off    .otp-resend-ring svg circle { transition: none !important; }
 
 /* Inline expanded panel under the row */
 .sp3-balance-inline {
-  margin: 8px 0 14px;
+  margin: 8px 0 0;
   padding: 12px 14px;
-  border-radius: 14px;
-  background: linear-gradient(180deg, rgba(28,20,12,.85), rgba(20,14,8,.85));
-  border: 1px solid rgba(255,138,60,.22);
-  box-shadow: 0 12px 30px -16px rgba(0,0,0,.7), 0 0 24px -10px rgba(255,138,60,.3);
-  backdrop-filter: blur(12px);
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(255,255,255,.075), rgba(255,255,255,.035));
+  border: 1px solid rgba(255,255,255,.10);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 16px 34px -22px rgba(0,0,0,.85);
+  backdrop-filter: blur(16px);
   overflow: hidden;
   animation: sp3-balance-inline-in 320ms cubic-bezier(.22,1,.36,1) both;
-  transform-origin: top center;
+  transform-origin: top left;
 }
 @keyframes sp3-balance-inline-in {
-  from { opacity: 0; transform: translateY(-6px) scaleY(.92); max-height: 0; padding-top: 0; padding-bottom: 0; margin-top: 0; margin-bottom: 0; }
+  from { opacity: 0; transform: translateY(-12px) scale(.985); max-height: 0; padding-top: 0; padding-bottom: 0; margin-top: 0; margin-bottom: 0; }
   to   { opacity: 1; transform: translateY(0) scaleY(1); max-height: 200px; }
 }
 .sp3-balance-inline-row {
@@ -8436,7 +8450,7 @@ html.motion-off    .otp-resend-ring svg circle { transition: none !important; }
 
 @media (prefers-reduced-motion: reduce) {
   .sp3-balance-pop, .sp3-method-chevron, .sp3-method-pill-line,
-  .sp3-balance-inline, .sp3-balance-inline-row {
+  .sp3-balance-inline, .sp3-balance-inline-row, .sp3-method-pill {
     animation: none !important; transition: none !important;
   }
 }
