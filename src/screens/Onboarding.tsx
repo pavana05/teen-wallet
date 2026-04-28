@@ -127,6 +127,20 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
     });
   }, [i]);
 
+  // Warm the browser cache for every slide image right after first paint so
+  // swiping forward never waits on a network round-trip. Runs once on mount.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const urls = SLIDES.map((s) => s.hero);
+    const imgs = urls.map((u) => {
+      const img = new Image();
+      img.decoding = "async";
+      img.src = u;
+      return img;
+    });
+    return () => { imgs.length = 0; };
+  }, []);
+
   const finishOnboarding = () => {
     writeOnboardingState({ slide: SLIDES.length - 1, completed: true, updatedAt: new Date().toISOString() });
     recordCheckpoint({
