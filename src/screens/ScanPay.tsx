@@ -980,12 +980,7 @@ function ConfirmView({
     !isBlocked &&
     (!needsAck || acknowledged);
 
-  // Smart quick-amount chips: show the QR amount if present, otherwise common values.
-  const quickAmounts = payload.amount && payload.amount > 0
-    ? Array.from(new Set([payload.amount, 100, 200, 500])).slice(0, 4)
-    : [100, 200, 500, 1000];
 
-  const addAmount = (delta: number) => onAmountChange(Number((amount + delta).toFixed(2)));
 
   // Two-stage flow: Stage A keypad → tap "Next" → Stage B Slide-to-Pay button.
   // The user can collapse back to the keypad by tapping the chevron on Stage B.
