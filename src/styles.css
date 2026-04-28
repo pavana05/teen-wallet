@@ -6794,20 +6794,36 @@ html.motion-off    .otp-resend-ring svg circle { transition: none !important; }
    micro-animations: 220ms ease-out scale, soft glow halo on FAB,
    gentle icon lift on hover, smooth tab indicator.
    ============================================================ */
+/* ============================================================
+   FloatingDock micro-animation timings (tuned to reference video)
+   --fd-spring  : main pill width / shape spring   (520ms ease-out spring)
+   --fd-snap    : tab press snap                   (180ms quick out)
+   --fd-glide   : indicator slide between tabs     (440ms ease-out spring)
+   --fd-pop     : icon pop on activation           (320ms back-out)
+   --fd-shimmer : pill shimmer sweep               (2.6s loop)
+   ============================================================ */
 .fd-shell {
   width: calc(100% - 2rem);
   max-width: 320px;
-  /* Smooth, spring-like width contraction when collapsing */
+  /* Spring contraction */
   transition:
-    transform 420ms cubic-bezier(.22,1,.36,1),
+    transform 460ms cubic-bezier(.22,1,.36,1),
     opacity 320ms ease-out,
     max-width 520ms cubic-bezier(.22,1,.36,1);
   will-change: max-width, transform;
 }
-/* Collapsed state: shrink the whole shell so it hugs the active tab + FAB */
-.fd-shell[data-collapsed="true"] {
-  max-width: 200px;
+/* Collapsed — hugs the active tab + FAB */
+.fd-shell[data-collapsed="true"] { max-width: 200px; }
+
+/* JS-driven reduced-motion gate (live matchMedia) — instant, no transitions */
+.fd-shell[data-reduced="true"],
+.fd-shell[data-reduced="true"] *,
+.fd-shell[data-reduced="true"] *::before,
+.fd-shell[data-reduced="true"] *::after {
+  transition: none !important;
+  animation: none !important;
 }
+
 .fd-pill {
   flex: 1;
   display: flex;
@@ -6820,24 +6836,74 @@ html.motion-off    .otp-resend-ring svg circle { transition: none !important; }
   box-shadow:
     0 10px 28px -10px rgba(0, 0, 0, 0.85),
     inset 0 1px 0 rgba(255, 255, 255, 0.05);
-  /* Pill itself flexes via children — width animates from contracted children */
   transition: padding 420ms cubic-bezier(.22,1,.36,1);
+  overflow: hidden;
+  isolation: isolate;
+}
+/* Subtle shimmer sweep — loops with calmer cadence to feel premium not busy */
+.fd-pill::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(
+    100deg,
+    transparent 30%,
+    rgba(255, 255, 255, 0.06) 48%,
+    rgba(255, 255, 255, 0.10) 50%,
+    rgba(255, 255, 255, 0.06) 52%,
+    transparent 70%
+  );
+  transform: translateX(-100%);
+  animation: fd-pill-shimmer 2.6s cubic-bezier(.45,.05,.55,.95) 1.4s infinite;
+  pointer-events: none;
+  z-index: 0;
+}
+@keyframes fd-pill-shimmer {
+  0%   { transform: translateX(-100%); }
+  55%  { transform: translateX(120%); }
+  100% { transform: translateX(120%); }
+}
+
+/* Sliding active-tab indicator (FLIP-positioned by JS) */
+.fd-tab-indicator {
+  position: absolute;
+  top: 6px;
+  bottom: 6px;
+  left: 0;
+  border-radius: 9999px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.14) 0%, rgba(255,255,255,0.06) 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.12),
+    0 4px 14px -6px rgba(0,0,0,0.7);
+  /* Smooth glide between tabs — independent of pill collapse animation,
+     so switching tabs while collapsed never causes layout jumps. */
+  transition:
+    transform 440ms cubic-bezier(.22,1,.36,1),
+    width 440ms cubic-bezier(.22,1,.36,1),
+    opacity 240ms ease-out;
+  pointer-events: none;
+  z-index: 1;
+  will-change: transform, width;
 }
 
 .fd-tab {
   position: relative;
+  z-index: 2;
   overflow: hidden;
-  /* Spring-like collapse: width, padding, opacity all in sync */
+  /* Spring-like collapse: width, padding, opacity in sync */
   transition:
     color 200ms ease-out,
-    transform 200ms ease-out,
+    transform 180ms cubic-bezier(.34,1.56,.64,1),
     max-width 520ms cubic-bezier(.22,1,.36,1),
     padding 420ms cubic-bezier(.22,1,.36,1),
     opacity 280ms ease-out,
     margin 420ms cubic-bezier(.22,1,.36,1);
   max-width: 140px;
 }
-.fd-tab:active { transform: scale(0.96); }
+/* Press feedback — quick scale dip with a subtle bounce out */
+.fd-tab:active { transform: scale(0.92); }
+
 /* Collapsed (non-active) tab: shrinks to nothing & fades out */
 .fd-tab[data-collapsed="true"] {
   max-width: 0;
@@ -6862,17 +6928,37 @@ html.motion-off    .otp-resend-ring svg circle { transition: none !important; }
   white-space: nowrap;
 }
 .fd-tab:hover .fd-tab-icon { transform: translateY(-1px); }
-.fd-tab-active {
-  background: linear-gradient(180deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.04) 100%);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.08), 0 4px 12px -6px rgba(0,0,0,0.6);
-}
-.fd-tab-active .fd-tab-icon {
-  animation: fd-icon-pop 280ms cubic-bezier(.2,.8,.2,1);
+
+/* Active tab — text only; the sliding indicator provides the background */
+.fd-tab-active { background: transparent; box-shadow: none; }
+
+/* Icon pulse — re-keys on every tap (parent rotates the React key) */
+.fd-tab-active .fd-tab-icon,
+.fd-tab .fd-tab-icon {
+  animation: fd-icon-pop 320ms cubic-bezier(.34,1.56,.64,1);
 }
 @keyframes fd-icon-pop {
-  0%   { transform: scale(0.85); opacity: 0.6; }
-  60%  { transform: scale(1.08); opacity: 1; }
+  0%   { transform: scale(0.82); opacity: 0.7; }
+  55%  { transform: scale(1.14); opacity: 1; }
   100% { transform: scale(1); }
+}
+
+/* Tap ripple — soft champagne bloom from the press point */
+.fd-tab-ripple {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255,255,255,0.55) 0%, rgba(255,255,255,0) 70%);
+  transform: translate(-50%, -50%) scale(0);
+  pointer-events: none;
+  animation: fd-tab-ripple 600ms cubic-bezier(.22,1,.36,1) forwards;
+  z-index: 3;
+}
+@keyframes fd-tab-ripple {
+  0%   { transform: translate(-50%, -50%) scale(0);   opacity: 0.9; }
+  60%  {                                              opacity: 0.5; }
+  100% { transform: translate(-50%, -50%) scale(8);   opacity: 0;   }
 }
 
 /* ----- FAB: graphite/champagne bubble with soft glow halo ----- */
@@ -6886,7 +6972,7 @@ html.motion-off    .otp-resend-ring svg circle { transition: none !important; }
   box-shadow:
     0 0 22px rgba(255, 255, 255, 0.18),
     0 14px 30px -10px rgba(0, 0, 0, 0.8);
-  transition: transform 220ms cubic-bezier(.2,.8,.2,1),
+  transition: transform 220ms cubic-bezier(.34,1.56,.64,1),
               box-shadow 220ms ease-out,
               border-color 220ms ease-out;
 }
@@ -6897,7 +6983,7 @@ html.motion-off    .otp-resend-ring svg circle { transition: none !important; }
     0 0 32px rgba(255, 255, 255, 0.28),
     0 18px 40px -10px rgba(0, 0, 0, 0.85);
 }
-.fd-fab:active { transform: scale(0.94); }
+.fd-fab:active { transform: scale(0.92); }
 .fd-fab:active svg { animation: fd-icon-pulse 380ms ease-out; }
 .fd-fab:focus-visible {
   outline: none;
@@ -6964,8 +7050,8 @@ html.motion-off    .otp-resend-ring svg circle { transition: none !important; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .fd-shell, .fd-pill, .fd-tab, .fd-tab-icon, .fd-fab, .fd-fab-halo,
-  .fd-launch-bubble, .fd-scan-sheet {
+  .fd-shell, .fd-shell *, .fd-pill::before, .fd-tab-indicator, .fd-tab-ripple,
+  .fd-tab-icon, .fd-fab, .fd-fab-halo, .fd-launch-bubble, .fd-scan-sheet {
     transition: none !important;
     animation: none !important;
   }
