@@ -8245,3 +8245,72 @@ html.motion-off    .otp-resend-ring svg circle { transition: none !important; }
     transition: none !important;
   }
 }
+
+/* ScanPay — wallet balance popover anchored to the Teen Wallet pill */
+.sp3-balance-anchor { position: relative; display: inline-block; }
+.sp3-method-chevron { transition: transform 200ms cubic-bezier(.22,1,.36,1); }
+.sp3-method-chevron.is-open { transform: rotate(180deg); }
+.sp3-balance-backdrop {
+  position: fixed; inset: 0; z-index: 40;
+  background: transparent;
+}
+.sp3-balance-pop {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 0;
+  z-index: 50;
+  min-width: 220px;
+  padding: 14px 16px 12px;
+  border-radius: 16px;
+  background: linear-gradient(180deg, rgba(28,20,12,.96), rgba(20,14,8,.96));
+  border: 1px solid rgba(255, 138, 60, .25);
+  box-shadow: 0 22px 48px -18px rgba(0,0,0,.7), 0 0 0 1px rgba(255,255,255,.04) inset, 0 0 30px -8px rgba(255, 138, 60, .35);
+  color: #fff;
+  backdrop-filter: blur(14px);
+  transform-origin: bottom left;
+  animation: sp3-balance-pop-in 220ms cubic-bezier(.22,1,.36,1) both;
+}
+.sp3-balance-pop::after {
+  content: "";
+  position: absolute;
+  left: 22px; bottom: -6px;
+  width: 12px; height: 12px;
+  background: inherit;
+  border-right: 1px solid rgba(255, 138, 60, .25);
+  border-bottom: 1px solid rgba(255, 138, 60, .25);
+  transform: rotate(45deg);
+}
+@keyframes sp3-balance-pop-in {
+  from { opacity: 0; transform: translateY(6px) scale(.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.sp3-balance-pop-head {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: 11px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase;
+  color: rgba(255,255,255,.6);
+}
+.sp3-balance-pop-logo {
+  width: 22px; height: 22px; border-radius: 7px;
+  background: linear-gradient(135deg, #FF8A3C, #F5C16C);
+  color: #1a1208;
+  display: inline-flex; align-items: center; justify-content: center;
+  box-shadow: 0 4px 10px -3px rgba(255,138,60,.5);
+}
+.sp3-balance-pop-amount {
+  margin-top: 8px;
+  font-size: 26px; font-weight: 800; letter-spacing: -.01em;
+  color: #FF8A3C;
+  text-shadow: 0 0 22px rgba(255, 138, 60, .35);
+}
+.sp3-balance-pop-label {
+  margin-top: 2px;
+  font-size: 11px; color: rgba(255,255,255,.55); font-weight: 600;
+}
+.sp3-balance-pop-after {
+  margin-top: 10px; padding-top: 10px;
+  border-top: 1px solid rgba(255,255,255,.08);
+  font-size: 12px; color: rgba(255,255,255,.7);
+}
+@media (prefers-reduced-motion: reduce) {
+  .sp3-balance-pop, .sp3-method-chevron { animation: none !important; transition: none !important; }
+}
