@@ -9,6 +9,8 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as OnboardingRouteImport } from './routes/onboarding'
+import { Route as HomeRouteImport } from './routes/home'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as PreviewIndexRouteImport } from './routes/preview.index'
@@ -39,6 +41,16 @@ import { Route as AdminAppImagesRouteImport } from './routes/admin.app-images'
 import { Route as ApiKycVerifyRouteImport } from './routes/api/kyc.verify'
 import { Route as AdminUsersIdRouteImport } from './routes/admin.users.$id'
 
+const OnboardingRoute = OnboardingRouteImport.update({
+  id: '/onboarding',
+  path: '/onboarding',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HomeRoute = HomeRouteImport.update({
+  id: '/home',
+  path: '/home',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminRoute = AdminRouteImport.update({
   id: '/admin',
   path: '/admin',
@@ -188,6 +200,8 @@ const AdminUsersIdRoute = AdminUsersIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
+  '/home': typeof HomeRoute
+  '/onboarding': typeof OnboardingRoute
   '/admin/app-images': typeof AdminAppImagesRoute
   '/admin/campaigns': typeof AdminCampaignsRoute
   '/admin/diagnostics': typeof AdminDiagnosticsRoute
@@ -218,6 +232,8 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/home': typeof HomeRoute
+  '/onboarding': typeof OnboardingRoute
   '/admin/app-images': typeof AdminAppImagesRoute
   '/admin/campaigns': typeof AdminCampaignsRoute
   '/admin/diagnostics': typeof AdminDiagnosticsRoute
@@ -250,6 +266,8 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
+  '/home': typeof HomeRoute
+  '/onboarding': typeof OnboardingRoute
   '/admin/app-images': typeof AdminAppImagesRoute
   '/admin/campaigns': typeof AdminCampaignsRoute
   '/admin/diagnostics': typeof AdminDiagnosticsRoute
@@ -283,6 +301,8 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/admin'
+    | '/home'
+    | '/onboarding'
     | '/admin/app-images'
     | '/admin/campaigns'
     | '/admin/diagnostics'
@@ -313,6 +333,8 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/home'
+    | '/onboarding'
     | '/admin/app-images'
     | '/admin/campaigns'
     | '/admin/diagnostics'
@@ -344,6 +366,8 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/admin'
+    | '/home'
+    | '/onboarding'
     | '/admin/app-images'
     | '/admin/campaigns'
     | '/admin/diagnostics'
@@ -376,6 +400,8 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRouteWithChildren
+  HomeRoute: typeof HomeRoute
+  OnboardingRoute: typeof OnboardingRoute
   PreviewAuthPhoneRoute: typeof PreviewAuthPhoneRoute
   PreviewHomeRoute: typeof PreviewHomeRoute
   PreviewKycApprovedRoute: typeof PreviewKycApprovedRoute
@@ -395,6 +421,20 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/onboarding': {
+      id: '/onboarding'
+      path: '/onboarding'
+      fullPath: '/onboarding'
+      preLoaderRoute: typeof OnboardingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/home': {
+      id: '/home'
+      path: '/home'
+      fullPath: '/home'
+      preLoaderRoute: typeof HomeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin': {
       id: '/admin'
       path: '/admin'
@@ -646,6 +686,8 @@ const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRouteWithChildren,
+  HomeRoute: HomeRoute,
+  OnboardingRoute: OnboardingRoute,
   PreviewAuthPhoneRoute: PreviewAuthPhoneRoute,
   PreviewHomeRoute: PreviewHomeRoute,
   PreviewKycApprovedRoute: PreviewKycApprovedRoute,
