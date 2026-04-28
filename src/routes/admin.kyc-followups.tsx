@@ -384,13 +384,16 @@ function StatCard({ label, value, accent }: { label: string; value: number; acce
 }
 
 function FollowupRowItem({
-  row, copied, onCopy, onWhatsApp, onSms, onPreview,
+  row, copied, sending, sent, onCopy, onWhatsApp, onSms, onSend, onPreview,
 }: {
   row: FollowupRow;
   copied: boolean;
+  sending: boolean;
+  sent: boolean;
   onCopy: () => void;
   onWhatsApp: () => void;
   onSms: () => void;
+  onSend: () => void;
   onPreview: () => void;
 }) {
   const phone = normalisePhone(row.phone);
