@@ -118,11 +118,19 @@ function RootComponent() {
 
     const onError = (e: ErrorEvent) => captureError(e.error ?? e.message, { where: "window.onerror" });
     const onRejection = (e: PromiseRejectionEvent) => captureError(e.reason, { where: "window.unhandledrejection" });
+    const onBackHint = async () => {
+      try {
+        const { toast } = await import("sonner");
+        toast("Press back again to exit", { duration: 1800 });
+      } catch { /* ignore */ }
+    };
     window.addEventListener("error", onError);
     window.addEventListener("unhandledrejection", onRejection);
+    window.addEventListener("tw:back-exit-hint", onBackHint as EventListener);
     return () => {
       window.removeEventListener("error", onError);
       window.removeEventListener("unhandledrejection", onRejection);
+      window.removeEventListener("tw:back-exit-hint", onBackHint as EventListener);
     };
   }, []);
 

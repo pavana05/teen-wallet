@@ -24,13 +24,41 @@ export async function initNative() {
     /* Splash already hidden */
   }
 
-  // Hardware back button: if there's history, go back; otherwise minimise.
+  // Hardware back button: behave like a real app.
+  // - If the WebView has history, go back one page.
+  // - If we're on a nested route with no history (deep-link / fresh boot),
+  //   navigate to a sensible parent route instead of exiting.
+  // - Only exit the app when the user is on the home/root screen and
+  //   double-taps back within 2 seconds.
   try {
+    let lastBackPress = 0;
     App.addListener("backButton", ({ canGoBack }) => {
-      if (canGoBack) {
+      const path = window.location.pathname || "/";
+      const isRoot = path === "/" || path === "/home" || path === "/onboarding";
+
+      if (canGoBack && !isRoot) {
         window.history.back();
-      } else {
+        return;
+      }
+
+      if (!isRoot) {
+        // Deep-linked into a nested route with no history — go to /home.
+        const parent = path.split("/").slice(0, -1).join("/") || "/home";
+        window.history.replaceState({}, "", parent);
+        window.dispatchEvent(new PopStateEvent("popstate"));
+        return;
+      }
+
+      // On a root screen — require double-tap back to exit.
+      const now = Date.now();
+      if (now - lastBackPress < 2000) {
         App.exitApp();
+      } else {
+        lastBackPress = now;
+        try {
+          // Lightweight toast hint via custom event; UI layer can show it.
+          window.dispatchEvent(new CustomEvent("tw:back-exit-hint"));
+        } catch { /* ignore */ }
       }
     });
   } catch {
