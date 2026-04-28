@@ -238,7 +238,10 @@ function KycFollowupsPage() {
     if (!s?.sessionToken) return;
     void (async () => {
       try {
-        const r = await callAdminFn<{ rows: TemplateRow[] }>({ action: "kyc_templates_list", sessionToken: s.sessionToken });
+        const r = await callAdminFn<{ rows: TemplateRow[] }>({
+          action: "kyc_templates_list",
+          sessionToken: s.sessionToken,
+        });
         for (const t of r.rows ?? []) templateCache[t.stage] = t;
       } catch { /* templates are optional; fallback copy is used */ }
     })();
@@ -264,7 +267,6 @@ function KycFollowupsPage() {
       setSendingId(null);
     }
   }, [cooldownHours]);
-
 
   const load = useCallback(async () => {
     if (sessionLoading || !allowed) return;
