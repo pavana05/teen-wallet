@@ -326,6 +326,8 @@ function KycFollowupsPage() {
               key={r.id}
               row={r}
               copied={copiedId === r.id}
+              sending={sendingId === r.id}
+              sent={!!sentIds[r.id]}
               onCopy={async () => {
                 try {
                   await navigator.clipboard.writeText(buildMessage(r));
@@ -342,6 +344,7 @@ function KycFollowupsPage() {
               onSms={() => {
                 if (openSms(r) === "no_phone") toast.error("This user has no phone number on file");
               }}
+              onSend={() => handleZavuSend(r)}
               onPreview={() => setPreviewFor(r)}
             />
           ))
