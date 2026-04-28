@@ -7544,3 +7544,257 @@ html.motion-off    .otp-resend-ring svg circle { transition: none !important; }
   .bio-prompt-icon-pulse,
   .bio-prompt-glow { animation: none !important; }
 }
+
+/* ============================================================
+   Scan & Pay — Premium floating action menu (Apr 2026)
+   Replaces the flat bottom dock with a single FAB that expands
+   into a vertical stack of premium action pills.
+   ============================================================ */
+.sp2-edge-fade-top {
+  position: absolute; inset: 0 0 auto 0; height: 140px; z-index: 5;
+  background: linear-gradient(180deg, rgba(0,0,0,.55) 0%, rgba(0,0,0,0) 100%);
+  pointer-events: none;
+}
+.sp2-edge-fade-bottom {
+  position: absolute; inset: auto 0 0 0; height: 200px; z-index: 5;
+  background: linear-gradient(0deg, rgba(0,0,0,.6) 0%, rgba(0,0,0,0) 100%);
+  pointer-events: none;
+}
+
+.sp2-fab-wrap {
+  position: absolute; right: 18px; bottom: 22px; z-index: 40;
+  display: flex; flex-direction: column; align-items: flex-end; gap: 12px;
+  transition: transform 360ms cubic-bezier(.22,1,.36,1), opacity 280ms ease-out;
+}
+.sp2-fab-hidden { transform: translateY(120%); opacity: 0; pointer-events: none; }
+
+.sp2-fab-menu {
+  display: flex; flex-direction: column; gap: 10px;
+  pointer-events: none; opacity: 0;
+  transform: translateY(12px) scale(.96);
+  transform-origin: bottom right;
+  transition: opacity 240ms ease-out, transform 320ms cubic-bezier(.22,1,.36,1);
+}
+.sp2-fab-wrap[data-open="true"] .sp2-fab-menu {
+  opacity: 1; pointer-events: auto; transform: translateY(0) scale(1);
+}
+.sp2-fab-action {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 16px 10px 10px; min-width: 220px;
+  border-radius: 9999px;
+  background: rgba(14,14,18,.86);
+  border: 1px solid rgba(255,255,255,.08);
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  box-shadow: 0 12px 36px -12px rgba(0,0,0,.7);
+  color: #fff; text-align: left; cursor: pointer;
+  transition: transform 200ms cubic-bezier(.34,1.56,.64,1), background 200ms ease-out, border-color 200ms ease-out;
+}
+.sp2-fab-action:hover { background: rgba(22,22,28,.92); border-color: rgba(255,255,255,.16); transform: translateX(-2px); }
+.sp2-fab-action:active { transform: scale(.97); }
+.sp2-fab-action-icon {
+  width: 38px; height: 38px; border-radius: 12px;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.sp2-fab-action-text { display: flex; flex-direction: column; gap: 2px; }
+.sp2-fab-action-label { font-size: 13px; font-weight: 600; letter-spacing: .005em; }
+.sp2-fab-action-sub { font-size: 11px; color: rgba(255,255,255,.55); }
+
+.sp2-fab-tone-emerald .sp2-fab-action-icon,
+.sp2-fab-tone-emerald .sp2-sheet-icon {
+  background: linear-gradient(160deg, rgba(110,231,163,.22), rgba(34,197,94,.10));
+  border: 1px solid rgba(110,231,163,.28); color: #6ee7a3;
+}
+.sp2-fab-tone-violet .sp2-fab-action-icon,
+.sp2-fab-tone-violet .sp2-sheet-icon {
+  background: linear-gradient(160deg, rgba(167,139,250,.22), rgba(124,58,237,.10));
+  border: 1px solid rgba(167,139,250,.28); color: #c4b5fd;
+}
+.sp2-fab-tone-champagne .sp2-fab-action-icon,
+.sp2-fab-tone-champagne .sp2-sheet-icon {
+  background: linear-gradient(160deg, rgba(212,197,160,.26), rgba(212,197,160,.08));
+  border: 1px solid rgba(212,197,160,.32); color: #e7d9b1;
+}
+.sp2-fab-tone-slate .sp2-fab-action-icon {
+  background: linear-gradient(160deg, rgba(255,255,255,.10), rgba(255,255,255,.04));
+  border: 1px solid rgba(255,255,255,.10); color: #fff;
+}
+
+/* Stagger entrance for the menu items */
+.sp2-fab-wrap[data-open="true"] .sp2-fab-action:nth-child(1) { animation: sp2-fab-in 360ms cubic-bezier(.22,1,.36,1) both; animation-delay: 40ms; }
+.sp2-fab-wrap[data-open="true"] .sp2-fab-action:nth-child(2) { animation: sp2-fab-in 360ms cubic-bezier(.22,1,.36,1) both; animation-delay: 80ms; }
+.sp2-fab-wrap[data-open="true"] .sp2-fab-action:nth-child(3) { animation: sp2-fab-in 360ms cubic-bezier(.22,1,.36,1) both; animation-delay: 120ms; }
+.sp2-fab-wrap[data-open="true"] .sp2-fab-action:nth-child(4) { animation: sp2-fab-in 360ms cubic-bezier(.22,1,.36,1) both; animation-delay: 160ms; }
+@keyframes sp2-fab-in {
+  from { opacity: 0; transform: translateY(14px) scale(.92); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Primary FAB */
+.sp2-fab {
+  position: relative;
+  width: 60px; height: 60px; border-radius: 50%;
+  background: radial-gradient(circle at 30% 25%, #ffffff 0%, #ededed 60%, #d4d4d4 100%);
+  display: flex; align-items: center; justify-content: center;
+  border: 1px solid rgba(255,255,255,.55);
+  box-shadow: 0 0 24px rgba(255,255,255,.20), 0 18px 36px -12px rgba(0,0,0,.85);
+  cursor: pointer;
+  transition: transform 240ms cubic-bezier(.34,1.56,.64,1), box-shadow 220ms ease-out;
+}
+.sp2-fab:hover { transform: translateY(-2px); box-shadow: 0 0 32px rgba(255,255,255,.30), 0 22px 44px -12px rgba(0,0,0,.9); }
+.sp2-fab:active { transform: scale(.93); }
+.sp2-fab-halo {
+  position: absolute; inset: -10px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(255,255,255,.22) 0%, rgba(255,255,255,0) 70%);
+  opacity: .7; animation: fd-halo-breathe 3s ease-in-out infinite; pointer-events: none;
+}
+.sp2-fab-icon-stack { position: relative; width: 22px; height: 22px; color: #0a0a0a; }
+.sp2-fab-icon-plus, .sp2-fab-icon-close {
+  position: absolute; inset: 0; width: 22px; height: 22px;
+  transition: transform 320ms cubic-bezier(.22,1,.36,1), opacity 220ms ease-out;
+}
+.sp2-fab-icon-close { opacity: 0; transform: rotate(-90deg) scale(.6); }
+.sp2-fab-wrap[data-open="true"] .sp2-fab-icon-plus { opacity: 0; transform: rotate(90deg) scale(.6); }
+.sp2-fab-wrap[data-open="true"] .sp2-fab-icon-close { opacity: 1; transform: rotate(0) scale(1); }
+
+/* Bottom-sheet shell used by Pay-UPI / Pay-Contact / My-QR */
+.sp2-sheet-shell {
+  position: absolute; inset: 0; z-index: 130;
+  display: flex; align-items: flex-end; justify-content: center;
+  animation: sp2-sheet-fade 220ms ease-out both;
+}
+@keyframes sp2-sheet-fade { from { opacity: 0; } to { opacity: 1; } }
+.sp2-sheet-backdrop {
+  position: absolute; inset: 0;
+  background: rgba(0,0,0,.55);
+  backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+  border: 0; cursor: pointer;
+}
+.sp2-sheet {
+  position: relative; z-index: 1;
+  width: 100%; max-width: 420px;
+  padding: 14px 20px 28px;
+  border-radius: 28px 28px 0 0;
+  background: linear-gradient(180deg, #14141a 0%, #0a0a10 100%);
+  border-top: 1px solid rgba(255,255,255,.08);
+  box-shadow: 0 -20px 60px -10px rgba(0,0,0,.7);
+  animation: sp2-sheet-up 360ms cubic-bezier(.22,1,.36,1) both;
+}
+@keyframes sp2-sheet-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
+.sp2-sheet-grabber {
+  width: 40px; height: 4px; border-radius: 999px;
+  background: rgba(255,255,255,.18);
+  margin: 0 auto 14px;
+}
+.sp2-sheet-head { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
+.sp2-sheet-icon {
+  width: 44px; height: 44px; border-radius: 14px;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.sp2-sheet-title { font-size: 17px; font-weight: 600; color: #fff; line-height: 1.2; }
+.sp2-sheet-sub { font-size: 12px; color: rgba(255,255,255,.55); margin-top: 2px; }
+
+.sp2-field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+.sp2-field-label { font-size: 11px; color: rgba(255,255,255,.6); text-transform: uppercase; letter-spacing: .06em; font-weight: 500; }
+.sp2-field-input-wrap {
+  display: flex; align-items: center; gap: 8px;
+  padding: 12px 14px; border-radius: 14px;
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(255,255,255,.08);
+  transition: border-color 180ms ease-out, background 180ms ease-out;
+}
+.sp2-field-input-wrap:focus-within { border-color: rgba(212,197,160,.45); background: rgba(255,255,255,.06); }
+.sp2-field-error { border-color: rgba(248,113,113,.5); }
+.sp2-field-input {
+  flex: 1; background: transparent; border: 0; outline: none; color: #fff;
+  font-size: 15px; font-weight: 500;
+}
+.sp2-field-input::placeholder { color: rgba(255,255,255,.32); }
+.sp2-field-msg { font-size: 12px; color: #fca5a5; margin-top: -8px; margin-bottom: 12px; }
+
+.sp2-sheet-cta {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  width: 100%; padding: 14px 20px; margin-top: 6px;
+  border-radius: 16px; border: 0; cursor: pointer;
+  background: radial-gradient(circle at 30% 25%, #f8efd6 0%, #e7d9b1 60%, #c8b582 100%);
+  color: #1a1408; font-size: 15px; font-weight: 700; letter-spacing: .005em;
+  box-shadow: 0 12px 28px -10px rgba(212,197,160,.5), inset 0 1px 0 rgba(255,255,255,.4);
+  transition: transform 200ms cubic-bezier(.34,1.56,.64,1), box-shadow 200ms ease-out;
+}
+.sp2-sheet-cta:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 16px 36px -10px rgba(212,197,160,.6), inset 0 1px 0 rgba(255,255,255,.5); }
+.sp2-sheet-cta:active:not(:disabled) { transform: scale(.97); }
+.sp2-sheet-cta:disabled { opacity: .4; cursor: not-allowed; }
+
+/* Contact picker list */
+.sp2-contact-list { display: flex; flex-direction: column; gap: 6px; max-height: 320px; overflow-y: auto; padding-right: 2px; }
+.sp2-contact-empty {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 32px 16px; color: rgba(255,255,255,.45); font-size: 13px;
+}
+.sp2-contact-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 12px; border-radius: 14px;
+  background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.06);
+  cursor: pointer; text-align: left;
+  transition: background 180ms ease-out, border-color 180ms ease-out, transform 180ms ease-out;
+}
+.sp2-contact-row:hover { background: rgba(255,255,255,.06); border-color: rgba(255,255,255,.12); transform: translateX(2px); }
+.sp2-contact-row:active { transform: scale(.98); }
+.sp2-contact-avatar {
+  width: 40px; height: 40px; border-radius: 50%; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(160deg, rgba(110,231,163,.22), rgba(34,197,94,.08));
+  border: 1px solid rgba(110,231,163,.28); color: #6ee7a3;
+  font-size: 16px; font-weight: 600;
+}
+.sp2-contact-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.sp2-contact-name { font-size: 14px; font-weight: 600; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sp2-contact-upi { font-size: 12px; color: rgba(255,255,255,.55); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* My QR */
+.sp2-sheet-qr { padding-bottom: 24px; }
+.sp2-qr-card {
+  display: flex; flex-direction: column; align-items: center; gap: 14px;
+  padding: 20px; margin-bottom: 16px;
+  border-radius: 22px;
+  background: linear-gradient(180deg, rgba(255,255,255,.06) 0%, rgba(255,255,255,.02) 100%);
+  border: 1px solid rgba(255,255,255,.08);
+}
+.sp2-qr-frame {
+  position: relative;
+  padding: 14px; border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 16px 40px -12px rgba(0,0,0,.6), 0 0 0 1px rgba(212,197,160,.2);
+}
+.sp2-qr-img { display: block; width: 220px; height: 220px; }
+.sp2-qr-skeleton { width: 220px; height: 220px; border-radius: 8px; background: rgba(0,0,0,.06); animation: sp2-skel 1.4s ease-in-out infinite; }
+@keyframes sp2-skel { 0%,100% { opacity: .6; } 50% { opacity: 1; } }
+.sp2-qr-meta { text-align: center; }
+.sp2-qr-name { font-size: 15px; font-weight: 600; color: #fff; }
+.sp2-qr-upi { font-size: 12px; color: rgba(255,255,255,.6); margin-top: 4px; display: inline-flex; align-items: center; gap: 6px; }
+.sp2-qr-copy {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px; border-radius: 6px;
+  background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.08);
+  color: rgba(255,255,255,.7); cursor: pointer;
+  transition: background 160ms ease-out;
+}
+.sp2-qr-copy:hover { background: rgba(255,255,255,.12); color: #fff; }
+.sp2-qr-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.sp2-qr-btn {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 12px 16px; border-radius: 14px;
+  background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.10);
+  color: #fff; font-size: 13px; font-weight: 600; cursor: pointer;
+  transition: background 180ms ease-out, border-color 180ms ease-out, transform 180ms ease-out;
+}
+.sp2-qr-btn:hover:not(:disabled) { background: rgba(255,255,255,.08); border-color: rgba(255,255,255,.18); transform: translateY(-1px); }
+.sp2-qr-btn:active:not(:disabled) { transform: scale(.97); }
+.sp2-qr-btn:disabled { opacity: .4; cursor: not-allowed; }
+
+@media (prefers-reduced-motion: reduce) {
+  .sp2-fab-wrap, .sp2-fab-menu, .sp2-fab-action, .sp2-fab, .sp2-fab-icon-plus,
+  .sp2-fab-icon-close, .sp2-sheet-shell, .sp2-sheet, .sp2-fab-halo {
+    animation: none !important; transition: none !important;
+  }
+}
