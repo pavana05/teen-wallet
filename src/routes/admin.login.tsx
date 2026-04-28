@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import QRCode from "qrcode";
 import { callAdminFn, writeAdminSession, AdminFnError, type AdminMe } from "@/admin/lib/adminAuth";
@@ -12,7 +12,6 @@ export const Route = createFileRoute("/admin/login")({
 type Stage = "email" | "set_password" | "enroll_totp" | "totp";
 
 function AdminLogin() {
-  const nav = useNavigate();
   const [stage, setStage] = useState<Stage>("email");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -66,7 +65,11 @@ function AdminLogin() {
         action: "verify_totp", challengeToken, code,
       });
       writeAdminSession(r);
-      nav({ to: "/admin" });
+      // Force a full reload so AdminLayout's useAdminSession() re-mounts and
+      // reads the freshly written session token from sessionStorage. Without
+      // this, the already-mounted hook still has admin=null from the initial
+      // (pre-login) verify() call and bounces us right back to /admin/login.
+      window.location.assign("/admin");
     } catch (e) {
       // Friendly translation of known TOTP error codes — preserve correlation ID.
       const cid = e instanceof AdminFnError ? e.correlationId : null;
