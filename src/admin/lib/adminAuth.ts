@@ -112,8 +112,11 @@ export const ROLE_BADGE: Record<AdminRole, string> = {
   finance_manager: "bg-blue-500/15 text-blue-400 border-blue-500/30",
 };
 
-// Permission matrix (UI gating; DB is the source of truth via service-role functions later)
+// Permission matrix — mirrors the server-side ROLE_PERMS in admin-auth.
+// The DB function is the source of truth; this client copy is for UI gating
+// (hiding buttons, sidebar items) so users don't see things they can't use.
 export const PERMS = {
+  viewDashboard: ["super_admin", "operations_manager", "compliance_officer", "customer_support", "fraud_analyst", "finance_manager"] as AdminRole[],
   viewUsers: ["super_admin", "operations_manager", "customer_support"] as AdminRole[],
   manageUsers: ["super_admin", "operations_manager"] as AdminRole[],
   viewAuditLog: ["super_admin", "compliance_officer"] as AdminRole[],
@@ -122,9 +125,15 @@ export const PERMS = {
   viewTransactions: ["super_admin", "operations_manager", "finance_manager", "compliance_officer", "fraud_analyst"] as AdminRole[],
   manageTransactions: ["super_admin", "operations_manager"] as AdminRole[],
   viewFraud: ["super_admin", "fraud_analyst", "compliance_officer"] as AdminRole[],
+  manageFraud: ["super_admin", "fraud_analyst"] as AdminRole[],
   manageAdmins: ["super_admin"] as AdminRole[],
   manageSettings: ["super_admin"] as AdminRole[],
   viewFinance: ["super_admin", "finance_manager"] as AdminRole[],
+  viewReports: ["super_admin", "operations_manager", "customer_support", "compliance_officer"] as AdminRole[],
+  manageReports: ["super_admin", "operations_manager", "customer_support"] as AdminRole[],
+  viewCampaigns: ["super_admin", "operations_manager"] as AdminRole[],
+  viewAppImages: ["super_admin", "operations_manager"] as AdminRole[],
+  viewDiagnostics: ["super_admin", "operations_manager", "compliance_officer"] as AdminRole[],
 };
 
 export function can(role: AdminRole | undefined, action: keyof typeof PERMS): boolean {
