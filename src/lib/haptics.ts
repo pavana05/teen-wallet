@@ -23,8 +23,22 @@
 import { Capacitor } from "@capacitor/core";
 import { Haptics, ImpactStyle, NotificationType } from "@capacitor/haptics";
 
-const isNative = () => Capacitor.isNativePlatform();
+const isNative = () => {
+  try { return Capacitor.isNativePlatform(); } catch { return false; }
+};
 const STORAGE_KEY = "tw_haptics_enabled";
+
+/**
+ * Wrap a haptic implementation so it NEVER throws or rejects, regardless of
+ * platform support. Buttons stay animated via CSS even when haptics are
+ * unavailable (older browsers, iOS Safari without user gesture, locked-down
+ * webviews, SSR, etc.). Failures are silent by design.
+ */
+function safe<A extends unknown[]>(fn: (...args: A) => Promise<void> | void) {
+  return async (...args: A): Promise<void> => {
+    try { await fn(...args); } catch { /* swallow — haptics are best-effort */ }
+  };
+}
 
 let enabled = (() => {
   if (typeof window === "undefined") return true;
@@ -37,10 +51,14 @@ const THROTTLE_MS = 35; // prevents rapid-fire taps from melting into a buzz
 
 function canFire(): boolean {
   if (!enabled) return false;
-  const now = performance.now();
-  if (now - lastFired < THROTTLE_MS) return false;
-  lastFired = now;
-  return true;
+  try {
+    const now = typeof performance !== "undefined" ? performance.now() : Date.now();
+    if (now - lastFired < THROTTLE_MS) return false;
+    lastFired = now;
+    return true;
+  } catch {
+    return true;
+  }
 }
 
 function webVibrate(pattern: number | number[]) {
@@ -84,53 +102,53 @@ export const haptics = {
   isEnabled() { return enabled; },
 
   /** Micro-tap — for tile/icon taps where you want a featherlight tick. */
-  async tap() {
+  tap: safe(async () => {
     if (!canFire()) return;
     await impact(ImpactStyle.Light, 8);
-  },
+  }),
 
   /** Selection click — discrete, crisp. Tab switches, toggles, segment picks. */
-  async select() {
+  select: safe(async () => {
     if (!canFire()) return;
     if (isNative()) {
       try { await Haptics.selectionStart(); await Haptics.selectionChanged(); await Haptics.selectionEnd(); return; }
       catch { /* fall through */ }
     }
     webVibrate(12);
-  },
+  }),
 
   /** Medium thump — primary CTA press, confirm. */
-  async press() {
+  press: safe(async () => {
     if (!canFire()) return;
     await impact(ImpactStyle.Medium, 18);
-  },
+  }),
 
   /** Heavy strike — destructive or final action. */
-  async strike() {
+  strike: safe(async () => {
     if (!canFire()) return;
     await impact(ImpactStyle.Heavy, 28);
-  },
+  }),
 
   /** Rising two-beat — success state (payment ok, reward claimed). */
-  async success() {
+  success: safe(async () => {
     if (!canFire()) return;
     await notification(NotificationType.Success, [14, 60, 22]);
-  },
+  }),
 
   /** Single firm thump — warning, near limit. */
-  async warning() {
+  warning: safe(async () => {
     if (!canFire()) return;
     await notification(NotificationType.Warning, [22, 80, 22]);
-  },
+  }),
 
   /** Stutter — error / rejected. */
-  async error() {
+  error: safe(async () => {
     if (!canFire()) return;
     await notification(NotificationType.Error, [10, 40, 10, 40, 18]);
-  },
+  }),
 
   /** Expanding swell — FAB launch, modal/sheet bloom, screen morph. */
-  async bloom() {
+  bloom: safe(async () => {
     if (!canFire()) return;
     await compose(
       [
@@ -140,28 +158,28 @@ export const haptics = {
       ],
       [10, 50, 16, 80, 26]
     );
-  },
+  }),
 
   /** Soft swoosh — page transitions, panel close, swipe complete. */
-  async swipe() {
+  swipe: safe(async () => {
     if (!canFire()) return;
     await compose(
       [{ style: ImpactStyle.Light, delay: 40 }, { style: ImpactStyle.Light }],
       [8, 40, 8]
     );
-  },
+  }),
 
   /** Heartbeat double-pulse — greeting tap, like, "you're seen". */
-  async heartbeat() {
+  heartbeat: safe(async () => {
     if (!canFire()) return;
     await compose(
       [{ style: ImpactStyle.Medium, delay: 110 }, { style: ImpactStyle.Light }],
       [16, 110, 10]
     );
-  },
+  }),
 
   /** Long-press confirmation — slow build then release. */
-  async longPress() {
+  longPress: safe(async () => {
     if (!canFire()) return;
     await compose(
       [
@@ -171,5 +189,5 @@ export const haptics = {
       ],
       [10, 120, 18, 120, 30]
     );
-  },
+  }),
 };
