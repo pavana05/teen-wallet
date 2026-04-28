@@ -9,6 +9,7 @@ import { NotificationsPanel } from "@/components/NotificationsPanel";
 import { ProfilePanel } from "@/components/ProfilePanel";
 import heroScan from "@/assets/home-hero-scan.jpg";
 import heroScanDiwali from "@/assets/home-hero-scan-diwali.png";
+import heroScanHoli from "@/assets/home-hero-scan-holi.png";
 import { useAppImage } from "@/lib/useAppImage";
 import { haptics } from "@/lib/haptics";
 import { useGenderPersona } from "@/lib/genderPersona";
@@ -50,6 +51,31 @@ function isDiwaliSeason(now: Date = new Date()): boolean {
   const peak = new Date(iso + "T00:00:00Z").getTime();
   const day = 86400000;
   return now.getTime() >= peak - 14 * day && now.getTime() <= peak + 7 * day;
+}
+
+// Returns true during the Holi festival window. Holi (Rangwali Holi / Dhulandi)
+// dates: 2025-03-14, 2026-03-04, 2027-03-22, 2028-03-11, 2029-02-28.
+// Window: 5 days before (covers Holika Dahan eve) → 2 days after.
+// `?festival=holi` query param forces it on for testing/preview.
+function isHoliSeason(now: Date = new Date()): boolean {
+  if (typeof window !== "undefined") {
+    const sp = new URLSearchParams(window.location.search);
+    const f = sp.get("festival");
+    if (f === "holi") return true;
+    if (f === "off") return false;
+  }
+  const HOLI: Record<number, string> = {
+    2025: "2025-03-14",
+    2026: "2026-03-04",
+    2027: "2027-03-22",
+    2028: "2028-03-11",
+    2029: "2029-02-28",
+  };
+  const iso = HOLI[now.getUTCFullYear()];
+  if (!iso) return false;
+  const peak = new Date(iso + "T00:00:00Z").getTime();
+  const day = 86400000;
+  return now.getTime() >= peak - 5 * day && now.getTime() <= peak + 2 * day;
 }
 
 
@@ -145,6 +171,7 @@ export function Home() {
   // Admin-managed scan hero images (live via Realtime). Falls back to bundled assets.
   const scanHeroDefault = useAppImage("home.scan_hero", heroScan, "Scan and pay");
   const scanHeroDiwali = useAppImage("home.scan_hero_diwali", heroScanDiwali, "Diwali scan and pay");
+  const scanHeroHoli = useAppImage("home.scan_hero_holi", heroScanHoli, "Holi scan and pay");
   const [view, setView] = useState<"home" | "scan" | "transactions">("home");
   const [quickAction, setQuickAction] = useState<QuickActionKind | null>(null);
   const [showNotifs, setShowNotifs] = useState(false);
@@ -441,20 +468,24 @@ export function Home() {
           </button>
         </div>
 
-        {/* Scan hero card — swaps to a Diwali-themed banner during the festival */}
-        <button
-          type="button"
-          onClick={() => setView("scan")}
-          className="hp-scan-card group"
-          aria-label="Open scanner to scan and pay"
-          data-festival={isDiwaliSeason() ? "diwali" : undefined}
-        >
-          <img
-            src={isDiwaliSeason() ? scanHeroDiwali.url : scanHeroDefault.url}
-            alt={isDiwaliSeason() ? scanHeroDiwali.alt : scanHeroDefault.alt}
-            className="hp-scan-img"
-          />
-        </button>
+        {/* Scan hero card — swaps to a Holi or Diwali themed banner during the festival */}
+        {(() => {
+          const holi = isHoliSeason();
+          const diwali = !holi && isDiwaliSeason();
+          const hero = holi ? scanHeroHoli : diwali ? scanHeroDiwali : scanHeroDefault;
+          const festival = holi ? "holi" : diwali ? "diwali" : undefined;
+          return (
+            <button
+              type="button"
+              onClick={() => setView("scan")}
+              className="hp-scan-card group"
+              aria-label="Open scanner to scan and pay"
+              data-festival={festival}
+            >
+              <img src={hero.url} alt={hero.alt} className="hp-scan-img" />
+            </button>
+          );
+        })()}
 
         {/* Grass to black blend */}
         <div className="hp-hero-fade" aria-hidden="true" />
