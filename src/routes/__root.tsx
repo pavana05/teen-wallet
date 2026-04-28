@@ -111,7 +111,8 @@ function RootComponent() {
   useEffect(() => {
     installConsoleCapture();
     initNative();
-    installAppLockListeners();
+    // Only the native app needs App Lock visibility/idle listeners.
+    if (isNative()) installAppLockListeners();
     breadcrumb("system.boot", { platform: typeof navigator !== "undefined" ? navigator.userAgent : undefined });
 
     const onError = (e: ErrorEvent) => captureError(e.error ?? e.message, { where: "window.onerror" });
