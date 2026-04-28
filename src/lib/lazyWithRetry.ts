@@ -9,14 +9,14 @@ import { lazy, type ComponentType } from "react";
  * times with backoff, and on the final attempt force a hard reload so the
  * client picks up the new asset manifest.
  */
-export function lazyWithRetry<T extends ComponentType<unknown>>(
+export function lazyWithRetry<T extends ComponentType<any>>(
   factory: () => Promise<{ default: T }>,
   opts: { retries?: number; delayMs?: number } = {},
-): ReturnType<typeof lazy<T>> {
+) {
   const retries = opts.retries ?? 2;
   const delayMs = opts.delayMs ?? 350;
 
-  return lazy(async () => {
+  return lazy<T>(async () => {
     let lastErr: unknown;
     for (let attempt = 0; attempt <= retries; attempt++) {
       try {
