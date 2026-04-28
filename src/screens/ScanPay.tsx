@@ -72,6 +72,10 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
   const [amount, setAmount] = useState<number>(persisted?.amount ?? 0);
   const [resultMsg, setResultMsg] = useState("");
   const [failKind, setFailKind] = useState<FailKind>("generic");
+  // Inline error shown directly within the Confirm screen (does not eject the
+  // user to the full FailedView). Used for transient/recoverable failures so
+  // the slide area can shake + show retry without losing entered context.
+  const [payError, setPayError] = useState<string | null>(null);
   // The actual transaction returned from the API after a successful insert.
   // Drives the success screen's reference ID + receipt PDF.
   const [savedTxn, setSavedTxn] = useState<SavedTxn | null>(null);
