@@ -987,175 +987,130 @@ function ConfirmView({
 
   const addAmount = (delta: number) => onAmountChange(Number((amount + delta).toFixed(2)));
 
-  // Allow Enter to submit when focused inside the form (note/amount), if it's payable.
+  // Two-stage flow: Stage A keypad → tap "Next" → Stage B Slide-to-Pay button.
+  // The user can collapse back to the keypad by tapping the chevron on Stage B.
+  const [stage, setStage] = useState<"enter" | "review">("enter");
+
+  // Reset to keypad whenever the amount becomes invalid or merchant changes.
+  useEffect(() => {
+    if (amount <= 0) setStage("enter");
+  }, [amount, payload.upiId]);
+
+  // Format amount for display: hide leading "0", show typed digits.
+  const amountStr = amount === 0 ? "" : String(amount);
+
+  const onKey = (k: string) => {
+    if (k === "del") {
+      const next = amountStr.slice(0, -1);
+      onAmountChange(next === "" ? 0 : Number(next));
+      return;
+    }
+    if (k === ".") {
+      if (amountStr.includes(".") || amountStr === "") {
+        if (amountStr === "") onAmountChange(Number("0."));
+        return;
+      }
+      onAmountChange(Number(amountStr + "."));
+      return;
+    }
+    // digit
+    if (amountStr.includes(".")) {
+      const [, dec = ""] = amountStr.split(".");
+      if (dec.length >= 2) return; // max 2 decimals
+    }
+    if (amountStr.replace(".", "").length >= 7) return; // sane cap
+    const next = amountStr === "" ? k : amountStr + k;
+    onAmountChange(Number(next));
+  };
+
   const onFormKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && canPay) {
       e.preventDefault();
-      onConfirm();
+      if (stage === "enter") setStage("review");
+      else onConfirm();
     }
   };
 
   return (
-    <div className="sp2-confirm tw-slide-up" onKeyDown={onFormKeyDown}>
-      {/* Header */}
-      <div className="sp2-confirm-head">
-        <button onClick={onBack} aria-label="Back to scanner" className="sp2-icon-btn focus-visible:ring-2 focus-visible:ring-primary">
+    <div className="sp3-pay tw-slide-up" onKeyDown={onFormKeyDown}>
+      {/* Massive orange aura behind the avatar */}
+      <div className="sp3-aura" aria-hidden />
+      <div className="sp3-vignette" aria-hidden />
+
+      {/* Header — minimal back button */}
+      <div className="sp3-head">
+        <button onClick={onBack} aria-label="Back" className="sp3-icon-btn focus-visible:ring-2 focus-visible:ring-primary">
           <ArrowLeft className="w-5 h-5" />
         </button>
-        <span className="sp2-confirm-title">Pay to merchant</span>
-        <button onClick={onBack} aria-label="Close payment" className="sp2-icon-btn focus-visible:ring-2 focus-visible:ring-primary">
+        <span className="sp3-head-spacer" />
+        <button onClick={onBack} aria-label="Close payment" className="sp3-icon-btn focus-visible:ring-2 focus-visible:ring-primary">
           <X className="w-5 h-5" />
         </button>
       </div>
 
-      {/* Stepper: Confirm → Processing → Success */}
-      <div className="px-4 pb-3 pt-1">
-        <PaymentStepper stage="confirm" />
-      </div>
+      {/* Hidden stepper for screen readers */}
+      <div className="sr-only"><PaymentStepper stage="confirm" /></div>
 
-      <div className="sp2-merchant-card" role="group" aria-label={`Paying ${payload.payeeName || payload.upiId}`}>
-        <div className="sp2-merchant-avatar" aria-hidden="true">
-          {initial || "?"}
-          <span className="sp2-merchant-verified" title="Verified merchant">
-            <ShieldCheck className="w-3 h-3" strokeWidth={3} />
+      {/* Avatar + identity block */}
+      <div className="sp3-id">
+        <div className="sp3-avatar" aria-hidden>
+          <span className="sp3-avatar-initial">{initial || "?"}</span>
+        </div>
+        <div className="sp3-name-row">
+          <h2 className="sp3-name">{payload.payeeName || "Unknown payee"}</h2>
+          <span className="sp3-verified" title="Verified merchant" aria-label="Verified">
+            <ShieldCheck className="w-3.5 h-3.5" strokeWidth={3} />
           </span>
         </div>
-        <div className="sp2-merchant-info">
-          <div className="sp2-merchant-name">
-            {payload.payeeName || "Unknown payee"}
-            <span className="sp2-merchant-tag">UPI</span>
-          </div>
-          <div className="sp2-merchant-upi">{payload.upiId}</div>
+        <div className="sp3-upi-row">
+          <span className="sp3-upi-icon" aria-hidden />
+          <span className="sp3-upi">{payload.upiId}</span>
         </div>
-      </div>
 
-      {/* Amount */}
-      <div className="sp2-amount-wrap">
-        <label htmlFor="sp2-amount-input" className="sp2-amount-label">Enter amount</label>
-        <div className="sp2-amount-row">
-          <span className="sp2-amount-symbol" aria-hidden="true">₹</span>
+        {/* Amount with blinking caret */}
+        <div className="sp3-amount-block" role="group" aria-label={`Amount ${amount} rupees`}>
+          <span className="sp3-amount-symbol" aria-hidden>₹</span>
+          <span className="sp3-amount-value num-mono" aria-live="polite">
+            {amountStr || ""}
+          </span>
+          <span className="sp3-caret" aria-hidden />
+        </div>
+
+        {/* Note pill */}
+        <div className="sp3-note-pill">
           <input
-            id="sp2-amount-input"
-            autoFocus={!payload.amount}
-            inputMode="decimal"
-            aria-label="Amount in rupees"
-            aria-invalid={insufficient || undefined}
-            aria-describedby={insufficient ? "sp2-amount-error" : undefined}
-            value={amount === 0 ? "" : amount}
-            onChange={(e) => {
-              const v = e.target.value.replace(/[^0-9.]/g, "");
-              onAmountChange(v === "" ? 0 : Number(v));
-            }}
-            placeholder="0"
-            className="sp2-amount-input bg-transparent focus-visible:outline-none"
+            id="sp3-note-input"
+            type="text"
+            maxLength={50}
+            value={note}
+            onChange={(e) => onNoteChange(e.target.value)}
+            placeholder="Add a note"
+            aria-label="Add a note for this payment (optional)"
+            className="sp3-note-input focus-visible:outline-none"
           />
         </div>
 
-        {/* QR origin pill */}
-        {payload.amount != null && payload.amountRaw != null && (
-          <div className="sp2-from-qr">
-            <span>From QR: <span className="num-mono text-white/90">{payload.amountRaw}</span></span>
-            {payload.amountSource === "paise" && (
-              <span className="px-1.5 py-0.5 rounded-full bg-amber-400/15 text-amber-300 text-[10px] font-medium">paise → ₹{payload.amount.toFixed(2)}</span>
-            )}
-            {payload.amountSource === "rupees" && payload.amountRaw.trim() !== payload.amount.toString() && (
-              <span className="px-1.5 py-0.5 rounded-full bg-emerald-400/15 text-emerald-300 text-[10px] font-medium">= ₹{payload.amount.toFixed(2)}</span>
-            )}
-          </div>
-        )}
-
-        {/* Quick amount chips — keyboard navigable group with arrow-key support */}
-        <div
-          className="sp2-chips"
-          role="group"
-          aria-label="Quick amount selection"
-        >
-          {quickAmounts.map((v, i) => (
-            <button
-              key={v}
-              type="button"
-              className="sp2-chip focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-              onClick={() => onAmountChange(v)}
-              aria-label={`Set amount to ${v} rupees`}
-              aria-pressed={amount === v}
-              data-chip-index={i}
-              onKeyDown={(e) => {
-                if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
-                  e.preventDefault();
-                  const dir = e.key === "ArrowRight" ? 1 : -1;
-                  const next = e.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>("button.sp2-chip");
-                  if (!next) return;
-                  const arr = Array.from(next);
-                  const idx = arr.indexOf(e.currentTarget);
-                  arr[(idx + dir + arr.length) % arr.length]?.focus();
-                }
-              }}
-            >
-              ₹{v}
-            </button>
-          ))}
-          <button
-            type="button"
-            className="sp2-chip sp2-chip-add focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-            onClick={() => addAmount(100)}
-            aria-label="Add 100 rupees to amount"
-          >
-            + ₹100
-          </button>
-        </div>
-
         {insufficient && (
-          <p id="sp2-amount-error" role="alert" className="mt-3 text-[12px] text-red-400 font-medium">
+          <p id="sp3-amount-error" role="alert" className="sp3-error">
             Insufficient balance · ₹{balance.toFixed(2)} available
           </p>
         )}
       </div>
 
-      {/* Note input */}
-      <div className="sp2-note-wrap">
-        <label htmlFor="sp2-note-input" className="sr-only">Add a note for this payment (optional)</label>
-        <input
-          id="sp2-note-input"
-          type="text"
-          maxLength={50}
-          value={note}
-          onChange={(e) => onNoteChange(e.target.value)}
-          placeholder="Add a note (optional)"
-          aria-describedby="sp2-note-counter"
-          className="sp2-note-input focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
-        />
-        <span id="sp2-note-counter" className="sr-only">
-          {note.length} of 50 characters used
-        </span>
-      </div>
-
-      {/* Pay-from method selector */}
-      <div className="sp2-method">
-        <div className="sp2-method-icon"><Wallet className="w-[18px] h-[18px]" /></div>
-        <div className="sp2-method-info">
-          <div className="sp2-method-label">Paying from</div>
-          <div className="sp2-method-name">Teen Wallet</div>
-        </div>
-        <div className="sp2-method-bal">₹{balance.toFixed(2)}</div>
-      </div>
-
-      {/* ── Review & Continue gate ──
-          Surfaces fraud preflight flags BEFORE the slide. Block flags fully
-          disable payment and show the final block reason. Warn flags require
-          an explicit acknowledge tick before the slide unlocks. */}
+      {/* ── Fraud preflight (warns + block) ── */}
       {(isBlocked || warnFlags.length > 0) && (
         <div
-          className={`sp2-fraud-panel ${isBlocked ? "sp2-fraud-blocked" : "sp2-fraud-warn"}`}
+          className={`sp3-fraud ${isBlocked ? "sp3-fraud-blocked" : "sp3-fraud-warn"}`}
           role={isBlocked ? "alert" : "status"}
           aria-live="polite"
         >
-          <div className="sp2-fraud-head">
+          <div className="sp3-fraud-head">
             {isBlocked ? <X className="w-4 h-4" strokeWidth={2.6} /> : <AlertTriangle className="w-4 h-4" strokeWidth={2.4} />}
-            <span className="sp2-fraud-title">
+            <span>
               {isBlocked ? "Payment will be blocked" : `${warnFlags.length} warning${warnFlags.length > 1 ? "s" : ""} — review before paying`}
             </span>
           </div>
-          <ul className="sp2-fraud-list">
+          <ul className="sp3-fraud-list">
             {(isBlocked ? blockFlags : warnFlags).map((f) => (
               <li key={f.rule}>
                 <Info className="w-3 h-3 mt-0.5 shrink-0 opacity-70" />
@@ -1164,31 +1119,79 @@ function ConfirmView({
             ))}
           </ul>
           {!isBlocked && (
-            <label className="sp2-fraud-ack">
+            <label className="sp3-fraud-ack">
               <input
                 type="checkbox"
                 checked={acknowledged}
                 onChange={(e) => setAcknowledged(e.target.checked)}
-                aria-label="Acknowledge warnings and confirm paying"
               />
-              <span>I've reviewed the warnings and want to continue</span>
+              <span>I've reviewed and want to continue</span>
             </label>
           )}
         </div>
       )}
 
-      {/* Slide to pay */}
-      <div className="relative z-10 px-4 pt-4 pb-6 safe-bottom">
-        <SlideToPay disabled={!canPay} onComplete={onConfirm} />
-        <p className="text-center text-[10px] text-white/35 mt-3 tracking-wider">
-          {fraudLoading ? "Checking payment safety…" : (
-            <>
-              <UserIcon className="w-3 h-3 inline-block mr-1 align-[-2px]" />
-              Secured by Teen Wallet · UPI
-            </>
-          )}
-        </p>
-      </div>
+      {/* Stage A: keypad + circular Next button */}
+      {stage === "enter" && (
+        <div className="sp3-keypad-wrap" data-stage="enter">
+          {/* Floating circular Next button on the right */}
+          <button
+            type="button"
+            onClick={() => { if (canPay) setStage("review"); }}
+            disabled={!canPay}
+            aria-label="Next"
+            className="sp3-next-fab"
+          >
+            <ArrowRight className="w-5 h-5" strokeWidth={2.6} />
+          </button>
+
+          <div className="sp3-keypad" role="group" aria-label="Numeric keypad">
+            {["1","2","3","4","5","6","7","8","9",".","0","del"].map((k) => (
+              <button
+                key={k}
+                type="button"
+                className="sp3-key"
+                onClick={() => onKey(k)}
+                aria-label={k === "del" ? "Delete" : k === "." ? "Decimal point" : `Digit ${k}`}
+              >
+                {k === "del" ? <Delete className="w-5 h-5" strokeWidth={2} /> : <span>{k}</span>}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Stage B: Slide-to-Pay with bank/method row */}
+      {stage === "review" && (
+        <div className="sp3-pay-wrap safe-bottom" data-stage="review">
+          <div className="sp3-method-row">
+            <button
+              type="button"
+              onClick={() => setStage("enter")}
+              className="sp3-method-pill focus-visible:ring-2 focus-visible:ring-primary"
+              aria-label="Change amount"
+            >
+              <span className="sp3-method-logo" aria-hidden><Wallet className="w-3.5 h-3.5" /></span>
+              <span className="sp3-method-name">Teen Wallet • {balance.toFixed(0)}</span>
+              <ChevronDown className="w-3.5 h-3.5 opacity-70" />
+            </button>
+            <button type="button" className="sp3-balance-link" onClick={() => setStage("enter")}>
+              Edit amount <ArrowRight className="w-3 h-3" />
+            </button>
+          </div>
+
+          <SlideToPay disabled={!canPay} onComplete={onConfirm} amount={amount} />
+
+          <p className="sp3-secure">
+            {fraudLoading ? "Checking payment safety…" : (
+              <>
+                <ShieldCheck className="w-3 h-3 inline-block mr-1 align-[-2px]" />
+                Secured by Teen Wallet · UPI
+              </>
+            )}
+          </p>
+        </div>
+      )}
     </div>
   );
 }
