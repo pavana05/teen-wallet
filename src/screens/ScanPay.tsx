@@ -1225,11 +1225,17 @@ function SlideToPay({ disabled, onComplete }: { disabled: boolean; onComplete: (
     setTimeout(onComplete, 220);
   }, [onComplete]);
 
+  // FPS guard: starts when the user begins dragging, stops on release. If the
+  // drag interaction janks (>30% dropped frames over the gesture) the guard
+  // auto-reduces motion app-wide so the next slide is buttery on this device.
+  const fpsStopRef = useRef<null | (() => unknown)>(null);
+
   const handlePointerDown = (e: React.PointerEvent) => {
     if (disabled || completed) return;
     setDragging(true);
     startX.current = e.clientX - dragX;
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    fpsStopRef.current = sampleFrames("slide", { minSamples: 20, dropThresholdPct: 0.30 });
   };
   const handlePointerMove = (e: React.PointerEvent) => {
     if (!dragging) return;
@@ -1240,6 +1246,8 @@ function SlideToPay({ disabled, onComplete }: { disabled: boolean; onComplete: (
   const handlePointerUp = () => {
     if (!dragging) return;
     setDragging(false);
+    fpsStopRef.current?.();
+    fpsStopRef.current = null;
     const max = getMaxX();
     if (dragX >= max - 6) {
       finish();
@@ -1247,6 +1255,7 @@ function SlideToPay({ disabled, onComplete }: { disabled: boolean; onComplete: (
       setDragX(0);
     }
   };
+
 
   // Keyboard accessibility — arrow keys nudge the knob, Enter/Space confirms.
   // This matches WAI-ARIA slider pattern and lets keyboard-only users pay.
