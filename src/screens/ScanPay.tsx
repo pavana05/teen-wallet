@@ -722,10 +722,13 @@ function ScannerView({ onBack, onDecoded }: { onBack: () => void; onDecoded: (p:
 
   // Trigger gallery picker programmatically — used by the recovery panel so
   // a struggling user can fall back from camera scanning to file upload in
-  // a single tap, without hunting for the small Upload chip in the dock.
-  const openGalleryPicker = () => {
+  // Wraps `openGalleryPicker` to clear any prior #FF4444 banner first so the
+  // user gets a clean retry state when they tap "Retry".
+  const openGalleryPickerFresh = () => {
+    setUploadError(null);
     fallbackInputRef.current?.click();
   };
+  const openGalleryPicker = openGalleryPickerFresh;
 
   const toggleTorch = async () => {
     const s = scannerRef.current;
