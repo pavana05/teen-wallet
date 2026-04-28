@@ -1720,6 +1720,46 @@ Deno.serve(async (req) => {
     return json({ ok: true });
   }
 
+  // ===============================================================
+  // KYC follow-ups: users who verified their phone (STAGE_3+) but
+  // have NOT completed KYC. Used by the admin "KYC Follow-ups" page
+  // to nudge them via WhatsApp / SMS.
+  // ===============================================================
+  if (action === "kyc_followups") {
+    if (!can(me.role, "viewKyc")) return json({ error: "forbidden" }, 403);
+    const search = String(body.search ?? "").trim();
+    const stageFilter = String(body.stage ?? ""); // "", "STAGE_3", "STAGE_4", "STAGE_5"
+    const page = Math.max(1, Number(body.page ?? 1));
+    const pageSize = Math.min(100, Math.max(10, Number(body.pageSize ?? 25)));
+
+    let q = sb
+      .from("profiles")
+      .select(
+        "id,full_name,phone,kyc_status,onboarding_stage,created_at,updated_at,aadhaar_last4",
+        { count: "exact" },
+      )
+      // phone present (verified during OTP step)
+      .not("phone", "is", null)
+      .neq("phone", "")
+      // phone-verified or further along, but NOT yet KYC-approved
+      .in("onboarding_stage", ["STAGE_3", "STAGE_4", "STAGE_5"])
+      .neq("kyc_status", "approved");
+
+    if (stageFilter) q = q.eq("onboarding_stage", stageFilter as any);
+    if (search) {
+      const safe = search.replace(/[%,]/g, "");
+      q = q.or(`full_name.ilike.%${safe}%,phone.ilike.%${safe}%`);
+    }
+
+    q = q.order("created_at", { ascending: false })
+      .range((page - 1) * pageSize, page * pageSize - 1);
+
+    const { data, count, error } = await q;
+    if (error) return json({ error: error.message }, 500);
+
+    return json({ rows: data ?? [], total: count ?? 0, page, pageSize });
+  }
+
   return json({ error: "unknown_action" }, 400);
 });
 

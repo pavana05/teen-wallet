@@ -33,6 +33,7 @@ import { Route as AdminTransactionsRouteImport } from './routes/admin.transactio
 import { Route as AdminSettingsRouteImport } from './routes/admin.settings'
 import { Route as AdminReportsRouteImport } from './routes/admin.reports'
 import { Route as AdminLoginRouteImport } from './routes/admin.login'
+import { Route as AdminKycFollowupsRouteImport } from './routes/admin.kyc-followups'
 import { Route as AdminKycRouteImport } from './routes/admin.kyc'
 import { Route as AdminFraudRouteImport } from './routes/admin.fraud'
 import { Route as AdminDiagnosticsRouteImport } from './routes/admin.diagnostics'
@@ -161,6 +162,11 @@ const AdminLoginRoute = AdminLoginRouteImport.update({
   path: '/login',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminKycFollowupsRoute = AdminKycFollowupsRouteImport.update({
+  id: '/kyc-followups',
+  path: '/kyc-followups',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminKycRoute = AdminKycRouteImport.update({
   id: '/kyc',
   path: '/kyc',
@@ -207,6 +213,7 @@ export interface FileRoutesByFullPath {
   '/admin/diagnostics': typeof AdminDiagnosticsRoute
   '/admin/fraud': typeof AdminFraudRoute
   '/admin/kyc': typeof AdminKycRoute
+  '/admin/kyc-followups': typeof AdminKycFollowupsRoute
   '/admin/login': typeof AdminLoginRoute
   '/admin/reports': typeof AdminReportsRoute
   '/admin/settings': typeof AdminSettingsRoute
@@ -239,6 +246,7 @@ export interface FileRoutesByTo {
   '/admin/diagnostics': typeof AdminDiagnosticsRoute
   '/admin/fraud': typeof AdminFraudRoute
   '/admin/kyc': typeof AdminKycRoute
+  '/admin/kyc-followups': typeof AdminKycFollowupsRoute
   '/admin/login': typeof AdminLoginRoute
   '/admin/reports': typeof AdminReportsRoute
   '/admin/settings': typeof AdminSettingsRoute
@@ -273,6 +281,7 @@ export interface FileRoutesById {
   '/admin/diagnostics': typeof AdminDiagnosticsRoute
   '/admin/fraud': typeof AdminFraudRoute
   '/admin/kyc': typeof AdminKycRoute
+  '/admin/kyc-followups': typeof AdminKycFollowupsRoute
   '/admin/login': typeof AdminLoginRoute
   '/admin/reports': typeof AdminReportsRoute
   '/admin/settings': typeof AdminSettingsRoute
@@ -308,6 +317,7 @@ export interface FileRouteTypes {
     | '/admin/diagnostics'
     | '/admin/fraud'
     | '/admin/kyc'
+    | '/admin/kyc-followups'
     | '/admin/login'
     | '/admin/reports'
     | '/admin/settings'
@@ -340,6 +350,7 @@ export interface FileRouteTypes {
     | '/admin/diagnostics'
     | '/admin/fraud'
     | '/admin/kyc'
+    | '/admin/kyc-followups'
     | '/admin/login'
     | '/admin/reports'
     | '/admin/settings'
@@ -373,6 +384,7 @@ export interface FileRouteTypes {
     | '/admin/diagnostics'
     | '/admin/fraud'
     | '/admin/kyc'
+    | '/admin/kyc-followups'
     | '/admin/login'
     | '/admin/reports'
     | '/admin/settings'
@@ -589,6 +601,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminLoginRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/kyc-followups': {
+      id: '/admin/kyc-followups'
+      path: '/kyc-followups'
+      fullPath: '/admin/kyc-followups'
+      preLoaderRoute: typeof AdminKycFollowupsRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/kyc': {
       id: '/admin/kyc'
       path: '/kyc'
@@ -659,6 +678,7 @@ interface AdminRouteChildren {
   AdminDiagnosticsRoute: typeof AdminDiagnosticsRoute
   AdminFraudRoute: typeof AdminFraudRoute
   AdminKycRoute: typeof AdminKycRoute
+  AdminKycFollowupsRoute: typeof AdminKycFollowupsRoute
   AdminLoginRoute: typeof AdminLoginRoute
   AdminReportsRoute: typeof AdminReportsRoute
   AdminSettingsRoute: typeof AdminSettingsRoute
@@ -673,6 +693,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminDiagnosticsRoute: AdminDiagnosticsRoute,
   AdminFraudRoute: AdminFraudRoute,
   AdminKycRoute: AdminKycRoute,
+  AdminKycFollowupsRoute: AdminKycFollowupsRoute,
   AdminLoginRoute: AdminLoginRoute,
   AdminReportsRoute: AdminReportsRoute,
   AdminSettingsRoute: AdminSettingsRoute,

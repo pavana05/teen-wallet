@@ -80,6 +80,7 @@ function AdminLayout() {
       items: [
         { to: "/admin/users", label: "Users", icon: Users, kbd: "g u", perm: "viewUsers" },
         { to: "/admin/kyc", label: "KYC Queue", icon: FileCheck2, kbd: "g k", perm: "viewKyc" },
+        { to: "/admin/kyc-followups", label: "KYC Follow-ups", icon: MessageSquareWarning, kbd: "g n", perm: "viewKyc" },
         { to: "/admin/transactions", label: "Transactions", icon: Wallet, kbd: "g t", perm: "viewTransactions" },
         { to: "/admin/fraud", label: "Fraud", icon: ShieldAlert, kbd: "g f", perm: "viewFraud" },
         { to: "/admin/reports", label: "Support Tickets", icon: MessageSquareWarning, kbd: "g r", perm: "viewReports" },
