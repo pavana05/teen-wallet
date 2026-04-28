@@ -554,7 +554,8 @@ Deno.serve(async (req) => {
   // ---------------------------------------------------------------
   async function authenticate(): Promise<{ id: string; email: string; role: string; name: string } | null> {
     const headerSessionToken = req.headers.get("x-admin-session-token") ?? "";
-    const sessionToken = String(body.sessionToken ?? headerSessionToken);
+    const bodySessionToken = String(body.sessionToken ?? "");
+    const sessionToken = bodySessionToken || headerSessionToken;
     if (!sessionToken) return null;
     const sessionHash = await sha256Hex("session:" + sessionToken);
     const { data: s } = await sb.from("admin_sessions").select("*").eq("session_token_hash", sessionHash).maybeSingle();
