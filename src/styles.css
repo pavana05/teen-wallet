@@ -7858,44 +7858,45 @@ html.motion-off    .otp-resend-ring svg circle { transition: none !important; }
   overflow: hidden;
   isolation: isolate;
 }
-/* Massive orange aura — focal hotspot behind avatar */
+/* Massive orange aura — deep premium hotspot behind avatar (matches ref) */
 .sp3-aura {
   position: absolute;
-  top: -28vh;
+  top: -34vh;
   left: 50%;
   transform: translateX(-50%);
-  width: min(170vw, 1040px);
-  height: min(170vw, 1040px);
+  width: min(190vw, 1180px);
+  height: min(190vw, 1180px);
   border-radius: 50%;
   pointer-events: none;
   background:
     radial-gradient(circle at 50% 50%,
-      rgba(255, 120, 40, 0.62) 0%,
-      rgba(240, 90, 20, 0.46) 16%,
-      rgba(200, 60, 12, 0.28) 30%,
-      rgba(120, 30, 6, 0.12) 46%,
-      rgba(0, 0, 0, 0) 62%);
-  filter: blur(1px);
+      rgba(255, 132, 48, 0.78) 0%,
+      rgba(248, 102, 28, 0.60) 11%,
+      rgba(228, 78, 18, 0.42) 22%,
+      rgba(178, 52, 10, 0.24) 36%,
+      rgba(96, 24, 4, 0.10) 52%,
+      rgba(0, 0, 0, 0) 66%);
+  filter: blur(2px) saturate(1.05);
   z-index: 0;
 }
 .sp3-vignette {
   position: absolute; inset: 0; pointer-events: none; z-index: 1;
   background:
-    radial-gradient(130% 60% at 50% 115%, rgba(0,0,0,.92), transparent 55%),
-    linear-gradient(180deg, rgba(0,0,0,.35) 0%, transparent 28%, transparent 62%, rgba(0,0,0,.85) 100%);
+    radial-gradient(140% 65% at 50% 118%, rgba(0,0,0,.96), transparent 58%),
+    linear-gradient(180deg, rgba(0,0,0,.42) 0%, transparent 24%, transparent 58%, rgba(0,0,0,.92) 100%);
 }
 
 /* Header */
 .sp3-head {
   position: relative; z-index: 10;
   display: flex; align-items: center; justify-content: space-between;
-  padding: 14px 14px 0;
+  padding: 16px 16px 0;
 }
 .sp3-head-spacer { flex: 1; }
 .sp3-icon-btn {
-  width: 38px; height: 38px; border-radius: 12px;
-  background: rgba(255,255,255,.06);
-  border: 1px solid rgba(255,255,255,.08);
+  width: 40px; height: 40px; border-radius: 14px;
+  background: rgba(255,255,255,.05);
+  border: 1px solid rgba(255,255,255,.07);
   color: #fff;
   display: inline-flex; align-items: center; justify-content: center;
   backdrop-filter: blur(10px);
@@ -7904,21 +7905,22 @@ html.motion-off    .otp-resend-ring svg circle { transition: none !important; }
 .sp3-icon-btn:hover { background: rgba(255,255,255,.10); border-color: rgba(255,255,255,.16); }
 .sp3-icon-btn:active { transform: scale(.92); }
 
-/* Identity block */
+/* Identity block — pulled up into the aura's hot center */
 .sp3-id {
   position: relative; z-index: 10;
   display: flex; flex-direction: column; align-items: center;
-  padding: 22px 24px 10px;
+  padding: 38px 24px 10px;
   text-align: center;
 }
 .sp3-avatar {
-  width: 68px; height: 68px; border-radius: 50%;
-  background: linear-gradient(160deg, #2c8a8a 0%, #1f6f6f 60%, #155757 100%);
+  width: 78px; height: 78px; border-radius: 50%;
+  background: linear-gradient(160deg, #2f9595 0%, #1f7575 58%, #135858 100%);
   display: flex; align-items: center; justify-content: center;
   box-shadow:
-    0 10px 28px -8px rgba(0,0,0,.6),
-    inset 0 1px 0 rgba(255,255,255,.18),
-    inset 0 -8px 14px -6px rgba(0,0,0,.35);
+    0 18px 40px -12px rgba(0,0,0,.75),
+    0 0 0 1px rgba(255,255,255,.04),
+    inset 0 1px 0 rgba(255,255,255,.22),
+    inset 0 -10px 18px -8px rgba(0,0,0,.42);
   animation: sp3-avatar-in 600ms cubic-bezier(.22,1,.36,1) both;
 }
 @keyframes sp3-avatar-in {
@@ -7926,17 +7928,17 @@ html.motion-off    .otp-resend-ring svg circle { transition: none !important; }
   100% { opacity: 1; transform: scale(1) translateY(0); }
 }
 .sp3-avatar-initial {
-  color: #fff; font-weight: 700; font-size: 22px; letter-spacing: .04em;
-  text-shadow: 0 1px 2px rgba(0,0,0,.35);
+  color: #fff; font-weight: 700; font-size: 26px; letter-spacing: .04em;
+  text-shadow: 0 1px 2px rgba(0,0,0,.4);
 }
 
 .sp3-name-row {
-  margin-top: 14px;
+  margin-top: 18px;
   display: flex; align-items: center; gap: 8px;
 }
 .sp3-name {
-  font-size: 22px; line-height: 1.1; font-weight: 700;
-  color: #fff; letter-spacing: -0.01em;
+  font-size: 24px; line-height: 1.1; font-weight: 700;
+  color: #fff; letter-spacing: -0.015em;
 }
 .sp3-verified {
   width: 18px; height: 18px; border-radius: 50%;
@@ -7946,9 +7948,9 @@ html.motion-off    .otp-resend-ring svg circle { transition: none !important; }
   box-shadow: 0 2px 6px -2px rgba(34, 197, 94, .55);
 }
 .sp3-upi-row {
-  margin-top: 6px;
+  margin-top: 8px;
   display: inline-flex; align-items: center; gap: 8px;
-  font-size: 13px; color: rgba(255,255,255,.62);
+  font-size: 14px; color: rgba(255,255,255,.70);
   font-family: var(--font-mono);
 }
 .sp3-upi-icon {
@@ -7959,33 +7961,33 @@ html.motion-off    .otp-resend-ring svg circle { transition: none !important; }
 }
 .sp3-upi { letter-spacing: -0.01em; }
 
-/* Amount display */
+/* Amount display — bigger, cleaner */
 .sp3-amount-block {
-  margin-top: 22px;
+  margin-top: 26px;
   display: inline-flex; align-items: center; justify-content: center;
-  gap: 4px;
-  min-height: 56px;
+  gap: 6px;
+  min-height: 60px;
 }
 .sp3-amount-symbol {
-  font-size: 34px; font-weight: 800; color: #fff;
+  font-size: 38px; font-weight: 800; color: #fff;
   font-family: var(--font-mono);
-  text-shadow: 0 2px 8px rgba(0,0,0,.4);
+  text-shadow: 0 2px 8px rgba(0,0,0,.45);
 }
 .sp3-amount-value {
-  font-size: 44px; font-weight: 700; color: #fff;
-  letter-spacing: -0.02em;
+  font-size: 48px; font-weight: 700; color: #fff;
+  letter-spacing: -0.025em;
   font-variant-numeric: tabular-nums;
   min-width: 4px;
   transition: transform 160ms cubic-bezier(.22,1,.36,1);
 }
 .sp3-caret {
   display: inline-block;
-  width: 2px; height: 36px;
-  background: #ff6a1a;
+  width: 2px; height: 40px;
+  background: rgba(255,255,255,.92);
   border-radius: 2px;
   margin-left: 2px;
   animation: sp3-caret-blink 1s steps(2) infinite;
-  box-shadow: 0 0 10px rgba(255,106,26,.55);
+  box-shadow: 0 0 10px rgba(255,255,255,.35);
 }
 @keyframes sp3-caret-blink {
   50% { opacity: 0; }
@@ -7993,32 +7995,32 @@ html.motion-off    .otp-resend-ring svg circle { transition: none !important; }
 
 /* Note pill */
 .sp3-note-pill {
-  margin-top: 14px;
+  margin-top: 18px;
   display: inline-flex;
   padding: 2px;
   border-radius: 999px;
-  background: rgba(255,255,255,.04);
-  border: 1px solid rgba(255,255,255,.08);
+  background: rgba(255,255,255,.045);
+  border: 1px solid rgba(255,255,255,.07);
   backdrop-filter: blur(8px);
   transition: border-color 200ms ease, background 200ms ease;
 }
 .sp3-note-pill:focus-within {
-  border-color: rgba(255,138,60,.45);
-  background: rgba(255,255,255,.06);
+  border-color: rgba(255,138,60,.5);
+  background: rgba(255,255,255,.07);
 }
 .sp3-note-input {
   background: transparent;
   border: 0;
-  padding: 8px 16px;
+  padding: 9px 20px;
   font-size: 14px;
   color: #fff;
-  width: 180px;
+  width: 200px;
   text-align: center;
 }
-.sp3-note-input::placeholder { color: rgba(255,255,255,.45); }
+.sp3-note-input::placeholder { color: rgba(255,255,255,.50); }
 
 .sp3-error {
-  margin-top: 12px;
+  margin-top: 14px;
   font-size: 12px; color: #fca5a5; font-weight: 600;
 }
 
@@ -8051,7 +8053,7 @@ html.motion-off    .otp-resend-ring svg circle { transition: none !important; }
 .sp3-keypad-wrap {
   position: relative; z-index: 10;
   margin-top: auto;
-  padding: 14px 14px max(18px, env(safe-area-inset-bottom));
+  padding: 18px 18px max(22px, env(safe-area-inset-bottom));
   animation: sp3-stage-in 360ms cubic-bezier(.22,1,.36,1) both;
 }
 @keyframes sp3-stage-in {
@@ -8059,40 +8061,42 @@ html.motion-off    .otp-resend-ring svg circle { transition: none !important; }
   100% { opacity: 1; transform: translateY(0); }
 }
 
+/* Floating circular Next FAB — premium white halo, matches reference */
 .sp3-next-fab {
   position: absolute;
-  right: 22px;
-  top: -30px;
-  width: 56px; height: 56px;
+  right: 24px;
+  top: -34px;
+  width: 60px; height: 60px;
   border-radius: 50%;
-  background: radial-gradient(circle at 30% 25%, #ffffff 0%, #f5f5f5 60%, #e8e8e8 100%);
+  background: radial-gradient(circle at 30% 25%, #ffffff 0%, #f6f6f6 58%, #e6e6e6 100%);
   color: #0a0a0a;
   display: inline-flex; align-items: center; justify-content: center;
   border: 0;
   box-shadow:
-    0 18px 40px -12px rgba(0, 0, 0, .7),
+    0 22px 48px -14px rgba(0, 0, 0, .85),
     0 0 0 1px rgba(255,255,255,.08),
-    inset 0 1px 0 rgba(255,255,255,.9),
-    inset 0 -6px 14px -6px rgba(0,0,0,.18);
+    0 0 38px -8px rgba(255,255,255,.18),
+    inset 0 1px 0 rgba(255,255,255,.95),
+    inset 0 -6px 14px -6px rgba(0,0,0,.2);
   cursor: pointer;
   transition: transform 220ms cubic-bezier(.22,1,.36,1), box-shadow 220ms ease, opacity 220ms ease;
 }
 .sp3-next-fab:hover:not(:disabled) { transform: scale(1.04); }
 .sp3-next-fab:active:not(:disabled) { transform: scale(.94); }
-.sp3-next-fab:disabled { opacity: .4; cursor: not-allowed; box-shadow: 0 6px 16px -8px rgba(0,0,0,.5); }
+.sp3-next-fab:disabled { opacity: .42; cursor: not-allowed; box-shadow: 0 6px 16px -8px rgba(0,0,0,.5); }
 
 .sp3-keypad {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
+  gap: 12px;
 }
 .sp3-key {
-  height: 60px;
-  border-radius: 16px;
-  background: rgba(255,255,255,.045);
-  border: 1px solid rgba(255,255,255,.04);
+  height: 64px;
+  border-radius: 18px;
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(255,255,255,.035);
   color: #fff;
-  font-size: 24px; font-weight: 400;
+  font-size: 26px; font-weight: 400;
   letter-spacing: -0.01em;
   display: inline-flex; align-items: center; justify-content: center;
   cursor: pointer;
