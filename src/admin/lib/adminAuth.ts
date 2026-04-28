@@ -139,20 +139,38 @@ export const ROLE_BADGE: Record<AdminRole, string> = {
 // The DB function is the source of truth; this client copy is for UI gating
 // (hiding buttons, sidebar items) so users don't see things they can't use.
 export const PERMS = {
-  viewDashboard: ["super_admin", "operations_manager", "compliance_officer", "customer_support", "fraud_analyst", "finance_manager"] as AdminRole[],
+  viewDashboard: [
+    "super_admin",
+    "operations_manager",
+    "compliance_officer",
+    "customer_support",
+    "fraud_analyst",
+    "finance_manager",
+  ] as AdminRole[],
   viewUsers: ["super_admin", "operations_manager", "customer_support"] as AdminRole[],
   manageUsers: ["super_admin", "operations_manager"] as AdminRole[],
   viewAuditLog: ["super_admin", "compliance_officer"] as AdminRole[],
   viewKyc: ["super_admin", "operations_manager", "compliance_officer"] as AdminRole[],
   decideKyc: ["super_admin", "operations_manager"] as AdminRole[],
-  viewTransactions: ["super_admin", "operations_manager", "finance_manager", "compliance_officer", "fraud_analyst"] as AdminRole[],
+  viewTransactions: [
+    "super_admin",
+    "operations_manager",
+    "finance_manager",
+    "compliance_officer",
+    "fraud_analyst",
+  ] as AdminRole[],
   manageTransactions: ["super_admin", "operations_manager"] as AdminRole[],
   viewFraud: ["super_admin", "fraud_analyst", "compliance_officer"] as AdminRole[],
   manageFraud: ["super_admin", "fraud_analyst"] as AdminRole[],
   manageAdmins: ["super_admin"] as AdminRole[],
   manageSettings: ["super_admin"] as AdminRole[],
   viewFinance: ["super_admin", "finance_manager"] as AdminRole[],
-  viewReports: ["super_admin", "operations_manager", "customer_support", "compliance_officer"] as AdminRole[],
+  viewReports: [
+    "super_admin",
+    "operations_manager",
+    "customer_support",
+    "compliance_officer",
+  ] as AdminRole[],
   manageReports: ["super_admin", "operations_manager", "customer_support"] as AdminRole[],
   viewCampaigns: ["super_admin", "operations_manager"] as AdminRole[],
   viewAppImages: ["super_admin", "operations_manager"] as AdminRole[],
@@ -170,7 +188,9 @@ const VERIFY_TTL_MS = 60_000;
 let _cached: { admin: AdminMe; expiresAt: string; at: number } | null = null;
 let _inflight: Promise<{ admin: AdminMe; expiresAt: string } | null> | null = null;
 
-async function verifySessionShared(force = false): Promise<{ admin: AdminMe; expiresAt: string } | null> {
+async function verifySessionShared(
+  force = false,
+): Promise<{ admin: AdminMe; expiresAt: string } | null> {
   if (!force && _cached && Date.now() - _cached.at < VERIFY_TTL_MS) {
     return { admin: _cached.admin, expiresAt: _cached.expiresAt };
   }
@@ -215,7 +235,9 @@ export function useAdminSession() {
     setLoading(false);
   }, []);
 
-  useEffect(() => { void verify(); }, [verify]);
+  useEffect(() => {
+    void verify();
+  }, [verify]);
 
   // Idle logout
   useEffect(() => {
