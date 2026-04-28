@@ -255,7 +255,7 @@ function KycFollowupsPage() {
       </div>
 
       {err && (
-        <ShakeErrorPanel title="Couldn't load follow-ups" message={err.message} correlationId={err.correlationId} onRetry={load} />
+        <ShakeErrorPanel title="Couldn't load follow-ups" error={`${err.message}${err.correlationId ? ` · ref ${err.correlationId}` : ""}`} onRetry={load} retrying={loading} />
       )}
 
       {/* Table */}
