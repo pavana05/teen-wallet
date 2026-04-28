@@ -184,7 +184,7 @@ function KycFollowupsPage() {
   }, [rows]);
 
   if (!allowed) {
-    return <PermissionBanner permission="viewKyc" />;
+    return <PermissionBanner canView={false} canDecide={false} resourceLabel="KYC follow-ups" />;
   }
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
