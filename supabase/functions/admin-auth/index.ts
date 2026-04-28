@@ -22,7 +22,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 // -----------------------------------------------------------------
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-admin-session-token",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
@@ -553,7 +553,8 @@ Deno.serve(async (req) => {
   // Authenticated data RPCs (require valid sessionToken)
   // ---------------------------------------------------------------
   async function authenticate(): Promise<{ id: string; email: string; role: string; name: string } | null> {
-    const sessionToken = String(body.sessionToken ?? "");
+    const headerSessionToken = req.headers.get("x-admin-session-token") ?? "";
+    const sessionToken = String(body.sessionToken ?? headerSessionToken);
     if (!sessionToken) return null;
     const sessionHash = await sha256Hex("session:" + sessionToken);
     const { data: s } = await sb.from("admin_sessions").select("*").eq("session_token_hash", sessionHash).maybeSingle();
