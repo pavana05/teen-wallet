@@ -119,17 +119,20 @@ function AdminLayout() {
     return () => window.clearTimeout(id);
   }, [admin, isLoginRoute, mounted]);
 
-  if (!mounted) return <div className="admin-shell" suppressHydrationWarning />;
   const shellAttrs = { "data-admin-theme": theme, "data-admin-density": density } as Record<
     string,
     string
   >;
+  // Login route is fully public — render it immediately (even before `mounted`)
+  // so a hydration hiccup elsewhere in the admin shell can't leave the user
+  // staring at a blank page. No session check needed for the login form itself.
   if (isLoginRoute)
     return (
       <div className="admin-shell" {...shellAttrs}>
         <Outlet />
       </div>
     );
+  if (!mounted) return <div className="admin-shell" suppressHydrationWarning {...shellAttrs} />;
   if (loading) {
     return (
       <div
