@@ -7798,3 +7798,320 @@ html.motion-off    .otp-resend-ring svg circle { transition: none !important; }
     animation: none !important; transition: none !important;
   }
 }
+
+/* =====================================================================
+   SP3 — Premium Pay screen (UPI confirm) — orange aura + custom keypad
+   Matches reference: black background, soft orange radial halo behind a
+   teal avatar, large amount with blinking caret, "Add a note" pill,
+   custom 3x4 keypad with circular orange Next FAB. After Next, the keypad
+   smoothly swaps for a champagne Slide-to-Pay button.
+   ===================================================================== */
+.sp3-pay {
+  position: relative;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: #050505;
+  color: #fff;
+  overflow: hidden;
+  isolation: isolate;
+}
+/* Massive orange aura — focal hotspot behind avatar */
+.sp3-aura {
+  position: absolute;
+  top: -22vh;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(150vw, 920px);
+  height: min(150vw, 920px);
+  border-radius: 50%;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 50% 50%,
+      rgba(255, 138, 60, 0.55) 0%,
+      rgba(255, 100, 30, 0.42) 18%,
+      rgba(220, 70, 20, 0.28) 32%,
+      rgba(140, 40, 10, 0.14) 48%,
+      rgba(0, 0, 0, 0) 65%);
+  filter: blur(2px);
+  z-index: 0;
+  animation: sp3-aura-pulse 7s ease-in-out infinite;
+}
+@keyframes sp3-aura-pulse {
+  0%, 100% { opacity: .95; transform: translateX(-50%) scale(1); }
+  50%      { opacity: 1;   transform: translateX(-50%) scale(1.04); }
+}
+.sp3-vignette {
+  position: absolute; inset: 0; pointer-events: none; z-index: 1;
+  background:
+    radial-gradient(120% 70% at 50% 110%, rgba(0,0,0,.85), transparent 60%),
+    linear-gradient(180deg, rgba(0,0,0,.45) 0%, transparent 22%, transparent 70%, rgba(0,0,0,.55) 100%);
+}
+
+/* Header */
+.sp3-head {
+  position: relative; z-index: 10;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 14px 0;
+}
+.sp3-head-spacer { flex: 1; }
+.sp3-icon-btn {
+  width: 38px; height: 38px; border-radius: 12px;
+  background: rgba(255,255,255,.06);
+  border: 1px solid rgba(255,255,255,.08);
+  color: #fff;
+  display: inline-flex; align-items: center; justify-content: center;
+  backdrop-filter: blur(10px);
+  transition: transform 160ms cubic-bezier(.22,1,.36,1), background 160ms ease, border-color 160ms ease;
+}
+.sp3-icon-btn:hover { background: rgba(255,255,255,.10); border-color: rgba(255,255,255,.16); }
+.sp3-icon-btn:active { transform: scale(.92); }
+
+/* Identity block */
+.sp3-id {
+  position: relative; z-index: 10;
+  display: flex; flex-direction: column; align-items: center;
+  padding: 22px 24px 10px;
+  text-align: center;
+}
+.sp3-avatar {
+  width: 68px; height: 68px; border-radius: 50%;
+  background: linear-gradient(160deg, #2c8a8a 0%, #1f6f6f 60%, #155757 100%);
+  display: flex; align-items: center; justify-content: center;
+  box-shadow:
+    0 10px 28px -8px rgba(0,0,0,.6),
+    inset 0 1px 0 rgba(255,255,255,.18),
+    inset 0 -8px 14px -6px rgba(0,0,0,.35);
+  animation: sp3-avatar-in 600ms cubic-bezier(.22,1,.36,1) both;
+}
+@keyframes sp3-avatar-in {
+  0% { opacity: 0; transform: scale(.86) translateY(8px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+.sp3-avatar-initial {
+  color: #fff; font-weight: 700; font-size: 22px; letter-spacing: .04em;
+  text-shadow: 0 1px 2px rgba(0,0,0,.35);
+}
+
+.sp3-name-row {
+  margin-top: 14px;
+  display: flex; align-items: center; gap: 8px;
+}
+.sp3-name {
+  font-size: 22px; line-height: 1.1; font-weight: 700;
+  color: #fff; letter-spacing: -0.01em;
+}
+.sp3-verified {
+  width: 18px; height: 18px; border-radius: 50%;
+  background: linear-gradient(135deg, #34d399, #16a34a);
+  color: #04140a;
+  display: inline-flex; align-items: center; justify-content: center;
+  box-shadow: 0 2px 6px -2px rgba(34, 197, 94, .55);
+}
+.sp3-upi-row {
+  margin-top: 6px;
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: 13px; color: rgba(255,255,255,.62);
+  font-family: var(--font-mono);
+}
+.sp3-upi-icon {
+  width: 16px; height: 16px; border-radius: 4px;
+  background:
+    linear-gradient(45deg, #4285F4 0 25%, #34A853 25% 50%, #FBBC04 50% 75%, #EA4335 75% 100%);
+  box-shadow: 0 1px 3px rgba(0,0,0,.4);
+}
+.sp3-upi { letter-spacing: -0.01em; }
+
+/* Amount display */
+.sp3-amount-block {
+  margin-top: 22px;
+  display: inline-flex; align-items: center; justify-content: center;
+  gap: 4px;
+  min-height: 56px;
+}
+.sp3-amount-symbol {
+  font-size: 34px; font-weight: 800; color: #fff;
+  font-family: var(--font-mono);
+  text-shadow: 0 2px 8px rgba(0,0,0,.4);
+}
+.sp3-amount-value {
+  font-size: 44px; font-weight: 700; color: #fff;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  min-width: 4px;
+  transition: transform 160ms cubic-bezier(.22,1,.36,1);
+}
+.sp3-caret {
+  display: inline-block;
+  width: 2px; height: 36px;
+  background: #ff6a1a;
+  border-radius: 2px;
+  margin-left: 2px;
+  animation: sp3-caret-blink 1s steps(2) infinite;
+  box-shadow: 0 0 10px rgba(255,106,26,.55);
+}
+@keyframes sp3-caret-blink {
+  50% { opacity: 0; }
+}
+
+/* Note pill */
+.sp3-note-pill {
+  margin-top: 14px;
+  display: inline-flex;
+  padding: 2px;
+  border-radius: 999px;
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(255,255,255,.08);
+  backdrop-filter: blur(8px);
+  transition: border-color 200ms ease, background 200ms ease;
+}
+.sp3-note-pill:focus-within {
+  border-color: rgba(255,138,60,.45);
+  background: rgba(255,255,255,.06);
+}
+.sp3-note-input {
+  background: transparent;
+  border: 0;
+  padding: 8px 16px;
+  font-size: 14px;
+  color: #fff;
+  width: 180px;
+  text-align: center;
+}
+.sp3-note-input::placeholder { color: rgba(255,255,255,.45); }
+
+.sp3-error {
+  margin-top: 12px;
+  font-size: 12px; color: #fca5a5; font-weight: 600;
+}
+
+/* Fraud */
+.sp3-fraud {
+  position: relative; z-index: 10;
+  margin: 14px 16px 0;
+  border-radius: 16px;
+  padding: 12px 14px;
+  font-size: 12px;
+  border: 1px solid;
+  backdrop-filter: blur(10px);
+}
+.sp3-fraud-warn {
+  background: rgba(245, 158, 11, .08);
+  border-color: rgba(245, 158, 11, .25);
+  color: #fcd34d;
+}
+.sp3-fraud-blocked {
+  background: rgba(239, 68, 68, .10);
+  border-color: rgba(239, 68, 68, .30);
+  color: #fca5a5;
+}
+.sp3-fraud-head { display: flex; align-items: center; gap: 8px; font-weight: 700; }
+.sp3-fraud-list { margin-top: 6px; display: flex; flex-direction: column; gap: 4px; padding-left: 22px; color: rgba(255,255,255,.78); }
+.sp3-fraud-list li { display: flex; gap: 6px; align-items: flex-start; }
+.sp3-fraud-ack { display: flex; gap: 8px; align-items: center; margin-top: 10px; color: rgba(255,255,255,.85); font-weight: 600; cursor: pointer; }
+
+/* Keypad wrap (Stage A) */
+.sp3-keypad-wrap {
+  position: relative; z-index: 10;
+  margin-top: auto;
+  padding: 14px 14px max(18px, env(safe-area-inset-bottom));
+  animation: sp3-stage-in 360ms cubic-bezier(.22,1,.36,1) both;
+}
+@keyframes sp3-stage-in {
+  0% { opacity: 0; transform: translateY(16px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+.sp3-next-fab {
+  position: absolute;
+  right: 22px;
+  top: -28px;
+  width: 56px; height: 56px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 25%, #ffb27a, #ff6a1a 55%, #d24c0a 100%);
+  color: #fff;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 0;
+  box-shadow:
+    0 14px 32px -10px rgba(255, 106, 26, .65),
+    inset 0 1px 0 rgba(255,255,255,.4),
+    inset 0 -8px 14px -6px rgba(120,40,0,.45);
+  cursor: pointer;
+  transition: transform 200ms cubic-bezier(.22,1,.36,1), box-shadow 200ms ease, opacity 200ms ease;
+}
+.sp3-next-fab:hover:not(:disabled) { transform: scale(1.04); }
+.sp3-next-fab:active:not(:disabled) { transform: scale(.94); }
+.sp3-next-fab:disabled { opacity: .35; cursor: not-allowed; box-shadow: none; }
+
+.sp3-keypad {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.sp3-key {
+  height: 54px;
+  border-radius: 14px;
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(255,255,255,.05);
+  color: #fff;
+  font-size: 22px; font-weight: 500;
+  font-family: var(--font-mono);
+  display: inline-flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  transition: transform 120ms cubic-bezier(.22,1,.36,1), background 160ms ease, border-color 160ms ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.sp3-key:hover { background: rgba(255,255,255,.07); }
+.sp3-key:active { transform: scale(.94); background: rgba(255,138,60,.18); border-color: rgba(255,138,60,.35); }
+
+/* Pay wrap (Stage B) */
+.sp3-pay-wrap {
+  position: relative; z-index: 10;
+  margin-top: auto;
+  padding: 14px 16px max(20px, env(safe-area-inset-bottom));
+  animation: sp3-stage-in 380ms cubic-bezier(.22,1,.36,1) both;
+}
+.sp3-method-row {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 12px;
+  font-size: 13px;
+}
+.sp3-method-pill {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 6px 12px 6px 6px;
+  border-radius: 999px;
+  background: rgba(255,255,255,.05);
+  border: 1px solid rgba(255,255,255,.08);
+  color: #fff; font-weight: 600;
+  cursor: pointer;
+  transition: background 160ms ease, border-color 160ms ease, transform 160ms ease;
+}
+.sp3-method-pill:hover { background: rgba(255,255,255,.08); }
+.sp3-method-pill:active { transform: scale(.97); }
+.sp3-method-logo {
+  width: 24px; height: 24px; border-radius: 6px;
+  background: linear-gradient(135deg, #fff, #f5f5f5);
+  color: #1d4ed8;
+  display: inline-flex; align-items: center; justify-content: center;
+  box-shadow: 0 1px 3px rgba(0,0,0,.35);
+}
+.sp3-method-name { font-size: 13px; }
+.sp3-balance-link {
+  background: transparent; border: 0; color: rgba(255,255,255,.65);
+  font-weight: 600; font-size: 12px;
+  display: inline-flex; align-items: center; gap: 4px;
+  cursor: pointer;
+}
+.sp3-balance-link:hover { color: #fff; }
+
+.sp3-secure {
+  margin-top: 10px; text-align: center;
+  font-size: 10px; letter-spacing: .14em; text-transform: uppercase;
+  color: rgba(255,255,255,.4); font-weight: 600;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sp3-aura, .sp3-avatar, .sp3-keypad-wrap, .sp3-pay-wrap, .sp3-caret, .sp3-key, .sp3-next-fab {
+    animation: none !important; transition: none !important;
+  }
+}
