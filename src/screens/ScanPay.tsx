@@ -237,12 +237,10 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
     if (!userId || !payload) return;
     const amt = amount;
     const noteToSave = note.trim() || payload.note || null;
+    setPayError(null);
     breadcrumb("payment.submit_started", { amount: amt, upiId: payload.upiId, payee: payload.payeeName });
 
     // ── Pre-flight client-side fraud check ──
-    // Mirrors the server rules so the user gets instant feedback for things
-    // like daily-limit blocks without the round-trip. The backend re-runs
-    // these on settlement so the check cannot be bypassed.
     const preflight = await scanTransaction({ userId, amount: amt, upiId: payload.upiId });
     if (preflight.blocked) {
       const blockFlag = preflight.flags.find((f) => f.severity === "block");
@@ -251,6 +249,7 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
       setResultMsg(blockFlag?.message ?? "Payment blocked");
       setFailKind("blocked");
       setPhase("failed");
+      void haptics.error();
       return;
     }
     if (amt > balance) {
@@ -258,12 +257,11 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
       setResultMsg("Insufficient balance");
       setFailKind("insufficient");
       setPhase("failed");
+      void haptics.error();
       return;
     }
 
     // ── Create + start the server-side payment attempt ──
-    // The attempt row is the source of truth. Polling against it drives the
-    // Processing → Success transition (no client setTimeout deciding success).
     let id = attemptId;
     try {
       if (!id) {
@@ -275,9 +273,8 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
           method: "upi",
         });
         if (!created.ok) {
-          setResultMsg(created.message);
-          setFailKind("generic");
-          setPhase("failed");
+          setPayError(created.message || "Couldn't start payment. Please try again.");
+          void haptics.error();
           return;
         }
         id = created.attempt.id;
@@ -285,16 +282,14 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
       }
       const started = await callWithAuth(startProcessing, { attemptId: id });
       if (!started.ok) {
-        setResultMsg(started.message);
-        setFailKind("generic");
-        setPhase("failed");
+        setPayError(started.message || "Couldn't start payment. Please try again.");
+        void haptics.error();
         return;
       }
     } catch (err) {
       captureError(err, { where: "scanpay.startProcessing", amount: amt });
-      setResultMsg("Couldn't start payment. Please try again.");
-      setFailKind("generic");
-      setPhase("failed");
+      setPayError("Couldn't start payment. Please check your connection and try again.");
+      void haptics.error();
       return;
     }
 
