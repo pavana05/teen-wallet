@@ -1088,7 +1088,7 @@ function MyQrSheet({ upiId, payeeName, onClose }: { upiId: string; payeeName: st
       if (document.visibilityState !== "visible") return;
       if (dataUrl) return;
       generate()
-        .then(setDataUrl)
+        .then((url: string) => setDataUrl(url))
         .catch(() => { /* surfaced by the main effect */ });
     };
     document.addEventListener("visibilitychange", onVisible);
