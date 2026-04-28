@@ -3,13 +3,16 @@ import type { CapacitorConfig } from "@capacitor/cli";
 const config: CapacitorConfig = {
   appId: "com.teenwallet.app",
   appName: "Teen Wallet",
-  // Bundled web build (Play Store ready). For dev hot-reload, temporarily
-  // uncomment the `server` block below and point it at your Lovable preview URL.
-  webDir: "dist",
-  // server: {
-  //   url: "https://teen-wallet.lovable.app",
-  //   cleartext: false,
-  // },
+  // This app uses TanStack Start (SSR + server functions), so it cannot be
+  // bundled as static assets. Capacitor wraps the published Lovable URL.
+  // `webDir` still has to point at SOMETHING that exists, so we use a tiny
+  // bootstrap folder that just redirects — the real app loads from `server.url`.
+  webDir: "capacitor-shell",
+  server: {
+    url: "https://teen-wallet.lovable.app",
+    cleartext: false,
+    androidScheme: "https",
+  },
   android: {
     allowMixedContent: false,
     captureInput: true,
