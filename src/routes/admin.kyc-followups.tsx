@@ -7,7 +7,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Loader2, RefreshCw, Search, MessageCircle, MessageSquare, Copy, Check,
-  ExternalLink, Filter, Users as UsersIcon, Send,
+  ExternalLink, Filter, Users as UsersIcon, Send, Clock, AlertCircle, FileText, Save, X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { callAdminFn, can, useAdminSession } from "@/admin/lib/adminAuth";
@@ -19,16 +19,21 @@ export const Route = createFileRoute("/admin/kyc-followups")({
 
 type Stage = "STAGE_3" | "STAGE_4" | "STAGE_5";
 type KycStatus = "not_started" | "pending" | "approved" | "rejected";
+type TemplateStage = "STAGE_3" | "STAGE_4_PENDING" | "STAGE_4_REJECTED" | "STAGE_4_OTHER" | "STAGE_5";
 
 interface FollowupRow {
   id: string;
   full_name: string | null;
   phone: string | null;
+  phone_normalized: string | null;
+  phone_valid: boolean;
+  phone_invalid_reason: string | null;
   kyc_status: KycStatus;
   onboarding_stage: Stage;
   created_at: string;
   updated_at: string;
   aadhaar_last4: string | null;
+  last_reminder_at: string | null;
 }
 
 interface ListResp {
@@ -36,6 +41,15 @@ interface ListResp {
   total: number;
   page: number;
   pageSize: number;
+}
+
+interface TemplateRow {
+  id: string;
+  stage: TemplateStage;
+  title: string;
+  body: string;
+  updated_by_email: string | null;
+  updated_at: string;
 }
 
 const STAGE_LABEL: Record<Stage, string> = {
@@ -50,6 +64,30 @@ const STAGE_PROGRESS: Record<Stage, { step: number; total: number }> = {
   STAGE_5: { step: 3, total: 3 },
 };
 
+// 24h default cooldown — configurable via the UI selector.
+const DEFAULT_COOLDOWN_HOURS = 24;
+
+// Decide which template stage a row maps to.
+function templateStageFor(row: FollowupRow): TemplateStage {
+  if (row.onboarding_stage === "STAGE_3") return "STAGE_3";
+  if (row.onboarding_stage === "STAGE_5") return "STAGE_5";
+  if (row.kyc_status === "pending") return "STAGE_4_PENDING";
+  if (row.kyc_status === "rejected") return "STAGE_4_REJECTED";
+  return "STAGE_4_OTHER";
+}
+
+function invalidPhoneLabel(reason: string | null): string {
+  switch (reason) {
+    case "missing": return "No phone number on file";
+    case "empty": return "Phone is empty after normalisation";
+    case "bad_length": return "Phone has wrong number of digits";
+    case "bad_in_length": return "Indian number isn't 10 digits";
+    case "bad_in_prefix": return "Indian mobile must start with 6–9";
+    default: return "Phone is invalid";
+  }
+}
+
+
 // ---------- Message builder -------------------------------------------------
 
 function firstName(full?: string | null): string {
@@ -57,101 +95,119 @@ function firstName(full?: string | null): string {
   return n || "there";
 }
 
-function buildMessage(row: FollowupRow): string {
+// In-memory templates cache populated by the page on mount. Falls back to defaults.
+const templateCache: Partial<Record<TemplateStage, TemplateRow>> = {};
+
+function applyTemplateVars(body: string, row: FollowupRow): string {
   const name = firstName(row.full_name);
   const { step, total } = STAGE_PROGRESS[row.onboarding_stage];
   const remaining = total - step;
+  return body
+    .replaceAll("{name}", name)
+    .replaceAll("{step}", String(step))
+    .replaceAll("{total}", String(total))
+    .replaceAll("{remaining}", String(remaining))
+    .replaceAll("{stage}", STAGE_LABEL[row.onboarding_stage]);
+}
 
-  const lines: string[] = [];
-  lines.push(`Hi ${name}! 👋`);
-  lines.push(`Welcome to Teen Wallet — India's first UPI wallet built for you. 💳✨`);
-  lines.push("");
-
-  if (row.onboarding_stage === "STAGE_3") {
-    lines.push(`Hooray! 🎉 You've completed the 1st step (phone verified ✅).`);
-    lines.push(`Just ${remaining} quick steps left — finish KYC and grab your welcome bonus before it expires! ⏳`);
-  } else if (row.onboarding_stage === "STAGE_4") {
-    if (row.kyc_status === "pending") {
-      lines.push(`You're almost there! 🚀 Your KYC is under review.`);
-      lines.push(`We'll notify you the moment it's approved. Keep an eye on the app! 🔔`);
-    } else if (row.kyc_status === "rejected") {
-      lines.push(`Your KYC needs a quick re-submit. ❗ Don't worry, it takes under 60 seconds.`);
-      lines.push(`Open the app, retake your selfie + Aadhaar, and you're in! 📸`);
-    } else {
-      lines.push(`You completed step 1 ✅ and started step 2 — finish your KYC to unlock the wallet. ⚡`);
-    }
-  } else {
-    // STAGE_5
-    lines.push(`Final step! 🏁 Just grant the app permissions and you're ready to pay, scan and earn rewards.`);
+function buildMessage(row: FollowupRow): string {
+  const tplKey = templateStageFor(row);
+  const tpl = templateCache[tplKey];
+  if (tpl) {
+    const intro = applyTemplateVars(tpl.body, row);
+    const footer = [
+      "",
+      "What's waiting inside Teen Wallet:",
+      "  💸  Instant UPI scan & pay",
+      "  🎁  Cashback + referral rewards",
+      "  🔒  Bank-grade security with App Lock",
+      "",
+      "Need help? Just reply. — Team Teen Wallet 💙",
+    ].join("\n");
+    return `${intro}\n${footer}`;
   }
 
-  lines.push("");
-  lines.push(`What's waiting inside Teen Wallet:`);
-  lines.push(`  💸  Instant UPI scan & pay`);
-  lines.push(`  🎁  Cashback + referral rewards`);
-  lines.push(`  🔒  Bank-grade security with App Lock`);
-  lines.push(`  📊  Track every rupee in real time`);
-  lines.push("");
-  lines.push(`Open the app now and finish in under a minute → https://teen-wallet.lovable.app`);
-  lines.push("");
-  lines.push(`Need help? Just reply to this message. We're here for you. 💙`);
-  lines.push(`— Team Teen Wallet`);
-
+  // Fallback hard-coded copy if templates haven't loaded yet.
+  const name = firstName(row.full_name);
+  const { step, total } = STAGE_PROGRESS[row.onboarding_stage];
+  const remaining = total - step;
+  const lines: string[] = [`Hi ${name}! 👋`, "Welcome to Teen Wallet — India's first UPI wallet built for you. 💳✨", ""];
+  if (row.onboarding_stage === "STAGE_3") {
+    lines.push(`Hooray! 🎉 You've completed the 1st step. Just ${remaining} quick steps left — finish KYC! ⏳`);
+  } else if (row.onboarding_stage === "STAGE_4") {
+    if (row.kyc_status === "pending") lines.push("Your KYC is under review. We'll notify you once approved! 🔔");
+    else if (row.kyc_status === "rejected") lines.push("Your KYC needs a quick re-submit. Takes under 60s! 📸");
+    else lines.push("Finish your KYC to unlock the wallet. ⚡");
+  } else {
+    lines.push("Final step! 🏁 Grant permissions and you're ready.");
+  }
+  lines.push("", "Open: https://teen-wallet.lovable.app", "— Team Teen Wallet 💙");
   return lines.join("\n");
 }
 
-// Normalise to E.164-ish digits for tel: / wa.me / sms: links.
-// Assumes Indian numbers when no country code is present.
-function normalisePhone(raw: string | null | undefined): { wa: string; sms: string; display: string } | null {
-  if (!raw) return null;
-  const digits = raw.replace(/[^\d+]/g, "");
+// Use the server-normalised phone when present, else best-effort local.
+function phoneFor(row: FollowupRow): { wa: string; sms: string; display: string } | null {
+  if (row.phone_normalized) {
+    const intl = row.phone_normalized.replace(/^\+/, "");
+    return { wa: intl, sms: row.phone_normalized, display: row.phone_normalized };
+  }
+  if (!row.phone) return null;
+  const digits = row.phone.replace(/[^\d+]/g, "");
   if (!digits) return null;
   let intl = digits.startsWith("+") ? digits.slice(1) : digits;
-  if (intl.length === 10) intl = "91" + intl; // assume IN
+  if (intl.length === 10) intl = "91" + intl;
   if (intl.length === 11 && intl.startsWith("0")) intl = "91" + intl.slice(1);
-  return {
-    wa: intl,                  // wa.me wants no '+'
-    sms: "+" + intl,           // sms: wants the leading '+'
-    display: "+" + intl,
-  };
+  return { wa: intl, sms: "+" + intl, display: "+" + intl };
 }
 
 function openWhatsApp(row: FollowupRow): "ok" | "no_phone" {
-  const p = normalisePhone(row.phone);
-  if (!p) return "no_phone";
-  const text = encodeURIComponent(buildMessage(row));
-  const url = `https://wa.me/${p.wa}?text=${text}`;
-  window.open(url, "_blank", "noopener,noreferrer");
+  const p = phoneFor(row);
+  if (!p || !row.phone_valid) return "no_phone";
+  window.open(`https://wa.me/${p.wa}?text=${encodeURIComponent(buildMessage(row))}`, "_blank", "noopener,noreferrer");
+  void callAdminFn({ action: "kyc_reminder_record", userId: row.id, channel: "whatsapp", stage: row.onboarding_stage }).catch(() => {});
   return "ok";
 }
 
 function openSms(row: FollowupRow): "ok" | "no_phone" {
-  const p = normalisePhone(row.phone);
-  if (!p) return "no_phone";
-  const text = encodeURIComponent(buildMessage(row));
-  // RFC 5724 + Android/iOS support: sms:<num>?body=<text>
-  const url = `sms:${p.sms}?body=${text}`;
-  window.location.href = url;
+  const p = phoneFor(row);
+  if (!p || !row.phone_valid) return "no_phone";
+  window.location.href = `sms:${p.sms}?body=${encodeURIComponent(buildMessage(row))}`;
+  void callAdminFn({ action: "kyc_reminder_record", userId: row.id, channel: "sms", stage: row.onboarding_stage }).catch(() => {});
   return "ok";
 }
 
-// Send the message automatically via Zavu (WhatsApp). Falls back to error toast.
-async function sendViaZavu(row: FollowupRow): Promise<{ ok: boolean; error?: string; messageId?: string }> {
-  const p = normalisePhone(row.phone);
-  if (!p) return { ok: false, error: "no_phone" };
+async function sendViaZavu(
+  row: FollowupRow,
+  opts: { cooldownHours: number; force?: boolean } = { cooldownHours: DEFAULT_COOLDOWN_HOURS },
+): Promise<{ ok: boolean; error?: string; messageId?: string; lastSentAt?: string }> {
+  const p = phoneFor(row);
+  if (!p || !row.phone_valid) return { ok: false, error: "no_phone" };
   try {
     const r = await callAdminFn<{ ok: boolean; messageId: string | null }>({
       action: "zavu_send",
-      to: p.sms,            // E.164 with leading '+'
+      to: p.sms,
       text: buildMessage(row),
       channel: "whatsapp",
       userId: row.id,
+      stage: row.onboarding_stage,
+      cooldownHours: opts.cooldownHours,
+      force: !!opts.force,
     });
     return { ok: !!r.ok, messageId: r.messageId ?? undefined };
   } catch (e: any) {
-    return { ok: false, error: e?.message ?? "send_failed" };
+    const code = e?.code || e?.message || "send_failed";
+    return { ok: false, error: code, lastSentAt: e?.lastSentAt };
   }
 }
+
+// Returns hours-remaining until cooldown ends, or 0 if eligible.
+function cooldownRemaining(lastSentAt: string | null, hours: number): number {
+  if (!lastSentAt) return 0;
+  const next = new Date(lastSentAt).getTime() + hours * 3600_000;
+  const remaining = next - Date.now();
+  return remaining > 0 ? Math.ceil(remaining / 3600_000) : 0;
+}
+
 
 // ---------- Component -------------------------------------------------------
 
@@ -172,24 +228,41 @@ function KycFollowupsPage() {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [sendingId, setSendingId] = useState<string | null>(null);
   const [sentIds, setSentIds] = useState<Record<string, true>>({});
+  const [cooldownHours, setCooldownHours] = useState<number>(DEFAULT_COOLDOWN_HOURS);
+  const [showTemplates, setShowTemplates] = useState(false);
 
-  const handleZavuSend = useCallback(async (r: FollowupRow) => {
+  // Load templates into the in-memory cache.
+  useEffect(() => {
+    if (!allowed) return;
+    void (async () => {
+      try {
+        const r = await callAdminFn<{ rows: TemplateRow[] }>({ action: "kyc_templates_list" });
+        for (const t of r.rows ?? []) templateCache[t.stage] = t;
+      } catch { /* templates are optional; fallback copy is used */ }
+    })();
+  }, [allowed]);
+
+  const handleZavuSend = useCallback(async (r: FollowupRow, force = false) => {
     setSendingId(r.id);
     const t = toast.loading(`Sending WhatsApp to ${r.full_name || r.phone}…`);
     try {
-      const res = await sendViaZavu(r);
+      const res = await sendViaZavu(r, { cooldownHours, force });
       if (res.ok) {
         setSentIds((s) => ({ ...s, [r.id]: true }));
         toast.success("WhatsApp sent via Zavu", { id: t });
+        void load();
       } else if (res.error === "no_phone") {
-        toast.error("This user has no phone number on file", { id: t });
+        toast.error(invalidPhoneLabel(r.phone_invalid_reason), { id: t });
+      } else if (res.error === "cooldown_active") {
+        toast.error(`Cooldown active — last sent recently. Use "Resend" to override.`, { id: t });
       } else {
         toast.error(`Couldn't send: ${res.error}`, { id: t });
       }
     } finally {
       setSendingId(null);
     }
-  }, []);
+  }, [cooldownHours]);
+
 
   const load = useCallback(async () => {
     if (!allowed) return;
@@ -396,7 +469,7 @@ function FollowupRowItem({
   onSend: () => void;
   onPreview: () => void;
 }) {
-  const phone = normalisePhone(row.phone);
+  const phone = phoneFor(row);
   const { step, total } = STAGE_PROGRESS[row.onboarding_stage];
   const initials = (row.full_name || "?").trim().split(/\s+/).map((s) => s[0]).slice(0, 2).join("").toUpperCase();
 

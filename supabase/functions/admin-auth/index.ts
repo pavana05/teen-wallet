@@ -49,6 +49,30 @@ function newCid(): string {
   return `tw_${u}`;
 }
 
+// ---------------------------------------------------------------
+// Phone validation/normalization. Returns E.164 (with leading '+').
+// Defaults to India (+91) when no country code is supplied.
+// ---------------------------------------------------------------
+function validatePhone(raw: string | null | undefined):
+  | { ok: true; e164: string }
+  | { ok: false; reason: string } {
+  if (!raw || typeof raw !== "string") return { ok: false, reason: "missing" };
+  const cleaned = raw.replace(/[^\d+]/g, "");
+  if (!cleaned) return { ok: false, reason: "empty" };
+  let intl = cleaned.startsWith("+") ? cleaned.slice(1) : cleaned;
+  if (intl.length === 10) intl = "91" + intl;          // assume IN
+  else if (intl.length === 11 && intl.startsWith("0")) intl = "91" + intl.slice(1);
+  if (!/^\d{8,15}$/.test(intl)) return { ok: false, reason: "bad_length" };
+  // Indian-mobile sanity check: country 91 + 10 digits starting 6-9.
+  if (intl.startsWith("91")) {
+    const local = intl.slice(2);
+    if (local.length !== 10) return { ok: false, reason: "bad_in_length" };
+    if (!/^[6-9]/.test(local)) return { ok: false, reason: "bad_in_prefix" };
+  }
+  return { ok: true, e164: "+" + intl };
+}
+
+
 // -----------------------------------------------------------------
 // Crypto helpers (WebCrypto)
 // -----------------------------------------------------------------
@@ -1738,10 +1762,8 @@ Deno.serve(async (req) => {
         "id,full_name,phone,kyc_status,onboarding_stage,created_at,updated_at,aadhaar_last4",
         { count: "exact" },
       )
-      // phone present (verified during OTP step)
       .not("phone", "is", null)
       .neq("phone", "")
-      // phone-verified or further along, but NOT yet KYC-approved
       .in("onboarding_stage", ["STAGE_3", "STAGE_4", "STAGE_5"])
       .neq("kyc_status", "approved");
 
@@ -1757,7 +1779,90 @@ Deno.serve(async (req) => {
     const { data, count, error } = await q;
     if (error) return json({ error: error.message }, 500);
 
-    return json({ rows: data ?? [], total: count ?? 0, page, pageSize });
+    // Hydrate phone validity + last reminder for each row.
+    const rows = (data ?? []) as Array<Record<string, unknown>>;
+    const ids = rows.map((r) => String(r.id));
+    let lastByUser: Record<string, string> = {};
+    if (ids.length) {
+      const { data: log } = await sb
+        .from("kyc_reminder_log")
+        .select("user_id,created_at")
+        .in("user_id", ids)
+        .eq("status", "sent")
+        .order("created_at", { ascending: false });
+      if (log) {
+        for (const e of log) {
+          const uid = String((e as any).user_id);
+          if (!lastByUser[uid]) lastByUser[uid] = String((e as any).created_at);
+        }
+      }
+    }
+    const enriched = rows.map((r) => {
+      const phone = String(r.phone ?? "");
+      const v = validatePhone(phone);
+      return {
+        ...r,
+        phone_normalized: v.ok ? v.e164 : null,
+        phone_valid: v.ok,
+        phone_invalid_reason: v.ok ? null : v.reason,
+        last_reminder_at: lastByUser[String(r.id)] ?? null,
+      };
+    });
+
+    return json({ rows: enriched, total: count ?? 0, page, pageSize });
+  }
+
+  // ---------------------------------------------------------------
+  // KYC message templates: list + upsert
+  // ---------------------------------------------------------------
+  if (action === "kyc_templates_list") {
+    if (!can(me.role, "viewKyc")) return json({ error: "forbidden" }, 403);
+    const { data, error } = await sb
+      .from("kyc_message_templates")
+      .select("id,stage,title,body,updated_by_email,updated_at")
+      .order("stage", { ascending: true });
+    if (error) return json({ error: error.message }, 500);
+    return json({ rows: data ?? [] });
+  }
+
+  if (action === "kyc_template_upsert") {
+    if (!can(me.role, "viewKyc")) return json({ error: "forbidden" }, 403);
+    const stage = String(body.stage ?? "");
+    const title = String(body.title ?? "").trim();
+    const tplBody = String(body.body ?? "").trim();
+    const allowed = ["STAGE_3", "STAGE_4_PENDING", "STAGE_4_REJECTED", "STAGE_4_OTHER", "STAGE_5"];
+    if (!allowed.includes(stage)) return json({ error: "invalid_stage" }, 400);
+    if (title.length < 1 || title.length > 200) return json({ error: "invalid_title" }, 400);
+    if (tplBody.length < 1 || tplBody.length > 4000) return json({ error: "invalid_body" }, 400);
+
+    const { data, error } = await sb
+      .from("kyc_message_templates")
+      .upsert(
+        { stage, title, body: tplBody, updated_by_email: me.email, updated_at: new Date().toISOString() },
+        { onConflict: "stage" },
+      )
+      .select()
+      .maybeSingle();
+    if (error) return json({ error: error.message }, 500);
+    await audit(me.id, me.email, me.role, "kyc_template_upsert", { stage, title });
+    return json({ row: data });
+  }
+
+  // ---------------------------------------------------------------
+  // Reminder log: list recent reminders for one user
+  // ---------------------------------------------------------------
+  if (action === "kyc_reminder_log") {
+    if (!can(me.role, "viewKyc")) return json({ error: "forbidden" }, 403);
+    const userId = String(body.userId ?? "");
+    if (!userId) return json({ error: "missing_user" }, 400);
+    const { data, error } = await sb
+      .from("kyc_reminder_log")
+      .select("id,channel,stage,sent_by_email,status,error,created_at")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(20);
+    if (error) return json({ error: error.message }, 500);
+    return json({ rows: data ?? [] });
   }
 
   // ---------------------------------------------------------------
@@ -1775,11 +1880,13 @@ Deno.serve(async (req) => {
     const text = String(body.text ?? "").trim();
     const channel = String(body.channel ?? "whatsapp");
     const userId = body.userId ? String(body.userId) : null;
+    const stage = body.stage ? String(body.stage) : null;
+    const cooldownHours = Math.max(0, Math.min(72, Number(body.cooldownHours ?? 24)));
+    const force = body.force === true;
 
-    if (!/^\+?\d{8,15}$/.test(to.replace(/\s+/g, "")))
-      return json({ error: "invalid_phone" }, 400);
-    if (!text || text.length > 4096)
-      return json({ error: "invalid_text" }, 400);
+    const v = validatePhone(to);
+    if (!v.ok) return json({ error: "invalid_phone", reason: v.reason }, 400);
+    if (!text || text.length > 4096) return json({ error: "invalid_text" }, 400);
     if (!["whatsapp", "sms", "auto"].includes(channel))
       return json({ error: "invalid_channel" }, 400);
 
@@ -1787,7 +1894,27 @@ Deno.serve(async (req) => {
     const rl = rateCheck(`zavu:${me.id}`, 30, 60_000, 60_000);
     if (!rl.ok) return json({ error: "rate_limited", retryAfterSec: rl.retryAfterSec }, 429);
 
-    const e164 = to.startsWith("+") ? to : `+${to}`;
+    // Per-user cooldown — avoid spam unless explicitly forced.
+    if (userId && cooldownHours > 0 && !force) {
+      const since = new Date(Date.now() - cooldownHours * 3600_000).toISOString();
+      const { data: recent } = await sb
+        .from("kyc_reminder_log")
+        .select("created_at")
+        .eq("user_id", userId)
+        .eq("status", "sent")
+        .gte("created_at", since)
+        .order("created_at", { ascending: false })
+        .limit(1);
+      if (recent && recent.length) {
+        return json({
+          error: "cooldown_active",
+          lastSentAt: (recent[0] as any).created_at,
+          cooldownHours,
+        }, 429);
+      }
+    }
+
+    const e164 = v.e164;
     let zavuRes: Response;
     try {
       zavuRes = await fetch("https://api.zavu.dev/v1/messages", {
@@ -1799,15 +1926,37 @@ Deno.serve(async (req) => {
         body: JSON.stringify({ to: e164, text, channel }),
       });
     } catch (e) {
+      if (userId) {
+        await sb.from("kyc_reminder_log").insert({
+          user_id: userId, channel: "zavu", stage,
+          sent_by_admin_id: me.id, sent_by_email: me.email,
+          status: "failed", error: String(e).slice(0, 500),
+        });
+      }
       return json({ error: "zavu_network_error", reason: String(e) }, 502);
     }
 
     const zavuJson = await zavuRes.json().catch(() => ({} as any));
     if (!zavuRes.ok) {
+      if (userId) {
+        await sb.from("kyc_reminder_log").insert({
+          user_id: userId, channel: "zavu", stage,
+          sent_by_admin_id: me.id, sent_by_email: me.email,
+          status: "failed", error: `http_${zavuRes.status}`,
+        });
+      }
       await audit(me.id, me.email, me.role, "zavu_send_failed", {
         target_id: userId, to: e164, channel, status: zavuRes.status, response: zavuJson,
       });
       return json({ error: "zavu_send_failed", status: zavuRes.status, response: zavuJson }, 502);
+    }
+
+    if (userId) {
+      await sb.from("kyc_reminder_log").insert({
+        user_id: userId, channel: "zavu", stage,
+        sent_by_admin_id: me.id, sent_by_email: me.email,
+        status: "sent",
+      });
     }
 
     await audit(me.id, me.email, me.role, "zavu_send", {
@@ -1820,6 +1969,28 @@ Deno.serve(async (req) => {
       messageId: zavuJson?.message?.id ?? null,
       status: zavuJson?.message?.status ?? "queued",
     });
+  }
+
+  // ---------------------------------------------------------------
+  // kyc_reminder_record — record manual WhatsApp/SMS opens (the
+  // browser launches the chat app; backend stays the source of truth
+  // for the cooldown).
+  // ---------------------------------------------------------------
+  if (action === "kyc_reminder_record") {
+    if (!can(me.role, "viewKyc")) return json({ error: "forbidden" }, 403);
+    const userId = String(body.userId ?? "");
+    const channel = String(body.channel ?? "");
+    const stage = body.stage ? String(body.stage) : null;
+    if (!userId) return json({ error: "missing_user" }, 400);
+    if (!["whatsapp", "sms", "copy"].includes(channel))
+      return json({ error: "invalid_channel" }, 400);
+    const { error } = await sb.from("kyc_reminder_log").insert({
+      user_id: userId, channel, stage,
+      sent_by_admin_id: me.id, sent_by_email: me.email,
+      status: "sent",
+    });
+    if (error) return json({ error: error.message }, 500);
+    return json({ ok: true });
   }
 
   return json({ error: "unknown_action" }, 400);
