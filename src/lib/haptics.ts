@@ -23,8 +23,22 @@
 import { Capacitor } from "@capacitor/core";
 import { Haptics, ImpactStyle, NotificationType } from "@capacitor/haptics";
 
-const isNative = () => Capacitor.isNativePlatform();
+const isNative = () => {
+  try { return Capacitor.isNativePlatform(); } catch { return false; }
+};
 const STORAGE_KEY = "tw_haptics_enabled";
+
+/**
+ * Wrap a haptic implementation so it NEVER throws or rejects, regardless of
+ * platform support. Buttons stay animated via CSS even when haptics are
+ * unavailable (older browsers, iOS Safari without user gesture, locked-down
+ * webviews, SSR, etc.). Failures are silent by design.
+ */
+function safe<A extends unknown[]>(fn: (...args: A) => Promise<void> | void) {
+  return async (...args: A): Promise<void> => {
+    try { await fn(...args); } catch { /* swallow — haptics are best-effort */ }
+  };
+}
 
 let enabled = (() => {
   if (typeof window === "undefined") return true;
