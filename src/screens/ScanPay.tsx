@@ -1174,6 +1174,8 @@ function ConfirmView({
   // accidental sends and shows the exact merchant/amount/note one last time.
   const [stage, setStage] = useState<"enter" | "review">("enter");
   const [confirming, setConfirming] = useState(false);
+  // Wallet balance popover (anchored to the "Teen Wallet • {balance}" pill)
+  const [balanceOpen, setBalanceOpen] = useState(false);
 
   // Refs for focus management between stages and the confirmation step.
   const nextFabRef = useRef<HTMLButtonElement | null>(null);
