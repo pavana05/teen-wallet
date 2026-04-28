@@ -170,6 +170,26 @@ function KycFollowupsPage() {
 
   const [previewFor, setPreviewFor] = useState<FollowupRow | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [sendingId, setSendingId] = useState<string | null>(null);
+  const [sentIds, setSentIds] = useState<Record<string, true>>({});
+
+  const handleZavuSend = useCallback(async (r: FollowupRow) => {
+    setSendingId(r.id);
+    const t = toast.loading(`Sending WhatsApp to ${r.full_name || r.phone}…`);
+    try {
+      const res = await sendViaZavu(r);
+      if (res.ok) {
+        setSentIds((s) => ({ ...s, [r.id]: true }));
+        toast.success("WhatsApp sent via Zavu", { id: t });
+      } else if (res.error === "no_phone") {
+        toast.error("This user has no phone number on file", { id: t });
+      } else {
+        toast.error(`Couldn't send: ${res.error}`, { id: t });
+      }
+    } finally {
+      setSendingId(null);
+    }
+  }, []);
 
   const load = useCallback(async () => {
     if (!allowed) return;
