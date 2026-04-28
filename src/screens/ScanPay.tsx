@@ -1748,7 +1748,7 @@ function SlideToPay({ disabled, onComplete, amount }: { disabled: boolean; onCom
         style={{ opacity: completed ? 0 : Math.max(0, 1 - progress * 1.6) }}
         aria-hidden="true"
       >
-        {disabled ? "Enter a valid amount" : "Swipe to send"}
+        {disabled ? "Enter a valid amount" : amount && amount > 0 ? `Slide to Pay ₹${amount}` : "Swipe to send"}
       </div>
 
       {/* Animated chevron arrows hint (right side) */}
