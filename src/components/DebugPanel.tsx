@@ -61,7 +61,7 @@ export function DebugPanel() {
     return () => { cancelled = true; };
   }, [mounted, pathname, open]);
 
-  if (!mounted) return null;
+  if (!hydrated || !mounted) return null;
 
   const dismiss = () => {
     try { window.sessionStorage.setItem(DISMISS_KEY, "1"); } catch { /* ignore */ }
