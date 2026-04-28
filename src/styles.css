@@ -8411,20 +8411,23 @@ html.motion-off    .otp-resend-ring svg circle { transition: none !important; }
 /* Inline expanded panel under the row — premium glass + dark accent */
 .sp3-balance-inline {
   position: relative;
-  margin: 10px 0 0;
-  padding: 14px 16px 14px;
-  border-radius: 20px;
+  margin: 12px 0 0;
+  /* Tightened, asymmetric padding for a more balanced optical rhythm */
+  padding: 16px 18px 14px;
+  border-radius: 22px;
   background:
     radial-gradient(120% 80% at 0% 0%, rgba(255,138,60,.10), transparent 55%),
-    linear-gradient(180deg, rgba(20,14,10,.78), rgba(12,9,7,.72));
-  border: 1px solid rgba(255,255,255,.08);
+    linear-gradient(180deg, rgba(20,14,10,.80), rgba(12,9,7,.74));
+  border: 1px solid rgba(255,255,255,.09);
+  /* Deeper, layered shadow — inner highlight + ambient + amber halo */
   box-shadow:
-    inset 0 1px 0 rgba(255,255,255,.07),
-    inset 0 0 0 1px rgba(255,138,60,.06),
-    0 22px 48px -24px rgba(0,0,0,.9),
-    0 0 24px -10px rgba(255,138,60,.18);
-  backdrop-filter: blur(22px) saturate(140%);
-  -webkit-backdrop-filter: blur(22px) saturate(140%);
+    inset 0 1px 0 rgba(255,255,255,.08),
+    inset 0 0 0 1px rgba(255,138,60,.07),
+    0 2px 6px rgba(0,0,0,.35),
+    0 26px 56px -22px rgba(0,0,0,.95),
+    0 0 32px -12px rgba(255,138,60,.22);
+  backdrop-filter: blur(24px) saturate(145%);
+  -webkit-backdrop-filter: blur(24px) saturate(145%);
   overflow: hidden;
   animation: sp3-balance-inline-in 360ms cubic-bezier(.22,1,.36,1) both;
   transform-origin: top left;
@@ -8433,14 +8436,14 @@ html.motion-off    .otp-resend-ring svg circle { transition: none !important; }
   content: "";
   position: absolute; inset: 0;
   pointer-events: none;
-  background: linear-gradient(180deg, rgba(255,255,255,.06), transparent 35%);
+  background: linear-gradient(180deg, rgba(255,255,255,.07), transparent 38%);
   border-radius: inherit;
 }
 .sp3-balance-inline::after {
   content: "";
-  position: absolute; left: 14px; right: 14px; top: 0; height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(255,138,60,.55), transparent);
-  opacity: .55;
+  position: absolute; left: 16px; right: 16px; top: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255,138,60,.6), transparent);
+  opacity: .65;
 }
 @keyframes sp3-balance-inline-in {
   from { opacity: 0; transform: translateY(-10px) scale(.985); max-height: 0; padding-top: 0; padding-bottom: 0; margin-top: 0; }
@@ -8467,6 +8470,7 @@ html.motion-off    .otp-resend-ring svg circle { transition: none !important; }
   color: rgba(255,255,255,.5);
 }
 .sp3-balance-inline-value {
+  position: relative;
   font-family: ui-monospace, "SF Mono", "JetBrains Mono", "Roboto Mono", Menlo, Consolas, monospace;
   font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum" 1, "lnum" 1;
@@ -8477,13 +8481,60 @@ html.motion-off    .otp-resend-ring svg circle { transition: none !important; }
   border-radius: 10px;
   background: linear-gradient(180deg, rgba(255,138,60,.10), rgba(255,138,60,.04));
   border: 1px solid rgba(255,138,60,.18);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.06);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.06),
+    0 0 0 0 rgba(255,138,60,0);
+  overflow: hidden;
+  isolation: isolate;
+  /* Subtle neon-amber pulse on chip when popup opens */
+  animation: sp3-balance-chip-pulse 1400ms cubic-bezier(.22,1,.36,1) both;
+}
+/* Soft diagonal sheen sweep across the chip — fires once on mount */
+.sp3-balance-inline-value::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(
+    115deg,
+    transparent 25%,
+    rgba(255,200,140,.55) 50%,
+    transparent 75%
+  );
+  transform: translateX(-120%);
+  animation: sp3-balance-chip-sheen 1100ms cubic-bezier(.22,1,.36,1) 180ms both;
+  mix-blend-mode: screen;
+  z-index: 1;
+}
+@keyframes sp3-balance-chip-pulse {
+  0%   { box-shadow: inset 0 1px 0 rgba(255,255,255,.06), 0 0 0 0 rgba(255,138,60,0); border-color: rgba(255,138,60,.18); }
+  35%  { box-shadow: inset 0 1px 0 rgba(255,255,255,.10), 0 0 0 6px rgba(255,138,60,.18); border-color: rgba(255,180,120,.55); }
+  70%  { box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 0 0 3px rgba(255,138,60,.10); border-color: rgba(255,180,120,.35); }
+  100% { box-shadow: inset 0 1px 0 rgba(255,255,255,.06), 0 0 0 0 rgba(255,138,60,0); border-color: rgba(255,138,60,.18); }
+}
+@keyframes sp3-balance-chip-sheen {
+  0%   { transform: translateX(-120%); opacity: 0; }
+  20%  { opacity: 1; }
+  100% { transform: translateX(120%); opacity: 0; }
 }
 .sp3-balance-inline-row--after .sp3-balance-inline-value {
   color: #fff;
   background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.03));
   border-color: rgba(255,255,255,.12);
   text-shadow: none;
+  /* Slight delay so the after-amount chip pulses just after the primary one */
+  animation-delay: 140ms;
+}
+.sp3-balance-inline-row--after .sp3-balance-inline-value::after {
+  /* Cooler white sheen on the secondary chip */
+  background: linear-gradient(
+    115deg,
+    transparent 25%,
+    rgba(255,255,255,.55) 50%,
+    transparent 75%
+  );
+  animation-delay: 320ms;
 }
 .num-mono {
   font-variant-numeric: tabular-nums;
@@ -8492,7 +8543,8 @@ html.motion-off    .otp-resend-ring svg circle { transition: none !important; }
 
 @media (prefers-reduced-motion: reduce) {
   .sp3-balance-pop, .sp3-method-chevron, .sp3-method-pill-line,
-  .sp3-balance-inline, .sp3-balance-inline-row, .sp3-method-pill {
+  .sp3-balance-inline, .sp3-balance-inline-row, .sp3-balance-inline-value,
+  .sp3-balance-inline-value::after, .sp3-method-pill {
     animation: none !important; transition: none !important;
   }
 }
