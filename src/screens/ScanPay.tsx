@@ -1757,14 +1757,22 @@ function PayContactSheet({
   );
 }
 
-/* My QR — generates the user's UPI QR so others can scan to pay them. */
+/* My QR — generates the user's UPI QR so others can scan to pay them.
+ *
+ * The wallet handle is sourced from the user's saved profile (verified phone +
+ * full name). If either required field is missing we DO NOT silently fall back
+ * to a "user@teenwallet" stub — that would generate a UPI deep-link that
+ * routes nowhere. Instead we render a clear validation panel and link the
+ * user to their profile so they can complete onboarding first.
+ */
 function MyQrSheet({ onClose }: { onClose: () => void }) {
   const { userId, fullName } = useApp();
   const [profile, setProfile] = useState<{ phone: string | null; full_name: string | null } | null>(null);
+  const [loading, setLoading] = useState(true);
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!userId) return;
+    if (!userId) { setLoading(false); return; }
     let cancelled = false;
     void (async () => {
       const { data } = await supabase
@@ -1774,31 +1782,58 @@ function MyQrSheet({ onClose }: { onClose: () => void }) {
         .maybeSingle();
       if (cancelled) return;
       setProfile(data ?? { phone: null, full_name: fullName });
+      setLoading(false);
     })();
     return () => { cancelled = true; };
   }, [userId, fullName]);
 
-  // Build a UPI deep-link from the user's phone (used as their wallet handle).
-  const upiId = profile?.phone ? `${profile.phone.replace(/\D/g, "")}@teenwallet` : "user@teenwallet";
-  const displayName = profile?.full_name || fullName || "Teen Wallet User";
-  const deepLink = `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(displayName)}&cu=INR`;
+  // ── Validate required fields BEFORE building the QR ──
+  // The wallet handle is the canonical identifier other users will scan and
+  // pay to. We require:
+  //   • a phone (used as the wallet local-part — Teen Wallet maps phone → user)
+  //   • a display name so the payer sees who they're paying
+  // Anything missing → show a validation panel instead of a broken QR.
+  const phoneDigits = (profile?.phone ?? "").replace(/\D/g, "");
+  const displayName = (profile?.full_name || fullName || "").trim();
+  const missingFields: string[] = [];
+  if (!phoneDigits || phoneDigits.length < 10) missingFields.push("verified phone number");
+  if (!displayName) missingFields.push("full name");
+  const isValid = missingFields.length === 0;
+
+  // Wallet handle = saved phone @ teenwallet. Built only when valid so the
+  // deep-link is guaranteed to be payable.
+  const upiId = isValid ? `${phoneDigits}@teenwallet` : "";
+  const deepLink = isValid
+    ? buildUpiDeepLink({
+        upiId,
+        payeeName: displayName,
+        amount: 0, // amount-less collect QR — payer chooses the amount
+        txnRef: `myqr-${(userId ?? "anon").slice(0, 8)}`,
+        currency: "INR",
+      // Drop "am=0.00" so installed UPI apps prompt the payer for an amount.
+      }).replace(/&?am=0\.00/, "")
+    : "";
 
   useEffect(() => {
+    if (!deepLink) { setQrDataUrl(null); return; }
     let cancelled = false;
     void QRCode.toDataURL(deepLink, {
       width: 280,
       margin: 1,
       color: { dark: "#0a0a0a", light: "#ffffff" },
       errorCorrectionLevel: "H",
-    }).then((url) => { if (!cancelled) setQrDataUrl(url); });
+    }).then((url) => { if (!cancelled) setQrDataUrl(url); })
+      .catch((err) => { captureError(err, { where: "myqr.generate" }); });
     return () => { cancelled = true; };
   }, [deepLink]);
 
   const copyId = async () => {
+    if (!isValid) return;
     try { await navigator.clipboard.writeText(upiId); toast.success("UPI ID copied"); }
     catch { toast.error("Couldn't copy"); }
   };
   const share = async () => {
+    if (!isValid) return;
     if (typeof navigator !== "undefined" && navigator.share) {
       try { await navigator.share({ title: "Pay me on Teen Wallet", text: `Pay me at ${upiId}`, url: deepLink }); }
       catch { /* user cancelled */ }
@@ -1807,7 +1842,7 @@ function MyQrSheet({ onClose }: { onClose: () => void }) {
     }
   };
   const download = () => {
-    if (!qrDataUrl) return;
+    if (!qrDataUrl || !isValid) return;
     const a = document.createElement("a");
     a.href = qrDataUrl;
     a.download = `teenwallet-${upiId.replace(/[^a-z0-9]/gi, "-")}.png`;
@@ -1823,37 +1858,91 @@ function MyQrSheet({ onClose }: { onClose: () => void }) {
           <div className="sp2-sheet-icon sp2-fab-tone-champagne"><QrCode className="w-5 h-5" /></div>
           <div>
             <h2 className="sp2-sheet-title">My QR code</h2>
-            <p className="sp2-sheet-sub">Anyone can scan this to pay you</p>
-          </div>
-        </div>
-
-        <div className="sp2-qr-card">
-          <div className="sp2-qr-frame">
-            {qrDataUrl ? (
-              <img src={qrDataUrl} alt="Your UPI QR" className="sp2-qr-img" />
-            ) : (
-              <div className="sp2-qr-skeleton" />
-            )}
-          </div>
-          <div className="sp2-qr-meta">
-            <p className="sp2-qr-name">{displayName}</p>
-            <p className="sp2-qr-upi">
-              {upiId}
-              <button type="button" onClick={copyId} className="sp2-qr-copy" aria-label="Copy UPI ID">
-                <Copy className="w-3.5 h-3.5" />
-              </button>
+            <p className="sp2-sheet-sub">
+              {isValid ? "Anyone can scan this to pay you" : "Finish your profile to generate a QR"}
             </p>
           </div>
         </div>
 
-        <div className="sp2-qr-actions">
-          <button type="button" onClick={share} className="sp2-qr-btn">
-            <Share2 className="w-4 h-4" /> Share
-          </button>
-          <button type="button" onClick={download} className="sp2-qr-btn" disabled={!qrDataUrl}>
-            <Download className="w-4 h-4" /> Save
-          </button>
-        </div>
+        {loading ? (
+          <div className="sp2-qr-card"><div className="sp2-qr-frame"><div className="sp2-qr-skeleton" /></div></div>
+        ) : !isValid ? (
+          // ── Validation panel — required profile fields missing ──
+          <div
+            role="alert"
+            style={{
+              margin: "8px 4px 4px",
+              padding: "14px 14px 16px",
+              borderRadius: 18,
+              background: "rgba(20,8,8,0.85)",
+              border: "1px solid #FF4444",
+              color: "#fff",
+              display: "flex", flexDirection: "column", gap: 10,
+            }}
+          >
+            <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+              <span
+                aria-hidden
+                style={{
+                  flex: "0 0 auto", width: 32, height: 32, borderRadius: 999,
+                  display: "grid", placeItems: "center",
+                  background: "rgba(255,68,68,0.18)", color: "#FF4444",
+                }}
+              >
+                <AlertTriangle className="w-4 h-4" strokeWidth={2.4} />
+              </span>
+              <div style={{ flex: 1 }}>
+                <p style={{ fontSize: 13, fontWeight: 600 }}>Can't generate your QR yet</p>
+                <p style={{ fontSize: 12, marginTop: 4, color: "rgba(255,255,255,0.72)", lineHeight: 1.4 }}>
+                  We need your {missingFields.join(" and ")} to build a payable wallet handle. Without these, the QR would route nowhere.
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => { onClose(); window.location.assign("/preview/profile-help"); }}
+              style={{
+                alignSelf: "flex-start",
+                fontSize: 12, fontWeight: 600,
+                padding: "8px 14px", borderRadius: 999,
+                background: "#FF4444", color: "#fff",
+                display: "inline-flex", alignItems: "center", gap: 6,
+              }}
+            >
+              <UserIcon className="w-3.5 h-3.5" /> Complete profile
+            </button>
+          </div>
+        ) : (
+          <>
+            <div className="sp2-qr-card">
+              <div className="sp2-qr-frame">
+                {qrDataUrl ? (
+                  <img src={qrDataUrl} alt="Your UPI QR" className="sp2-qr-img" />
+                ) : (
+                  <div className="sp2-qr-skeleton" />
+                )}
+              </div>
+              <div className="sp2-qr-meta">
+                <p className="sp2-qr-name">{displayName}</p>
+                <p className="sp2-qr-upi">
+                  {upiId}
+                  <button type="button" onClick={copyId} className="sp2-qr-copy" aria-label="Copy UPI ID">
+                    <Copy className="w-3.5 h-3.5" />
+                  </button>
+                </p>
+              </div>
+            </div>
+
+            <div className="sp2-qr-actions">
+              <button type="button" onClick={share} className="sp2-qr-btn" disabled={!qrDataUrl}>
+                <Share2 className="w-4 h-4" /> Share
+              </button>
+              <button type="button" onClick={download} className="sp2-qr-btn" disabled={!qrDataUrl}>
+                <Download className="w-4 h-4" /> Save
+              </button>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
