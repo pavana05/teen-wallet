@@ -415,6 +415,48 @@ function clearAttemptId() {
   try { window.localStorage.removeItem(SCANPAY_ATTEMPT_KEY); } catch { /* ignore */ }
 }
 
+/**
+ * Downscale an image File so the QR decoder has a sharper, smaller frame to
+ * work with. Many phone photos are 4000+ px wide which makes the QR a tiny
+ * fraction of the frame; html5-qrcode's scanFile heuristics struggle with
+ * that. We cap the longest edge at `maxEdge` (default 1200) and re-encode
+ * as a JPEG blob.
+ *
+ * Returns null if the browser can't load the image (corrupt file, unsupported
+ * format, etc.) — callers should fall back to the original.
+ */
+async function downscaleImage(file: File, maxEdge = 1200): Promise<File | null> {
+  if (typeof window === "undefined") return null;
+  try {
+    const url = URL.createObjectURL(file);
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const el = new Image();
+      el.onload = () => resolve(el);
+      el.onerror = () => reject(new Error("img-load"));
+      el.src = url;
+    });
+    const longest = Math.max(img.naturalWidth, img.naturalHeight);
+    if (longest <= maxEdge) {
+      URL.revokeObjectURL(url);
+      return file; // already small enough
+    }
+    const scale = maxEdge / longest;
+    const w = Math.round(img.naturalWidth * scale);
+    const h = Math.round(img.naturalHeight * scale);
+    const canvas = document.createElement("canvas");
+    canvas.width = w; canvas.height = h;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) { URL.revokeObjectURL(url); return null; }
+    ctx.drawImage(img, 0, 0, w, h);
+    URL.revokeObjectURL(url);
+    const blob: Blob | null = await new Promise((res) => canvas.toBlob(res, "image/jpeg", 0.92));
+    if (!blob) return null;
+    return new File([blob], file.name.replace(/\.[^.]+$/, "") + "-small.jpg", { type: "image/jpeg" });
+  } catch {
+    return null;
+  }
+}
+
 /** Convert a server attempt snapshot into the local SavedTxn shape used by SuccessView. */
 function snapToSavedTxn(snap: AttemptSnapshot): SavedTxn {
   return {
