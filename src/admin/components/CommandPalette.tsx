@@ -312,7 +312,7 @@ export function CommandPalette() {
           background: "var(--a-surface)",
           border: "1px solid var(--a-border-strong)",
           borderRadius: 14,
-          boxShadow: "0 30px 60px -20px rgba(0,0,0,0.7), 0 0 0 1px rgba(200,241,53,0.05)",
+          boxShadow: "0 30px 60px -20px rgba(0,0,0,0.7), 0 0 0 1px var(--a-accent-soft)",
           overflow: "hidden",
         }}
       >

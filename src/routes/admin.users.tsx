@@ -319,7 +319,7 @@ function UsersList() {
         rows={rows}
         columns={columns}
         rowId={(r) => r.id}
-        rowStyle={(r) => selected.has(r.id) ? { background: "rgba(200,241,53,0.05)" } : undefined}
+        rowStyle={(r) => selected.has(r.id) ? { background: "var(--a-accent-soft)" } : undefined}
         height={620}
         rowHeight={56}
         initialLoading={initialLoading}
