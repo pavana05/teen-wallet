@@ -8111,8 +8111,16 @@ html.motion-off    .otp-resend-ring svg circle { transition: none !important; }
 }
 .sp3-method-row {
   display: flex; align-items: center; justify-content: space-between;
+  gap: 12px;
   margin-bottom: 12px;
   font-size: 13px;
+}
+.sp3-wallet-reveal {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  border-radius: 22px;
+  overflow: hidden;
 }
 .sp3-method-pill {
   display: inline-flex; align-items: center; gap: 8px;
@@ -8122,6 +8130,7 @@ html.motion-off    .otp-resend-ring svg circle { transition: none !important; }
   border: 1px solid rgba(255,255,255,.08);
   color: #fff; font-weight: 600;
   cursor: pointer;
+  max-width: 100%;
   transition: background 160ms ease, border-color 160ms ease, transform 160ms ease;
 }
 .sp3-method-pill:hover { background: rgba(255,255,255,.08); }
@@ -8135,6 +8144,7 @@ html.motion-off    .otp-resend-ring svg circle { transition: none !important; }
 }
 .sp3-method-name { font-size: 13px; }
 .sp3-balance-link {
+  flex: 0 0 auto;
   background: transparent; border: 0; color: rgba(255,255,255,.65);
   font-weight: 600; font-size: 12px;
   display: inline-flex; align-items: center; gap: 4px;
