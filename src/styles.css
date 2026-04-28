@@ -6657,3 +6657,308 @@ html.motion-off    .otp-resend-ring svg circle { transition: none !important; }
     animation: none !important;
   }
 }
+
+/* ============================================================
+ * Scan & Pay — Premium Champagne Refresh (Apr 2026)
+ *   • Removes residual mint/blue/yellow neon from scanner + processing
+ *   • Adds light-theme parity for both scanner & processing screens
+ *   • Adds a smooth "scan → pay" handoff entry animation
+ * ============================================================ */
+
+/* ---- Scanner: champagne accent everywhere ---- */
+.sp2-frame-corner {
+  border-color: var(--premium-accent) !important;
+  filter: drop-shadow(0 0 10px var(--premium-accent-glow)) !important;
+}
+.sp2-beam {
+  background: linear-gradient(90deg,
+    transparent,
+    color-mix(in oklab, var(--premium-accent) 70%, transparent) 28%,
+    #ffffff 50%,
+    color-mix(in oklab, var(--premium-accent) 70%, transparent) 72%,
+    transparent) !important;
+  box-shadow:
+    0 0 14px var(--premium-accent-glow),
+    0 0 36px color-mix(in oklab, var(--premium-accent) 35%, transparent) !important;
+}
+.sp2-frame-halo {
+  background: radial-gradient(closest-side,
+    color-mix(in oklab, var(--premium-accent) 22%, transparent),
+    transparent 70%) !important;
+}
+.sp2-state-locked {
+  background: var(--premium-accent) !important;
+  box-shadow: 0 0 14px var(--premium-accent-glow) !important;
+}
+.sp2-frame-locked .sp2-frame-corner {
+  border-color: var(--premium-accent) !important;
+  box-shadow: 0 0 16px var(--premium-accent-glow) !important;
+}
+.sp2-frame-locked { animation: sp2-lock-flash-champagne .65s ease-out 1; }
+@keyframes sp2-lock-flash-champagne {
+  0%   { transform: scale(.95); box-shadow: 0 0 0 0 var(--premium-accent-glow); }
+  60%  { transform: scale(1);   box-shadow: 0 0 0 32px rgba(212,197,160,0); }
+  100% { transform: scale(1);   box-shadow: 0 0 0 0 rgba(212,197,160,0); }
+}
+.sp2-lock-badge {
+  background: color-mix(in oklab, var(--premium-accent) 18%, transparent) !important;
+  border-color: color-mix(in oklab, var(--premium-accent) 55%, transparent) !important;
+  color: #f6ecd2 !important;
+}
+.sp2-dock-icon {
+  background: linear-gradient(160deg,
+    color-mix(in oklab, var(--premium-accent) 22%, transparent),
+    color-mix(in oklab, var(--premium-accent) 8%, transparent)) !important;
+  border-color: color-mix(in oklab, var(--premium-accent) 28%, transparent) !important;
+  color: var(--premium-accent) !important;
+}
+
+/* Soft bloom that radiates from the locked QR frame as we hand off to processing.
+   Mounted by ScannerView via .sp2-frame-locked, finishes ~600ms in. */
+.sp2-frame-locked::after {
+  content: "";
+  position: absolute;
+  inset: -40%;
+  border-radius: 50%;
+  background: radial-gradient(circle,
+    color-mix(in oklab, var(--premium-accent) 38%, transparent) 0%,
+    transparent 60%);
+  filter: blur(18px);
+  pointer-events: none;
+  animation: sp2-handoff-bloom 600ms cubic-bezier(.2,.8,.2,1) forwards;
+  z-index: -1;
+}
+@keyframes sp2-handoff-bloom {
+  0%   { transform: scale(.6); opacity: 0; }
+  40%  { opacity: 1; }
+  100% { transform: scale(1.6); opacity: 0; }
+}
+
+/* ---- Processing: re-skin the cosmic scene to champagne / platinum ---- */
+.sp-pay-root {
+  background:
+    radial-gradient(120% 60% at 50% 0%,
+      color-mix(in oklab, var(--premium-accent) 14%, transparent), transparent 65%),
+    radial-gradient(80% 50% at 50% 100%, rgba(10,10,14,.65), transparent 70%),
+    linear-gradient(180deg, #0a0908 0%, #07060a 55%, #030204 100%) !important;
+  animation: sp-pay-enter 520ms cubic-bezier(.2,.8,.2,1) both;
+}
+@keyframes sp-pay-enter {
+  from { opacity: 0; transform: scale(.985); filter: blur(6px); }
+  to   { opacity: 1; transform: scale(1);    filter: blur(0); }
+}
+.sp-pay-floor-grid {
+  background-image:
+    linear-gradient(color-mix(in oklab, var(--premium-accent) 22%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in oklab, var(--premium-accent) 18%, transparent) 1px, transparent 1px) !important;
+}
+.sp-pay-floor-fade {
+  background: linear-gradient(180deg, rgba(7,6,10,.95) 0%, rgba(7,6,10,.2) 35%, transparent 65%) !important;
+}
+.sp-rib-y { color: #e8dcc0 !important; }       /* warm champagne */
+.sp-rib-w { color: #ffffff !important; }       /* highlight platinum */
+.sp-rib-b { color: #b8a37a !important; }       /* deep gold */
+.sp-pay-halo {
+  background: radial-gradient(circle,
+    rgba(255,255,255,.32) 0%,
+    color-mix(in oklab, var(--premium-accent) 22%, transparent) 30%,
+    transparent 65%) !important;
+}
+.sp-pay-halo-2 {
+  background: radial-gradient(circle,
+    color-mix(in oklab, var(--premium-accent) 26%, transparent) 0%,
+    color-mix(in oklab, var(--premium-accent-2) 16%, transparent) 35%,
+    transparent 70%) !important;
+}
+.sp-pay-orb {
+  background: radial-gradient(circle at 35% 30%,
+    #ffffff 0%, #fbf3df 28%, #e8dcc0 60%, #a08a64 100%) !important;
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,.55),
+    0 0 30px rgba(255,236,200,.55),
+    0 0 80px color-mix(in oklab, var(--premium-accent) 50%, transparent),
+    0 0 140px color-mix(in oklab, var(--premium-accent-2) 35%, transparent),
+    inset -8px -10px 22px rgba(120,98,60,.4),
+    inset 6px 8px 18px rgba(255,255,255,.7) !important;
+  animation: sp-pay-orb-pulse-champagne 1.8s ease-in-out infinite !important;
+}
+@keyframes sp-pay-orb-pulse-champagne {
+  0%,100% { box-shadow:
+    0 0 0 1px rgba(255,255,255,.55),
+    0 0 30px rgba(255,236,200,.55),
+    0 0 80px color-mix(in oklab, var(--premium-accent) 50%, transparent),
+    0 0 140px color-mix(in oklab, var(--premium-accent-2) 35%, transparent),
+    inset -8px -10px 22px rgba(120,98,60,.4),
+    inset 6px 8px 18px rgba(255,255,255,.7); }
+  50%     { box-shadow:
+    0 0 0 1px rgba(255,255,255,.7),
+    0 0 50px rgba(255,240,210,.85),
+    0 0 110px color-mix(in oklab, var(--premium-accent) 65%, transparent),
+    0 0 180px color-mix(in oklab, var(--premium-accent-2) 50%, transparent),
+    inset -8px -10px 22px rgba(120,98,60,.4),
+    inset 6px 8px 18px rgba(255,255,255,.85); }
+}
+.sp-pay-orb-ring {
+  border-color: rgba(255,255,255,.18) !important;
+  border-top-color: rgba(255,255,255,.7) !important;
+}
+.sp-pay-orb-ring-2 {
+  border-color: color-mix(in oklab, var(--premium-accent) 18%, transparent) !important;
+  border-bottom-color: color-mix(in oklab, var(--premium-accent) 62%, transparent) !important;
+}
+.sp-pay-orb-shadow {
+  background: radial-gradient(ellipse,
+    color-mix(in oklab, var(--premium-accent) 50%, transparent),
+    transparent 70%) !important;
+}
+.sp-pay-mote {
+  background: rgba(255,247,225,.92) !important;
+  box-shadow: 0 0 8px color-mix(in oklab, var(--premium-accent) 70%, transparent) !important;
+}
+.sp-pay-dot {
+  background: var(--premium-accent) !important;
+  box-shadow: 0 0 10px var(--premium-accent-glow) !important;
+}
+.sp-pay-amount {
+  text-shadow: 0 2px 30px color-mix(in oklab, var(--premium-accent) 35%, transparent) !important;
+}
+
+/* ============================================================
+ * LIGHT THEME — full parity for Scan & Pay
+ * Apple-clean: paper background, deep ink, champagne accent
+ * ============================================================ */
+.light .sp2-topbar,
+[data-theme="light"] .sp2-topbar { color: var(--premium-ink); }
+
+.light .sp2-icon-btn,
+[data-theme="light"] .sp2-icon-btn {
+  background: rgba(0,0,0,.04);
+  border-color: rgba(0,0,0,.08);
+  color: rgba(0,0,0,.78);
+}
+.light .sp2-icon-btn.on,
+[data-theme="light"] .sp2-icon-btn.on {
+  background: color-mix(in oklab, var(--premium-accent) 18%, transparent);
+  border-color: var(--premium-accent);
+  color: #6b5a36;
+}
+
+.light .sp2-state-strip,
+[data-theme="light"] .sp2-state-strip {
+  background: rgba(255,255,255,.78);
+  border-color: rgba(0,0,0,.08);
+  color: rgba(15,15,18,.78);
+}
+
+.light .sp2-frame-hint,
+[data-theme="light"] .sp2-frame-hint {
+  color: rgba(15,15,18,.78);
+  text-shadow: 0 1px 2px rgba(255,255,255,.6);
+}
+.light .sp2-retune,
+[data-theme="light"] .sp2-retune { color: rgba(15,15,18,.55); }
+
+/* In light theme the camera vignette inverts to a soft cream wash so the
+   live video still pops without the harsh black mask. */
+.light .sp2-frame-wrap,
+[data-theme="light"] .sp2-frame-wrap { color: var(--premium-ink); }
+
+.light [id="tw-qr-region"] ~ .absolute.inset-0.bg-black\/60,
+[data-theme="light"] [id="tw-qr-region"] ~ .absolute.inset-0.bg-black\/60 {
+  /* No reliable selector for the inline mask — leave dark for contrast on
+     light theme too; the camera feed is inherently dark. */
+}
+
+.light .sp2-dock,
+[data-theme="light"] .sp2-dock {
+  background: rgba(255,255,255,.82);
+  border-color: rgba(0,0,0,.08);
+  box-shadow:
+    0 12px 36px -12px rgba(0,0,0,.18),
+    0 1px 0 rgba(255,255,255,.6) inset;
+}
+.light .sp2-dock-btn,
+[data-theme="light"] .sp2-dock-btn {
+  background: rgba(0,0,0,.025);
+  border-color: rgba(0,0,0,.06);
+  color: rgba(15,15,18,.86);
+}
+.light .sp2-dock-btn:hover,
+[data-theme="light"] .sp2-dock-btn:hover {
+  background: rgba(0,0,0,.045);
+  border-color: rgba(0,0,0,.10);
+}
+.light .sp2-dock-label,
+[data-theme="light"] .sp2-dock-label { color: rgba(15,15,18,.74); }
+
+/* Processing — light theme: paper/cream stage with champagne highlights */
+.light .sp-pay-root,
+[data-theme="light"] .sp-pay-root {
+  background:
+    radial-gradient(120% 60% at 50% 0%,
+      color-mix(in oklab, var(--premium-accent) 28%, transparent), transparent 65%),
+    radial-gradient(80% 50% at 50% 100%, rgba(220,210,190,.55), transparent 70%),
+    linear-gradient(180deg, #faf7f0 0%, #f3eee2 55%, #ebe5d4 100%) !important;
+}
+.light .sp-pay-vignette,
+[data-theme="light"] .sp-pay-vignette {
+  background:
+    radial-gradient(60% 40% at 50% 38%, rgba(255,255,255,.5), transparent 70%),
+    radial-gradient(120% 60% at 50% 110%, rgba(0,0,0,.06), transparent 60%);
+}
+.light .sp-pay-floor-grid,
+[data-theme="light"] .sp-pay-floor-grid {
+  background-image:
+    linear-gradient(color-mix(in oklab, var(--premium-accent-2) 35%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in oklab, var(--premium-accent-2) 30%, transparent) 1px, transparent 1px) !important;
+}
+.light .sp-pay-floor-fade,
+[data-theme="light"] .sp-pay-floor-fade {
+  background: linear-gradient(180deg, rgba(250,247,240,.95) 0%, rgba(250,247,240,.2) 35%, transparent 65%) !important;
+}
+.light .sp-rib-y, [data-theme="light"] .sp-rib-y { color: #b8a37a !important; }
+.light .sp-rib-w, [data-theme="light"] .sp-rib-w { color: #6b5a36 !important; }
+.light .sp-rib-b, [data-theme="light"] .sp-rib-b { color: #d4c5a0 !important; }
+.light .sp-pay-amount,
+[data-theme="light"] .sp-pay-amount {
+  color: var(--premium-ink) !important;
+  text-shadow: 0 2px 18px color-mix(in oklab, var(--premium-accent) 35%, transparent) !important;
+}
+.light .sp-pay-rupee,
+[data-theme="light"] .sp-pay-rupee { color: rgba(15,15,18,.7) !important; }
+.light .sp-pay-eyebrow,
+[data-theme="light"] .sp-pay-eyebrow {
+  color: rgba(15,15,18,.65) !important;
+  background: rgba(255,255,255,.6) !important;
+  border-color: rgba(0,0,0,.06) !important;
+}
+.light .sp-pay-hint,
+[data-theme="light"] .sp-pay-hint { color: rgba(15,15,18,.5) !important; }
+
+/* Bridge animation: a soft chip rising from where the locked frame sat into
+   the orb position. Used by ProcessingView's optional .sp-handoff-arc. */
+.sp-handoff-arc {
+  position: absolute; left: 50%; top: 44%;
+  width: 56px; height: 56px;
+  margin-left: -28px; margin-top: -28px;
+  border-radius: 50%;
+  background: radial-gradient(circle,
+    rgba(255,255,255,.95) 0%,
+    color-mix(in oklab, var(--premium-accent) 60%, transparent) 55%,
+    transparent 80%);
+  filter: blur(2px);
+  opacity: 0;
+  pointer-events: none;
+  animation: sp-handoff-arc 720ms cubic-bezier(.2,.8,.2,1) forwards;
+  z-index: 4;
+}
+@keyframes sp-handoff-arc {
+  0%   { transform: translateY(0)   scale(.4); opacity: 0; }
+  20%  { opacity: 1; }
+  60%  { transform: translateY(-30px) scale(1.1); opacity: .8; }
+  100% { transform: translateY(-60px) scale(.2); opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sp-pay-root, .sp-handoff-arc, .sp2-frame-locked::after { animation: none !important; }
+}

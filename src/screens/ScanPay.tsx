@@ -1323,6 +1323,11 @@ function ProcessingView({ amount }: { amount: number }) {
       {/* Soft top vignette to add depth */}
       <div className="sp-pay-vignette" aria-hidden />
 
+      {/* Handoff chip — rises from where the locked QR frame sat and merges
+          into the orb. Pairs with .sp2-frame-locked::after bloom for a
+          continuous scan→pay choreography. */}
+      <span className="sp-handoff-arc" aria-hidden />
+
       {/* Stepper pinned to top */}
       <div className="absolute top-6 left-0 right-0 px-4 z-30">
         <PaymentStepper stage="processing" />
