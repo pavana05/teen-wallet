@@ -6797,6 +6797,16 @@ html.motion-off    .otp-resend-ring svg circle { transition: none !important; }
 .fd-shell {
   width: calc(100% - 2rem);
   max-width: 320px;
+  /* Smooth, spring-like width contraction when collapsing */
+  transition:
+    transform 420ms cubic-bezier(.22,1,.36,1),
+    opacity 320ms ease-out,
+    max-width 520ms cubic-bezier(.22,1,.36,1);
+  will-change: max-width, transform;
+}
+/* Collapsed state: shrink the whole shell so it hugs the active tab + FAB */
+.fd-shell[data-collapsed="true"] {
+  max-width: 200px;
 }
 .fd-pill {
   flex: 1;
@@ -6810,14 +6820,46 @@ html.motion-off    .otp-resend-ring svg circle { transition: none !important; }
   box-shadow:
     0 10px 28px -10px rgba(0, 0, 0, 0.85),
     inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  /* Pill itself flexes via children — width animates from contracted children */
+  transition: padding 420ms cubic-bezier(.22,1,.36,1);
 }
+
 .fd-tab {
   position: relative;
-  transition: color 200ms ease-out, transform 200ms ease-out;
+  overflow: hidden;
+  /* Spring-like collapse: width, padding, opacity all in sync */
+  transition:
+    color 200ms ease-out,
+    transform 200ms ease-out,
+    max-width 520ms cubic-bezier(.22,1,.36,1),
+    padding 420ms cubic-bezier(.22,1,.36,1),
+    opacity 280ms ease-out,
+    margin 420ms cubic-bezier(.22,1,.36,1);
+  max-width: 140px;
 }
 .fd-tab:active { transform: scale(0.96); }
+/* Collapsed (non-active) tab: shrinks to nothing & fades out */
+.fd-tab[data-collapsed="true"] {
+  max-width: 0;
+  padding-left: 0;
+  padding-right: 0;
+  margin-left: 0;
+  margin-right: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+.fd-tab[data-collapsed="true"] .fd-tab-icon,
+.fd-tab[data-collapsed="true"] .fd-tab-label {
+  transform: scale(0.6);
+  opacity: 0;
+}
+
 .fd-tab-icon {
-  transition: transform 240ms cubic-bezier(.2,.8,.2,1);
+  transition: transform 320ms cubic-bezier(.22,1,.36,1), opacity 240ms ease-out;
+}
+.fd-tab-label {
+  transition: transform 320ms cubic-bezier(.22,1,.36,1), opacity 240ms ease-out;
+  white-space: nowrap;
 }
 .fd-tab:hover .fd-tab-icon { transform: translateY(-1px); }
 .fd-tab-active {
