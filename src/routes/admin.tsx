@@ -1,6 +1,6 @@
 import { createFileRoute, Outlet, useNavigate, Link, useRouterState } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useAdminSession, ROLE_LABELS, ROLE_BADGE, callAdminFn, readAdminSession } from "@/admin/lib/adminAuth";
+import { useAdminSession, ROLE_LABELS, ROLE_BADGE, callAdminFn, readAdminSession, can, type PERMS } from "@/admin/lib/adminAuth";
 import {
   LayoutDashboard, Users, ShieldAlert, FileCheck2, Wallet, Settings, LogOut,
   Bell, Activity, Search, ChevronLeft, ChevronRight, Command, MessageSquareWarning, ImageIcon,
