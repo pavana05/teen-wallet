@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft, X, QrCode, Copy, Check, ChevronRight, ChevronDown, Pencil, Camera, ShieldCheck,
   ShieldAlert, BadgeCheck, Wallet, CreditCard, Building2, Bell, Lock, Smartphone,
@@ -1056,23 +1056,82 @@ function MyQrSheet({ upiId, payeeName, onClose }: { upiId: string; payeeName: st
   const [dataUrl, setDataUrl] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
-  useEffect(() => {
-    let active = true;
+  const generate = useCallback(() => {
     const { dark, light } = qrColors();
-    QRCode.toDataURL(upiLink, { errorCorrectionLevel: "M", margin: 2, width: 512, color: { dark, light } })
-      .then((url) => { if (active) setDataUrl(url); })
-      .catch((e: unknown) => { if (active) setErr(e instanceof Error ? e.message : "Couldn't generate QR"); });
-    return () => { active = false; };
+    return QRCode.toDataURL(upiLink, {
+      errorCorrectionLevel: "M",
+      margin: 2,
+      width: 512,
+      color: { dark, light },
+    });
   }, [upiLink]);
 
-  // Lock background scroll while the lightbox is open and close on ESC.
   useEffect(() => {
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
+    let active = true;
+    setErr(null);
+    generate()
+      .then((url) => { if (active) setDataUrl(url); })
+      .catch((e: unknown) => {
+        if (!active) return;
+        const msg = e instanceof Error ? e.message : "Couldn't generate QR";
+        setErr(msg);
+        toast.error("Couldn't generate QR code");
+      });
+    return () => { active = false; };
+  }, [generate]);
+
+  // Keep QR stable across background/foreground: if the tab returns and the
+  // image somehow got dropped (rare on memory-pressured devices), regenerate
+  // silently without flickering the lightbox layout.
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState !== "visible") return;
+      if (dataUrl) return;
+      generate()
+        .then((url: string) => setDataUrl(url))
+        .catch(() => { /* surfaced by the main effect */ });
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("pageshow", onVisible);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("pageshow", onVisible);
+    };
+  }, [dataUrl, generate]);
+
+  // Lock background scroll while the lightbox is open. We pin the body at the
+  // current scroll offset so the page can't shift behind the popup (iOS Safari
+  // and Android Chrome both honour this pattern), and restore on close.
+  useEffect(() => {
+    const scrollY = window.scrollY;
+    const body = document.body;
+    const html = document.documentElement;
+    const prev = {
+      bodyOverflow: body.style.overflow,
+      bodyPosition: body.style.position,
+      bodyTop: body.style.top,
+      bodyWidth: body.style.width,
+      htmlOverflow: html.style.overflow,
+      htmlOverscroll: html.style.overscrollBehavior,
+    };
+    body.style.overflow = "hidden";
+    body.style.position = "fixed";
+    body.style.top = `-${scrollY}px`;
+    body.style.width = "100%";
+    html.style.overflow = "hidden";
+    html.style.overscrollBehavior = "contain";
+
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
     window.addEventListener("keydown", onKey);
+
     return () => {
-      document.body.style.overflow = prevOverflow;
+      body.style.overflow = prev.bodyOverflow;
+      body.style.position = prev.bodyPosition;
+      body.style.top = prev.bodyTop;
+      body.style.width = prev.bodyWidth;
+      html.style.overflow = prev.htmlOverflow;
+      html.style.overscrollBehavior = prev.htmlOverscroll;
+      window.scrollTo(0, scrollY);
       window.removeEventListener("keydown", onKey);
     };
   }, [onClose]);
@@ -1080,7 +1139,10 @@ function MyQrSheet({ upiId, payeeName, onClose }: { upiId: string; payeeName: st
   const fileName = `teenwallet-${upiId.replace(/[^a-z0-9]/gi, "_")}.png`;
 
   const download = async () => {
-    if (!dataUrl) return;
+    if (!dataUrl) {
+      toast.error("QR isn't ready yet");
+      return;
+    }
     try {
       const { Capacitor } = await import("@capacitor/core");
       if (Capacitor.isNativePlatform()) {
@@ -1097,11 +1159,16 @@ function MyQrSheet({ upiId, payeeName, onClose }: { upiId: string; payeeName: st
       }
     } catch { /* fall through to web */ }
     // Web fallback — trigger a real browser download.
-    const a = document.createElement("a");
-    a.href = dataUrl;
-    a.download = fileName;
-    document.body.appendChild(a); a.click(); a.remove();
-    toast.success("QR saved to downloads");
+    try {
+      const a = document.createElement("a");
+      a.href = dataUrl;
+      a.download = fileName;
+      document.body.appendChild(a); a.click(); a.remove();
+      toast.success("QR saved to downloads");
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Download failed";
+      toast.error(msg);
+    }
   };
 
   const share = async () => {
