@@ -542,6 +542,9 @@ function ScannerView({ onBack, onDecoded }: { onBack: () => void; onDecoded: (p:
   // panel offering an inline retry + a one-tap fallback to gallery upload.
   const [invalidDecodeCount, setInvalidDecodeCount] = useState(0);
   const [cameraStartError, setCameraStartError] = useState<string | null>(null);
+  // Inline #FF4444 banner shown after a failed gallery upload. Persists until
+  // the user retries (re-opens the picker) or successfully decodes a QR.
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const fallbackInputRef = useRef<HTMLInputElement | null>(null);
   // Real-time camera state for the on-screen feedback strip:
   //   "starting" → still warming up the camera
