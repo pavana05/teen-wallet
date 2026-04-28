@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft, X, QrCode, Copy, Check, ChevronRight, ChevronDown, Pencil, Camera, ShieldCheck,
   ShieldAlert, BadgeCheck, Wallet, CreditCard, Building2, Bell, Lock, Smartphone,
