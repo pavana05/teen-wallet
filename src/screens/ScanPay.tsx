@@ -1193,6 +1193,455 @@ function ConfirmView({
   );
 }
 
+/* ============================================================
+   ScannerActions — premium floating action menu
+   • Collapsed: a single champagne FAB ("+") pinned bottom-right.
+   • Expanded: vertically stacked premium pills appear above with
+     spring entrance:  Pay to Contact · Pay to UPI ID · My QR · Upload QR.
+   • Hides on swipe-down (e.g. user pulls camera into focus); reveals on
+     swipe-up. Backdrop tap dismisses without losing camera state.
+   ============================================================ */
+function ScannerActions({
+  onUpload,
+  onPickedPayload,
+}: {
+  onUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onPickedPayload: (p: UpiPayload) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [hidden, setHidden] = useState(false);
+  const [upiOpen, setUpiOpen] = useState(false);
+  const [contactOpen, setContactOpen] = useState(false);
+  const [qrOpen, setQrOpen] = useState(false);
+  const startYRef = useRef<number | null>(null);
+
+  // Touch-driven reveal: scrolling/swiping UP shows the FAB; swiping DOWN
+  // (toward the camera) hides it so the viewfinder stays unobstructed.
+  useEffect(() => {
+    const onTouchStart = (e: TouchEvent) => {
+      startYRef.current = e.touches[0]?.clientY ?? null;
+    };
+    const onTouchMove = (e: TouchEvent) => {
+      const start = startYRef.current;
+      if (start == null) return;
+      const dy = (e.touches[0]?.clientY ?? start) - start;
+      if (dy > 24) setHidden(true);
+      else if (dy < -24) setHidden(false);
+    };
+    window.addEventListener("touchstart", onTouchStart, { passive: true });
+    window.addEventListener("touchmove", onTouchMove, { passive: true });
+    return () => {
+      window.removeEventListener("touchstart", onTouchStart);
+      window.removeEventListener("touchmove", onTouchMove);
+    };
+  }, []);
+
+  const closeAll = () => setOpen(false);
+
+  return (
+    <>
+      {/* Tap-outside backdrop */}
+      {open && (
+        <button
+          type="button"
+          aria-label="Close actions"
+          onClick={closeAll}
+          className="absolute inset-0 z-30 bg-transparent"
+        />
+      )}
+
+      <div
+        className={`sp2-fab-wrap ${hidden ? "sp2-fab-hidden" : ""}`}
+        data-open={open ? "true" : "false"}
+      >
+        {/* Expanded action pills (rendered above the FAB) */}
+        <div className="sp2-fab-menu" role="menu" aria-hidden={!open}>
+          <FabAction
+            icon={<Users className="w-[18px] h-[18px]" />}
+            label="Pay to Contact"
+            sub="Send to a saved person"
+            onClick={() => { closeAll(); setContactOpen(true); }}
+            tone="emerald"
+          />
+          <FabAction
+            icon={<Hash className="w-[18px] h-[18px]" />}
+            label="Pay to UPI ID"
+            sub="Type any UPI handle"
+            onClick={() => { closeAll(); setUpiOpen(true); }}
+            tone="violet"
+          />
+          <FabAction
+            icon={<QrCode className="w-[18px] h-[18px]" />}
+            label="My QR"
+            sub="Receive money instantly"
+            onClick={() => { closeAll(); setQrOpen(true); }}
+            tone="champagne"
+          />
+          <label className="sp2-fab-action sp2-fab-tone-slate cursor-pointer">
+            <span className="sp2-fab-action-icon"><ImageIcon className="w-[18px] h-[18px]" /></span>
+            <span className="sp2-fab-action-text">
+              <span className="sp2-fab-action-label">Upload QR</span>
+              <span className="sp2-fab-action-sub">Pick from gallery</span>
+            </span>
+            <input
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => { closeAll(); onUpload(e); }}
+            />
+          </label>
+        </div>
+
+        {/* Primary FAB */}
+        <button
+          type="button"
+          aria-label={open ? "Close payment options" : "Open payment options"}
+          aria-expanded={open}
+          onClick={() => setOpen((v) => !v)}
+          className="sp2-fab"
+        >
+          <span className="sp2-fab-halo" aria-hidden="true" />
+          <span className="sp2-fab-icon-stack" aria-hidden="true">
+            <Plus className="sp2-fab-icon-plus" strokeWidth={2.6} />
+            <X className="sp2-fab-icon-close" strokeWidth={2.6} />
+          </span>
+        </button>
+      </div>
+
+      {upiOpen && (
+        <PayUpiIdSheet
+          onClose={() => setUpiOpen(false)}
+          onSubmit={(payload) => { setUpiOpen(false); onPickedPayload(payload); }}
+        />
+      )}
+      {contactOpen && (
+        <PayContactSheet
+          onClose={() => setContactOpen(false)}
+          onSubmit={(payload) => { setContactOpen(false); onPickedPayload(payload); }}
+        />
+      )}
+      {qrOpen && (
+        <MyQrSheet onClose={() => setQrOpen(false)} />
+      )}
+    </>
+  );
+}
+
+function FabAction({
+  icon, label, sub, onClick, tone,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  sub: string;
+  onClick: () => void;
+  tone: "emerald" | "violet" | "champagne" | "slate";
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`sp2-fab-action sp2-fab-tone-${tone}`}
+      role="menuitem"
+    >
+      <span className="sp2-fab-action-icon">{icon}</span>
+      <span className="sp2-fab-action-text">
+        <span className="sp2-fab-action-label">{label}</span>
+        <span className="sp2-fab-action-sub">{sub}</span>
+      </span>
+    </button>
+  );
+}
+
+/* Premium "Pay to UPI ID" sheet — slides up from the bottom of the phone shell. */
+function PayUpiIdSheet({
+  onClose,
+  onSubmit,
+}: {
+  onClose: () => void;
+  onSubmit: (p: UpiPayload) => void;
+}) {
+  const [upiId, setUpiId] = useState("");
+  const [name, setName] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const valid = /^[a-z0-9.\-_]{2,}@[a-z][a-z0-9.\-]{2,}$/i.test(upiId.trim());
+
+  const submit = () => {
+    if (!valid) { setError("Enter a valid UPI ID like name@bank"); return; }
+    onSubmit({
+      upiId: upiId.trim(),
+      payeeName: name.trim() || upiId.split("@")[0],
+      amount: null,
+      amountRaw: null,
+      amountSource: "none",
+      note: null,
+      currency: "INR",
+    });
+  };
+
+  return (
+    <div className="sp2-sheet-shell" role="dialog" aria-modal="true" aria-label="Pay to UPI ID">
+      <button type="button" aria-label="Close" onClick={onClose} className="sp2-sheet-backdrop" />
+      <div className="sp2-sheet">
+        <div className="sp2-sheet-grabber" aria-hidden="true" />
+        <div className="sp2-sheet-head">
+          <div className="sp2-sheet-icon sp2-fab-tone-violet"><Hash className="w-5 h-5" /></div>
+          <div>
+            <h2 className="sp2-sheet-title">Pay to UPI ID</h2>
+            <p className="sp2-sheet-sub">Send money to any UPI handle</p>
+          </div>
+        </div>
+
+        <label className="sp2-field">
+          <span className="sp2-field-label">UPI ID</span>
+          <div className={`sp2-field-input-wrap ${error && !valid ? "sp2-field-error" : ""}`}>
+            <input
+              autoFocus
+              value={upiId}
+              onChange={(e) => { setUpiId(e.target.value); setError(null); }}
+              onKeyDown={(e) => { if (e.key === "Enter" && valid) submit(); }}
+              placeholder="name@bank"
+              className="sp2-field-input"
+              autoCapitalize="off"
+              autoCorrect="off"
+              spellCheck={false}
+            />
+            {valid && <Check className="w-4 h-4 text-emerald-400" />}
+          </div>
+        </label>
+
+        <label className="sp2-field">
+          <span className="sp2-field-label">Recipient name <span className="opacity-50">(optional)</span></span>
+          <div className="sp2-field-input-wrap">
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter" && valid) submit(); }}
+              placeholder="e.g. Riya Sharma"
+              className="sp2-field-input"
+            />
+          </div>
+        </label>
+
+        {error && <p className="sp2-field-msg">{error}</p>}
+
+        <button
+          type="button"
+          onClick={submit}
+          disabled={!valid}
+          className="sp2-sheet-cta"
+        >
+          <Send className="w-4 h-4" />
+          Continue
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* Pay to a saved contact — picks from the contacts table. */
+function PayContactSheet({
+  onClose,
+  onSubmit,
+}: {
+  onClose: () => void;
+  onSubmit: (p: UpiPayload) => void;
+}) {
+  const { userId } = useApp();
+  const [rows, setRows] = useState<{ id: string; name: string; upi_id: string; emoji: string | null; verified: boolean }[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [query, setQuery] = useState("");
+
+  useEffect(() => {
+    if (!userId) { setLoading(false); return; }
+    let cancelled = false;
+    void (async () => {
+      const { data } = await supabase
+        .from("contacts")
+        .select("id,name,upi_id,emoji,verified")
+        .order("last_paid_at", { ascending: false, nullsFirst: false })
+        .order("name", { ascending: true })
+        .limit(50);
+      if (cancelled) return;
+      setRows(data ?? []);
+      setLoading(false);
+    })();
+    return () => { cancelled = true; };
+  }, [userId]);
+
+  const filtered = rows.filter((r) =>
+    r.name.toLowerCase().includes(query.toLowerCase()) ||
+    r.upi_id.toLowerCase().includes(query.toLowerCase()),
+  );
+
+  return (
+    <div className="sp2-sheet-shell" role="dialog" aria-modal="true" aria-label="Pay to contact">
+      <button type="button" aria-label="Close" onClick={onClose} className="sp2-sheet-backdrop" />
+      <div className="sp2-sheet">
+        <div className="sp2-sheet-grabber" aria-hidden="true" />
+        <div className="sp2-sheet-head">
+          <div className="sp2-sheet-icon sp2-fab-tone-emerald"><Users className="w-5 h-5" /></div>
+          <div>
+            <h2 className="sp2-sheet-title">Pay to Contact</h2>
+            <p className="sp2-sheet-sub">Pick someone from your saved people</p>
+          </div>
+        </div>
+
+        <div className="sp2-field">
+          <div className="sp2-field-input-wrap">
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search name or UPI…"
+              className="sp2-field-input"
+              autoFocus
+            />
+          </div>
+        </div>
+
+        <div className="sp2-contact-list">
+          {loading ? (
+            <div className="sp2-contact-empty">Loading contacts…</div>
+          ) : filtered.length === 0 ? (
+            <div className="sp2-contact-empty">
+              <Users className="w-5 h-5 opacity-50" />
+              <span>{rows.length === 0 ? "No saved contacts yet" : "No matches"}</span>
+            </div>
+          ) : (
+            filtered.map((c) => (
+              <button
+                key={c.id}
+                type="button"
+                onClick={() => onSubmit({
+                  upiId: c.upi_id,
+                  payeeName: c.name,
+                  amount: null,
+                  amountRaw: null,
+                  amountSource: "none",
+                  note: null,
+                  currency: "INR",
+                })}
+                className="sp2-contact-row"
+              >
+                <span className="sp2-contact-avatar">{c.emoji ?? c.name.charAt(0).toUpperCase()}</span>
+                <span className="sp2-contact-info">
+                  <span className="sp2-contact-name">
+                    {c.name}
+                    {c.verified && <ShieldCheck className="w-3 h-3 text-emerald-400 inline-block ml-1" />}
+                  </span>
+                  <span className="sp2-contact-upi">{c.upi_id}</span>
+                </span>
+                <ArrowRight className="w-4 h-4 opacity-40" />
+              </button>
+            ))
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* My QR — generates the user's UPI QR so others can scan to pay them. */
+function MyQrSheet({ onClose }: { onClose: () => void }) {
+  const { userId, fullName } = useApp();
+  const [profile, setProfile] = useState<{ phone: string | null; full_name: string | null } | null>(null);
+  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!userId) return;
+    let cancelled = false;
+    void (async () => {
+      const { data } = await supabase
+        .from("profiles")
+        .select("phone,full_name")
+        .eq("id", userId)
+        .maybeSingle();
+      if (cancelled) return;
+      setProfile(data ?? { phone: null, full_name: fullName });
+    })();
+    return () => { cancelled = true; };
+  }, [userId, fullName]);
+
+  // Build a UPI deep-link from the user's phone (used as their wallet handle).
+  const upiId = profile?.phone ? `${profile.phone.replace(/\D/g, "")}@teenwallet` : "user@teenwallet";
+  const displayName = profile?.full_name || fullName || "Teen Wallet User";
+  const deepLink = `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(displayName)}&cu=INR`;
+
+  useEffect(() => {
+    let cancelled = false;
+    void QRCode.toDataURL(deepLink, {
+      width: 280,
+      margin: 1,
+      color: { dark: "#0a0a0a", light: "#ffffff" },
+      errorCorrectionLevel: "H",
+    }).then((url) => { if (!cancelled) setQrDataUrl(url); });
+    return () => { cancelled = true; };
+  }, [deepLink]);
+
+  const copyId = async () => {
+    try { await navigator.clipboard.writeText(upiId); toast.success("UPI ID copied"); }
+    catch { toast.error("Couldn't copy"); }
+  };
+  const share = async () => {
+    if (typeof navigator !== "undefined" && navigator.share) {
+      try { await navigator.share({ title: "Pay me on Teen Wallet", text: `Pay me at ${upiId}`, url: deepLink }); }
+      catch { /* user cancelled */ }
+    } else {
+      void copyId();
+    }
+  };
+  const download = () => {
+    if (!qrDataUrl) return;
+    const a = document.createElement("a");
+    a.href = qrDataUrl;
+    a.download = `teenwallet-${upiId.replace(/[^a-z0-9]/gi, "-")}.png`;
+    a.click();
+  };
+
+  return (
+    <div className="sp2-sheet-shell" role="dialog" aria-modal="true" aria-label="My UPI QR code">
+      <button type="button" aria-label="Close" onClick={onClose} className="sp2-sheet-backdrop" />
+      <div className="sp2-sheet sp2-sheet-qr">
+        <div className="sp2-sheet-grabber" aria-hidden="true" />
+        <div className="sp2-sheet-head">
+          <div className="sp2-sheet-icon sp2-fab-tone-champagne"><QrCode className="w-5 h-5" /></div>
+          <div>
+            <h2 className="sp2-sheet-title">My QR code</h2>
+            <p className="sp2-sheet-sub">Anyone can scan this to pay you</p>
+          </div>
+        </div>
+
+        <div className="sp2-qr-card">
+          <div className="sp2-qr-frame">
+            {qrDataUrl ? (
+              <img src={qrDataUrl} alt="Your UPI QR" className="sp2-qr-img" />
+            ) : (
+              <div className="sp2-qr-skeleton" />
+            )}
+          </div>
+          <div className="sp2-qr-meta">
+            <p className="sp2-qr-name">{displayName}</p>
+            <p className="sp2-qr-upi">
+              {upiId}
+              <button type="button" onClick={copyId} className="sp2-qr-copy" aria-label="Copy UPI ID">
+                <Copy className="w-3.5 h-3.5" />
+              </button>
+            </p>
+          </div>
+        </div>
+
+        <div className="sp2-qr-actions">
+          <button type="button" onClick={share} className="sp2-qr-btn">
+            <Share2 className="w-4 h-4" /> Share
+          </button>
+          <button type="button" onClick={download} className="sp2-qr-btn" disabled={!qrDataUrl}>
+            <Download className="w-4 h-4" /> Save
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 
 function SlideToPay({ disabled, onComplete }: { disabled: boolean; onComplete: () => void }) {
   const trackRef = useRef<HTMLDivElement | null>(null);
