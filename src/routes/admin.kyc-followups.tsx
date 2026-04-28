@@ -228,24 +228,41 @@ function KycFollowupsPage() {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [sendingId, setSendingId] = useState<string | null>(null);
   const [sentIds, setSentIds] = useState<Record<string, true>>({});
+  const [cooldownHours, setCooldownHours] = useState<number>(DEFAULT_COOLDOWN_HOURS);
+  const [showTemplates, setShowTemplates] = useState(false);
 
-  const handleZavuSend = useCallback(async (r: FollowupRow) => {
+  // Load templates into the in-memory cache.
+  useEffect(() => {
+    if (!allowed) return;
+    void (async () => {
+      try {
+        const r = await callAdminFn<{ rows: TemplateRow[] }>({ action: "kyc_templates_list" });
+        for (const t of r.rows ?? []) templateCache[t.stage] = t;
+      } catch { /* templates are optional; fallback copy is used */ }
+    })();
+  }, [allowed]);
+
+  const handleZavuSend = useCallback(async (r: FollowupRow, force = false) => {
     setSendingId(r.id);
     const t = toast.loading(`Sending WhatsApp to ${r.full_name || r.phone}…`);
     try {
-      const res = await sendViaZavu(r);
+      const res = await sendViaZavu(r, { cooldownHours, force });
       if (res.ok) {
         setSentIds((s) => ({ ...s, [r.id]: true }));
         toast.success("WhatsApp sent via Zavu", { id: t });
+        void load();
       } else if (res.error === "no_phone") {
-        toast.error("This user has no phone number on file", { id: t });
+        toast.error(invalidPhoneLabel(r.phone_invalid_reason), { id: t });
+      } else if (res.error === "cooldown_active") {
+        toast.error(`Cooldown active — last sent recently. Use "Resend" to override.`, { id: t });
       } else {
         toast.error(`Couldn't send: ${res.error}`, { id: t });
       }
     } finally {
       setSendingId(null);
     }
-  }, []);
+  }, [cooldownHours]);
+
 
   const load = useCallback(async () => {
     if (!allowed) return;
