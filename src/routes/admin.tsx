@@ -1,6 +1,6 @@
 import { createFileRoute, Outlet, useNavigate, Link, useRouterState } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useAdminSession, ROLE_LABELS, ROLE_BADGE, callAdminFn, readAdminSession } from "@/admin/lib/adminAuth";
+import { useAdminSession, ROLE_LABELS, ROLE_BADGE, callAdminFn, readAdminSession, can, type PERMS } from "@/admin/lib/adminAuth";
 import {
   LayoutDashboard, Users, ShieldAlert, FileCheck2, Wallet, Settings, LogOut,
   Bell, Activity, Search, ChevronLeft, ChevronRight, Command, MessageSquareWarning, ImageIcon,
@@ -69,37 +69,41 @@ function AdminLayout() {
   }
   if (!admin) return <div className="admin-shell" {...shellAttrs} />;
 
-  const navSections: Array<{ label?: string; items: Array<{ to: string; label: string; icon: any; end?: boolean; kbd?: string }> }> = [
+  const navSectionsAll: Array<{ label?: string; items: Array<{ to: string; label: string; icon: any; end?: boolean; kbd?: string; perm?: keyof typeof PERMS }> }> = [
     {
       items: [
-        { to: "/admin", label: "Command Center", icon: LayoutDashboard, end: true, kbd: "g d" },
+        { to: "/admin", label: "Command Center", icon: LayoutDashboard, end: true, kbd: "g d", perm: "viewDashboard" },
       ],
     },
     {
       label: "Operations",
       items: [
-        { to: "/admin/users", label: "Users", icon: Users, kbd: "g u" },
-        { to: "/admin/kyc", label: "KYC Queue", icon: FileCheck2, kbd: "g k" },
-        { to: "/admin/transactions", label: "Transactions", icon: Wallet, kbd: "g t" },
-        { to: "/admin/fraud", label: "Fraud", icon: ShieldAlert, kbd: "g f" },
-        { to: "/admin/reports", label: "Issue Reports", icon: MessageSquareWarning, kbd: "g r" },
+        { to: "/admin/users", label: "Users", icon: Users, kbd: "g u", perm: "viewUsers" },
+        { to: "/admin/kyc", label: "KYC Queue", icon: FileCheck2, kbd: "g k", perm: "viewKyc" },
+        { to: "/admin/transactions", label: "Transactions", icon: Wallet, kbd: "g t", perm: "viewTransactions" },
+        { to: "/admin/fraud", label: "Fraud", icon: ShieldAlert, kbd: "g f", perm: "viewFraud" },
+        { to: "/admin/reports", label: "Support Tickets", icon: MessageSquareWarning, kbd: "g r", perm: "viewReports" },
       ],
     },
     {
       label: "Growth",
       items: [
-        { to: "/admin/campaigns", label: "Gender Campaigns", icon: Sparkles, kbd: "g c" },
-        { to: "/admin/app-images", label: "App Images", icon: ImageIcon, kbd: "g i" },
+        { to: "/admin/campaigns", label: "Gender Campaigns", icon: Sparkles, kbd: "g c", perm: "viewCampaigns" },
+        { to: "/admin/app-images", label: "App Images", icon: ImageIcon, kbd: "g i", perm: "viewAppImages" },
       ],
     },
     {
       label: "System",
       items: [
-        { to: "/admin/diagnostics", label: "Diagnostics", icon: Activity },
-        { to: "/admin/settings", label: "Settings", icon: Settings },
+        { to: "/admin/diagnostics", label: "Diagnostics", icon: Activity, perm: "viewDiagnostics" },
+        { to: "/admin/settings", label: "Settings", icon: Settings, perm: "manageSettings" },
       ],
     },
   ];
+  // RBAC gate: hide items the current admin role can't access.
+  const navSections = navSectionsAll
+    .map((sec) => ({ ...sec, items: sec.items.filter((it) => !it.perm || can(admin.role, it.perm)) }))
+    .filter((sec) => sec.items.length > 0);
   const sideW = collapsed ? 68 : 248;
 
   return (

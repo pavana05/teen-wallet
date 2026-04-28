@@ -450,12 +450,15 @@ export type Database = {
       issue_reports: {
         Row: {
           app_version: string | null
+          assigned_to_email: string | null
           camera_photo_path: string | null
           category: string
           console_errors: Json
           created_at: string
           id: string
+          last_activity_at: string
           message: string
+          priority: Database["public"]["Enums"]["issue_priority"]
           resolved_at: string | null
           resolved_by_email: string | null
           route: string | null
@@ -467,12 +470,15 @@ export type Database = {
         }
         Insert: {
           app_version?: string | null
+          assigned_to_email?: string | null
           camera_photo_path?: string | null
           category?: string
           console_errors?: Json
           created_at?: string
           id?: string
+          last_activity_at?: string
           message: string
+          priority?: Database["public"]["Enums"]["issue_priority"]
           resolved_at?: string | null
           resolved_by_email?: string | null
           route?: string | null
@@ -484,12 +490,15 @@ export type Database = {
         }
         Update: {
           app_version?: string | null
+          assigned_to_email?: string | null
           camera_photo_path?: string | null
           category?: string
           console_errors?: Json
           created_at?: string
           id?: string
+          last_activity_at?: string
           message?: string
+          priority?: Database["public"]["Enums"]["issue_priority"]
           resolved_at?: string | null
           resolved_by_email?: string | null
           route?: string | null
@@ -951,6 +960,7 @@ export type Database = {
         | "customer_support"
         | "fraud_analyst"
         | "finance_manager"
+      issue_priority: "low" | "normal" | "high" | "urgent"
       kyc_status: "not_started" | "pending" | "approved" | "rejected"
       onboarding_stage:
         | "STAGE_0"
@@ -1104,6 +1114,7 @@ export const Constants = {
         "fraud_analyst",
         "finance_manager",
       ],
+      issue_priority: ["low", "normal", "high", "urgent"],
       kyc_status: ["not_started", "pending", "approved", "rejected"],
       onboarding_stage: [
         "STAGE_0",
