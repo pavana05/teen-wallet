@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { Suspense, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useApp, type Stage } from "@/lib/store";
@@ -6,14 +6,37 @@ import { fetchProfile } from "@/lib/auth";
 import { PhoneShell } from "@/components/PhoneShell";
 import { lazyWithRetry } from "@/lib/lazyWithRetry";
 import { shouldShowReferralPrompt } from "@/lib/referral";
+import { HomeSkeleton } from "@/components/BootSkeletons";
+import { recordRedirect } from "@/lib/redirectLog";
 
 const Home = lazyWithRetry(() => import("@/screens/Home").then(m => ({ default: m.Home })));
 
 const PERMISSIONS_DONE_KEY = "tw_permissions_seen_v1";
+const PERSIST_KEY = "teenwallet-app";
 
 const stageRank: Record<Stage, number> = {
   STAGE_0: 0, STAGE_1: 1, STAGE_2: 2, STAGE_3: 3, STAGE_4: 4, STAGE_5: 5,
 };
+
+/**
+ * Read the persisted snapshot directly from localStorage so the route guard
+ * can run synchronously inside `beforeLoad` (the zustand store is hydrated
+ * lazily on the client, and `beforeLoad` may run before the React tree
+ * mounts the store hook).
+ */
+function readPersisted(): { stage: Stage; userId: string | null } {
+  if (typeof window === "undefined") return { stage: "STAGE_0", userId: null };
+  try {
+    const raw = window.localStorage.getItem(PERSIST_KEY);
+    if (!raw) return { stage: "STAGE_0", userId: null };
+    const parsed = JSON.parse(raw) as { state?: { stage?: Stage; userId?: string | null } };
+    const s = parsed?.state?.stage ?? "STAGE_0";
+    const uid = parsed?.state?.userId ?? null;
+    return { stage: s, userId: uid };
+  } catch {
+    return { stage: "STAGE_0", userId: null };
+  }
+}
 
 export const Route = createFileRoute("/home")({
   head: () => ({
@@ -22,6 +45,26 @@ export const Route = createFileRoute("/home")({
       { name: "description", content: "Your Teen Wallet — balance, quick actions, and recent activity at a glance." },
     ],
   }),
+  // Synchronous guard. Blocks /home unless persisted stage ≥ STAGE_3 AND a
+  // userId exists (proxy for an authenticated session at last hydration).
+  // The runtime `useEffect` below still re-validates the live session and
+  // will hard-redirect if the session was revoked since persistence.
+  beforeLoad: ({ location }) => {
+    if (typeof window === "undefined") return;
+    const { stage, userId } = readPersisted();
+    const meetsStage = stageRank[stage] >= stageRank["STAGE_3"];
+    const meetsSession = !!userId;
+    if (!meetsStage || !meetsSession) {
+      recordRedirect({
+        from: location.pathname,
+        to: "/onboarding",
+        stage,
+        session: meetsSession,
+        reason: "guard_block:/home",
+      });
+      throw redirect({ to: "/onboarding", replace: true });
+    }
+  },
   component: HomePage,
 });
 
@@ -37,6 +80,11 @@ function HomePage() {
         const { data: { session } } = await supabase.auth.getSession();
         if (!mounted) return;
         if (!session) {
+          recordRedirect({
+            from: "/home", to: "/onboarding",
+            stage: useApp.getState().stage, session: false,
+            reason: "no_live_session",
+          });
           void navigate({ to: "/onboarding", replace: true });
           return;
         }
@@ -70,6 +118,11 @@ function HomePage() {
         })();
         const referralPending = shouldShowReferralPrompt();
         if (resolvedStage !== "STAGE_5" || !permsSeen || referralPending) {
+          recordRedirect({
+            from: "/home", to: "/onboarding",
+            stage: resolvedStage, session: true,
+            reason: "incomplete_after_reconcile",
+          });
           void navigate({ to: "/onboarding", replace: true });
         }
       } catch (err) {
@@ -79,6 +132,11 @@ function HomePage() {
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "SIGNED_OUT" && !session) {
         useApp.getState().reset();
+        recordRedirect({
+          from: "/home", to: "/onboarding",
+          stage: "STAGE_0", session: false,
+          reason: "signed_out",
+        });
         void navigate({ to: "/onboarding", replace: true });
       }
     });
@@ -86,14 +144,15 @@ function HomePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // If somehow stage is not 5, kick to onboarding.
+  // If somehow stage is not 5, show the Home skeleton (right silhouette,
+  // no flash of onboarding) while the effect above redirects.
   if (stage !== "STAGE_5") {
-    return <PhoneShell><div className="flex-1" /></PhoneShell>;
+    return <PhoneShell><HomeSkeleton /></PhoneShell>;
   }
 
   return (
     <PhoneShell>
-      <Suspense fallback={<div className="flex-1" />}>
+      <Suspense fallback={<HomeSkeleton />}>
         <Home />
       </Suspense>
     </PhoneShell>
