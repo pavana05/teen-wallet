@@ -49,6 +49,30 @@ function newCid(): string {
   return `tw_${u}`;
 }
 
+// ---------------------------------------------------------------
+// Phone validation/normalization. Returns E.164 (with leading '+').
+// Defaults to India (+91) when no country code is supplied.
+// ---------------------------------------------------------------
+function validatePhone(raw: string | null | undefined):
+  | { ok: true; e164: string }
+  | { ok: false; reason: string } {
+  if (!raw || typeof raw !== "string") return { ok: false, reason: "missing" };
+  const cleaned = raw.replace(/[^\d+]/g, "");
+  if (!cleaned) return { ok: false, reason: "empty" };
+  let intl = cleaned.startsWith("+") ? cleaned.slice(1) : cleaned;
+  if (intl.length === 10) intl = "91" + intl;          // assume IN
+  else if (intl.length === 11 && intl.startsWith("0")) intl = "91" + intl.slice(1);
+  if (!/^\d{8,15}$/.test(intl)) return { ok: false, reason: "bad_length" };
+  // Indian-mobile sanity check: country 91 + 10 digits starting 6-9.
+  if (intl.startsWith("91")) {
+    const local = intl.slice(2);
+    if (local.length !== 10) return { ok: false, reason: "bad_in_length" };
+    if (!/^[6-9]/.test(local)) return { ok: false, reason: "bad_in_prefix" };
+  }
+  return { ok: true, e164: "+" + intl };
+}
+
+
 // -----------------------------------------------------------------
 // Crypto helpers (WebCrypto)
 // -----------------------------------------------------------------
