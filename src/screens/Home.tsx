@@ -171,6 +171,7 @@ export function Home() {
   // Admin-managed scan hero images (live via Realtime). Falls back to bundled assets.
   const scanHeroDefault = useAppImage("home.scan_hero", heroScan, "Scan and pay");
   const scanHeroDiwali = useAppImage("home.scan_hero_diwali", heroScanDiwali, "Diwali scan and pay");
+  const scanHeroHoli = useAppImage("home.scan_hero_holi", heroScanHoli, "Holi scan and pay");
   const [view, setView] = useState<"home" | "scan" | "transactions">("home");
   const [quickAction, setQuickAction] = useState<QuickActionKind | null>(null);
   const [showNotifs, setShowNotifs] = useState(false);
