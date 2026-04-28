@@ -152,3 +152,131 @@ function AdminLogin() {
     </div>
   );
 }
+
+/**
+ * Three-tap + 5-second long-press gated reset control.
+ *
+ * Tap 1 / Tap 2: counts down a "armed" tap with visible feedback. Window resets after 4s of inactivity.
+ * Tap 3: must be a long-press held for ≥ 5 seconds. Releasing early cancels and restarts the sequence.
+ * This guards the destructive 2FA reset flow against accidental or casual clicks.
+ */
+function ResetTotpButton({ onArmed }: { onArmed: () => void | Promise<void> }) {
+  const REQUIRED_TAPS = 3;
+  const HOLD_MS = 5000;
+  const RESET_WINDOW_MS = 4000;
+
+  const [taps, setTaps] = useState(0);
+  const [holding, setHolding] = useState(false);
+  const [holdProgress, setHoldProgress] = useState(0); // 0..1
+  const holdStart = useRef<number | null>(null);
+  const rafRef = useRef<number | null>(null);
+  const inactivityRef = useRef<number | null>(null);
+
+  const clearInactivity = () => {
+    if (inactivityRef.current) { window.clearTimeout(inactivityRef.current); inactivityRef.current = null; }
+  };
+  const armInactivity = () => {
+    clearInactivity();
+    inactivityRef.current = window.setTimeout(() => setTaps(0), RESET_WINDOW_MS);
+  };
+
+  const cancelHold = () => {
+    if (rafRef.current) { cancelAnimationFrame(rafRef.current); rafRef.current = null; }
+    holdStart.current = null;
+    setHolding(false);
+    setHoldProgress(0);
+  };
+
+  useEffect(() => () => { cancelHold(); clearInactivity(); }, []);
+
+  const startPress = () => {
+    // Taps 1 & 2: short press counts as a tap.
+    if (taps < REQUIRED_TAPS - 1) return;
+    // Tap 3: must hold ≥ HOLD_MS.
+    holdStart.current = performance.now();
+    setHolding(true);
+    const tick = () => {
+      if (holdStart.current == null) return;
+      const elapsed = performance.now() - holdStart.current;
+      const p = Math.min(1, elapsed / HOLD_MS);
+      setHoldProgress(p);
+      if (p >= 1) {
+        cancelHold();
+        setTaps(0);
+        clearInactivity();
+        void onArmed();
+        return;
+      }
+      rafRef.current = requestAnimationFrame(tick);
+    };
+    rafRef.current = requestAnimationFrame(tick);
+  };
+
+  const endPress = () => {
+    if (taps < REQUIRED_TAPS - 1) {
+      // Count a tap.
+      setTaps((t) => t + 1);
+      armInactivity();
+      return;
+    }
+    // Released the long-press early — cancel and restart sequence for safety.
+    if (holdProgress < 1) {
+      cancelHold();
+      setTaps(0);
+      clearInactivity();
+    }
+  };
+
+  const remainingTaps = Math.max(0, REQUIRED_TAPS - 1 - taps);
+  const onFinalTap = taps >= REQUIRED_TAPS - 1;
+  const label = onFinalTap
+    ? (holding
+        ? `Hold ${Math.ceil((HOLD_MS - holdProgress * HOLD_MS) / 1000)}s to confirm reset…`
+        : "Press and hold for 5s to reset 2FA")
+    : `Lost your authenticator? Tap ${remainingTaps} more ${remainingTaps === 1 ? "time" : "times"} to enable reset`;
+
+  return (
+    <button
+      type="button"
+      onMouseDown={startPress}
+      onMouseUp={endPress}
+      onMouseLeave={() => { if (holding) { cancelHold(); setTaps(0); } }}
+      onTouchStart={(e) => { e.preventDefault(); startPress(); }}
+      onTouchEnd={(e) => { e.preventDefault(); endPress(); }}
+      onTouchCancel={() => { if (holding) { cancelHold(); setTaps(0); } }}
+      aria-label="Reset 2FA — requires three taps and a five second long press"
+      style={{
+        position: "relative",
+        background: onFinalTap ? "rgba(239,68,68,0.08)" : "none",
+        border: onFinalTap ? "1px solid rgba(239,68,68,0.25)" : "1px solid transparent",
+        borderRadius: 6,
+        color: onFinalTap ? "#fca5a5" : "var(--a-muted)",
+        fontSize: 12,
+        textDecoration: onFinalTap ? "none" : "underline",
+        cursor: "pointer",
+        padding: onFinalTap ? "8px 10px" : "4px 6px",
+        overflow: "hidden",
+        userSelect: "none",
+        WebkitUserSelect: "none",
+        touchAction: "none",
+        transition: "background 180ms, border-color 180ms, color 180ms",
+      }}
+    >
+      <span style={{ position: "relative", zIndex: 1 }}>{label}</span>
+      {holding && (
+        <span
+          aria-hidden="true"
+          style={{
+            position: "absolute",
+            inset: 0,
+            transformOrigin: "left center",
+            transform: `scaleX(${holdProgress})`,
+            background: "linear-gradient(90deg, rgba(239,68,68,0.18), rgba(239,68,68,0.32))",
+            transition: "transform 60ms linear",
+            zIndex: 0,
+          }}
+        />
+      )}
+    </button>
+  );
+}
