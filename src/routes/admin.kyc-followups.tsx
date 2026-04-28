@@ -135,6 +135,24 @@ function openSms(row: FollowupRow): "ok" | "no_phone" {
   return "ok";
 }
 
+// Send the message automatically via Zavu (WhatsApp). Falls back to error toast.
+async function sendViaZavu(row: FollowupRow): Promise<{ ok: boolean; error?: string; messageId?: string }> {
+  const p = normalisePhone(row.phone);
+  if (!p) return { ok: false, error: "no_phone" };
+  try {
+    const r = await callAdminFn<{ ok: boolean; messageId: string | null }>({
+      action: "zavu_send",
+      to: p.sms,            // E.164 with leading '+'
+      text: buildMessage(row),
+      channel: "whatsapp",
+      userId: row.id,
+    });
+    return { ok: !!r.ok, messageId: r.messageId ?? undefined };
+  } catch (e: any) {
+    return { ok: false, error: e?.message ?? "send_failed" };
+  }
+}
+
 // ---------- Component -------------------------------------------------------
 
 function KycFollowupsPage() {
