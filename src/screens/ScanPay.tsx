@@ -1102,6 +1102,7 @@ function ScannerView({ onBack, onDecoded }: { onBack: () => void; onDecoded: (p:
 
 function ConfirmView({
   payload, amount, onAmountChange, note, onNoteChange, onConfirm, onBack, balance, userId,
+  payError, onClearError,
 }: {
   payload: UpiPayload;
   amount: number;
@@ -1112,6 +1113,8 @@ function ConfirmView({
   onBack: () => void;
   balance: number;
   userId: string | null;
+  payError: string | null;
+  onClearError: () => void;
 }) {
   const initial = (payload.payeeName || payload.upiId).trim().charAt(0).toUpperCase();
   const insufficient = amount > 0 && amount > balance;
