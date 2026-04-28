@@ -1312,8 +1312,6 @@ function ConfirmView({
         </button>
       </div>
 
-      {/* Hidden stepper for screen readers */}
-      <div className="sr-only"><PaymentStepper stage="confirm" /></div>
 
       {/* Avatar + identity block */}
       <div className="sp3-id">
@@ -2530,9 +2528,6 @@ function SuccessView({
 
   return (
     <div className="sp-success-root sp-success-vlines" role="region" aria-label="Payment successful">
-      <div className="absolute top-6 left-0 right-0 px-4 z-30">
-        <PaymentStepper stage="success" />
-      </div>
       <div className="relative z-10 flex-1 flex flex-col items-center justify-start pt-10 px-6 text-center overflow-y-auto">
         <div className="relative w-[140px] h-[140px] flex items-center justify-center">
           <span className="sp-success-ring" />
@@ -2721,9 +2716,6 @@ function FailedView({
       role="alert"
       aria-live="assertive"
     >
-      <div className="w-full max-w-sm mb-6">
-        <PaymentStepper stage="failed" />
-      </div>
       <div className="w-20 h-20 rounded-full bg-destructive/15 border border-destructive/40 flex items-center justify-center tw-shake">
         <X className="w-10 h-10 text-destructive" strokeWidth={2} />
       </div>
