@@ -1117,7 +1117,9 @@ function ConfirmView({
   onClearError: () => void;
 }) {
   const initial = (payload.payeeName || payload.upiId).trim().charAt(0).toUpperCase();
+  const MAX_TXN_AMOUNT = 10000;
   const insufficient = amount > 0 && amount > balance;
+  const overLimit = amount > MAX_TXN_AMOUNT;
 
   // ── Fraud preview ──
   // Run the SAME client-side rules used at submit, but BEFORE the user slides
@@ -1164,6 +1166,7 @@ function ConfirmView({
   const canPay =
     amount > 0 &&
     amount <= balance &&
+    amount <= MAX_TXN_AMOUNT &&
     !isBlocked &&
     (!needsAck || acknowledged);
 
@@ -1253,7 +1256,19 @@ function ConfirmView({
     }
     if (amountStr.replace(".", "").length >= 7) return; // sane cap
     const next = amountStr === "" ? k : amountStr + k;
-    onAmountChange(Number(next));
+    const nextNum = Number(next);
+    if (nextNum > MAX_TXN_AMOUNT) {
+      void haptics.error?.();
+      const el = document.querySelector(".sp3-amount-block");
+      if (el) {
+        el.classList.remove("sp3-shake");
+        // force reflow to restart animation
+        void (el as HTMLElement).offsetWidth;
+        el.classList.add("sp3-shake");
+      }
+      return;
+    }
+    onAmountChange(nextNum);
   };
 
   const goReview = () => {
@@ -1349,7 +1364,12 @@ function ConfirmView({
           />
         </div>
 
-        {insufficient && (
+        {overLimit && (
+          <p id="sp3-amount-error" role="alert" className="sp3-error">
+            Limit exceeded · Max ₹10,000 per transaction
+          </p>
+        )}
+        {!overLimit && insufficient && (
           <p id="sp3-amount-error" role="alert" className="sp3-error">
             Insufficient balance · ₹{balance.toFixed(2)} available
           </p>
