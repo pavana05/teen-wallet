@@ -51,10 +51,14 @@ const THROTTLE_MS = 35; // prevents rapid-fire taps from melting into a buzz
 
 function canFire(): boolean {
   if (!enabled) return false;
-  const now = performance.now();
-  if (now - lastFired < THROTTLE_MS) return false;
-  lastFired = now;
-  return true;
+  try {
+    const now = typeof performance !== "undefined" ? performance.now() : Date.now();
+    if (now - lastFired < THROTTLE_MS) return false;
+    lastFired = now;
+    return true;
+  } catch {
+    return true;
+  }
 }
 
 function webVibrate(pattern: number | number[]) {
