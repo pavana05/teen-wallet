@@ -15,7 +15,7 @@
 //     prefers reduced motion (matchMedia + CSS @media fallback).
 //   • Tap feedback: haptics (already platform-aware) + on-press scale dip,
 //     icon pulse, and a soft ripple bloom on every nav tap.
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { forwardRef, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Home as HomeIcon, ScanLine, User } from "lucide-react";
 import { ScanPay } from "@/screens/ScanPay";
 import { haptics } from "@/lib/haptics";
