@@ -28,13 +28,22 @@ function shouldMount(): boolean {
 }
 
 export function DebugPanel() {
-  const [mounted, setMounted] = useState<boolean>(() => shouldMount());
+  // Always render nothing on the server and on first client render to avoid
+  // SSR hydration mismatches (this component reads window/localStorage).
+  // Mount status is committed in an effect after hydration completes.
+  const [hydrated, setHydrated] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const [open, setOpen] = useState(false);
   const [hasSession, setHasSession] = useState<boolean | null>(null);
   const [entries, setEntries] = useState<RedirectEntry[]>([]);
   const stage = useApp((s) => s.stage);
   const userId = useApp((s) => s.userId);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+
+  useEffect(() => {
+    setHydrated(true);
+    setMounted(shouldMount());
+  }, []);
 
   // Refresh session + redirect log whenever opened or route changes.
   useEffect(() => {
@@ -52,7 +61,7 @@ export function DebugPanel() {
     return () => { cancelled = true; };
   }, [mounted, pathname, open]);
 
-  if (!mounted) return null;
+  if (!hydrated || !mounted) return null;
 
   const dismiss = () => {
     try { window.sessionStorage.setItem(DISMISS_KEY, "1"); } catch { /* ignore */ }
