@@ -901,24 +901,13 @@ function ScannerView({ onBack, onDecoded }: { onBack: () => void; onDecoded: (p:
         tabIndex={-1}
       />
 
-      {/* Bottom action dock — GPay/PhonePe style */}
-      <div className="sp2-dock safe-bottom">
-        <div className="sp2-dock-row">
-          <label className="sp2-dock-btn">
-            <span className="sp2-dock-icon"><ImageIcon className="w-[18px] h-[18px]" /></span>
-            <span className="sp2-dock-label">Upload QR</span>
-            <input type="file" accept="image/*" className="hidden" onChange={handleUpload} />
-          </label>
-          <button className="sp2-dock-btn" onClick={() => toast.message("Pay to contact", { description: "Coming soon — invite friends to Teen Wallet first." })}>
-            <span className="sp2-dock-icon"><Users className="w-[18px] h-[18px]" /></span>
-            <span className="sp2-dock-label">To contact</span>
-          </button>
-          <button className="sp2-dock-btn" onClick={() => toast.message("Self transfer", { description: "Move money between your own wallets — coming soon." })}>
-            <span className="sp2-dock-icon"><QrCode className="w-[18px] h-[18px]" /></span>
-            <span className="sp2-dock-label">My QR</span>
-          </button>
-        </div>
-      </div>
+      {/* Premium floating action menu — collapsed FAB by default. Tap to
+          expand into Pay to Contact / Pay to UPI ID / My QR. Includes Upload
+          QR as a quick chip in the expanded panel. */}
+      <ScannerActions
+        onUpload={handleUpload}
+        onPickedPayload={onDecoded}
+      />
     </div>
   );
 }
