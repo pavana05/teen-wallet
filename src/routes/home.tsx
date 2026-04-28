@@ -45,22 +45,28 @@ export const Route = createFileRoute("/home")({
       { name: "description", content: "Your Teen Wallet — balance, quick actions, and recent activity at a glance." },
     ],
   }),
-  // Synchronous guard. Blocks /home unless persisted stage ≥ STAGE_3 AND a
-  // userId exists (proxy for an authenticated session at last hydration).
-  // The runtime `useEffect` below still re-validates the live session and
-  // will hard-redirect if the session was revoked since persistence.
+  // Synchronous guard. Blocks /home unless:
+  //   • persisted stage is STAGE_5 (KYC approved)
+  //   • a persisted userId exists (proxy for an authenticated session)
+  //   • the permissions gate has been completed (tw_permissions_seen_v1)
+  // The runtime useEffect below still re-validates the live session and
+  // reconciles with the backend profile.
   beforeLoad: ({ location }) => {
     if (typeof window === "undefined") return;
     const { stage, userId } = readPersisted();
-    const meetsStage = stageRank[stage] >= stageRank["STAGE_3"];
+    const meetsStage = stageRank[stage] >= stageRank["STAGE_5"];
     const meetsSession = !!userId;
-    if (!meetsStage || !meetsSession) {
+    const permsSeen = (() => {
+      try { return window.localStorage.getItem(PERMISSIONS_DONE_KEY) === "1"; }
+      catch { return false; }
+    })();
+    if (!meetsStage || !meetsSession || !permsSeen) {
       recordRedirect({
         from: location.pathname,
         to: "/onboarding",
         stage,
         session: meetsSession,
-        reason: "guard_block:/home",
+        reason: !permsSeen ? "guard_block:/home:permissions" : "guard_block:/home",
       });
       throw redirect({ to: "/onboarding", replace: true });
     }
