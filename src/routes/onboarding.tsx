@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Suspense, useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+
 import { useApp, type Stage } from "@/lib/store";
 import { PhoneShell } from "@/components/PhoneShell";
 import { lazyWithRetry } from "@/lib/lazyWithRetry";
