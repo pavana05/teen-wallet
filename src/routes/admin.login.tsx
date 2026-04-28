@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import QRCode from "qrcode";
 import { callAdminFn, writeAdminSession, AdminFnError, type AdminMe } from "@/admin/lib/adminAuth";
