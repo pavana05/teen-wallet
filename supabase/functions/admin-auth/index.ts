@@ -1245,16 +1245,32 @@ Deno.serve(async (req) => {
     if (!can(me.role, "viewReports")) return json({ error: "forbidden" }, 403);
     const status = String(body.status ?? "all");           // all | open | resolved
     const category = String(body.category ?? "all");       // all | bug | feature | feedback | general
+    const priority = String(body.priority ?? "all");       // all | low | normal | high | urgent
+    const assigned = String(body.assigned ?? "all");       // all | mine | unassigned
     const route = String(body.route ?? "").trim();
+    const sort = String(body.sort ?? "priority");          // priority | newest | activity
     const limit = Math.min(200, Math.max(10, Number(body.limit ?? 50)));
 
+    // priority sort: urgent → high → normal → low, then by last_activity_at desc
     let q = sb.from("issue_reports")
-      .select("id,user_id,category,status,message,route,user_agent,app_version,screenshot_path,camera_photo_path,console_errors,stack_trace,resolved_at,resolved_by_email,created_at", { count: "exact" })
-      .order("created_at", { ascending: false })
+      .select("id,user_id,category,status,priority,assigned_to_email,last_activity_at,message,route,user_agent,app_version,screenshot_path,camera_photo_path,console_errors,stack_trace,resolved_at,resolved_by_email,created_at", { count: "exact" })
       .limit(limit);
+
+    if (sort === "newest") {
+      q = q.order("created_at", { ascending: false });
+    } else if (sort === "activity") {
+      q = q.order("last_activity_at", { ascending: false });
+    } else {
+      // priority: order by enum text desc happens to give urgent/normal/low/high — use a CASE via .order on multiple fields
+      // Postgres orders enums by their declared order: low(1), normal(2), high(3), urgent(4) → DESC = urgent first
+      q = q.order("priority", { ascending: false }).order("last_activity_at", { ascending: false });
+    }
 
     if (status !== "all") q = q.eq("status", status);
     if (category !== "all") q = q.eq("category", category);
+    if (priority !== "all") q = q.eq("priority", priority);
+    if (assigned === "mine") q = q.eq("assigned_to_email", me.email);
+    else if (assigned === "unassigned") q = q.is("assigned_to_email", null);
     if (route) q = q.ilike("route", `%${route}%`);
 
     const { data, count, error } = await q;
@@ -1297,6 +1313,31 @@ Deno.serve(async (req) => {
     if (error) return json({ error: error.message }, 500);
     await audit(me.id, me.email, me.role, resolved ? "report_resolved" : "report_reopened", { reportId: id });
     return json({ ok: true });
+  }
+
+  if (action === "reports_set_priority") {
+    if (!can(me.role, "manageReports")) return json({ error: "forbidden" }, 403);
+    const id = String(body.id ?? "");
+    const priority = String(body.priority ?? "");
+    if (!id || !["low", "normal", "high", "urgent"].includes(priority)) {
+      return json({ error: "invalid" }, 400);
+    }
+    const { error } = await sb.from("issue_reports").update({ priority }).eq("id", id);
+    if (error) return json({ error: error.message }, 500);
+    await audit(me.id, me.email, me.role, "report_priority_set", { reportId: id, priority });
+    return json({ ok: true });
+  }
+
+  if (action === "reports_assign") {
+    if (!can(me.role, "manageReports")) return json({ error: "forbidden" }, 403);
+    const id = String(body.id ?? "");
+    const raw = body.assignee;
+    const assignee = raw == null || raw === "" ? null : String(raw).trim().toLowerCase().slice(0, 200);
+    if (!id) return json({ error: "invalid" }, 400);
+    const { error } = await sb.from("issue_reports").update({ assigned_to_email: assignee }).eq("id", id);
+    if (error) return json({ error: error.message }, 500);
+    await audit(me.id, me.email, me.role, assignee ? "report_assigned" : "report_unassigned", { reportId: id, assignee });
+    return json({ ok: true, assignee });
   }
 
   if (action === "reports_add_note") {
