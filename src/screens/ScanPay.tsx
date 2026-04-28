@@ -1307,9 +1307,6 @@ function ConfirmView({
           <ArrowLeft className="w-5 h-5" />
         </button>
         <span className="sp3-head-spacer" />
-        <button onClick={onBack} aria-label="Close payment" className="sp3-icon-btn focus-visible:ring-2 focus-visible:ring-primary">
-          <X className="w-5 h-5" />
-        </button>
       </div>
 
 
