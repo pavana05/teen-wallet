@@ -8449,7 +8449,7 @@ html.motion-off    .otp-resend-ring svg circle { transition: none !important; }
 
 @media (prefers-reduced-motion: reduce) {
   .sp3-balance-pop, .sp3-method-chevron, .sp3-method-pill-line,
-  .sp3-balance-inline, .sp3-balance-inline-row {
+  .sp3-balance-inline, .sp3-balance-inline-row, .sp3-method-pill {
     animation: none !important; transition: none !important;
   }
 }
