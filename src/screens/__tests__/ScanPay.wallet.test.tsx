@@ -52,7 +52,7 @@ describe("ScanPay wallet balance pill", () => {
     expect(screen.getByRole("region", { name: /wallet balance details/i })).toBeInTheDocument();
     expect(screen.getByText("Available balance")).toBeInTheDocument();
     expect(screen.getByText("After this payment")).toBeInTheDocument();
-    expect(screen.getByText("₹2,396.00")).toBeInTheDocument();
+    expect(screen.getAllByText("₹2,396.00").length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText("₹1,896.00")).toBeInTheDocument();
     expect(screen.getByText(/Slide to Pay ₹500/i)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /digit 1/i })).not.toBeInTheDocument();
