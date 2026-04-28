@@ -1,18 +1,19 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { lazy, Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useApp, type Stage } from "@/lib/store";
 import { fetchProfile } from "@/lib/auth";
 import { PhoneShell } from "@/components/PhoneShell";
+import { lazyWithRetry } from "@/lib/lazyWithRetry";
 
 
-const Onboarding = lazy(() => import("@/screens/Onboarding").then(m => ({ default: m.Onboarding })));
-const AuthPhone = lazy(() => import("@/screens/AuthPhone").then(m => ({ default: m.AuthPhone })));
-const KycFlow = lazy(() => import("@/screens/KycFlow").then(m => ({ default: m.KycFlow })));
-const KycPending = lazy(() => import("@/screens/KycPending").then(m => ({ default: m.KycPending })));
-const Permissions = lazy(() => import("@/screens/Permissions").then(m => ({ default: m.Permissions })));
-const Home = lazy(() => import("@/screens/Home").then(m => ({ default: m.Home })));
-const OnboardingReferral = lazy(() => import("@/screens/OnboardingReferral").then(m => ({ default: m.OnboardingReferral })));
+const Onboarding = lazyWithRetry(() => import("@/screens/Onboarding").then(m => ({ default: m.Onboarding })));
+const AuthPhone = lazyWithRetry(() => import("@/screens/AuthPhone").then(m => ({ default: m.AuthPhone })));
+const KycFlow = lazyWithRetry(() => import("@/screens/KycFlow").then(m => ({ default: m.KycFlow })));
+const KycPending = lazyWithRetry(() => import("@/screens/KycPending").then(m => ({ default: m.KycPending })));
+const Permissions = lazyWithRetry(() => import("@/screens/Permissions").then(m => ({ default: m.Permissions })));
+const Home = lazyWithRetry(() => import("@/screens/Home").then(m => ({ default: m.Home })));
+const OnboardingReferral = lazyWithRetry(() => import("@/screens/OnboardingReferral").then(m => ({ default: m.OnboardingReferral })));
 
 const PERMISSIONS_DONE_KEY = "tw_permissions_seen_v1";
 
