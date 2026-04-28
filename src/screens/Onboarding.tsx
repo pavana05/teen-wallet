@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { ArrowRight, ArrowLeft, Zap, ShieldCheck, Gift, Wallet, Sparkles } from "lucide-react";
-import walletImg from "@/assets/onboarding-wallet.jpg";
-import paymentImg from "@/assets/onboarding-payment.jpg";
-import shieldImg from "@/assets/onboarding-shield.jpg";
-import giftImg from "@/assets/onboarding-gift.jpg";
+import walletImg from "@/assets/onboarding-wallet.webp";
+import paymentImg from "@/assets/onboarding-payment.webp";
+import shieldImg from "@/assets/onboarding-shield.webp";
+import giftImg from "@/assets/onboarding-gift.webp";
 import { TWLogo } from "@/components/TWLogo";
 import { recordCheckpoint } from "@/lib/navState";
 
@@ -126,6 +126,20 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
       detail: { slide: i, total: SLIDES.length },
     });
   }, [i]);
+
+  // Warm the browser cache for every slide image right after first paint so
+  // swiping forward never waits on a network round-trip. Runs once on mount.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const urls = SLIDES.map((s) => s.hero);
+    const imgs = urls.map((u) => {
+      const img = new Image();
+      img.decoding = "async";
+      img.src = u;
+      return img;
+    });
+    return () => { imgs.length = 0; };
+  }, []);
 
   const finishOnboarding = () => {
     writeOnboardingState({ slide: SLIDES.length - 1, completed: true, updatedAt: new Date().toISOString() });
@@ -268,8 +282,9 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
               alt=""
               width={520}
               height={520}
-              loading={i === 0 ? "eager" : "lazy"}
+              loading="eager"
               decoding="async"
+              {...(i === 0 ? { fetchPriority: "high" as const } : {})}
               className="ob-hero-img"
               draggable={false}
               onError={() => setFailedImages((prev) => ({ ...prev, [i]: true }))}
