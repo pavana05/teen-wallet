@@ -636,74 +636,144 @@
 .kyc-approved-title { animation: kyc-fade-rise 500ms ease-out 1100ms both; }
 .kyc-approved-sub   { animation: kyc-fade-rise 500ms ease-out 1300ms both; }
 
-/* ============ ADMIN DASHBOARD TOKENS (scoped) ============ */
+/* ============ ADMIN DASHBOARD TOKENS — Premium Dark + Premium White ============ */
+/* Default = Premium Dark (obsidian + champagne).  No neon palettes anywhere.  */
 .admin-shell {
-  --a-bg: #0a0a0b;
-  --a-surface: #131316;
-  --a-surface-2: #17171b;
-  --a-elevated: #1c1c21;
-  --a-border: #26262d;
-  --a-border-strong: #34343d;
-  --a-text: #f4f4f5;
-  --a-muted: #8a8a93;
-  --a-fg: #f4f4f5;
-  --a-accent: #c8f135;
-  --a-accent-soft: rgba(200, 241, 53, 0.12);
-  --a-success: #22c55e;
-  --a-warn: #f59e0b;
-  --a-danger: #ef4444;
-  --a-info: #3b82f6;
-  --a-grad-accent: linear-gradient(135deg, #c8f135 0%, #94de3a 100%);
-  /* Premium chart palette — derived from admin theme, no neon-lime in series */
-  --a-chart-1: #d4c5a0;
+  --a-bg: #08090c;
+  --a-surface: #101218;
+  --a-surface-2: #14161e;
+  --a-elevated: #191c25;
+  --a-border: #23262f;
+  --a-border-strong: #2f3340;
+  --a-text: #f5f5f7;
+  --a-muted: #8b8f9c;
+  --a-fg: #f5f5f7;
+  /* Champagne / warm-platinum accent — replaces former neon-lime. */
+  --a-accent: #d4b483;
+  --a-accent-strong: #e0c397;
+  --a-accent-soft: rgba(212, 180, 131, 0.12);
+  --a-accent-ring: rgba(212, 180, 131, 0.22);
+  --a-accent-fg: #1a1408;
+  --a-success: #34d399;
+  --a-warn: #f5b970;
+  --a-danger: #ef6f6f;
+  --a-info: #6aa6ff;
+  --a-grad-accent: linear-gradient(135deg, #e8cfa0 0%, #c89e6a 100%);
+  --a-grad-surface: linear-gradient(180deg, #14161e 0%, #101218 100%);
+  /* Premium chart palette — muted jewel tones, no neon. */
+  --a-chart-1: #d4b483;
   --a-chart-2: #7c8db5;
   --a-chart-3: #b89b7a;
   --a-chart-4: #c2766b;
   --a-chart-5: #9c8fb5;
   --a-chart-6: #7da890;
-  --a-chart-grid: #2a2a2a;
-  --a-chart-axis: #666;
-  --a-chart-legend: #888;
-  --a-tooltip-bg: #161616;
-  --a-tooltip-border: #2a2a2a;
-  --a-tooltip-text: #f2f2f2;
-  --a-danger-soft: rgba(239,68,68,0.10);
-  --a-danger-border: rgba(239,68,68,0.30);
-  --a-danger-text: #fca5a5;
+  --a-chart-grid: #23262f;
+  --a-chart-axis: #6e7280;
+  --a-chart-legend: #8b8f9c;
+  --a-tooltip-bg: #14161e;
+  --a-tooltip-border: #2f3340;
+  --a-tooltip-text: #f5f5f7;
+  --a-danger-soft: rgba(239,111,111,0.10);
+  --a-danger-border: rgba(239,111,111,0.30);
+  --a-danger-text: #f8b4b4;
+  --a-shadow-sm: 0 1px 0 rgba(255,255,255,0.03) inset, 0 4px 12px -8px rgba(0,0,0,0.55);
+  --a-shadow-md: 0 1px 0 rgba(255,255,255,0.03) inset, 0 14px 40px -20px rgba(0,0,0,0.7);
+  --a-shadow-glow: 0 0 0 1px rgba(212,180,131,0.18), 0 8px 28px -10px rgba(212,180,131,0.18);
+  --a-row-pad-y: 12px;
+  --a-cell-pad-y: 14px;
   background:
-    radial-gradient(1200px 600px at 0% -10%, rgba(200,241,53,0.05), transparent 60%),
-    radial-gradient(900px 500px at 100% 0%, rgba(59,130,246,0.04), transparent 70%),
+    radial-gradient(1100px 520px at 0% -10%, rgba(212,180,131,0.045), transparent 60%),
+    radial-gradient(900px 500px at 100% 0%, rgba(124,141,181,0.045), transparent 70%),
     var(--a-bg);
   color: var(--a-text);
   font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
   min-height: 100vh;
+  transition: background-color 240ms ease, color 240ms ease;
 }
+
+/* Premium White — porcelain + warm-platinum. Toggle via [data-admin-theme="light"]. */
+.admin-shell[data-admin-theme="light"] {
+  --a-bg: #f6f5f1;
+  --a-surface: #ffffff;
+  --a-surface-2: #faf8f3;
+  --a-elevated: #ffffff;
+  --a-border: #e7e2d6;
+  --a-border-strong: #d8d2c2;
+  --a-text: #1a1d24;
+  --a-muted: #6b6f7a;
+  --a-fg: #1a1d24;
+  --a-accent: #8a6a3a;
+  --a-accent-strong: #6f5429;
+  --a-accent-soft: rgba(138, 106, 58, 0.10);
+  --a-accent-ring: rgba(138, 106, 58, 0.18);
+  --a-accent-fg: #ffffff;
+  --a-success: #16a34a;
+  --a-warn: #c97a1d;
+  --a-danger: #dc2626;
+  --a-info: #2563eb;
+  --a-grad-accent: linear-gradient(135deg, #b08c54 0%, #8a6a3a 100%);
+  --a-grad-surface: linear-gradient(180deg, #ffffff 0%, #faf8f3 100%);
+  --a-chart-1: #8a6a3a;
+  --a-chart-2: #4f6792;
+  --a-chart-3: #a17a4d;
+  --a-chart-4: #b34a3e;
+  --a-chart-5: #6e5a8a;
+  --a-chart-6: #4d8870;
+  --a-chart-grid: #ece7d9;
+  --a-chart-axis: #8a8e98;
+  --a-chart-legend: #6b6f7a;
+  --a-tooltip-bg: #ffffff;
+  --a-tooltip-border: #e7e2d6;
+  --a-tooltip-text: #1a1d24;
+  --a-danger-soft: rgba(220,38,38,0.08);
+  --a-danger-border: rgba(220,38,38,0.25);
+  --a-danger-text: #b91c1c;
+  --a-shadow-sm: 0 1px 0 rgba(255,255,255,0.6) inset, 0 4px 14px -10px rgba(31,33,38,0.18);
+  --a-shadow-md: 0 1px 0 rgba(255,255,255,0.6) inset, 0 18px 44px -22px rgba(31,33,38,0.22);
+  --a-shadow-glow: 0 0 0 1px rgba(138,106,58,0.18), 0 10px 30px -12px rgba(138,106,58,0.22);
+  background:
+    radial-gradient(1100px 520px at 0% -10%, rgba(138,106,58,0.06), transparent 60%),
+    radial-gradient(900px 500px at 100% 0%, rgba(79,103,146,0.04), transparent 70%),
+    var(--a-bg);
+}
+
+/* Compact density — tightens table rows + paddings. */
+.admin-shell[data-admin-density="compact"] {
+  --a-row-pad-y: 6px;
+  --a-cell-pad-y: 8px;
+}
+
 .admin-shell .a-surface {
   background: var(--a-surface);
   border: 1px solid var(--a-border);
-  border-radius: 12px;
-  box-shadow: 0 1px 0 rgba(255,255,255,0.02) inset, 0 8px 24px -16px rgba(0,0,0,0.6);
+  border-radius: 14px;
+  box-shadow: var(--a-shadow-sm);
+  transition: border-color 160ms ease, box-shadow 220ms ease, transform 220ms ease;
+}
+.admin-shell .a-surface-hover:hover {
+  border-color: var(--a-border-strong);
+  box-shadow: var(--a-shadow-md);
 }
 .admin-shell .a-elevated { background: var(--a-elevated); border: 1px solid var(--a-border); border-radius: 12px; }
 .admin-shell .a-input {
   background: var(--a-surface-2); border: 1px solid var(--a-border); color: var(--a-text);
-  border-radius: 8px; padding: 10px 12px; width: 100%; font-size: 14px;
-  transition: border-color 120ms ease, box-shadow 120ms ease;
+  border-radius: 10px; padding: 10px 12px; width: 100%; font-size: 14px;
+  transition: border-color 120ms ease, box-shadow 120ms ease, background 120ms ease;
 }
-.admin-shell .a-input:focus { outline: none; border-color: var(--a-accent); box-shadow: 0 0 0 3px rgba(200,241,53,0.12); }
+.admin-shell .a-input:focus { outline: none; border-color: var(--a-accent); box-shadow: 0 0 0 3px var(--a-accent-ring); }
 .admin-shell .a-btn {
-  background: var(--a-grad-accent); color: #0a0a0b; font-weight: 600;
-  border-radius: 8px; padding: 9px 16px; font-size: 13px;
+  background: var(--a-grad-accent); color: var(--a-accent-fg); font-weight: 600;
+  border-radius: 10px; padding: 9px 16px; font-size: 13px; letter-spacing: 0.01em;
   display: inline-flex; align-items: center; justify-content: center; gap: 6px;
-  transition: transform 100ms, filter 120ms, box-shadow 120ms; cursor: pointer; border: none;
-  box-shadow: 0 4px 14px -4px rgba(200,241,53,0.35);
+  transition: transform 120ms cubic-bezier(.2,.8,.2,1), filter 160ms, box-shadow 200ms; cursor: pointer; border: none;
+  box-shadow: 0 6px 18px -8px var(--a-accent-ring);
 }
-.admin-shell .a-btn:hover { filter: brightness(1.05); transform: translateY(-1px); }
+.admin-shell .a-btn:hover { filter: brightness(1.04); transform: translateY(-1px); box-shadow: 0 10px 26px -10px var(--a-accent-ring); }
 .admin-shell .a-btn:active { transform: translateY(0); }
 .admin-shell .a-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
 .admin-shell .a-btn-ghost {
   background: var(--a-surface-2); border: 1px solid var(--a-border); color: var(--a-text);
-  border-radius: 8px; padding: 8px 14px; font-size: 13px;
+  border-radius: 10px; padding: 8px 14px; font-size: 13px;
   display: inline-flex; align-items: center; justify-content: center; gap: 6px;
   cursor: pointer; transition: border-color 120ms, background 120ms, color 120ms;
   text-decoration: none;
@@ -712,6 +782,99 @@
 .admin-shell .a-btn-ghost:disabled { opacity: 0.4; cursor: not-allowed; }
 .admin-shell .a-mono { font-family: "JetBrains Mono", ui-monospace, monospace; font-variant-numeric: tabular-nums; }
 .admin-shell .a-label { font-size: 11px; color: var(--a-muted); text-transform: uppercase; letter-spacing: 0.08em; font-weight: 500; }
+
+/* Premium icon-button (square, ghost, with focus ring) */
+.admin-shell .a-icon-btn {
+  width: 34px; height: 34px; border-radius: 10px;
+  background: var(--a-surface-2); border: 1px solid var(--a-border); color: var(--a-text);
+  display: inline-flex; align-items: center; justify-content: center;
+  cursor: pointer; position: relative;
+  transition: border-color 140ms ease, background 140ms ease, color 140ms ease, transform 160ms ease;
+}
+.admin-shell .a-icon-btn:hover { border-color: var(--a-border-strong); background: var(--a-elevated); color: var(--a-accent); }
+.admin-shell .a-icon-btn:active { transform: translateY(1px); }
+.admin-shell .a-icon-btn[data-on="true"] { color: var(--a-accent); border-color: var(--a-accent); background: var(--a-accent-soft); }
+
+/* Floating dropdown (notifications, menus) */
+.admin-shell .a-pop {
+  background: var(--a-surface);
+  border: 1px solid var(--a-border-strong);
+  border-radius: 14px;
+  box-shadow: var(--a-shadow-md);
+  overflow: hidden;
+  animation: a-pop-in 160ms cubic-bezier(.2,.8,.25,1) both;
+  transform-origin: top right;
+}
+@keyframes a-pop-in {
+  from { opacity: 0; transform: translateY(-4px) scale(.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Sidebar item — fixes the previous left-border jitter and adds smooth active pill */
+.admin-shell .a-side-item {
+  position: relative;
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px; margin-bottom: 2px;
+  font-size: 13px; color: var(--a-text);
+  border-radius: 10px;
+  transition: background 140ms ease, color 140ms ease;
+}
+.admin-shell .a-side-item::before {
+  content: ""; position: absolute; left: 4px; top: 50%; transform: translateY(-50%);
+  width: 3px; height: 0; border-radius: 2px;
+  background: var(--a-accent); opacity: 0;
+  transition: height 200ms cubic-bezier(.2,.8,.25,1), opacity 200ms ease;
+}
+.admin-shell .a-side-item:hover { background: var(--a-surface-2); }
+.admin-shell .a-side-item[data-active="true"] {
+  background: var(--a-accent-soft);
+  color: var(--a-accent);
+}
+.admin-shell .a-side-item[data-active="true"]::before { height: 60%; opacity: 1; }
+.admin-shell .a-side-section {
+  padding: 14px 14px 6px; font-size: 10px; letter-spacing: 0.12em;
+  text-transform: uppercase; color: var(--a-muted); font-weight: 600;
+}
+
+/* KPI card — premium polish + subtle hover lift + shimmering value entrance */
+.admin-shell .a-kpi {
+  position: relative; padding: 16px; border-radius: 14px;
+  background: var(--a-grad-surface);
+  border: 1px solid var(--a-border);
+  box-shadow: var(--a-shadow-sm);
+  overflow: hidden;
+  transition: transform 220ms cubic-bezier(.2,.8,.25,1), border-color 200ms ease, box-shadow 220ms ease;
+}
+.admin-shell .a-kpi:hover { transform: translateY(-2px); border-color: var(--a-border-strong); box-shadow: var(--a-shadow-md); }
+.admin-shell .a-kpi::after {
+  content: ""; position: absolute; inset: -1px; border-radius: 14px;
+  background: linear-gradient(135deg, transparent 60%, var(--a-accent-soft) 100%);
+  pointer-events: none; opacity: 0;
+  transition: opacity 280ms ease;
+}
+.admin-shell .a-kpi:hover::after { opacity: 1; }
+
+/* Live status dot pulse */
+.admin-shell .a-pulse {
+  width: 8px; height: 8px; border-radius: 999px; background: var(--a-success);
+  box-shadow: 0 0 0 0 color-mix(in oklab, var(--a-success) 40%, transparent);
+  animation: a-pulse 1.8s cubic-bezier(.4,0,.6,1) infinite;
+}
+@keyframes a-pulse {
+  0%,100% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--a-success) 40%, transparent); }
+  50%     { box-shadow: 0 0 0 6px transparent; }
+}
+
+/* Notification badge */
+.admin-shell .a-badge-dot {
+  position: absolute; top: 6px; right: 6px;
+  min-width: 16px; height: 16px; padding: 0 4px;
+  border-radius: 999px; background: var(--a-danger); color: #fff;
+  font-size: 9px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center;
+  border: 2px solid var(--a-surface);
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+}
+
 
 /* ===== KYC queue specific ===== */
 .admin-shell .kyc-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding-bottom: 4px; border-bottom: 1px solid var(--a-border); padding-top: 4px; }
