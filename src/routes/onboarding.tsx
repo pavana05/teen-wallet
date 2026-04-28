@@ -81,33 +81,3 @@ function OnboardingPage() {
   );
 }
 
-// Re-export so / route can reuse the boot helper without duplicating.
-export { stageRank };
-
-// Helper used by `/` boot router. Decides where a user belongs.
-export async function decideRoute(): Promise<"/onboarding" | "/home"> {
-  try {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
-      const localStage = useApp.getState().stage;
-      if (stageRank[localStage] >= stageRank["STAGE_3"]) {
-        useApp.getState().setStageLocal("STAGE_0");
-      }
-      return "/onboarding";
-    }
-    const localStage = useApp.getState().stage;
-    if (localStage === "STAGE_0" || localStage === "STAGE_1" || localStage === "STAGE_2") {
-      useApp.getState().setStageLocal("STAGE_3");
-    }
-    // Background: reconcile with profile (non-blocking) — done in /home boot too.
-    const finalStage = useApp.getState().stage;
-    const permsSeen = (() => {
-      try { return localStorage.getItem(PERMISSIONS_DONE_KEY) === "1"; } catch { return true; }
-    })();
-    const referralPending = shouldShowReferralPrompt();
-    if (finalStage === "STAGE_5" && permsSeen && !referralPending) return "/home";
-    return "/onboarding";
-  } catch {
-    return "/onboarding";
-  }
-}
