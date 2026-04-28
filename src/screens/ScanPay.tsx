@@ -308,6 +308,7 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
     setNote("");
     setResultMsg("");
     setFailKind("generic");
+    setPayError(null);
     setSavedTxn(null);
     navLockRef.current = false;
     clearPersisted();
