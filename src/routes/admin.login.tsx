@@ -134,18 +134,18 @@ function AdminLogin() {
             <p style={{ fontSize: 13, color: "var(--a-muted)" }}>Enter the 6-digit code from your authenticator app.</p>
             <input className="a-input a-mono" inputMode="numeric" maxLength={6} placeholder="123456" value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))} required autoFocus />
             <button className="a-btn" disabled={busy || code.length !== 6}>{busy && <Loader2 size={14} className="animate-spin" />} Verify & sign in</button>
-            <button type="button" onClick={async () => {
-              const pw = window.prompt("Lost your authenticator? Re-enter your password to reset 2FA and re-enroll:");
-              if (!pw) return;
-              setErr(""); setBusy(true);
-              try {
-                const r = await callAdminFn<any>({ action: "totp_reset_login", email, password: pw });
-                setChallengeToken(r.challengeToken); setOtpauthUrl(r.otpauthUrl); setSecret(r.secret); setCode(""); setStage("enroll_totp");
-              } catch (e: any) { setErr(e.message || "Reset failed"); }
-              finally { setBusy(false); }
-            }} style={{ background: "none", border: "none", color: "var(--a-muted)", fontSize: 12, textDecoration: "underline", cursor: "pointer", padding: 0 }}>
-              Lost your authenticator? Reset 2FA
-            </button>
+            <ResetTotpButton
+              onArmed={async () => {
+                const pw = window.prompt("Lost your authenticator? Re-enter your password to reset 2FA and re-enroll:");
+                if (!pw) return;
+                setErr(""); setBusy(true);
+                try {
+                  const r = await callAdminFn<any>({ action: "totp_reset_login", email, password: pw });
+                  setChallengeToken(r.challengeToken); setOtpauthUrl(r.otpauthUrl); setSecret(r.secret); setCode(""); setStage("enroll_totp");
+                } catch (e) { setErr(captureErr(e, "Reset failed")); }
+                finally { setBusy(false); }
+              }}
+            />
           </form>
         )}
       </div>
