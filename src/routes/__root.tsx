@@ -124,13 +124,19 @@ function RootComponent() {
     };
   }, []);
 
+  // App Lock is for the user-facing app on native devices only.
+  // Hide it on /admin/* and on web (where the OS-level lock isn't part of UX).
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const isAdminRoute = pathname.startsWith("/admin");
+  const showAppLock = !isAdminRoute && isNative();
+
   return (
     <>
       <Outlet />
       <Toaster />
       <ShakeToReport />
-      <AppLockSetupPrompt />
-      <AppLockGate />
+      {showAppLock && <AppLockSetupPrompt />}
+      {showAppLock && <AppLockGate />}
     </>
   );
 }
