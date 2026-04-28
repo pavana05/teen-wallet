@@ -268,8 +268,9 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
               alt=""
               width={520}
               height={520}
-              loading={i === 0 ? "eager" : "lazy"}
+              loading="eager"
               decoding="async"
+              {...(i === 0 ? { fetchPriority: "high" as const } : {})}
               className="ob-hero-img"
               draggable={false}
               onError={() => setFailedImages((prev) => ({ ...prev, [i]: true }))}
