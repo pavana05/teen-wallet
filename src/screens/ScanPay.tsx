@@ -1169,19 +1169,68 @@ function ConfirmView({
 
 
 
-  // Two-stage flow: Stage A keypad → tap "Next" → Stage B Slide-to-Pay button.
-  // The user can collapse back to the keypad by tapping the chevron on Stage B.
+  // Two-stage flow: Stage A keypad → tap "Next" → Stage B Slide-to-Pay → tap
+  // confirmation card to actually pay. The extra confirmation step prevents
+  // accidental sends and shows the exact merchant/amount/note one last time.
   const [stage, setStage] = useState<"enter" | "review">("enter");
+  const [confirming, setConfirming] = useState(false);
+
+  // Refs for focus management between stages and the confirmation step.
+  const nextFabRef = useRef<HTMLButtonElement | null>(null);
+  const slideKnobWrapRef = useRef<HTMLDivElement | null>(null);
+  const confirmBtnRef = useRef<HTMLButtonElement | null>(null);
+  const errorRetryRef = useRef<HTMLButtonElement | null>(null);
+  // Slide-area ref for the shake animation when payment fails.
+  const slideShellRef = useRef<HTMLDivElement | null>(null);
 
   // Reset to keypad whenever the amount becomes invalid or merchant changes.
   useEffect(() => {
-    if (amount <= 0) setStage("enter");
+    if (amount <= 0) {
+      setStage("enter");
+      setConfirming(false);
+    }
   }, [amount, payload.upiId]);
+
+  // Move focus when stage changes — helps keyboard + screen-reader users
+  // immediately reach the next interactive control without hunting.
+  useEffect(() => {
+    if (stage === "review") {
+      // Focus the slide knob so keyboard users can press Enter / arrows.
+      requestAnimationFrame(() => {
+        const knob = slideKnobWrapRef.current?.querySelector<HTMLElement>('[role="slider"]');
+        knob?.focus();
+      });
+    } else {
+      requestAnimationFrame(() => nextFabRef.current?.focus({ preventScroll: true }));
+    }
+  }, [stage]);
+
+  // When the confirmation step opens, focus the confirm button so a quick
+  // "Enter"/double-tap completes payment.
+  useEffect(() => {
+    if (confirming) requestAnimationFrame(() => confirmBtnRef.current?.focus());
+  }, [confirming]);
+
+  // Shake the slide region + focus retry button whenever a new payment error
+  // arrives. Honour reduced-motion: skip shake but still announce + focus.
+  useEffect(() => {
+    if (!payError) return;
+    setConfirming(false);
+    const el = slideShellRef.current;
+    if (el && !reducedMotion()) {
+      el.classList.remove("sp3-shake");
+      // force reflow so animation can re-trigger on consecutive errors
+      void el.offsetWidth;
+      el.classList.add("sp3-shake");
+    }
+    requestAnimationFrame(() => errorRetryRef.current?.focus());
+  }, [payError]);
 
   // Format amount for display: hide leading "0", show typed digits.
   const amountStr = amount === 0 ? "" : String(amount);
 
   const onKey = (k: string) => {
+    void haptics.tap();
     if (k === "del") {
       const next = amountStr.slice(0, -1);
       onAmountChange(next === "" ? 0 : Number(next));
@@ -1205,11 +1254,42 @@ function ConfirmView({
     onAmountChange(Number(next));
   };
 
+  const goReview = () => {
+    if (!canPay) return;
+    void haptics.bloom();
+    setStage("review");
+  };
+
+  // Slide handler: do NOT pay yet — open the confirmation card. The user
+  // must tap "Confirm payment" to actually submit.
+  const onSlideComplete = () => {
+    void haptics.success();
+    onClearError();
+    setConfirming(true);
+  };
+
+  const onConfirmTap = () => {
+    void haptics.press();
+    setConfirming(false);
+    onConfirm();
+  };
+
+  const onCancelConfirm = () => {
+    void haptics.tap();
+    setConfirming(false);
+  };
+
+  const onRetry = () => {
+    void haptics.select();
+    onClearError();
+    // stay in review stage so the slide is right there to use again
+    setStage("review");
+  };
+
   const onFormKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && canPay) {
       e.preventDefault();
-      if (stage === "enter") setStage("review");
-      else onConfirm();
+      if (stage === "enter") goReview();
     }
   };
 
