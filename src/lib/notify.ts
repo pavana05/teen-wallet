@@ -32,14 +32,16 @@ interface InsertArgs {
   type: NotifType;
   title: string;
   body?: string | null;
+  transactionId?: string | null;
 }
 
-export async function insertNotification({ userId, type, title, body = null }: InsertArgs) {
+export async function insertNotification({ userId, type, title, body = null, transactionId = null }: InsertArgs) {
   const { error } = await supabase.from("notifications").insert({
     user_id: userId,
     type,
     title,
     body,
+    transaction_id: transactionId,
   });
   if (error) {
     console.warn("[notify] insert failed", { type, error: error.message });
