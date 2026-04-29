@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { downloadReceiptPdf, shareReceiptPdf, shareReceiptToWhatsApp, buildReceiptSummary, type ReceiptData } from "@/lib/receipt";
 import { notifyAttemptPendingOnce, notifyAttemptTerminalOnce } from "@/lib/notify";
+import { toastPaymentPending, toastPaymentSent, toastPaymentFailed } from "@/lib/notifyToast";
 import {
   recordReceiptDelivery,
   getLastDelivery,
