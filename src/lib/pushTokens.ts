@@ -66,6 +66,21 @@ export async function registerPushNotifications() {
       }
     );
 
+    // User tapped a push (app was background or closed) — deep-link them.
+    PushNotifications.addListener(
+      "pushNotificationActionPerformed",
+      (action: ActionPerformed) => {
+        const data = (action.notification?.data ?? {}) as Record<string, string>;
+        const type = data.type ?? "";
+        const txnId = data.transaction_id ?? "";
+        if (txnId && /^payment_|^transaction$/.test(type)) {
+          setPendingDeepLink({ kind: "transaction", transactionId: txnId });
+        } else {
+          setPendingDeepLink({ kind: "notifications" });
+        }
+      }
+    );
+
     await PushNotifications.register();
   } catch (e) {
     console.error("registerPushNotifications failed", e);
