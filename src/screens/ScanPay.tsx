@@ -51,7 +51,16 @@ interface PersistedFlow {
   payload: UpiPayload | null;
   amount: number;
   note?: string;
+  /** ms since epoch — used to discard stale flows after app close/reopen. */
+  ts?: number;
 }
+
+/**
+ * Persisted scan flow is only resumed if it's fresh (a brief in-app nav-away).
+ * If the user fully closed the app or left it for a while, we want a clean
+ * scanner — never auto-restore the previous scanned QR / confirm screen.
+ */
+const SCANPAY_RESUME_MAX_AGE_MS = 90_000;
 
 type Phase = "scanning" | "confirm" | "processing" | "success" | "failed";
 type FailKind = "generic" | "balance_changed" | "insufficient" | "blocked";
