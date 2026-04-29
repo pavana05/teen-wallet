@@ -17,7 +17,8 @@ let registered = false;
 export async function registerPushNotifications() {
   if (registered) return;
   if (!Capacitor.isNativePlatform()) return;
-  if (Capacitor.getPlatform() !== "android") return;
+  const platform = Capacitor.getPlatform();
+  if (platform !== "android" && platform !== "ios") return;
 
   registered = true;
 
