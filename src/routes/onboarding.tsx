@@ -8,12 +8,33 @@ import { shouldShowReferralPrompt } from "@/lib/referral";
 import { OnboardingSkeleton } from "@/components/BootSkeletons";
 import { recordRedirect } from "@/lib/redirectLog";
 
-const Onboarding = lazyWithRetry(() => import("@/screens/Onboarding").then(m => ({ default: m.Onboarding })));
-const AuthPhone = lazyWithRetry(() => import("@/screens/AuthPhone").then(m => ({ default: m.AuthPhone })));
-const KycFlow = lazyWithRetry(() => import("@/screens/KycFlow").then(m => ({ default: m.KycFlow })));
-const KycPending = lazyWithRetry(() => import("@/screens/KycPending").then(m => ({ default: m.KycPending })));
-const Permissions = lazyWithRetry(() => import("@/screens/Permissions").then(m => ({ default: m.Permissions })));
-const OnboardingReferral = lazyWithRetry(() => import("@/screens/OnboardingReferral").then(m => ({ default: m.OnboardingReferral })));
+// Lazy chunks. We also expose the raw factories so we can warm them up
+// (prefetch) ahead of the moment the user actually advances — this is the
+// single biggest win for perceived speed between onboarding steps.
+const loadOnboardingChunk = () => import("@/screens/Onboarding").then(m => ({ default: m.Onboarding }));
+const loadAuthPhoneChunk = () => import("@/screens/AuthPhone").then(m => ({ default: m.AuthPhone }));
+const loadKycFlowChunk = () => import("@/screens/KycFlow").then(m => ({ default: m.KycFlow }));
+const loadKycPendingChunk = () => import("@/screens/KycPending").then(m => ({ default: m.KycPending }));
+const loadPermissionsChunk = () => import("@/screens/Permissions").then(m => ({ default: m.Permissions }));
+const loadReferralChunk = () => import("@/screens/OnboardingReferral").then(m => ({ default: m.OnboardingReferral }));
+const loadHomeChunk = () => import("@/screens/Home").then(m => ({ default: m.Home }));
+
+const Onboarding = lazyWithRetry(loadOnboardingChunk);
+const AuthPhone = lazyWithRetry(loadAuthPhoneChunk);
+const KycFlow = lazyWithRetry(loadKycFlowChunk);
+const KycPending = lazyWithRetry(loadKycPendingChunk);
+const Permissions = lazyWithRetry(loadPermissionsChunk);
+const OnboardingReferral = lazyWithRetry(loadReferralChunk);
+
+/** Fire a dynamic import without awaiting — warms the chunk so the next
+ *  step renders instantly when the user advances. Idle-scheduled so it
+ *  never competes with the current paint. */
+function prefetch(loaders: Array<() => Promise<unknown>>) {
+  if (typeof window === "undefined") return;
+  const run = () => { for (const l of loaders) { try { void l(); } catch { /* noop */ } } };
+  const ric = (window as unknown as { requestIdleCallback?: (cb: () => void) => number }).requestIdleCallback;
+  if (typeof ric === "function") ric(run); else window.setTimeout(run, 60);
+}
 
 const PERMISSIONS_DONE_KEY = "tw_permissions_seen_v1";
 
@@ -47,6 +68,31 @@ function OnboardingPage() {
   const [referralPending, setReferralPending] = useState<boolean>(() => shouldShowReferralPrompt());
   const markReferralDone = () => setReferralPending(false);
 
+  // Prefetch the *likely next* chunk based on current step so transitions
+  // feel instant. Each effect is cheap and idle-scheduled.
+  useEffect(() => {
+    if (stage === "STAGE_0" || stage === "STAGE_1") {
+      prefetch([loadAuthPhoneChunk, loadReferralChunk]);
+    } else if (stage === "STAGE_2") {
+      prefetch([loadReferralChunk, loadPermissionsChunk, loadKycFlowChunk]);
+    } else if (stage === "STAGE_3") {
+      prefetch([loadKycFlowChunk, loadKycPendingChunk, loadPermissionsChunk]);
+    } else if (stage === "STAGE_4") {
+      prefetch([loadKycPendingChunk, loadHomeChunk]);
+    } else if (stage === "STAGE_5") {
+      prefetch([loadHomeChunk]);
+    }
+  }, [stage]);
+
+  // After referral is dismissed, the next step is always Permissions (if
+  // unseen) → KYC → Home. Warm them all immediately so the user never
+  // sees a blank loading screen.
+  useEffect(() => {
+    if (!referralPending) {
+      prefetch([loadPermissionsChunk, loadKycFlowChunk, loadKycPendingChunk, loadHomeChunk]);
+    }
+  }, [referralPending]);
+
   // If onboarding is fully complete, go to /home.
   useEffect(() => {
     if (stage === "STAGE_5" && permsSeen && !referralPending) {
@@ -58,6 +104,32 @@ function OnboardingPage() {
       void navigate({ to: "/home", replace: true });
     }
   }, [stage, permsSeen, referralPending, navigate]);
+
+  // Decide which step to render. IMPORTANT: the Permissions gate must
+  // also catch STAGE_5 (post-KYC) — otherwise a user who finishes KYC
+  // before granting permissions falls through to the dead skeleton
+  // branch and sees an infinite "Getting things ready…" screen.
+  const showReferral = referralPending && stageRank[stage] >= stageRank["STAGE_3"];
+  const showPermissions = !permsSeen && stageRank[stage] >= stageRank["STAGE_3"];
+
+  // Self-heal: if no branch matches (corrupt/unexpected stage),
+  // recover instead of showing a forever-skeleton.
+  useEffect(() => {
+    const matches =
+      stage === "STAGE_0" || stage === "STAGE_1" || stage === "STAGE_2" ||
+      showReferral || showPermissions ||
+      stage === "STAGE_3" || stage === "STAGE_4" ||
+      (stage === "STAGE_5" && permsSeen && !referralPending);
+    if (matches) return;
+    // Reset to the most sensible step so the user is never stuck.
+    if (stageRank[stage] >= stageRank["STAGE_3"]) {
+      // Drop back to KYC start; fixes the "stage moved past STAGE_4 but
+      // permsSeen=true & referralDone=false" type of orphan state.
+      setStage("STAGE_3");
+    } else {
+      setStage("STAGE_2");
+    }
+  }, [stage, permsSeen, referralPending, showReferral, showPermissions, setStage]);
 
   return (
     <PhoneShell>
@@ -72,19 +144,21 @@ function OnboardingPage() {
             const s = useApp.getState().stage;
             setStage(stageRank[s] > stageRank["STAGE_3"] ? s : "STAGE_3");
           }} />
-        ) : referralPending && (stage === "STAGE_3" || stage === "STAGE_4" || stage === "STAGE_5") ? (
+        ) : showReferral ? (
           <OnboardingReferral onDone={markReferralDone} />
-        ) : !permsSeen && (stage === "STAGE_3" || stage === "STAGE_4") ? (
+        ) : showPermissions ? (
           <Permissions onDone={markPermsSeen} />
         ) : stage === "STAGE_3" ? (
           <KycFlow onDone={() => setStage("STAGE_4")} />
         ) : stage === "STAGE_4" ? (
           <KycPending onApproved={() => setStage("STAGE_5")} />
         ) : (
+          // Final fallback — only briefly visible while the self-heal
+          // effect above corrects the stage and the redirect-to-/home
+          // effect fires.
           <OnboardingSkeleton />
         )}
       </Suspense>
     </PhoneShell>
   );
 }
-
