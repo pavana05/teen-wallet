@@ -36,6 +36,7 @@ import { Route as AdminFraudRouteImport } from './routes/admin.fraud'
 import { Route as AdminDiagnosticsRouteImport } from './routes/admin.diagnostics'
 import { Route as AdminCampaignsRouteImport } from './routes/admin.campaigns'
 import { Route as AdminAppImagesRouteImport } from './routes/admin.app-images'
+import { Route as ApiPublicPushFanoutRouteImport } from './routes/api/public/push-fanout'
 import { Route as ApiKycVerifyRouteImport } from './routes/api/kyc.verify'
 import { Route as AdminUsersIdRouteImport } from './routes/admin.users.$id'
 
@@ -174,6 +175,11 @@ const AdminAppImagesRoute = AdminAppImagesRouteImport.update({
   path: '/app-images',
   getParentRoute: () => AdminRoute,
 } as any)
+const ApiPublicPushFanoutRoute = ApiPublicPushFanoutRouteImport.update({
+  id: '/api/public/push-fanout',
+  path: '/api/public/push-fanout',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiKycVerifyRoute = ApiKycVerifyRouteImport.update({
   id: '/api/kyc/verify',
   path: '/api/kyc/verify',
@@ -215,6 +221,7 @@ export interface FileRoutesByFullPath {
   '/preview/': typeof PreviewIndexRoute
   '/admin/users/$id': typeof AdminUsersIdRoute
   '/api/kyc/verify': typeof ApiKycVerifyRoute
+  '/api/public/push-fanout': typeof ApiPublicPushFanoutRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -245,6 +252,7 @@ export interface FileRoutesByTo {
   '/preview': typeof PreviewIndexRoute
   '/admin/users/$id': typeof AdminUsersIdRoute
   '/api/kyc/verify': typeof ApiKycVerifyRoute
+  '/api/public/push-fanout': typeof ApiPublicPushFanoutRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -277,6 +285,7 @@ export interface FileRoutesById {
   '/preview/': typeof PreviewIndexRoute
   '/admin/users/$id': typeof AdminUsersIdRoute
   '/api/kyc/verify': typeof ApiKycVerifyRoute
+  '/api/public/push-fanout': typeof ApiPublicPushFanoutRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -310,6 +319,7 @@ export interface FileRouteTypes {
     | '/preview/'
     | '/admin/users/$id'
     | '/api/kyc/verify'
+    | '/api/public/push-fanout'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -340,6 +350,7 @@ export interface FileRouteTypes {
     | '/preview'
     | '/admin/users/$id'
     | '/api/kyc/verify'
+    | '/api/public/push-fanout'
   id:
     | '__root__'
     | '/'
@@ -371,6 +382,7 @@ export interface FileRouteTypes {
     | '/preview/'
     | '/admin/users/$id'
     | '/api/kyc/verify'
+    | '/api/public/push-fanout'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -391,6 +403,7 @@ export interface RootRouteChildren {
   PreviewSplashRoute: typeof PreviewSplashRoute
   PreviewIndexRoute: typeof PreviewIndexRoute
   ApiKycVerifyRoute: typeof ApiKycVerifyRoute
+  ApiPublicPushFanoutRoute: typeof ApiPublicPushFanoutRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -584,6 +597,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminAppImagesRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/api/public/push-fanout': {
+      id: '/api/public/push-fanout'
+      path: '/api/public/push-fanout'
+      fullPath: '/api/public/push-fanout'
+      preLoaderRoute: typeof ApiPublicPushFanoutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/kyc/verify': {
       id: '/api/kyc/verify'
       path: '/api/kyc/verify'
@@ -661,6 +681,7 @@ const rootRouteChildren: RootRouteChildren = {
   PreviewSplashRoute: PreviewSplashRoute,
   PreviewIndexRoute: PreviewIndexRoute,
   ApiKycVerifyRoute: ApiKycVerifyRoute,
+  ApiPublicPushFanoutRoute: ApiPublicPushFanoutRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
