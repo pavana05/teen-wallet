@@ -177,6 +177,7 @@ export const Route = createFileRoute("/api/public/push-fanout")({
                 data: {
                   type: payload.type ?? "general",
                   notification_id: payload.notification_id ?? "",
+                  transaction_id: transactionId,
                 },
                 android: {
                   priority: "HIGH",
