@@ -7,6 +7,7 @@ import { shouldShowReferralPrompt } from "@/lib/referral";
 import { HomeSkeleton } from "@/components/BootSkeletons";
 import { recordRedirect } from "@/lib/redirectLog";
 import { runSelfCheck, stageRank, PERMISSIONS_DONE_KEY, type SelfCheckResult } from "@/lib/bootSelfCheck";
+import { reconcileAppState } from "@/lib/stateReconciler";
 import { StartupErrorScreen } from "@/components/StartupErrorScreen";
 import { reportError } from "@/lib/lastError";
 
