@@ -91,15 +91,23 @@ function OnboardingPage() {
   const [referralPending, setReferralPending] = useState<boolean>(() => shouldShowReferralPrompt());
   const markReferralDone = () => setReferralPending(false);
 
-  // Prefetch the *likely next* chunk based on current step so transitions
-  // feel instant. Each effect is cheap and idle-scheduled.
+  // Warm ALL onboarding chunks once on mount. By the time the user
+  // reaches the referral screen (a few seconds in), KycFlow + Permissions
+  // are already cached so transitions feel instant instead of triggering
+  // a fresh network fetch behind the "Getting things ready…" skeleton.
+  useEffect(() => { warmAllOnboardingChunks(); }, []);
+
+  // Prefetch the *immediate next* chunk based on current step — fires
+  // SYNCHRONOUSLY (no idle gating) so a user who taps fast still hits a
+  // warm cache.
   useEffect(() => {
     if (stage === "STAGE_0" || stage === "STAGE_1") {
       prefetch([loadAuthPhoneChunk, loadReferralChunk]);
     } else if (stage === "STAGE_2") {
       prefetch([loadReferralChunk, loadPermissionsChunk, loadKycFlowChunk]);
     } else if (stage === "STAGE_3") {
-      prefetch([loadKycFlowChunk, loadKycPendingChunk, loadPermissionsChunk]);
+      prefetch([loadKycFlowChunk, loadPermissionsChunk]);
+      prefetchIdle([loadKycPendingChunk, loadHomeChunk]);
     } else if (stage === "STAGE_4") {
       prefetch([loadKycPendingChunk, loadHomeChunk]);
     } else if (stage === "STAGE_5") {
@@ -107,11 +115,13 @@ function OnboardingPage() {
     }
   }, [stage]);
 
-  // After referral is dismissed, the next step is always Permissions (if
-  // unseen) → KYC → Home. Warm them all immediately so the user never
-  // sees a blank loading screen.
+  // While the referral screen is mounted, KycFlow + Permissions are the
+  // immediate next steps — warm them aggressively (not idle) so the
+  // "after referral, app stops loading" gap disappears.
   useEffect(() => {
-    if (!referralPending) {
+    if (referralPending) {
+      prefetch([loadPermissionsChunk, loadKycFlowChunk]);
+    } else {
       prefetch([loadPermissionsChunk, loadKycFlowChunk, loadKycPendingChunk, loadHomeChunk]);
     }
   }, [referralPending]);
