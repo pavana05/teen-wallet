@@ -95,9 +95,29 @@ async function requestPermission(key: PermKey): Promise<PermStatus> {
           }
           return "denied";
         }
-        if (!("Notification" in window)) return "granted";
-        const r = await Notification.requestPermission();
-        return r === "granted" ? "granted" : "denied";
+        // Web fallback. The Notifications API may be:
+        //   • missing entirely (older browsers, in-app browsers)
+        //   • blocked by Permissions-Policy when running inside an iframe
+        //     (the Lovable preview is iframed) — calling requestPermission()
+        //     then throws a NotAllowedError synchronously.
+        //   • already granted/denied at the browser level.
+        // In all "we can't actually ask" cases we resolve as granted so the
+        // gate doesn't permanently lock the user out of the preview.
+        if (typeof window === "undefined" || !("Notification" in window)) return "granted";
+        try {
+          // If the user already granted at the browser level, skip the prompt.
+          if (Notification.permission === "granted") return "granted";
+          // Iframed previews: requestPermission() is disabled and throws.
+          // Detect iframe and short-circuit to granted instead of failing.
+          const inIframe = window.self !== window.top;
+          if (inIframe) return "granted";
+          const r = await Notification.requestPermission();
+          return r === "granted" ? "granted" : "denied";
+        } catch (err) {
+          // NotAllowedError / SecurityError from a sandboxed/iframed context.
+          console.warn("[permissions] notifications request failed, treating as granted on web", err);
+          return "granted";
+        }
       }
       case "phone":
       case "sms": {
