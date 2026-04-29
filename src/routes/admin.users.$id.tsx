@@ -219,7 +219,7 @@ function UserDetail() {
 
           {canManage && (
             <div style={{ marginTop: 16, paddingTop: 16, borderTop: "1px solid var(--a-border)", display: "grid", gap: 8 }}>
-              <div className="a-label" style={{ marginBottom: 4 }}>Actions</div>
+              <div className="a-label" style={{ marginBottom: 4 }}>KYC</div>
               <button className="a-btn" disabled={busy || p.kyc_status === "approved"} onClick={() => setKyc("approved")}>
                 <ShieldCheck size={14} /> Approve KYC
               </button>
@@ -229,9 +229,50 @@ function UserDetail() {
               <button className="a-btn a-btn-ghost" disabled={busy} onClick={() => setKyc("not_started")}>
                 <RotateCcw size={14} /> Reset KYC
               </button>
+
+              <div className="a-label" style={{ marginTop: 12, marginBottom: 4 }}>Wallet</div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                <button className="a-btn" disabled={busy} onClick={() => adjustBalance(1)}>
+                  <Plus size={14} /> Credit
+                </button>
+                <button className="a-btn a-btn-ghost" disabled={busy} onClick={() => adjustBalance(-1)}>
+                  <Minus size={14} /> Debit
+                </button>
+              </div>
+
+              <div className="a-label" style={{ marginTop: 12, marginBottom: 4 }}>Tag</div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                <button className="a-btn a-btn-ghost" disabled={busy || p.account_tag === "standard"} onClick={() => setTag("standard")}>
+                  <Tag size={14} /> Standard
+                </button>
+                <button className="a-btn a-btn-ghost" disabled={busy || p.account_tag === "vip"} onClick={() => setTag("vip")}>
+                  <Tag size={14} /> VIP
+                </button>
+                <button className="a-btn a-btn-ghost" disabled={busy || p.account_tag === "watchlist"} onClick={() => setTag("watchlist")}>
+                  <Tag size={14} /> Watchlist
+                </button>
+                <button className="a-btn a-btn-ghost" disabled={busy || p.account_tag === "risky"} onClick={() => setTag("risky")}>
+                  <Tag size={14} /> Risky
+                </button>
+              </div>
+
+              <div className="a-label" style={{ marginTop: 12, marginBottom: 4 }}>Account</div>
+              {p.account_locked ? (
+                <button className="a-btn" disabled={busy} onClick={() => setLock(false)}>
+                  <Unlock size={14} /> Unlock account
+                </button>
+              ) : (
+                <button className="a-btn a-btn-ghost" disabled={busy} onClick={() => setLock(true)} style={{ color: "#fca5a5" }}>
+                  <Lock size={14} /> Lock account
+                </button>
+              )}
+              <button className="a-btn a-btn-ghost" disabled={busy} onClick={forceLogout}>
+                <LogOut size={14} /> Force logout
+              </button>
             </div>
           )}
         </div>
+
 
         {/* Right panel: tabs */}
         <div>
