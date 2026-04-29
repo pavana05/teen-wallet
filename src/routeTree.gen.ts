@@ -9,8 +9,6 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as OnboardingRouteImport } from './routes/onboarding'
-import { Route as HomeRouteImport } from './routes/home'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as PreviewIndexRouteImport } from './routes/preview.index'
@@ -21,12 +19,10 @@ import { Route as PreviewReferralProgramRouteImport } from './routes/preview.ref
 import { Route as PreviewProfileHelpRouteImport } from './routes/preview.profile-help'
 import { Route as PreviewPhoneVerifiedRouteImport } from './routes/preview.phone-verified'
 import { Route as PreviewPermissionsRouteImport } from './routes/preview.permissions'
-import { Route as PreviewOnboardingRouteImport } from './routes/preview.onboarding'
 import { Route as PreviewKycRejectedRouteImport } from './routes/preview.kyc-rejected'
 import { Route as PreviewKycPendingRouteImport } from './routes/preview.kyc-pending'
 import { Route as PreviewKycFlowRouteImport } from './routes/preview.kyc-flow'
 import { Route as PreviewKycApprovedRouteImport } from './routes/preview.kyc-approved'
-import { Route as PreviewHomeRouteImport } from './routes/preview.home'
 import { Route as PreviewAuthPhoneRouteImport } from './routes/preview.auth-phone'
 import { Route as DiagnosticsRoutesRouteImport } from './routes/diagnostics.routes'
 import { Route as AdminWalletRouteImport } from './routes/admin.wallet'
@@ -51,16 +47,6 @@ import { Route as AdminAdminsRouteImport } from './routes/admin.admins'
 import { Route as ApiKycVerifyRouteImport } from './routes/api/kyc.verify'
 import { Route as AdminUsersIdRouteImport } from './routes/admin.users.$id'
 
-const OnboardingRoute = OnboardingRouteImport.update({
-  id: '/onboarding',
-  path: '/onboarding',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const HomeRoute = HomeRouteImport.update({
-  id: '/home',
-  path: '/home',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const AdminRoute = AdminRouteImport.update({
   id: '/admin',
   path: '/admin',
@@ -111,11 +97,6 @@ const PreviewPermissionsRoute = PreviewPermissionsRouteImport.update({
   path: '/preview/permissions',
   getParentRoute: () => rootRouteImport,
 } as any)
-const PreviewOnboardingRoute = PreviewOnboardingRouteImport.update({
-  id: '/preview/onboarding',
-  path: '/preview/onboarding',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const PreviewKycRejectedRoute = PreviewKycRejectedRouteImport.update({
   id: '/preview/kyc-rejected',
   path: '/preview/kyc-rejected',
@@ -134,11 +115,6 @@ const PreviewKycFlowRoute = PreviewKycFlowRouteImport.update({
 const PreviewKycApprovedRoute = PreviewKycApprovedRouteImport.update({
   id: '/preview/kyc-approved',
   path: '/preview/kyc-approved',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PreviewHomeRoute = PreviewHomeRouteImport.update({
-  id: '/preview/home',
-  path: '/preview/home',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PreviewAuthPhoneRoute = PreviewAuthPhoneRouteImport.update({
@@ -260,8 +236,6 @@ const AdminUsersIdRoute = AdminUsersIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
-  '/home': typeof HomeRoute
-  '/onboarding': typeof OnboardingRoute
   '/admin/admins': typeof AdminAdminsRoute
   '/admin/app-images': typeof AdminAppImagesRoute
   '/admin/campaigns': typeof AdminCampaignsRoute
@@ -283,12 +257,10 @@ export interface FileRoutesByFullPath {
   '/admin/wallet': typeof AdminWalletRoute
   '/diagnostics/routes': typeof DiagnosticsRoutesRoute
   '/preview/auth-phone': typeof PreviewAuthPhoneRoute
-  '/preview/home': typeof PreviewHomeRoute
   '/preview/kyc-approved': typeof PreviewKycApprovedRoute
   '/preview/kyc-flow': typeof PreviewKycFlowRoute
   '/preview/kyc-pending': typeof PreviewKycPendingRoute
   '/preview/kyc-rejected': typeof PreviewKycRejectedRoute
-  '/preview/onboarding': typeof PreviewOnboardingRoute
   '/preview/permissions': typeof PreviewPermissionsRoute
   '/preview/phone-verified': typeof PreviewPhoneVerifiedRoute
   '/preview/profile-help': typeof PreviewProfileHelpRoute
@@ -302,8 +274,6 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/home': typeof HomeRoute
-  '/onboarding': typeof OnboardingRoute
   '/admin/admins': typeof AdminAdminsRoute
   '/admin/app-images': typeof AdminAppImagesRoute
   '/admin/campaigns': typeof AdminCampaignsRoute
@@ -325,12 +295,10 @@ export interface FileRoutesByTo {
   '/admin/wallet': typeof AdminWalletRoute
   '/diagnostics/routes': typeof DiagnosticsRoutesRoute
   '/preview/auth-phone': typeof PreviewAuthPhoneRoute
-  '/preview/home': typeof PreviewHomeRoute
   '/preview/kyc-approved': typeof PreviewKycApprovedRoute
   '/preview/kyc-flow': typeof PreviewKycFlowRoute
   '/preview/kyc-pending': typeof PreviewKycPendingRoute
   '/preview/kyc-rejected': typeof PreviewKycRejectedRoute
-  '/preview/onboarding': typeof PreviewOnboardingRoute
   '/preview/permissions': typeof PreviewPermissionsRoute
   '/preview/phone-verified': typeof PreviewPhoneVerifiedRoute
   '/preview/profile-help': typeof PreviewProfileHelpRoute
@@ -346,8 +314,6 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
-  '/home': typeof HomeRoute
-  '/onboarding': typeof OnboardingRoute
   '/admin/admins': typeof AdminAdminsRoute
   '/admin/app-images': typeof AdminAppImagesRoute
   '/admin/campaigns': typeof AdminCampaignsRoute
@@ -369,12 +335,10 @@ export interface FileRoutesById {
   '/admin/wallet': typeof AdminWalletRoute
   '/diagnostics/routes': typeof DiagnosticsRoutesRoute
   '/preview/auth-phone': typeof PreviewAuthPhoneRoute
-  '/preview/home': typeof PreviewHomeRoute
   '/preview/kyc-approved': typeof PreviewKycApprovedRoute
   '/preview/kyc-flow': typeof PreviewKycFlowRoute
   '/preview/kyc-pending': typeof PreviewKycPendingRoute
   '/preview/kyc-rejected': typeof PreviewKycRejectedRoute
-  '/preview/onboarding': typeof PreviewOnboardingRoute
   '/preview/permissions': typeof PreviewPermissionsRoute
   '/preview/phone-verified': typeof PreviewPhoneVerifiedRoute
   '/preview/profile-help': typeof PreviewProfileHelpRoute
@@ -391,8 +355,6 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/admin'
-    | '/home'
-    | '/onboarding'
     | '/admin/admins'
     | '/admin/app-images'
     | '/admin/campaigns'
@@ -414,12 +376,10 @@ export interface FileRouteTypes {
     | '/admin/wallet'
     | '/diagnostics/routes'
     | '/preview/auth-phone'
-    | '/preview/home'
     | '/preview/kyc-approved'
     | '/preview/kyc-flow'
     | '/preview/kyc-pending'
     | '/preview/kyc-rejected'
-    | '/preview/onboarding'
     | '/preview/permissions'
     | '/preview/phone-verified'
     | '/preview/profile-help'
@@ -433,8 +393,6 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/home'
-    | '/onboarding'
     | '/admin/admins'
     | '/admin/app-images'
     | '/admin/campaigns'
@@ -456,12 +414,10 @@ export interface FileRouteTypes {
     | '/admin/wallet'
     | '/diagnostics/routes'
     | '/preview/auth-phone'
-    | '/preview/home'
     | '/preview/kyc-approved'
     | '/preview/kyc-flow'
     | '/preview/kyc-pending'
     | '/preview/kyc-rejected'
-    | '/preview/onboarding'
     | '/preview/permissions'
     | '/preview/phone-verified'
     | '/preview/profile-help'
@@ -476,8 +432,6 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/admin'
-    | '/home'
-    | '/onboarding'
     | '/admin/admins'
     | '/admin/app-images'
     | '/admin/campaigns'
@@ -499,12 +453,10 @@ export interface FileRouteTypes {
     | '/admin/wallet'
     | '/diagnostics/routes'
     | '/preview/auth-phone'
-    | '/preview/home'
     | '/preview/kyc-approved'
     | '/preview/kyc-flow'
     | '/preview/kyc-pending'
     | '/preview/kyc-rejected'
-    | '/preview/onboarding'
     | '/preview/permissions'
     | '/preview/phone-verified'
     | '/preview/profile-help'
@@ -520,16 +472,12 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRouteWithChildren
-  HomeRoute: typeof HomeRoute
-  OnboardingRoute: typeof OnboardingRoute
   DiagnosticsRoutesRoute: typeof DiagnosticsRoutesRoute
   PreviewAuthPhoneRoute: typeof PreviewAuthPhoneRoute
-  PreviewHomeRoute: typeof PreviewHomeRoute
   PreviewKycApprovedRoute: typeof PreviewKycApprovedRoute
   PreviewKycFlowRoute: typeof PreviewKycFlowRoute
   PreviewKycPendingRoute: typeof PreviewKycPendingRoute
   PreviewKycRejectedRoute: typeof PreviewKycRejectedRoute
-  PreviewOnboardingRoute: typeof PreviewOnboardingRoute
   PreviewPermissionsRoute: typeof PreviewPermissionsRoute
   PreviewPhoneVerifiedRoute: typeof PreviewPhoneVerifiedRoute
   PreviewProfileHelpRoute: typeof PreviewProfileHelpRoute
@@ -542,20 +490,6 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/onboarding': {
-      id: '/onboarding'
-      path: '/onboarding'
-      fullPath: '/onboarding'
-      preLoaderRoute: typeof OnboardingRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/home': {
-      id: '/home'
-      path: '/home'
-      fullPath: '/home'
-      preLoaderRoute: typeof HomeRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/admin': {
       id: '/admin'
       path: '/admin'
@@ -626,13 +560,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PreviewPermissionsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/preview/onboarding': {
-      id: '/preview/onboarding'
-      path: '/preview/onboarding'
-      fullPath: '/preview/onboarding'
-      preLoaderRoute: typeof PreviewOnboardingRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/preview/kyc-rejected': {
       id: '/preview/kyc-rejected'
       path: '/preview/kyc-rejected'
@@ -659,13 +586,6 @@ declare module '@tanstack/react-router' {
       path: '/preview/kyc-approved'
       fullPath: '/preview/kyc-approved'
       preLoaderRoute: typeof PreviewKycApprovedRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/preview/home': {
-      id: '/preview/home'
-      path: '/preview/home'
-      fullPath: '/preview/home'
-      preLoaderRoute: typeof PreviewHomeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/preview/auth-phone': {
@@ -895,16 +815,12 @@ const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRouteWithChildren,
-  HomeRoute: HomeRoute,
-  OnboardingRoute: OnboardingRoute,
   DiagnosticsRoutesRoute: DiagnosticsRoutesRoute,
   PreviewAuthPhoneRoute: PreviewAuthPhoneRoute,
-  PreviewHomeRoute: PreviewHomeRoute,
   PreviewKycApprovedRoute: PreviewKycApprovedRoute,
   PreviewKycFlowRoute: PreviewKycFlowRoute,
   PreviewKycPendingRoute: PreviewKycPendingRoute,
   PreviewKycRejectedRoute: PreviewKycRejectedRoute,
-  PreviewOnboardingRoute: PreviewOnboardingRoute,
   PreviewPermissionsRoute: PreviewPermissionsRoute,
   PreviewPhoneVerifiedRoute: PreviewPhoneVerifiedRoute,
   PreviewProfileHelpRoute: PreviewProfileHelpRoute,
