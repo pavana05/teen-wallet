@@ -69,7 +69,7 @@ function UserDetail() {
   useEffect(() => {
     const sp = new URLSearchParams(window.location.search);
     const t = sp.get("tab");
-    if (t && ["timeline", "txn", "kyc", "fraud", "audit"].includes(t)) setTab(t as Tab);
+    if (t && ["timeline", "txn", "kyc", "fraud", "audit", "contacts", "attempts", "referrals", "notifs"].includes(t)) setTab(t as Tab);
   }, []);
 
   async function load() {
