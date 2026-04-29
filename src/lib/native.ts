@@ -2,6 +2,8 @@ import { Capacitor } from "@capacitor/core";
 import { StatusBar, Style } from "@capacitor/status-bar";
 import { SplashScreen } from "@capacitor/splash-screen";
 import { App } from "@capacitor/app";
+import { registerPushNotifications } from "./pushTokens";
+import { supabase } from "@/integrations/supabase/client";
 
 /**
  * Initialise Capacitor-only behaviour. Safe no-op in the web preview.
@@ -24,7 +26,6 @@ export async function initNative() {
     /* Splash already hidden */
   }
 
-  // Hardware back button: if there's history, go back; otherwise minimise.
   try {
     App.addListener("backButton", ({ canGoBack }) => {
       if (canGoBack) {
@@ -35,6 +36,17 @@ export async function initNative() {
     });
   } catch {
     /* App plugin not available */
+  }
+
+  // Register for push when authenticated, and on auth changes
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) void registerPushNotifications();
+    supabase.auth.onAuthStateChange((_e, session) => {
+      if (session?.user) void registerPushNotifications();
+    });
+  } catch {
+    /* push registration failed silently */
   }
 }
 
