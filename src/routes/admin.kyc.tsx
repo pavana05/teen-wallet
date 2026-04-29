@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import { VirtualTable, type Column } from "@/admin/components/VirtualTable";
 import { usePersistedState } from "@/admin/lib/usePersistedState";
 import { recordPanelLoad, recordRealtime } from "@/admin/lib/perfBus";
+import { ExportCsvButton } from "@/admin/components/ExportCsvButton";
 
 export const Route = createFileRoute("/admin/kyc")({
   component: KycQueue,
@@ -584,9 +585,12 @@ function KycQueue() {
             Review and decide identity verifications submitted by users.
           </p>
         </div>
-        <button onClick={() => { setCursor(null); setRows([]); void fetchList(true); }} className="a-btn-ghost" disabled={initialLoading}>
-          <RefreshCw size={14} className={initialLoading ? "animate-spin" : ""} /> Refresh
-        </button>
+        <div style={{ display: "flex", gap: 8 }}>
+          <ExportCsvButton dataset="kyc" filters={{ status: filters.status === "all" ? "" : filters.status }} />
+          <button onClick={() => { setCursor(null); setRows([]); void fetchList(true); }} className="a-btn-ghost" disabled={initialLoading}>
+            <RefreshCw size={14} className={initialLoading ? "animate-spin" : ""} /> Refresh
+          </button>
+        </div>
       </div>
 
       <PermissionBanner
