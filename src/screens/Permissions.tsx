@@ -474,8 +474,6 @@ export function Permissions({ onDone }: Props) {
           );
         })}
       </div>
-        })}
-      </div>
 
       {/* Persistent banner when any permission is denied — explains the lock */}
       {deniedCount > 0 && !allGranted && (
