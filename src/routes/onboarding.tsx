@@ -8,6 +8,7 @@ import { shouldShowReferralPrompt, markReferralPromptDone } from "@/lib/referral
 import { OnboardingSkeleton } from "@/components/BootSkeletons";
 import { recordRedirect } from "@/lib/redirectLog";
 import { readPersistedSnapshot, readSessionFromStorage, stageRank as bootStageRank, PERMISSIONS_DONE_KEY as BOOT_PERMISSIONS_DONE_KEY } from "@/lib/bootSelfCheck";
+import { reconcileAppState } from "@/lib/stateReconciler";
 
 // Lazy chunks. We also expose the raw factories so we can warm them up
 // (prefetch) ahead of the moment the user actually advances — this is the
