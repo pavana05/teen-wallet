@@ -756,12 +756,17 @@ Deno.serve(async (req) => {
     if (!can(me.role, "viewUsers")) return json({ error: "forbidden" }, 403);
     const userId = String(body.userId ?? "");
     if (!userId) return json({ error: "missing_userId" }, 400);
-    const [profile, txns, kyc, fraud, parental] = await Promise.all([
+    const [profile, txns, kyc, fraud, parental, contacts, attempts, refsAsReferrer, refsAsReferred, notifs] = await Promise.all([
       sb.from("profiles").select("*").eq("id", userId).maybeSingle(),
       sb.from("transactions").select("*").eq("user_id", userId).order("created_at", { ascending: false }).limit(100),
       sb.from("kyc_submissions").select("*").eq("user_id", userId).order("created_at", { ascending: false }),
       sb.from("fraud_logs").select("*").eq("user_id", userId).order("created_at", { ascending: false }),
       sb.from("parental_links").select("*").eq("teen_user_id", userId).maybeSingle(),
+      sb.from("contacts").select("*").eq("user_id", userId).order("created_at", { ascending: false }).limit(100),
+      sb.from("payment_attempts").select("*").eq("user_id", userId).order("created_at", { ascending: false }).limit(50),
+      sb.from("referrals").select("*").eq("referrer_user_id", userId).order("created_at", { ascending: false }),
+      sb.from("referrals").select("*").eq("referred_user_id", userId).order("created_at", { ascending: false }),
+      sb.from("notifications").select("id,type,title,body,read,created_at").eq("user_id", userId).order("created_at", { ascending: false }).limit(50),
     ]);
     if (!profile.data) return json({ error: "not_found" }, 404);
 
@@ -781,6 +786,11 @@ Deno.serve(async (req) => {
       fraud: fraud.data ?? [],
       parental: parental.data ?? null,
       audit: auditRows ?? [],
+      contacts: contacts.data ?? [],
+      paymentAttempts: attempts.data ?? [],
+      referralsGiven: refsAsReferrer.data ?? [],
+      referralReceived: (refsAsReferred.data ?? [])[0] ?? null,
+      notifications: notifs.data ?? [],
     });
   }
 
