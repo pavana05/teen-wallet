@@ -27,13 +27,36 @@ const Permissions = lazyWithRetry(loadPermissionsChunk);
 const OnboardingReferral = lazyWithRetry(loadReferralChunk);
 
 /** Fire a dynamic import without awaiting — warms the chunk so the next
- *  step renders instantly when the user advances. Idle-scheduled so it
- *  never competes with the current paint. */
+ *  step renders instantly when the user advances.
+ *
+ *  We deliberately do NOT use requestIdleCallback for the immediate next
+ *  step, because on slow networks (3G, weak Wi-Fi) the user can advance
+ *  faster than idle fires, causing the dreaded "Getting things ready…"
+ *  skeleton between steps. Critical chunks fire immediately; nice-to-haves
+ *  can be deferred via `prefetchIdle`. */
 function prefetch(loaders: Array<() => Promise<unknown>>) {
   if (typeof window === "undefined") return;
-  const run = () => { for (const l of loaders) { try { void l(); } catch { /* noop */ } } };
+  for (const l of loaders) { try { void l(); } catch { /* noop */ } }
+}
+function prefetchIdle(loaders: Array<() => Promise<unknown>>) {
+  if (typeof window === "undefined") return;
+  const run = () => prefetch(loaders);
   const ric = (window as unknown as { requestIdleCallback?: (cb: () => void) => number }).requestIdleCallback;
   if (typeof ric === "function") ric(run); else window.setTimeout(run, 60);
+}
+
+/** Fire-and-forget warm of every onboarding chunk. Called once on mount so
+ *  the entire flow is in the browser cache before the user reaches any
+ *  individual step. KycFlow is ~1k lines and is the most painful step to
+ *  lazy-load mid-flow — warming it during onboarding hides that cost. */
+function warmAllOnboardingChunks() {
+  prefetchIdle([
+    loadAuthPhoneChunk,
+    loadReferralChunk,
+    loadPermissionsChunk,
+    loadKycFlowChunk,
+    loadKycPendingChunk,
+  ]);
 }
 
 const PERMISSIONS_DONE_KEY = "tw_permissions_seen_v1";
