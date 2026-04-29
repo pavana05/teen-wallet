@@ -136,11 +136,10 @@ function Index() {
             useApp.getState().setStageLocal("STAGE_3");
           }
           const finalStage = useApp.getState().stage;
-          const permsSeen = (() => {
-            try { return localStorage.getItem(PERMISSIONS_DONE_KEY) === "1"; } catch { return true; }
-          })();
-          const referralPending = shouldShowReferralPrompt();
-          target = (finalStage === "STAGE_5" && permsSeen && !referralPending) ? "/home" : "/onboarding";
+          // Logged-in + KYC approved → straight to /home, regardless of
+          // local-only prompts (permissions, referral). See matching
+          // logic in beforeLoad above.
+          target = finalStage === "STAGE_5" ? "/home" : "/onboarding";
         } else {
           // No session at all — clear any stale stage > STAGE_2.
           const stage = useApp.getState().stage;
