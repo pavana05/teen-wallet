@@ -187,6 +187,7 @@ export async function notifyPaymentFailed(
   const title = `Payment of ${formatted} to ${payeeName} failed`;
   const body = (reason && reason.trim()) ? reason : "Tap to retry from History.";
   await insertNotification({ userId, type: "payment_failed", title, body });
+  toastPaymentFailed(null, amount, payeeName, reason);
 }
 
 /** Payment taking longer than expected — call when a payment stays in processing too long. */
@@ -199,6 +200,7 @@ export async function notifyPaymentPending(
   const title = `Payment of ${formatted} to ${payeeName} is pending`;
   const body = "Bank is taking longer than usual. We'll update you as soon as it settles.";
   await insertNotification({ userId, type: "payment_pending", title, body });
+  // Pending live-toast is owned by ScanPay (it has the attemptId for in-place updates).
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
