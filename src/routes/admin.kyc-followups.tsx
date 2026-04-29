@@ -163,7 +163,18 @@ function phoneFor(row: FollowupRow): { wa: string; sms: string; display: string 
 function openWhatsApp(row: FollowupRow): "ok" | "no_phone" {
   const p = phoneFor(row);
   if (!p || !row.phone_valid) return "no_phone";
-  window.open(`https://wa.me/${p.wa}?text=${encodeURIComponent(buildMessage(row))}`, "_blank", "noopener,noreferrer");
+  // Use web.whatsapp.com on desktop (wa.me redirects through api.whatsapp.com which is
+  // blocked by some browser shields/extensions). Fall back to wa.me on mobile/native apps.
+  const text = encodeURIComponent(buildMessage(row));
+  const isMobile = typeof navigator !== "undefined" && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  const url = isMobile
+    ? `whatsapp://send?phone=${p.wa}&text=${text}`
+    : `https://web.whatsapp.com/send?phone=${p.wa}&text=${text}&type=phone_number&app_absent=0`;
+  const win = window.open(url, "_blank", "noopener,noreferrer");
+  // Mobile fallback: if the whatsapp:// scheme didn't open, fall back to wa.me
+  if (isMobile && !win) {
+    window.location.href = `https://wa.me/${p.wa}?text=${text}`;
+  }
   void callAdminFn({ action: "kyc_reminder_record", userId: row.id, channel: "whatsapp", stage: row.onboarding_stage }).catch(() => {});
   return "ok";
 }
