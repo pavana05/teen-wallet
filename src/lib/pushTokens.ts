@@ -3,8 +3,10 @@ import {
   PushNotifications,
   type Token,
   type PushNotificationSchema,
+  type ActionPerformed,
 } from "@capacitor/push-notifications";
 import { supabase } from "@/integrations/supabase/client";
+import { setPendingDeepLink } from "./deepLink";
 
 let registered = false;
 
