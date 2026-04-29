@@ -73,19 +73,31 @@ export const Route = createFileRoute("/onboarding")({
       { name: "description", content: "Set up your Teen Wallet account: verify your phone, complete KYC, and start paying." },
     ],
   }),
-  // Synchronous guard: if the user already has an active Supabase session
-  // AND their persisted onboarding stage is STAGE_5 (KYC approved), they
-  // are fully onboarded — send them to /home instead of showing the
-  // onboarding flow. Runs entirely off localStorage so there's no async
-  // delay and no flash of the onboarding splash.
+  // Synchronous guard. Two cases short-circuit the onboarding flow:
+  //   1) STAGE_5 + live session → user is fully onboarded → /home
+  //   2) Any live session at all → never re-show the optional referral
+  //      prompt (auth implies they've been here before). We also bump
+  //      perms-seen so a refreshed device doesn't get stuck on the
+  //      permissions step for an already-active account.
+  // Runs entirely off localStorage so there's no async delay and no
+  // flash of the onboarding splash.
   beforeLoad: ({ location }) => {
     if (typeof window === "undefined") return;
     const { stage, userId } = readPersistedSnapshot();
     const session = readSessionFromStorage();
     const hasLiveSession = session.hasSession || !!session.userId;
+
+    if (hasLiveSession) {
+      // Suppress the optional referral nag for any returning auth'd user.
+      try { markReferralPromptDone(); } catch { /* ignore */ }
+    }
+
     const isFullyOnboarded =
-      !!userId && hasLiveSession && bootStageRank[stage] >= bootStageRank["STAGE_5"];
+      !!(userId || session.userId) && hasLiveSession &&
+      bootStageRank[stage] >= bootStageRank["STAGE_5"];
     if (isFullyOnboarded) {
+      // Make sure the permissions gate doesn't bounce them either.
+      try { window.localStorage.setItem(BOOT_PERMISSIONS_DONE_KEY, "1"); } catch { /* ignore */ }
       recordRedirect({
         from: location.pathname,
         to: "/home",
