@@ -438,6 +438,28 @@
 
         // ----- handoff to real app -----
         var handoffStarted = false;
+        var handoffWatchdog = null;
+        function clearHandoffWatchdog() {
+          if (handoffWatchdog) { clearTimeout(handoffWatchdog); handoffWatchdog = null; }
+        }
+        function doNavigate() {
+          // Watchdog: if the WebView never paints the live app within 12s,
+          // fall back to the offline screen so the user is never stuck on
+          // a spinner forever (slow network, DNS failure, server cold start).
+          clearHandoffWatchdog();
+          handoffWatchdog = setTimeout(function () {
+            // If we're still here, the navigation never completed.
+            show("offline");
+            handoffStarted = false;
+          }, 12000);
+          try {
+            window.location.replace(APP_URL);
+          } catch (e) {
+            // Last-resort fallback if replace() throws inside a sandboxed WebView.
+            try { window.location.href = APP_URL; }
+            catch (e2) { show("offline"); handoffStarted = false; clearHandoffWatchdog(); }
+          }
+        }
         function handoffToApp() {
           if (handoffStarted) return;
           handoffStarted = true;
@@ -446,13 +468,16 @@
             // Wait briefly in case the flag is stale on cold boot
             setTimeout(function () {
               if (!navigator.onLine) { show("offline"); handoffStarted = false; }
-              else window.location.replace(APP_URL);
+              else doNavigate();
             }, 1000);
             return;
           }
           // Tiny delay so the handoff spinner is visible (no flash)
-          setTimeout(function () { window.location.replace(APP_URL); }, 250);
+          setTimeout(doNavigate, 250);
         }
+        // If the page is being unloaded the navigation succeeded — clear the watchdog.
+        window.addEventListener("pagehide", clearHandoffWatchdog);
+        window.addEventListener("beforeunload", clearHandoffWatchdog);
 
         // ----- offline retry -----
         document.getElementById("offline-retry").addEventListener("click", function () {
