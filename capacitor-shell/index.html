@@ -199,6 +199,35 @@
         font-size: 14px; font-weight: 600; cursor: pointer;
         box-shadow: 0 8px 24px -8px rgba(99,102,241,0.55);
       }
+      .retry-status {
+        margin-top: 14px; font-size: 12px; color: rgba(255,255,255,0.5);
+        min-height: 16px;
+      }
+      .err-panel {
+        margin-top: 18px; width: 100%; max-width: 360px;
+        background: rgba(255,255,255,0.04);
+        border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 14px; padding: 12px 14px; text-align: left;
+      }
+      .err-panel summary {
+        cursor: pointer; font-size: 12px; font-weight: 600;
+        color: rgba(255,255,255,0.75); list-style: none;
+        display: flex; align-items: center; justify-content: space-between;
+      }
+      .err-panel summary::-webkit-details-marker { display: none; }
+      .err-panel summary::after { content: "▾"; opacity: 0.5; font-size: 10px; }
+      .err-panel[open] summary::after { content: "▴"; }
+      .err-rows { margin-top: 10px; display: grid; gap: 6px; }
+      .err-row { display: grid; grid-template-columns: 88px 1fr; gap: 8px; font-size: 11.5px; }
+      .err-k { color: rgba(255,255,255,0.45); }
+      .err-v { color: rgba(255,255,255,0.85); word-break: break-word; font-family: ui-monospace, "SF Mono", Menlo, monospace; }
+      .err-actions { margin-top: 10px; display: flex; gap: 8px; }
+      .err-actions button {
+        flex: 1; appearance: none; border: 1px solid rgba(255,255,255,0.12);
+        background: rgba(255,255,255,0.04); color: rgba(255,255,255,0.85);
+        padding: 8px 10px; border-radius: 10px; font-size: 11.5px; font-weight: 500;
+        cursor: pointer; box-shadow: none;
+      }
 
       /* ============ ANIMATIONS ============ */
       @keyframes pulse {
@@ -273,9 +302,24 @@
       <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.5)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
         <path d="M1 1l22 22"/><path d="M16.72 11.06A10.94 10.94 0 0119 12.55"/><path d="M5 12.55a10.94 10.94 0 015.17-2.39"/><path d="M10.71 5.05A16 16 0 0122.58 9"/><path d="M1.42 9a15.91 15.91 0 014.7-2.88"/><path d="M8.53 16.11a6 6 0 016.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/>
       </svg>
-      <h2>You're offline</h2>
-      <p>Teen Wallet needs an internet connection to start. Check your network and try again.</p>
+      <h2 id="offline-title">You're offline</h2>
+      <p id="offline-desc">Teen Wallet needs an internet connection to start. Check your network and try again.</p>
       <button id="offline-retry" type="button">Try again</button>
+      <div class="retry-status" id="retry-status" aria-live="polite"></div>
+      <details class="err-panel" id="err-panel" hidden>
+        <summary>Diagnostic details</summary>
+        <div class="err-rows">
+          <div class="err-row"><span class="err-k">Reason</span><span class="err-v" id="err-reason">—</span></div>
+          <div class="err-row"><span class="err-k">When</span><span class="err-v" id="err-when">—</span></div>
+          <div class="err-row"><span class="err-k">Attempts</span><span class="err-v" id="err-attempts">0</span></div>
+          <div class="err-row"><span class="err-k">Network</span><span class="err-v" id="err-network">—</span></div>
+          <div class="err-row"><span class="err-k">Target</span><span class="err-v" id="err-target">—</span></div>
+          <div class="err-row"><span class="err-k">User-Agent</span><span class="err-v" id="err-ua">—</span></div>
+        </div>
+        <div class="err-actions">
+          <button type="button" id="err-copy">Copy report</button>
+        </div>
+      </details>
     </div>
 
     <script>
@@ -456,69 +500,199 @@
         var appFrame = document.getElementById("app-frame");
         var appFrameLoaded = false;
 
+        // ----- retry / failure reporting state -----
+        var MAX_ATTEMPTS = 3;
+        var WATCHDOG_MS = 12000;
+        var attempt = 0;
+        var lastFailure = null; // { reason, when, attempts, network, target, ua }
+        var retryTimer = null;
+        var retryStatusEl = document.getElementById("retry-status");
+        var errPanelEl = document.getElementById("err-panel");
+
+        function setRetryStatus(msg) {
+          if (retryStatusEl) retryStatusEl.textContent = msg || "";
+        }
+        function fmtTime(d) {
+          try { return new Date(d).toLocaleTimeString(); } catch (e) { return String(d); }
+        }
+        function reportFailure(reason) {
+          lastFailure = {
+            reason: reason || "Unknown failure",
+            when: Date.now(),
+            attempts: attempt,
+            network: (typeof navigator !== "undefined" && navigator.onLine === false) ? "offline" : "online",
+            target: APP_URL,
+            ua: (typeof navigator !== "undefined" ? navigator.userAgent : "n/a"),
+          };
+          // Populate panel
+          var setText = function (id, v) { var el = document.getElementById(id); if (el) el.textContent = v; };
+          setText("err-reason", lastFailure.reason);
+          setText("err-when", fmtTime(lastFailure.when));
+          setText("err-attempts", String(lastFailure.attempts) + " / " + MAX_ATTEMPTS);
+          setText("err-network", lastFailure.network);
+          setText("err-target", lastFailure.target);
+          setText("err-ua", lastFailure.ua);
+          if (errPanelEl) errPanelEl.hidden = false;
+          var titleEl = document.getElementById("offline-title");
+          var descEl = document.getElementById("offline-desc");
+          if (titleEl) titleEl.textContent = lastFailure.network === "offline" ? "You're offline" : "Couldn't load the app";
+          if (descEl) descEl.textContent = lastFailure.network === "offline"
+            ? "Teen Wallet needs an internet connection to start. Check your network and try again."
+            : "We couldn't reach Teen Wallet after " + lastFailure.attempts + " attempt" + (lastFailure.attempts === 1 ? "" : "s") + ". Tap Try again or expand details below.";
+        }
+
+        // Re-check actual network reachability (not just navigator.onLine,
+        // which lies on some Android WebViews). Resolves true if we can
+        // round-trip a tiny request.
+        function checkNetwork() {
+          return new Promise(function (resolve) {
+            if (typeof navigator !== "undefined" && navigator.onLine === false) {
+              return resolve(false);
+            }
+            var done = false;
+            var to = setTimeout(function () { if (!done) { done = true; resolve(false); } }, 4000);
+            try {
+              fetch("https://www.gstatic.com/generate_204", { method: "GET", mode: "no-cors", cache: "no-store" })
+                .then(function () { if (!done) { done = true; clearTimeout(to); resolve(true); } })
+                .catch(function () { if (!done) { done = true; clearTimeout(to); resolve(false); } });
+            } catch (e) {
+              if (!done) { done = true; clearTimeout(to); resolve(false); }
+            }
+          });
+        }
+
         function clearHandoffWatchdog() {
           if (handoffWatchdog) { clearTimeout(handoffWatchdog); handoffWatchdog = null; }
+        }
+        function clearRetryTimer() {
+          if (retryTimer) { clearTimeout(retryTimer); retryTimer = null; }
         }
         function revealAppFrame() {
           appFrameLoaded = true;
           clearHandoffWatchdog();
+          clearRetryTimer();
           appFrame.style.display = "block";
-          // Hide all shell stages once the live app is painted
           Object.keys(stages).forEach(function (k) { stages[k].classList.remove("active"); });
         }
         appFrame.addEventListener("load", function () {
-          // The first 'load' event fires for about:blank too; only count real navigations.
           try {
             var src = appFrame.getAttribute("src") || "";
             if (src && src.indexOf("about:") !== 0) revealAppFrame();
           } catch (e) { revealAppFrame(); }
         });
         appFrame.addEventListener("error", function () {
-          show("offline"); handoffStarted = false; clearHandoffWatchdog();
+          handleHandoffFailure("Iframe error event (network or navigation blocked)");
         });
+
+        function handleHandoffFailure(reason) {
+          clearHandoffWatchdog();
+          if (appFrameLoaded) return;
+          if (attempt < MAX_ATTEMPTS) {
+            // Auto-retry: re-check network, backoff, then try again
+            var nextDelay = Math.min(8000, 1500 * Math.pow(2, attempt - 1));
+            setRetryStatus("Attempt " + attempt + " failed — retrying in " + Math.round(nextDelay / 1000) + "s…");
+            // Show handoff stage during retry, with status visible on offline screen if user opened it
+            retryTimer = setTimeout(function () {
+              checkNetwork().then(function (ok) {
+                if (!ok) {
+                  // Still no network — keep trying inside the budget
+                  attempt += 1;
+                  if (attempt > MAX_ATTEMPTS) {
+                    reportFailure(reason + " (network unreachable)");
+                    show("offline");
+                    setRetryStatus("");
+                    return;
+                  }
+                  setRetryStatus("Re-checking network… (attempt " + attempt + "/" + MAX_ATTEMPTS + ")");
+                  doNavigate();
+                } else {
+                  setRetryStatus("Network back — retrying (attempt " + (attempt + 1) + "/" + MAX_ATTEMPTS + ")…");
+                  doNavigate();
+                }
+              });
+            }, nextDelay);
+          } else {
+            reportFailure(reason);
+            show("offline");
+            setRetryStatus("");
+          }
+        }
 
         function doNavigate() {
           clearHandoffWatchdog();
-          // Watchdog: if the iframe never loads within 15s, show offline.
+          attempt += 1;
           handoffWatchdog = setTimeout(function () {
             if (!appFrameLoaded) {
-              show("offline");
-              handoffStarted = false;
-              appFrame.removeAttribute("src");
+              try { appFrame.removeAttribute("src"); } catch (e) {}
+              handleHandoffFailure("Watchdog timeout after " + (WATCHDOG_MS / 1000) + "s (WebView did not load)");
             }
-          }, 15000);
+          }, WATCHDOG_MS);
           try {
-            appFrame.src = APP_URL;
+            // Cache-bust on retries to bypass any stale failed-load cache
+            appFrame.src = attempt > 1 ? (APP_URL + "?_r=" + attempt) : APP_URL;
           } catch (e) {
-            show("offline"); handoffStarted = false; clearHandoffWatchdog();
+            handleHandoffFailure("Iframe src assignment threw: " + (e && e.message ? e.message : String(e)));
           }
         }
         function handoffToApp() {
           if (handoffStarted) {
-            // Already loaded — just reveal it
             if (appFrameLoaded) { revealAppFrame(); return; }
             return;
           }
           handoffStarted = true;
+          attempt = 0;
+          appFrameLoaded = false;
           show("handoff");
-          if (typeof navigator !== "undefined" && navigator.onLine === false) {
-            setTimeout(function () {
-              if (navigator.onLine === false) { show("offline"); handoffStarted = false; }
-              else doNavigate();
-            }, 1000);
-            return;
-          }
-          // Tiny delay so the handoff spinner is visible (no flash)
-          setTimeout(doNavigate, 250);
+          checkNetwork().then(function (ok) {
+            if (!ok) {
+              reportFailure("No network connectivity at boot");
+              show("offline");
+              return;
+            }
+            setTimeout(doNavigate, 250);
+          });
         }
 
-        // ----- offline retry -----
+        // ----- offline retry (manual) -----
         document.getElementById("offline-retry").addEventListener("click", function () {
+          // Reset attempts on manual retry so user gets a fresh 3-try budget
+          attempt = 0;
+          appFrameLoaded = false;
+          handoffStarted = false;
+          setRetryStatus("");
+          if (errPanelEl) errPanelEl.hidden = true;
           if (hasCompletedOnboarding()) handoffToApp();
           else { show("onboarding"); renderSlide("fwd"); }
         });
+        // Copy diagnostic report
+        var copyBtn = document.getElementById("err-copy");
+        if (copyBtn) {
+          copyBtn.addEventListener("click", function () {
+            if (!lastFailure) return;
+            var report = "Teen Wallet — Boot failure report\n" +
+              "Reason: " + lastFailure.reason + "\n" +
+              "When: " + new Date(lastFailure.when).toISOString() + "\n" +
+              "Attempts: " + lastFailure.attempts + " / " + MAX_ATTEMPTS + "\n" +
+              "Network: " + lastFailure.network + "\n" +
+              "Target: " + lastFailure.target + "\n" +
+              "User-Agent: " + lastFailure.ua + "\n";
+            try {
+              if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(report).then(function () {
+                  copyBtn.textContent = "Copied ✓";
+                  setTimeout(function () { copyBtn.textContent = "Copy report"; }, 1600);
+                });
+              } else {
+                copyBtn.textContent = "Copy unsupported";
+              }
+            } catch (e) { copyBtn.textContent = "Copy failed"; }
+          });
+        }
         window.addEventListener("online", function () {
-          if (stages.offline.classList.contains("active")) handoffToApp();
+          if (stages.offline.classList.contains("active")) {
+            attempt = 0; handoffStarted = false; appFrameLoaded = false;
+            handoffToApp();
+          }
         });
 
         // ----- boot decision -----
