@@ -44,7 +44,7 @@ export async function registerPushNotifications() {
             {
               user_id: user.id,
               token: token.value,
-              platform: "android",
+              platform,
               last_seen_at: new Date().toISOString(),
             },
             { onConflict: "user_id,token" }
