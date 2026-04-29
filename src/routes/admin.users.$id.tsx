@@ -97,6 +97,61 @@ function UserDetail() {
     finally { setBusy(false); }
   }
 
+  async function setLock(locked: boolean) {
+    const verb = locked ? "lock" : "unlock";
+    const reason = prompt(`Reason to ${verb} this account (shown to the user):`) ?? "";
+    if (locked && !reason.trim()) { alert("A reason is required to lock an account."); return; }
+    if (!confirm(`${locked ? "Lock" : "Unlock"} this user's account?`)) return;
+    setBusy(true);
+    try {
+      const s = readAdminSession();
+      await callAdminFn({ action: "user_set_lock", sessionToken: s!.sessionToken, userId: id, locked, reason });
+      await load();
+    } catch (e: any) { setErr(e.message || "Failed"); }
+    finally { setBusy(false); }
+  }
+
+  async function setTag(tag: string) {
+    if (!confirm(`Set account tag to "${tag}"?`)) return;
+    setBusy(true);
+    try {
+      const s = readAdminSession();
+      await callAdminFn({ action: "user_set_tag", sessionToken: s!.sessionToken, userId: id, tag });
+      await load();
+    } catch (e: any) { setErr(e.message || "Failed"); }
+    finally { setBusy(false); }
+  }
+
+  async function adjustBalance(sign: 1 | -1) {
+    const verb = sign > 0 ? "credit" : "debit";
+    const raw = prompt(`Amount to ${verb} (₹):`);
+    if (!raw) return;
+    const amt = Math.abs(Number(raw));
+    if (!Number.isFinite(amt) || amt <= 0) { alert("Invalid amount."); return; }
+    const reason = prompt(`Reason for ${verb} (required, shown to the user):`)?.trim() ?? "";
+    if (!reason) { alert("A reason is required."); return; }
+    if (!confirm(`${verb.toUpperCase()} ₹${amt} ${sign > 0 ? "to" : "from"} this user's wallet?\n\nReason: ${reason}`)) return;
+    setBusy(true);
+    try {
+      const s = readAdminSession();
+      await callAdminFn({ action: "user_adjust_balance", sessionToken: s!.sessionToken, userId: id, delta: amt * sign, reason });
+      await load();
+    } catch (e: any) { setErr(e.message || "Failed"); }
+    finally { setBusy(false); }
+  }
+
+  async function forceLogout() {
+    if (!confirm("Force this user to log out of all devices? They'll need to sign in again.")) return;
+    setBusy(true);
+    try {
+      const s = readAdminSession();
+      await callAdminFn({ action: "user_force_logout", sessionToken: s!.sessionToken, userId: id });
+      alert("User has been signed out of all devices.");
+    } catch (e: any) { setErr(e.message || "Failed"); }
+    finally { setBusy(false); }
+  }
+
+
   const risk = useMemo(() => (data ? computeRisk(data) : null), [data]);
 
   if (!data || !risk) {
