@@ -255,10 +255,20 @@ interface Props {
 }
 
 export function Permissions({ onDone }: Props) {
-  const [status, setStatus] = useState<Record<PermKey, PermStatus>>({
-    location: "idle", camera: "idle", contacts: "idle",
-    notifications: "idle", phone: "idle", sms: "idle",
+  // We track the full PermResult per key so the UI can show the exact
+  // failure reason inline (browser-blocked, OS-denied, iframe sandbox, …).
+  const [results, setResults] = useState<Record<PermKey, PermResult>>({
+    location: { status: "idle" }, camera: { status: "idle" }, contacts: { status: "idle" },
+    notifications: { status: "idle" }, phone: { status: "idle" }, sms: { status: "idle" },
   });
+  const status: Record<PermKey, PermStatus> = useMemo(() => ({
+    location: results.location.status,
+    camera: results.camera.status,
+    contacts: results.contacts.status,
+    notifications: results.notifications.status,
+    phone: results.phone.status,
+    sms: results.sms.status,
+  }), [results]);
   const [busyAll, setBusyAll] = useState(false);
   const [continuing, setContinuing] = useState(false);
 
@@ -267,24 +277,28 @@ export function Permissions({ onDone }: Props) {
   // they understand what the production app will request.
   useEffect(() => {
     if (!isNative()) {
-      setStatus((s) => ({ ...s, phone: "granted", sms: "granted" }));
+      setResults((s) => ({
+        ...s,
+        phone: { status: "granted", reason: "Granted at install time on the mobile app." },
+        sms:   { status: "granted", reason: "Granted at install time on the mobile app." },
+      }));
     }
   }, []);
 
   const ask = useCallback(async (key: PermKey) => {
-    setStatus((s) => ({ ...s, [key]: "loading" }));
+    setResults((s) => ({ ...s, [key]: { status: "loading" } }));
     void haptics.tap();
     const r = await requestPermission(key);
-    setStatus((s) => ({ ...s, [key]: r }));
+    setResults((s) => ({ ...s, [key]: r }));
     recordCheckpoint({
       screen: "permissions",
-      action: r === "granted" ? "permission_granted" : "permission_denied",
-      detail: { key },
+      action: r.status === "granted" ? "permission_granted" : "permission_denied",
+      detail: { key, reason: r.reason, errorName: r.errorName },
     });
-    if (r === "denied") {
+    if (r.status === "denied") {
       void haptics.bloom();
       toast.error(`${labelFor(key)} permission required`, {
-        description: "Tap the row to try again, or enable it from your device settings.",
+        description: r.reason ?? "Tap the row to try again, or enable it from your device settings.",
       });
     }
   }, []);
@@ -295,11 +309,11 @@ export function Permissions({ onDone }: Props) {
       // sequential to avoid OS blocking concurrent prompts
       // eslint-disable-next-line no-await-in-loop
       const r = await requestPermission(p.key);
-      setStatus((s) => ({ ...s, [p.key]: r }));
+      setResults((s) => ({ ...s, [p.key]: r }));
       recordCheckpoint({
         screen: "permissions",
-        action: r === "granted" ? "permission_granted" : "permission_denied",
-        detail: { key: p.key },
+        action: r.status === "granted" ? "permission_granted" : "permission_denied",
+        detail: { key: p.key, reason: r.reason, errorName: r.errorName },
       });
     }
     setBusyAll(false);
