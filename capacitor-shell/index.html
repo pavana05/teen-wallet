@@ -500,69 +500,199 @@
         var appFrame = document.getElementById("app-frame");
         var appFrameLoaded = false;
 
+        // ----- retry / failure reporting state -----
+        var MAX_ATTEMPTS = 3;
+        var WATCHDOG_MS = 12000;
+        var attempt = 0;
+        var lastFailure = null; // { reason, when, attempts, network, target, ua }
+        var retryTimer = null;
+        var retryStatusEl = document.getElementById("retry-status");
+        var errPanelEl = document.getElementById("err-panel");
+
+        function setRetryStatus(msg) {
+          if (retryStatusEl) retryStatusEl.textContent = msg || "";
+        }
+        function fmtTime(d) {
+          try { return new Date(d).toLocaleTimeString(); } catch (e) { return String(d); }
+        }
+        function reportFailure(reason) {
+          lastFailure = {
+            reason: reason || "Unknown failure",
+            when: Date.now(),
+            attempts: attempt,
+            network: (typeof navigator !== "undefined" && navigator.onLine === false) ? "offline" : "online",
+            target: APP_URL,
+            ua: (typeof navigator !== "undefined" ? navigator.userAgent : "n/a"),
+          };
+          // Populate panel
+          var setText = function (id, v) { var el = document.getElementById(id); if (el) el.textContent = v; };
+          setText("err-reason", lastFailure.reason);
+          setText("err-when", fmtTime(lastFailure.when));
+          setText("err-attempts", String(lastFailure.attempts) + " / " + MAX_ATTEMPTS);
+          setText("err-network", lastFailure.network);
+          setText("err-target", lastFailure.target);
+          setText("err-ua", lastFailure.ua);
+          if (errPanelEl) errPanelEl.hidden = false;
+          var titleEl = document.getElementById("offline-title");
+          var descEl = document.getElementById("offline-desc");
+          if (titleEl) titleEl.textContent = lastFailure.network === "offline" ? "You're offline" : "Couldn't load the app";
+          if (descEl) descEl.textContent = lastFailure.network === "offline"
+            ? "Teen Wallet needs an internet connection to start. Check your network and try again."
+            : "We couldn't reach Teen Wallet after " + lastFailure.attempts + " attempt" + (lastFailure.attempts === 1 ? "" : "s") + ". Tap Try again or expand details below.";
+        }
+
+        // Re-check actual network reachability (not just navigator.onLine,
+        // which lies on some Android WebViews). Resolves true if we can
+        // round-trip a tiny request.
+        function checkNetwork() {
+          return new Promise(function (resolve) {
+            if (typeof navigator !== "undefined" && navigator.onLine === false) {
+              return resolve(false);
+            }
+            var done = false;
+            var to = setTimeout(function () { if (!done) { done = true; resolve(false); } }, 4000);
+            try {
+              fetch("https://www.gstatic.com/generate_204", { method: "GET", mode: "no-cors", cache: "no-store" })
+                .then(function () { if (!done) { done = true; clearTimeout(to); resolve(true); } })
+                .catch(function () { if (!done) { done = true; clearTimeout(to); resolve(false); } });
+            } catch (e) {
+              if (!done) { done = true; clearTimeout(to); resolve(false); }
+            }
+          });
+        }
+
         function clearHandoffWatchdog() {
           if (handoffWatchdog) { clearTimeout(handoffWatchdog); handoffWatchdog = null; }
+        }
+        function clearRetryTimer() {
+          if (retryTimer) { clearTimeout(retryTimer); retryTimer = null; }
         }
         function revealAppFrame() {
           appFrameLoaded = true;
           clearHandoffWatchdog();
+          clearRetryTimer();
           appFrame.style.display = "block";
-          // Hide all shell stages once the live app is painted
           Object.keys(stages).forEach(function (k) { stages[k].classList.remove("active"); });
         }
         appFrame.addEventListener("load", function () {
-          // The first 'load' event fires for about:blank too; only count real navigations.
           try {
             var src = appFrame.getAttribute("src") || "";
             if (src && src.indexOf("about:") !== 0) revealAppFrame();
           } catch (e) { revealAppFrame(); }
         });
         appFrame.addEventListener("error", function () {
-          show("offline"); handoffStarted = false; clearHandoffWatchdog();
+          handleHandoffFailure("Iframe error event (network or navigation blocked)");
         });
+
+        function handleHandoffFailure(reason) {
+          clearHandoffWatchdog();
+          if (appFrameLoaded) return;
+          if (attempt < MAX_ATTEMPTS) {
+            // Auto-retry: re-check network, backoff, then try again
+            var nextDelay = Math.min(8000, 1500 * Math.pow(2, attempt - 1));
+            setRetryStatus("Attempt " + attempt + " failed — retrying in " + Math.round(nextDelay / 1000) + "s…");
+            // Show handoff stage during retry, with status visible on offline screen if user opened it
+            retryTimer = setTimeout(function () {
+              checkNetwork().then(function (ok) {
+                if (!ok) {
+                  // Still no network — keep trying inside the budget
+                  attempt += 1;
+                  if (attempt > MAX_ATTEMPTS) {
+                    reportFailure(reason + " (network unreachable)");
+                    show("offline");
+                    setRetryStatus("");
+                    return;
+                  }
+                  setRetryStatus("Re-checking network… (attempt " + attempt + "/" + MAX_ATTEMPTS + ")");
+                  doNavigate();
+                } else {
+                  setRetryStatus("Network back — retrying (attempt " + (attempt + 1) + "/" + MAX_ATTEMPTS + ")…");
+                  doNavigate();
+                }
+              });
+            }, nextDelay);
+          } else {
+            reportFailure(reason);
+            show("offline");
+            setRetryStatus("");
+          }
+        }
 
         function doNavigate() {
           clearHandoffWatchdog();
-          // Watchdog: if the iframe never loads within 15s, show offline.
+          attempt += 1;
           handoffWatchdog = setTimeout(function () {
             if (!appFrameLoaded) {
-              show("offline");
-              handoffStarted = false;
-              appFrame.removeAttribute("src");
+              try { appFrame.removeAttribute("src"); } catch (e) {}
+              handleHandoffFailure("Watchdog timeout after " + (WATCHDOG_MS / 1000) + "s (WebView did not load)");
             }
-          }, 15000);
+          }, WATCHDOG_MS);
           try {
-            appFrame.src = APP_URL;
+            // Cache-bust on retries to bypass any stale failed-load cache
+            appFrame.src = attempt > 1 ? (APP_URL + "?_r=" + attempt) : APP_URL;
           } catch (e) {
-            show("offline"); handoffStarted = false; clearHandoffWatchdog();
+            handleHandoffFailure("Iframe src assignment threw: " + (e && e.message ? e.message : String(e)));
           }
         }
         function handoffToApp() {
           if (handoffStarted) {
-            // Already loaded — just reveal it
             if (appFrameLoaded) { revealAppFrame(); return; }
             return;
           }
           handoffStarted = true;
+          attempt = 0;
+          appFrameLoaded = false;
           show("handoff");
-          if (typeof navigator !== "undefined" && navigator.onLine === false) {
-            setTimeout(function () {
-              if (navigator.onLine === false) { show("offline"); handoffStarted = false; }
-              else doNavigate();
-            }, 1000);
-            return;
-          }
-          // Tiny delay so the handoff spinner is visible (no flash)
-          setTimeout(doNavigate, 250);
+          checkNetwork().then(function (ok) {
+            if (!ok) {
+              reportFailure("No network connectivity at boot");
+              show("offline");
+              return;
+            }
+            setTimeout(doNavigate, 250);
+          });
         }
 
-        // ----- offline retry -----
+        // ----- offline retry (manual) -----
         document.getElementById("offline-retry").addEventListener("click", function () {
+          // Reset attempts on manual retry so user gets a fresh 3-try budget
+          attempt = 0;
+          appFrameLoaded = false;
+          handoffStarted = false;
+          setRetryStatus("");
+          if (errPanelEl) errPanelEl.hidden = true;
           if (hasCompletedOnboarding()) handoffToApp();
           else { show("onboarding"); renderSlide("fwd"); }
         });
+        // Copy diagnostic report
+        var copyBtn = document.getElementById("err-copy");
+        if (copyBtn) {
+          copyBtn.addEventListener("click", function () {
+            if (!lastFailure) return;
+            var report = "Teen Wallet — Boot failure report\n" +
+              "Reason: " + lastFailure.reason + "\n" +
+              "When: " + new Date(lastFailure.when).toISOString() + "\n" +
+              "Attempts: " + lastFailure.attempts + " / " + MAX_ATTEMPTS + "\n" +
+              "Network: " + lastFailure.network + "\n" +
+              "Target: " + lastFailure.target + "\n" +
+              "User-Agent: " + lastFailure.ua + "\n";
+            try {
+              if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(report).then(function () {
+                  copyBtn.textContent = "Copied ✓";
+                  setTimeout(function () { copyBtn.textContent = "Copy report"; }, 1600);
+                });
+              } else {
+                copyBtn.textContent = "Copy unsupported";
+              }
+            } catch (e) { copyBtn.textContent = "Copy failed"; }
+          });
+        }
         window.addEventListener("online", function () {
-          if (stages.offline.classList.contains("active")) handoffToApp();
+          if (stages.offline.classList.contains("active")) {
+            attempt = 0; handoffStarted = false; appFrameLoaded = false;
+            handoffToApp();
+          }
         });
 
         // ----- boot decision -----
