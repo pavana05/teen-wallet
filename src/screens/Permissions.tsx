@@ -27,7 +27,21 @@ import { recordCheckpoint } from "@/lib/navState";
 import { haptics } from "@/lib/haptics";
 
 type PermKey = "location" | "camera" | "contacts" | "notifications" | "phone" | "sms";
-type PermStatus = "idle" | "granted" | "denied" | "loading";
+type PermStatus = "idle" | "granted" | "denied" | "loading" | "unsupported";
+
+/**
+ * Detailed result returned by every permission probe so the UI can show the
+ * exact failure reason inline (instead of a generic "denied" pill).
+ */
+interface PermResult {
+  status: PermStatus;
+  /** One-line, user-facing reason. Empty for clean grants. */
+  reason?: string;
+  /** Hint shown on a second line — actionable next step. */
+  hint?: string;
+  /** Original error name (e.g. "NotAllowedError") for debugging only. */
+  errorName?: string;
+}
 
 interface PermDef {
   key: PermKey;
@@ -48,19 +62,88 @@ const PERMS: PermDef[] = [
 
 const isNative = () => Capacitor.isNativePlatform();
 
-async function requestPermission(key: PermKey): Promise<PermStatus> {
+/** Convenience builders so every branch returns a typed PermResult. */
+const ok = (): PermResult => ({ status: "granted" });
+const denied = (reason: string, hint?: string, errorName?: string): PermResult => ({
+  status: "denied", reason, hint, errorName,
+});
+const unsupported = (reason: string, hint?: string): PermResult => ({
+  // Unsupported still counts as a soft-grant for the gate (we can't ask),
+  // but we surface the reason so the user knows nothing was actually wired up.
+  status: "granted", reason, hint, errorName: "Unsupported",
+});
+
+/**
+ * Native-only notification permission probe. Reads the OS state first
+ * (so we don't re-prompt a user who already chose), then requests if
+ * needed. Surfaces the exact OS state in the returned reason.
+ */
+async function checkNativeNotifications(): Promise<PermResult> {
+  try {
+    // checkPermissions reads the existing OS state without prompting.
+    const current = await PushNotifications.checkPermissions();
+    if (current.receive === "granted") {
+      try { await PushNotifications.register(); } catch { /* ignore registration error */ }
+      return { status: "granted", reason: "Push notifications enabled on this device." };
+    }
+    if (current.receive === "denied") {
+      return denied(
+        "Notifications are blocked at the OS level.",
+        "Open Settings → Apps → Teen Wallet → Notifications and turn them on.",
+        "OSDenied",
+      );
+    }
+    // 'prompt' or 'prompt-with-rationale' — actually ask the OS.
+    const r = await PushNotifications.requestPermissions();
+    if (r.receive === "granted") {
+      try { await PushNotifications.register(); }
+      catch (regErr) {
+        const msg = regErr instanceof Error ? regErr.message : String(regErr);
+        // Permission is granted but token registration failed — surface a
+        // soft warning so the user (and support) know push delivery may
+        // not work even though the toggle is "on".
+        return {
+          status: "granted",
+          reason: "Granted, but push registration failed.",
+          hint: msg.slice(0, 140) || "Try restarting the app once you're online.",
+          errorName: regErr instanceof Error ? regErr.name : "RegisterError",
+        };
+      }
+      return { status: "granted", reason: "Push notifications enabled on this device." };
+    }
+    return denied(
+      "You declined the notification prompt.",
+      "Tap to retry, or enable notifications from your device settings.",
+      "UserDeclined",
+    );
+  } catch (err) {
+    const name = err instanceof Error ? err.name : "Error";
+    const msg = err instanceof Error ? err.message : String(err);
+    return denied(
+      `Notification permission check failed (${name}).`,
+      msg.slice(0, 140) || "Restart the app and try again.",
+      name,
+    );
+  }
+}
+
+async function requestPermission(key: PermKey): Promise<PermResult> {
   try {
     switch (key) {
       case "location": {
         if (isNative()) {
           const r = await Geolocation.requestPermissions({ permissions: ["location"] });
-          return r.location === "granted" ? "granted" : "denied";
+          return r.location === "granted" ? ok() : denied("Location permission was not granted.", "Open device Settings to allow location.");
         }
-        if (!("geolocation" in navigator)) return "granted"; // web fallback — no real API on this device
-        return await new Promise<PermStatus>((resolve) => {
+        if (!("geolocation" in navigator)) return unsupported("Geolocation API is not available in this browser.");
+        return await new Promise<PermResult>((resolve) => {
           navigator.geolocation.getCurrentPosition(
-            () => resolve("granted"),
-            () => resolve("denied"),
+            () => resolve(ok()),
+            (err) => resolve(denied(
+              `Browser blocked location: ${err.message || "PERMISSION_DENIED"}.`,
+              "Click the lock icon in the address bar to allow location.",
+              "GeolocationPositionError",
+            )),
             { timeout: 8000 },
           );
         });
@@ -68,55 +151,87 @@ async function requestPermission(key: PermKey): Promise<PermStatus> {
       case "camera": {
         if (isNative()) {
           const r = await CapCamera.requestPermissions({ permissions: ["camera"] });
-          return r.camera === "granted" ? "granted" : "denied";
+          return r.camera === "granted" ? ok() : denied("Camera permission was not granted.", "Open device Settings → Apps → Teen Wallet → Camera.");
         }
-        if (!navigator.mediaDevices?.getUserMedia) return "granted";
+        if (!navigator.mediaDevices?.getUserMedia) return unsupported("Camera API is not available in this browser.");
         try {
           const stream = await navigator.mediaDevices.getUserMedia({ video: true });
           stream.getTracks().forEach((t) => t.stop());
-          return "granted";
-        } catch { return "denied"; }
+          return ok();
+        } catch (err) {
+          const name = err instanceof Error ? err.name : "Error";
+          const msg = err instanceof Error ? err.message : String(err);
+          return denied(`Camera blocked: ${msg || name}.`, "Allow camera access in your browser permissions.", name);
+        }
       }
       case "contacts": {
         if (isNative()) {
           const r = await Contacts.requestPermissions();
-          return r.contacts === "granted" ? "granted" : "denied";
+          return r.contacts === "granted" ? ok() : denied("Contacts permission was not granted.", "Open device Settings → Apps → Teen Wallet → Contacts.");
         }
-        // Web: contacts API is not widely supported — auto-grant so the gate
-        // stays usable in the web preview.
-        return "granted";
+        return unsupported("Contacts API is not supported in this browser.");
       }
       case "notifications": {
-        if (isNative()) {
-          const r = await PushNotifications.requestPermissions();
-          if (r.receive === "granted") {
-            try { await PushNotifications.register(); } catch { /* ignore */ }
-            return "granted";
-          }
-          return "denied";
-        }
+        // Native: full status-aware check with clear OS-level reasons.
+        if (isNative()) return await checkNativeNotifications();
+
         // Web fallback. The Notifications API may be:
-        //   • missing entirely (older browsers, in-app browsers)
-        //   • blocked by Permissions-Policy when running inside an iframe
-        //     (the Lovable preview is iframed) — calling requestPermission()
-        //     then throws a NotAllowedError synchronously.
-        //   • already granted/denied at the browser level.
-        // In all "we can't actually ask" cases we resolve as granted so the
-        // gate doesn't permanently lock the user out of the preview.
-        if (typeof window === "undefined" || !("Notification" in window)) return "granted";
+        //   • missing entirely (older / in-app browsers) — show "unsupported"
+        //   • blocked by Permissions-Policy when iframed (Lovable preview)
+        //     — show an explanatory note but soft-grant so the gate isn't locked
+        //   • already granted/denied at the browser level — reflect it as-is
+        if (typeof window === "undefined" || !("Notification" in window)) {
+          return unsupported(
+            "This browser doesn't support web notifications.",
+            "Notifications will work on the installed mobile app.",
+          );
+        }
         try {
-          // If the user already granted at the browser level, skip the prompt.
-          if (Notification.permission === "granted") return "granted";
-          // Iframed previews: requestPermission() is disabled and throws.
-          // Detect iframe and short-circuit to granted instead of failing.
+          if (Notification.permission === "granted") {
+            return { status: "granted", reason: "Browser notifications already enabled." };
+          }
+          if (Notification.permission === "denied") {
+            return denied(
+              "Browser has blocked notifications for this site.",
+              "Click the lock icon in the address bar → Site settings → Notifications → Allow.",
+              "BrowserBlocked",
+            );
+          }
+          // Iframed previews: requestPermission() is disabled by
+          // Permissions-Policy and throws NotAllowedError synchronously.
+          // Surface that fact instead of silently denying.
           const inIframe = window.self !== window.top;
-          if (inIframe) return "granted";
+          if (inIframe) {
+            return {
+              status: "granted",
+              reason: "Browser preview can't request notifications (iframe sandbox).",
+              hint: "Notifications will be requested when you open the app outside the preview.",
+              errorName: "IframeSandbox",
+            };
+          }
           const r = await Notification.requestPermission();
-          return r === "granted" ? "granted" : "denied";
+          if (r === "granted") return { status: "granted", reason: "Browser notifications enabled." };
+          if (r === "denied") {
+            return denied(
+              "You declined the browser notification prompt.",
+              "Click the lock icon in the address bar to allow notifications, then retry.",
+              "UserDeclined",
+            );
+          }
+          return denied("Notification prompt was dismissed without a choice.", "Tap to retry.", "Dismissed");
         } catch (err) {
           // NotAllowedError / SecurityError from a sandboxed/iframed context.
-          console.warn("[permissions] notifications request failed, treating as granted on web", err);
-          return "granted";
+          const name = err instanceof Error ? err.name : "Error";
+          const msg = err instanceof Error ? err.message : String(err);
+          console.warn("[permissions] notifications request failed", err);
+          // Soft-grant so the preview gate stays usable, but surface the exact
+          // failure reason inline so the user understands why nothing happened.
+          return {
+            status: "granted",
+            reason: `Couldn't request notifications: ${name}.`,
+            hint: msg.slice(0, 140) || "This usually only happens in sandboxed previews — the real app will work normally.",
+            errorName: name,
+          };
         }
       }
       case "phone":
@@ -124,12 +239,14 @@ async function requestPermission(key: PermKey): Promise<PermStatus> {
         // No web API and no Capacitor plugin currently bundled. On native this
         // permission is requested at install-time via AndroidManifest; here we
         // simply confirm user consent so the gate is honest about what was asked.
-        return "granted";
+        return ok();
       }
     }
   } catch (e) {
+    const name = e instanceof Error ? e.name : "Error";
+    const msg = e instanceof Error ? e.message : String(e);
     console.warn("[permissions]", key, e);
-    return "denied";
+    return denied(`Unexpected error (${name}).`, msg.slice(0, 140) || "Tap to retry.", name);
   }
 }
 
@@ -138,10 +255,20 @@ interface Props {
 }
 
 export function Permissions({ onDone }: Props) {
-  const [status, setStatus] = useState<Record<PermKey, PermStatus>>({
-    location: "idle", camera: "idle", contacts: "idle",
-    notifications: "idle", phone: "idle", sms: "idle",
+  // We track the full PermResult per key so the UI can show the exact
+  // failure reason inline (browser-blocked, OS-denied, iframe sandbox, …).
+  const [results, setResults] = useState<Record<PermKey, PermResult>>({
+    location: { status: "idle" }, camera: { status: "idle" }, contacts: { status: "idle" },
+    notifications: { status: "idle" }, phone: { status: "idle" }, sms: { status: "idle" },
   });
+  const status: Record<PermKey, PermStatus> = useMemo(() => ({
+    location: results.location.status,
+    camera: results.camera.status,
+    contacts: results.contacts.status,
+    notifications: results.notifications.status,
+    phone: results.phone.status,
+    sms: results.sms.status,
+  }), [results]);
   const [busyAll, setBusyAll] = useState(false);
   const [continuing, setContinuing] = useState(false);
 
@@ -150,24 +277,28 @@ export function Permissions({ onDone }: Props) {
   // they understand what the production app will request.
   useEffect(() => {
     if (!isNative()) {
-      setStatus((s) => ({ ...s, phone: "granted", sms: "granted" }));
+      setResults((s) => ({
+        ...s,
+        phone: { status: "granted", reason: "Granted at install time on the mobile app." },
+        sms:   { status: "granted", reason: "Granted at install time on the mobile app." },
+      }));
     }
   }, []);
 
   const ask = useCallback(async (key: PermKey) => {
-    setStatus((s) => ({ ...s, [key]: "loading" }));
+    setResults((s) => ({ ...s, [key]: { status: "loading" } }));
     void haptics.tap();
     const r = await requestPermission(key);
-    setStatus((s) => ({ ...s, [key]: r }));
+    setResults((s) => ({ ...s, [key]: r }));
     recordCheckpoint({
       screen: "permissions",
-      action: r === "granted" ? "permission_granted" : "permission_denied",
-      detail: { key },
+      action: r.status === "granted" ? "permission_granted" : "permission_denied",
+      detail: { key, reason: r.reason ?? null, errorName: r.errorName ?? null },
     });
-    if (r === "denied") {
+    if (r.status === "denied") {
       void haptics.bloom();
       toast.error(`${labelFor(key)} permission required`, {
-        description: "Tap the row to try again, or enable it from your device settings.",
+        description: r.reason ?? "Tap the row to try again, or enable it from your device settings.",
       });
     }
   }, []);
@@ -178,11 +309,11 @@ export function Permissions({ onDone }: Props) {
       // sequential to avoid OS blocking concurrent prompts
       // eslint-disable-next-line no-await-in-loop
       const r = await requestPermission(p.key);
-      setStatus((s) => ({ ...s, [p.key]: r }));
+      setResults((s) => ({ ...s, [p.key]: r }));
       recordCheckpoint({
         screen: "permissions",
-        action: r === "granted" ? "permission_granted" : "permission_denied",
-        detail: { key: p.key },
+        action: r.status === "granted" ? "permission_granted" : "permission_denied",
+        detail: { key: p.key, reason: r.reason ?? null, errorName: r.errorName ?? null },
       });
     }
     setBusyAll(false);
@@ -271,36 +402,75 @@ export function Permissions({ onDone }: Props) {
 
       <div className="relative z-10 mt-6 space-y-2.5">
         {PERMS.map((p) => {
-          const s = status[p.key];
+          const result = results[p.key];
+          const s = result.status;
           const granted = s === "granted";
           const denied = s === "denied";
           const loading = s === "loading";
+          // Show inline message when there's a reason worth surfacing —
+          // always for denied, and for granted-with-reason (e.g. iframe
+          // sandbox soft-grants, OS already-granted notes).
+          const showReason = !!result.reason && (denied || (granted && !!result.errorName));
+          const reasonId = showReason ? `perm-reason-${p.key}` : undefined;
           return (
-            <button
-              key={p.key}
-              type="button"
-              onClick={() => !granted && !loading && !continuing && ask(p.key)}
-              disabled={granted || loading || continuing}
-              aria-label={`${p.title} permission — ${granted ? "granted" : denied ? "denied, tap to retry" : "tap to grant"}`}
-              className={`perm-row ${granted ? "perm-row-on" : ""} ${denied ? "perm-row-denied" : ""}`}
-            >
-              <div className="perm-row-icon">
-                <p.icon className="w-[18px] h-[18px]" strokeWidth={2} />
-              </div>
-              <div className="flex-1 min-w-0 text-left">
-                <p className="text-[13.5px] text-white font-medium flex items-center gap-1.5">
-                  {p.title}
-                  <span className="text-[9.5px] uppercase tracking-wider text-emerald-300/80">Required</span>
-                </p>
-                <p className="text-[11.5px] text-white/55 mt-0.5 leading-snug">{p.desc}</p>
-              </div>
-              <div className="perm-row-state">
-                {loading ? <Loader2 className="w-4 h-4 animate-spin text-white/70" /> :
-                 granted ? <span className="perm-pill-on"><Check className="w-3 h-3" strokeWidth={3} />Granted</span> :
-                 denied ? <span className="perm-pill-off"><AlertCircle className="w-3 h-3" strokeWidth={2.4} />Retry</span> :
-                 <ChevronRight className="w-4 h-4 text-white/50" />}
-              </div>
-            </button>
+            <div key={p.key} className="space-y-1.5">
+              <button
+                type="button"
+                onClick={() => !granted && !loading && !continuing && ask(p.key)}
+                disabled={granted || loading || continuing}
+                aria-label={`${p.title} permission — ${granted ? "granted" : denied ? "denied, tap to retry" : "tap to grant"}`}
+                aria-describedby={reasonId}
+                className={`perm-row ${granted ? "perm-row-on" : ""} ${denied ? "perm-row-denied" : ""}`}
+              >
+                <div className="perm-row-icon">
+                  <p.icon className="w-[18px] h-[18px]" strokeWidth={2} />
+                </div>
+                <div className="flex-1 min-w-0 text-left">
+                  <p className="text-[13.5px] text-white font-medium flex items-center gap-1.5">
+                    {p.title}
+                    <span className="text-[9.5px] uppercase tracking-wider text-emerald-300/80">Required</span>
+                  </p>
+                  <p className="text-[11.5px] text-white/55 mt-0.5 leading-snug">{p.desc}</p>
+                </div>
+                <div className="perm-row-state">
+                  {loading ? <Loader2 className="w-4 h-4 animate-spin text-white/70" /> :
+                   granted ? <span className="perm-pill-on"><Check className="w-3 h-3" strokeWidth={3} />Granted</span> :
+                   denied ? <span className="perm-pill-off"><AlertCircle className="w-3 h-3" strokeWidth={2.4} />Retry</span> :
+                   <ChevronRight className="w-4 h-4 text-white/50" />}
+                </div>
+              </button>
+
+              {showReason && (
+                <div
+                  id={reasonId}
+                  data-testid={`perm-reason-${p.key}`}
+                  role={denied ? "alert" : "status"}
+                  className={`flex items-start gap-2 rounded-lg px-3 py-2 ml-1 text-[11.5px] leading-snug border ${
+                    denied
+                      ? "bg-amber-300/8 border-amber-300/25 text-amber-100/90"
+                      : "bg-white/[.04] border-white/10 text-white/70"
+                  }`}
+                >
+                  <AlertCircle
+                    className={`w-3.5 h-3.5 mt-0.5 flex-shrink-0 ${denied ? "text-amber-300" : "text-white/55"}`}
+                    strokeWidth={2.2}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium">{result.reason}</p>
+                    {result.hint && (
+                      <p className={`mt-0.5 ${denied ? "text-amber-100/70" : "text-white/55"}`}>
+                        {result.hint}
+                      </p>
+                    )}
+                    {result.errorName && (
+                      <p className="mt-0.5 font-mono text-[10px] uppercase tracking-wider text-white/35">
+                        {result.errorName}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
           );
         })}
       </div>
