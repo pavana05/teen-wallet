@@ -142,7 +142,7 @@ export async function notifyPaymentReceived(
   userId: string,
   amount: number,
   fromName?: string | null,
-  meta?: { upiId?: string | null; note?: string | null },
+  meta?: { upiId?: string | null; note?: string | null; transactionId?: string | null },
 ) {
   const formatted = fmtINR(amount);
   const title = fromName
@@ -154,6 +154,7 @@ export async function notifyPaymentReceived(
     type: "payment_received",
     title,
     body: bodyParts.length > 0 ? bodyParts.join(" · ") : "Tap to view in History",
+    transactionId: meta?.transactionId ?? null,
   });
 }
 
@@ -161,7 +162,7 @@ export async function notifyPaymentSent(
   userId: string,
   amount: number,
   payeeName: string,
-  meta?: { upiId?: string | null; txnId?: string | null },
+  meta?: { upiId?: string | null; txnId?: string | null; transactionId?: string | null },
 ) {
   const title = `${fmtINR(amount)} paid to ${payeeName}`;
   const bodyParts = [meta?.upiId, meta?.txnId ? `Ref ${meta.txnId.slice(0, 8)}` : null].filter(Boolean) as string[];
@@ -170,6 +171,7 @@ export async function notifyPaymentSent(
     type: "payment_sent",
     title,
     body: bodyParts.length > 0 ? bodyParts.join(" · ") : "Tap to view receipt",
+    transactionId: meta?.transactionId ?? meta?.txnId ?? null,
   });
 }
 
@@ -178,6 +180,7 @@ export async function notifyPaymentFailed(
   amount: number,
   payeeName: string | null,
   reason: string | null,
+  meta?: { transactionId?: string | null },
 ) {
   const title = payeeName
     ? `${fmtINR(amount)} to ${payeeName} failed`
@@ -187,6 +190,7 @@ export async function notifyPaymentFailed(
     type: "payment_failed",
     title,
     body: reason ?? "Please retry. No money was deducted.",
+    transactionId: meta?.transactionId ?? null,
   });
 }
 
@@ -194,6 +198,7 @@ export async function notifyPaymentPending(
   userId: string,
   amount: number,
   payeeName: string | null,
+  meta?: { transactionId?: string | null },
 ) {
   const title = payeeName
     ? `${fmtINR(amount)} to ${payeeName} is processing`
@@ -203,6 +208,7 @@ export async function notifyPaymentPending(
     type: "payment_pending",
     title,
     body: "Taking longer than usual. We'll update you as soon as it clears.",
+    transactionId: meta?.transactionId ?? null,
   });
 }
 
