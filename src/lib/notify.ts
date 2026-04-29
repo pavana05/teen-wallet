@@ -185,6 +185,86 @@ export async function notifyPaymentPending(
   await insertNotification({ userId, type: "payment_pending", title, body });
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Per-attempt deduplication
+// Ensures we never spam the user with duplicate pending/terminal notifications
+// for the same payment attempt across re-renders, route changes, or app reloads.
+// ─────────────────────────────────────────────────────────────────────────────
+const ATTEMPT_NOTIF_KEY = "tw-attempt-notif-v1";
+
+type AttemptNotifMap = Record<string, { pending?: boolean; terminal?: boolean }>;
+
+function readAttemptMap(): AttemptNotifMap {
+  if (typeof window === "undefined") return {};
+  try {
+    const raw = window.localStorage.getItem(ATTEMPT_NOTIF_KEY);
+    return raw ? (JSON.parse(raw) as AttemptNotifMap) : {};
+  } catch {
+    return {};
+  }
+}
+
+function writeAttemptMap(map: AttemptNotifMap) {
+  if (typeof window === "undefined") return;
+  try {
+    // Cap at last 50 attempts to keep storage tiny.
+    const keys = Object.keys(map);
+    if (keys.length > 50) {
+      const trimmed: AttemptNotifMap = {};
+      keys.slice(-50).forEach((k) => { trimmed[k] = map[k]; });
+      map = trimmed;
+    }
+    window.localStorage.setItem(ATTEMPT_NOTIF_KEY, JSON.stringify(map));
+  } catch {
+    /* ignore quota errors */
+  }
+}
+
+/** Returns true the FIRST time it's called for this (attemptId, kind); false thereafter. */
+function claimAttemptNotif(attemptId: string, kind: "pending" | "terminal"): boolean {
+  const map = readAttemptMap();
+  const cur = map[attemptId] ?? {};
+  if (cur[kind]) return false;
+  cur[kind] = true;
+  map[attemptId] = cur;
+  writeAttemptMap(map);
+  return true;
+}
+
+/**
+ * Send a single "pending" notification for an attempt. No-op if already sent.
+ * Call this exactly once when the attempt enters the processing phase.
+ */
+export async function notifyAttemptPendingOnce(
+  attemptId: string,
+  userId: string,
+  amount: number,
+  payeeName: string,
+) {
+  if (!claimAttemptNotif(attemptId, "pending")) return;
+  await notifyPaymentPending(userId, amount, payeeName);
+}
+
+/**
+ * Send a single terminal ("failed" or "received") notification for an attempt.
+ * No-op if a terminal notification was already sent for this attempt.
+ */
+export async function notifyAttemptTerminalOnce(
+  attemptId: string,
+  outcome: "failed" | "received",
+  userId: string,
+  amount: number,
+  payeeName: string,
+  reason?: string | null,
+) {
+  if (!claimAttemptNotif(attemptId, "terminal")) return;
+  if (outcome === "failed") {
+    await notifyPaymentFailed(userId, amount, payeeName, reason);
+  } else {
+    await notifyPaymentReceived(userId, amount, payeeName);
+  }
+}
+
 /** Issue report submitted — give the user confirmation in their notification feed. */
 export async function notifyIssueSubmitted(userId: string, category: string) {
   const title = "Report received 🛠️";
