@@ -111,6 +111,19 @@ export function Transactions({ onBack }: Props) {
     });
   }, [txns, balance]);
 
+  // Open a transaction detail when arriving via push-notification deep-link.
+  useEffect(() => {
+    const tryOpen = (link: PendingDeepLink | null) => {
+      if (!link || link.kind !== "transaction") return;
+      const match = enriched.find(({ txn }) => txn.id === link.transactionId);
+      if (match) setOpenTxn({ txn: match.txn, credit: match.credit, balanceAfter: match.balanceAfter });
+    };
+    tryOpen(consumePendingDeepLink());
+    const handler = () => tryOpen(consumePendingDeepLink());
+    window.addEventListener("tw:deeplink", handler);
+    return () => window.removeEventListener("tw:deeplink", handler);
+  }, [enriched]);
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return enriched.filter(({ txn }) => {
