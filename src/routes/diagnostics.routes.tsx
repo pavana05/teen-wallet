@@ -36,7 +36,6 @@ const KNOWN_ROUTES: { path: string; label: string; group: "core" | "preview" | "
   { path: "/preview/kyc-pending", label: "KYC pending", group: "preview" },
   { path: "/preview/kyc-approved", label: "KYC approved", group: "preview" },
   { path: "/preview/kyc-rejected", label: "KYC rejected", group: "preview" },
-  { path: "/preview/home", label: "Home", group: "preview" },
   { path: "/preview/scan-pay", label: "Scan & pay", group: "preview" },
   { path: "/preview/profile-help", label: "Profile help", group: "preview" },
   { path: "/preview/referral-program", label: "Referral", group: "preview" },
