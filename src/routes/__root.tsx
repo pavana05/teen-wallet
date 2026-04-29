@@ -9,6 +9,7 @@ import { initNative } from "@/lib/native";
 import { breadcrumb, captureError } from "@/lib/breadcrumbs";
 import { installConsoleCapture } from "@/lib/consoleCapture";
 import { installAppLockListeners } from "@/lib/appLock";
+import { installOfflineQueue } from "@/lib/offlineQueue";
 
 import { OfflineOverlay } from "@/components/OfflineOverlay";
 import { GlobalErrorOverlay } from "@/components/GlobalErrorOverlay";
@@ -116,6 +117,8 @@ function RootComponent() {
     initNative();
     // Only the native app needs App Lock visibility/idle listeners.
     if (isNative()) installAppLockListeners();
+    // Drain queued offline actions and install reconnect listeners.
+    installOfflineQueue();
     breadcrumb("system.boot", { platform: typeof navigator !== "undefined" ? navigator.userAgent : undefined });
 
     const onError = (e: ErrorEvent) => captureError(e.error ?? e.message, { where: "window.onerror" });
