@@ -166,7 +166,7 @@ function CommandCenter() {
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 16, marginBottom: 16 }}>
-        <ChartCard title="Transaction Volume" subtitle="Last 30 days · ₹">
+        <ChartCard title="Transaction Volume" subtitle={`Last ${days} days · ₹`}>
           <ResponsiveContainer width="100%" height={260}>
             <AreaChart data={data?.txnSeries ?? []} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
               <defs>
@@ -204,7 +204,7 @@ function CommandCenter() {
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 16 }}>
-        <ChartCard title="Signups vs KYC" subtitle="Last 30 days">
+        <ChartCard title="Signups vs KYC" subtitle={`Last ${days} days`}>
           <ResponsiveContainer width="100%" height={240}>
             <BarChart data={data?.signupSeries ?? []} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
               <CartesianGrid stroke={t.grid} vertical={false} />
