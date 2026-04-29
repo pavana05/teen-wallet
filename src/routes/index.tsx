@@ -40,6 +40,21 @@ export const Route = createFileRoute("/")({
   beforeLoad: () => {
     if (typeof window === "undefined") return;
 
+    // Repair any inconsistent persisted state BEFORE the self-check
+    // reads from storage, so users never get stuck on a wrong screen.
+    const repair = reconcileAppState();
+    if (repair.changed) {
+      for (const r of repair.repairs) {
+        recordRedirect({
+          from: "boot:/",
+          to: "boot:/",
+          stage: repair.finalStage,
+          session: false,
+          reason: `reconcile:${r.code}`,
+        });
+      }
+    }
+
     const check = runSelfCheck();
     if (!check.ok) {
       pendingSelfCheckFailure = check;
