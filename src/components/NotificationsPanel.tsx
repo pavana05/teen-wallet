@@ -225,11 +225,15 @@ function Group({ title, items, onRead, onRemove }: { title: string; items: Notif
 function iconFor(type: string) {
   switch (type) {
     case "welcome": return { Icon: PartyPopper, tint: "bg-emerald-500/15 text-emerald-300" };
+    case "greeting": return { Icon: Sun, tint: "bg-amber-300/15 text-amber-200" };
     case "payment_received": return { Icon: ArrowDownLeft, tint: "bg-emerald-500/15 text-emerald-300" };
     case "payment_sent":
     case "transaction": return { Icon: ArrowUpRight, tint: "bg-primary/15 text-primary" };
+    case "payment_pending": return { Icon: Clock, tint: "bg-sky-400/15 text-sky-300" };
+    case "payment_failed": return { Icon: XCircle, tint: "bg-destructive/15 text-destructive" };
     case "low_balance": return { Icon: Wallet, tint: "bg-amber-400/15 text-amber-300" };
     case "fraud": return { Icon: ShieldAlert, tint: "bg-destructive/15 text-destructive" };
+    case "issue": return { Icon: AlertTriangle, tint: "bg-rose-400/15 text-rose-300" };
     case "offer": return { Icon: Gift, tint: "bg-fuchsia-500/15 text-fuchsia-300" };
     case "alert": return { Icon: Zap, tint: "bg-yellow-400/15 text-yellow-300" };
     default: return { Icon: Sparkles, tint: "bg-white/10 text-white/80" };
