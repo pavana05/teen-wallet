@@ -13,7 +13,7 @@ import heroScanHoli from "@/assets/home-hero-scan-holi.png";
 import { useAppImage } from "@/lib/useAppImage";
 import { haptics } from "@/lib/haptics";
 import { useGenderPersona } from "@/lib/genderPersona";
-import { notifyPaymentReceived } from "@/lib/notify";
+import { notifyPaymentReceived, maybeInsertGreeting, maybeNotifyLowBalance, notifyAppIssue } from "@/lib/notify";
 import { toast } from "sonner";
 
 interface PersonaOffer {
@@ -294,6 +294,8 @@ export function Home() {
           if (!Number.isFinite(next)) return;
           const prev = lastBalanceRef.current;
           lastBalanceRef.current = next;
+          // Always re-evaluate low-balance threshold on any balance change.
+          void maybeNotifyLowBalance(userId, next);
           if (prev == null) return; // baseline only
           const delta = +(next - prev).toFixed(2);
           if (delta > 0) {
@@ -309,6 +311,30 @@ export function Home() {
       )
       .subscribe();
     return () => { cancelled = true; supabase.removeChannel(ch); };
+  }, [userId]);
+
+  // Time-of-day greeting — fires once per (slot, day) when Home mounts.
+  useEffect(() => {
+    if (!userId) return;
+    void maybeInsertGreeting(userId, fullName ?? null);
+  }, [userId, fullName]);
+
+  // Surface uncaught runtime issues into the notification feed (throttled).
+  useEffect(() => {
+    if (!userId || typeof window === "undefined") return;
+    const onError = (e: ErrorEvent) => {
+      void notifyAppIssue(userId, "We hit a hiccup", e.message || "An unexpected error occurred. We're on it.");
+    };
+    const onRejection = (e: PromiseRejectionEvent) => {
+      const msg = (e.reason && typeof e.reason === "object" && "message" in e.reason) ? String((e.reason as { message: unknown }).message) : "Background task failed";
+      void notifyAppIssue(userId, "Something didn't go through", msg);
+    };
+    window.addEventListener("error", onError);
+    window.addEventListener("unhandledrejection", onRejection);
+    return () => {
+      window.removeEventListener("error", onError);
+      window.removeEventListener("unhandledrejection", onRejection);
+    };
   }, [userId]);
 
   // Unread notifications badge — count + realtime

@@ -29,6 +29,12 @@ import {
 } from "@/lib/paymentAttempts.functions";
 import { sampleFrames } from "@/lib/fpsGuard";
 import { haptics } from "@/lib/haptics";
+import {
+  notifyPaymentSent,
+  notifyPaymentFailed,
+  notifyPaymentPending,
+  maybeNotifyLowBalance,
+} from "@/lib/notify";
 
 const reducedMotion = () => {
   if (typeof window === "undefined") return false;
@@ -165,6 +171,8 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
   useEffect(() => {
     if (phase !== "processing" || !attemptId) return;
     let cancelled = false;
+    let pendingNotified = false;
+    const PENDING_NOTIFY_MS = 8000; // notify "still processing" if it takes >8s
     const startedAt = Date.now();
 
     const tick = async () => {
@@ -173,11 +181,11 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
         const res = await callWithAuth(pollAttempt, { attemptId });
         if (cancelled) return;
         if (!res.ok) {
-          // Network blip — keep polling unless we've timed out overall.
           if (Date.now() - startedAt > POLL_MAX_MS) {
             setResultMsg(res.message);
             setFailKind("generic");
             setPhase("failed");
+            if (userId) void notifyPaymentFailed(userId, 0, null, res.message);
             return;
           }
           setTimeout(tick, POLL_INTERVAL_MS);
@@ -194,6 +202,15 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
           if (navigator.vibrate) navigator.vibrate([30, 60, 30]);
           setAttemptId(null);
           setPhase("success");
+          if (userId) {
+            void notifyPaymentSent(userId, snap.amount, snap.payeeName, {
+              upiId: snap.upiId,
+              txnId: snap.transactionId,
+            });
+            if (typeof res.newBalance === "number") {
+              void maybeNotifyLowBalance(userId, res.newBalance);
+            }
+          }
           return;
         }
         if (snap.stage === "failed") {
@@ -202,13 +219,19 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
           setFailKind("generic");
           setAttemptId(null);
           setPhase("failed");
+          if (userId) void notifyPaymentFailed(userId, snap.amount, snap.payeeName, snap.failureReason ?? null);
           return;
         }
         // Still processing — schedule next tick.
+        if (!pendingNotified && Date.now() - startedAt > PENDING_NOTIFY_MS) {
+          pendingNotified = true;
+          if (userId) void notifyPaymentPending(userId, snap.amount, snap.payeeName);
+        }
         if (Date.now() - startedAt > POLL_MAX_MS) {
           setResultMsg("Payment is taking longer than expected. We'll keep trying in the background.");
           setFailKind("generic");
           setPhase("failed");
+          if (userId) void notifyPaymentPending(userId, snap.amount, snap.payeeName);
           return;
         }
         setTimeout(tick, POLL_INTERVAL_MS);
@@ -219,11 +242,13 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
           setResultMsg("Lost connection to payment service.");
           setFailKind("generic");
           setPhase("failed");
+          if (userId) void notifyPaymentFailed(userId, 0, null, "Lost connection to payment service.");
           return;
         }
         setTimeout(tick, POLL_INTERVAL_MS);
       }
     };
+
 
     // Slight delay so the premium animation has a beat to settle in.
     const initial = setTimeout(tick, 800);
