@@ -11,6 +11,7 @@ import { recordRedirect } from "@/lib/redirectLog";
 import { runSelfCheck, stageRank, PERMISSIONS_DONE_KEY, type SelfCheckResult } from "@/lib/bootSelfCheck";
 import { reconcileAppState } from "@/lib/stateReconciler";
 import { StartupErrorScreen } from "@/components/StartupErrorScreen";
+import { reconcileNotificationState, shouldForceReprompt } from "@/lib/notificationState";
 
 // All app screens live behind a single route now ("/"). The component
 // below renders the right step based on the persisted Stage + session,
