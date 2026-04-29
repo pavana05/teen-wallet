@@ -155,6 +155,7 @@ function RootComponent() {
       {showAppLock && <AppLockGate />}
       
       <OfflineOverlay />
+      <OfflineQueueStatus />
       <GlobalErrorOverlay />
     </>
   );
