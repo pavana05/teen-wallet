@@ -51,7 +51,16 @@ interface PersistedFlow {
   payload: UpiPayload | null;
   amount: number;
   note?: string;
+  /** ms since epoch — used to discard stale flows after app close/reopen. */
+  ts?: number;
 }
+
+/**
+ * Persisted scan flow is only resumed if it's fresh (a brief in-app nav-away).
+ * If the user fully closed the app or left it for a while, we want a clean
+ * scanner — never auto-restore the previous scanned QR / confirm screen.
+ */
+const SCANPAY_RESUME_MAX_AGE_MS = 90_000;
 
 type Phase = "scanning" | "confirm" | "processing" | "success" | "failed";
 type FailKind = "generic" | "balance_changed" | "insufficient" | "blocked";
@@ -420,6 +429,13 @@ function readPersisted(): PersistedFlow | null {
     const parsed = JSON.parse(raw) as PersistedFlow;
     // Only resume into safe phases — never resume into processing/success/failed.
     if (parsed.phase !== "scanning" && parsed.phase !== "confirm") return null;
+    // Drop stale flows: if the app was closed and reopened (or just left
+    // alone), the user expects a fresh scanner — not the previous QR.
+    const ts = typeof parsed.ts === "number" ? parsed.ts : 0;
+    if (!ts || Date.now() - ts > SCANPAY_RESUME_MAX_AGE_MS) {
+      try { window.sessionStorage.removeItem(SCANPAY_PERSIST_KEY); } catch { /* ignore */ }
+      return null;
+    }
     return parsed;
   } catch {
     return null;
@@ -427,7 +443,7 @@ function readPersisted(): PersistedFlow | null {
 }
 function writePersisted(p: PersistedFlow) {
   if (typeof window === "undefined") return;
-  try { window.sessionStorage.setItem(SCANPAY_PERSIST_KEY, JSON.stringify(p)); } catch { /* quota — ignore */ }
+  try { window.sessionStorage.setItem(SCANPAY_PERSIST_KEY, JSON.stringify({ ...p, ts: Date.now() })); } catch { /* quota — ignore */ }
 }
 function clearPersisted() {
   if (typeof window === "undefined") return;
