@@ -402,37 +402,78 @@ export function Permissions({ onDone }: Props) {
 
       <div className="relative z-10 mt-6 space-y-2.5">
         {PERMS.map((p) => {
-          const s = status[p.key];
+          const result = results[p.key];
+          const s = result.status;
           const granted = s === "granted";
           const denied = s === "denied";
           const loading = s === "loading";
+          // Show inline message when there's a reason worth surfacing —
+          // always for denied, and for granted-with-reason (e.g. iframe
+          // sandbox soft-grants, OS already-granted notes).
+          const showReason = !!result.reason && (denied || (granted && !!result.errorName));
+          const reasonId = showReason ? `perm-reason-${p.key}` : undefined;
           return (
-            <button
-              key={p.key}
-              type="button"
-              onClick={() => !granted && !loading && !continuing && ask(p.key)}
-              disabled={granted || loading || continuing}
-              aria-label={`${p.title} permission — ${granted ? "granted" : denied ? "denied, tap to retry" : "tap to grant"}`}
-              className={`perm-row ${granted ? "perm-row-on" : ""} ${denied ? "perm-row-denied" : ""}`}
-            >
-              <div className="perm-row-icon">
-                <p.icon className="w-[18px] h-[18px]" strokeWidth={2} />
-              </div>
-              <div className="flex-1 min-w-0 text-left">
-                <p className="text-[13.5px] text-white font-medium flex items-center gap-1.5">
-                  {p.title}
-                  <span className="text-[9.5px] uppercase tracking-wider text-emerald-300/80">Required</span>
-                </p>
-                <p className="text-[11.5px] text-white/55 mt-0.5 leading-snug">{p.desc}</p>
-              </div>
-              <div className="perm-row-state">
-                {loading ? <Loader2 className="w-4 h-4 animate-spin text-white/70" /> :
-                 granted ? <span className="perm-pill-on"><Check className="w-3 h-3" strokeWidth={3} />Granted</span> :
-                 denied ? <span className="perm-pill-off"><AlertCircle className="w-3 h-3" strokeWidth={2.4} />Retry</span> :
-                 <ChevronRight className="w-4 h-4 text-white/50" />}
-              </div>
-            </button>
+            <div key={p.key} className="space-y-1.5">
+              <button
+                type="button"
+                onClick={() => !granted && !loading && !continuing && ask(p.key)}
+                disabled={granted || loading || continuing}
+                aria-label={`${p.title} permission — ${granted ? "granted" : denied ? "denied, tap to retry" : "tap to grant"}`}
+                aria-describedby={reasonId}
+                className={`perm-row ${granted ? "perm-row-on" : ""} ${denied ? "perm-row-denied" : ""}`}
+              >
+                <div className="perm-row-icon">
+                  <p.icon className="w-[18px] h-[18px]" strokeWidth={2} />
+                </div>
+                <div className="flex-1 min-w-0 text-left">
+                  <p className="text-[13.5px] text-white font-medium flex items-center gap-1.5">
+                    {p.title}
+                    <span className="text-[9.5px] uppercase tracking-wider text-emerald-300/80">Required</span>
+                  </p>
+                  <p className="text-[11.5px] text-white/55 mt-0.5 leading-snug">{p.desc}</p>
+                </div>
+                <div className="perm-row-state">
+                  {loading ? <Loader2 className="w-4 h-4 animate-spin text-white/70" /> :
+                   granted ? <span className="perm-pill-on"><Check className="w-3 h-3" strokeWidth={3} />Granted</span> :
+                   denied ? <span className="perm-pill-off"><AlertCircle className="w-3 h-3" strokeWidth={2.4} />Retry</span> :
+                   <ChevronRight className="w-4 h-4 text-white/50" />}
+                </div>
+              </button>
+
+              {showReason && (
+                <div
+                  id={reasonId}
+                  data-testid={`perm-reason-${p.key}`}
+                  role={denied ? "alert" : "status"}
+                  className={`flex items-start gap-2 rounded-lg px-3 py-2 ml-1 text-[11.5px] leading-snug border ${
+                    denied
+                      ? "bg-amber-300/8 border-amber-300/25 text-amber-100/90"
+                      : "bg-white/[.04] border-white/10 text-white/70"
+                  }`}
+                >
+                  <AlertCircle
+                    className={`w-3.5 h-3.5 mt-0.5 flex-shrink-0 ${denied ? "text-amber-300" : "text-white/55"}`}
+                    strokeWidth={2.2}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium">{result.reason}</p>
+                    {result.hint && (
+                      <p className={`mt-0.5 ${denied ? "text-amber-100/70" : "text-white/55"}`}>
+                        {result.hint}
+                      </p>
+                    )}
+                    {result.errorName && (
+                      <p className="mt-0.5 font-mono text-[10px] uppercase tracking-wider text-white/35">
+                        {result.errorName}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
           );
+        })}
+      </div>
         })}
       </div>
 
