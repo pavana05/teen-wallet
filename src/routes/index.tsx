@@ -43,7 +43,11 @@ function prefetchIdle(loaders: Array<() => Promise<unknown>>) {
   if (typeof ric === "function") ric(run); else window.setTimeout(run, 60);
 }
 function warmAllChunks() {
-  prefetchIdle([
+  // Warm immediately (not idle) so stage transitions never hit a Suspense
+  // fallback after the first paint. Each chunk is small and these loads
+  // happen in parallel — the browser will dedupe and the perceived nav
+  // becomes instant.
+  prefetch([
     loadAuthPhoneChunk,
     loadReferralChunk,
     loadPermissionsChunk,
