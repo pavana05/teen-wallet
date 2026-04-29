@@ -62,7 +62,8 @@ export function NotificationsPanel({ onClose }: Props) {
       // "Payments" chip groups all money-movement notifications
       return notifs.filter((n) =>
         n.type === "transaction" || n.type === "payment_sent" ||
-        n.type === "payment_received" || n.type === "low_balance",
+        n.type === "payment_received" || n.type === "payment_failed" ||
+        n.type === "payment_pending" || n.type === "low_balance",
       );
     }
     return notifs.filter((n) => n.type === filter);
