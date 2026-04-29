@@ -35,8 +35,12 @@ const NAV_TARGETS: Array<{ to: string; label: string; icon: React.ComponentType<
   { to: "/admin/kyc",          label: "KYC Queue",      icon: FileCheck2,      shortcut: "g k" },
   { to: "/admin/transactions", label: "Transactions",   icon: Wallet,          shortcut: "g t" },
   { to: "/admin/revenue",      label: "Revenue",        icon: Wallet,          shortcut: "g $" },
+  { to: "/admin/wallet",       label: "Wallets",        icon: Wallet,          shortcut: "g w" },
+  { to: "/admin/geo",          label: "Geographic",     icon: Activity,        shortcut: "g m" },
+  { to: "/admin/cohorts",      label: "Cohorts",        icon: Users,           shortcut: "g h" },
   { to: "/admin/fraud",        label: "Fraud",          icon: ShieldAlert,     shortcut: "g f" },
   { to: "/admin/notifications",label: "Notifications",  icon: Flame,           shortcut: "g b" },
+  { to: "/admin/health",       label: "API Health",     icon: Activity,        shortcut: "g y" },
   { to: "/admin/admins",       label: "Admin Accounts", icon: Users,           shortcut: "g a" },
   { to: "/admin/diagnostics",  label: "Diagnostics",    icon: Activity },
   { to: "/admin/settings",     label: "Settings",       icon: Settings },
@@ -88,6 +92,10 @@ export function CommandPalette() {
           f: "/admin/fraud",
           a: "/admin/admins",
           b: "/admin/notifications",
+          w: "/admin/wallet",
+          m: "/admin/geo",
+          h: "/admin/cohorts",
+          y: "/admin/health",
           $: "/admin/revenue",
           "4": "/admin/revenue", // shift+4 = $
         };
