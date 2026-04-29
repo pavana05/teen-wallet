@@ -215,6 +215,9 @@ export const PERMS = {
   viewAppImages: ["super_admin", "operations_manager"] as AdminRole[],
   viewDiagnostics: ["super_admin", "operations_manager", "compliance_officer"] as AdminRole[],
   viewRevenue: ["super_admin", "finance_manager", "operations_manager"] as AdminRole[],
+  viewWallet: ["super_admin", "finance_manager", "operations_manager"] as AdminRole[],
+  viewGeo: ["super_admin", "operations_manager", "finance_manager"] as AdminRole[],
+  viewCohorts: ["super_admin", "operations_manager", "finance_manager"] as AdminRole[],
   viewNotifications: [
     "super_admin",
     "operations_manager",
