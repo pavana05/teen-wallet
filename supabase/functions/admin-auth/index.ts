@@ -2447,6 +2447,325 @@ Deno.serve(async (req) => {
     });
   }
 
+  // ===============================================================
+  // Wallet overview: float, top wallets, biggest movers, recent
+  // admin balance adjustments. Source of truth: profiles + audit log.
+  // ===============================================================
+  if (action === "wallet_overview") {
+    if (!can(me.role, "viewTransactions")) return json({ error: "forbidden" }, 403);
+
+    // Aggregate float across all wallets (limit 5000 — safe for current scale)
+    const { data: profs, error: pErr } = await sb
+      .from("profiles")
+      .select("id,full_name,phone,balance,account_locked,kyc_status,updated_at")
+      .order("balance", { ascending: false })
+      .limit(5000);
+    if (pErr) return json({ error: pErr.message }, 500);
+
+    let totalFloat = 0, walletsActive = 0, walletsLocked = 0, walletsZero = 0;
+    let walletsOver1k = 0, walletsOver10k = 0;
+    for (const p of (profs ?? []) as any[]) {
+      const b = Number(p.balance) || 0;
+      totalFloat += b;
+      if (p.account_locked) walletsLocked += 1; else walletsActive += 1;
+      if (b === 0) walletsZero += 1;
+      if (b >= 1000) walletsOver1k += 1;
+      if (b >= 10000) walletsOver10k += 1;
+    }
+    const avgBalance = profs && profs.length ? totalFloat / profs.length : 0;
+    const topWallets = (profs ?? []).slice(0, 15).map((p: any) => ({
+      id: p.id,
+      name: p.full_name || "—",
+      phone: p.phone,
+      balance: Number(p.balance) || 0,
+      locked: !!p.account_locked,
+      kyc: p.kyc_status,
+    }));
+
+    // Recent admin balance adjustments (audit log)
+    const { data: adjustments } = await sb
+      .from("admin_audit_log")
+      .select("id,admin_email,target_id,old_value,new_value,created_at")
+      .eq("action_type", "user_adjust_balance")
+      .order("created_at", { ascending: false })
+      .limit(20);
+
+    const adjustEntries = (adjustments ?? []).map((a: any) => {
+      const oldBal = Number(a.old_value?.balance ?? 0);
+      const newBal = Number(a.new_value?.balance ?? 0);
+      return {
+        id: a.id,
+        admin_email: a.admin_email,
+        user_id: a.target_id,
+        delta: Number(a.new_value?.delta ?? newBal - oldBal),
+        reason: a.new_value?.reason ?? null,
+        old_balance: oldBal,
+        new_balance: newBal,
+        created_at: a.created_at,
+      };
+    });
+
+    // 24h transaction volume (movement signal)
+    const since24 = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const { data: txns24 } = await sb
+      .from("transactions")
+      .select("amount,status")
+      .gte("created_at", since24)
+      .limit(20000);
+    let movement24h = 0, txns24hCount = 0;
+    for (const t of (txns24 ?? []) as any[]) {
+      if (t.status === "success") { movement24h += Number(t.amount) || 0; txns24hCount += 1; }
+    }
+
+    return json({
+      stats: {
+        totalFloat: +totalFloat.toFixed(2),
+        avgBalance: +avgBalance.toFixed(2),
+        walletsActive, walletsLocked, walletsZero,
+        walletsOver1k, walletsOver10k,
+        movement24h: +movement24h.toFixed(2),
+        txns24hCount,
+        sample: profs?.length ?? 0,
+      },
+      topWallets,
+      recentAdjustments: adjustEntries,
+      serverTs: new Date().toISOString(),
+    });
+  }
+
+  // ===============================================================
+  // Geographic distribution: users + transaction volume by Indian
+  // state, derived from profiles.address_state and pincode-prefix.
+  // ===============================================================
+  if (action === "geo_distribution") {
+    if (!can(me.role, "viewUsers")) return json({ error: "forbidden" }, 403);
+    const days = Math.min(180, Math.max(7, Number(body.days ?? 30)));
+    const sinceIso = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+
+    // pincode → state mapping (first digit covers most regions)
+    const PIN_REGION: Record<string, string> = {
+      "1": "Delhi/Haryana/Punjab/HP/J&K", "2": "Uttar Pradesh/Uttarakhand",
+      "3": "Rajasthan/Gujarat", "4": "Maharashtra/MP/Chhattisgarh/Goa",
+      "5": "Andhra Pradesh/Karnataka/Telangana", "6": "Tamil Nadu/Kerala/Puducherry",
+      "7": "West Bengal/Odisha/NE", "8": "Bihar/Jharkhand",
+    };
+
+    const { data: users } = await sb
+      .from("profiles")
+      .select("id,address_state,address_pincode")
+      .limit(10000);
+
+    const stateCounts: Record<string, { state: string; users: number; volume: number; txns: number }> = {};
+    const userToState: Record<string, string> = {};
+
+    for (const u of (users ?? []) as any[]) {
+      let state: string = (u.address_state || "").trim();
+      if (!state && u.address_pincode) {
+        const pre = String(u.address_pincode).slice(0, 1);
+        state = PIN_REGION[pre] || "Unknown";
+      }
+      if (!state) state = "Unknown";
+      stateCounts[state] = stateCounts[state] || { state, users: 0, volume: 0, txns: 0 };
+      stateCounts[state].users += 1;
+      userToState[u.id] = state;
+    }
+
+    // Transactions in window — sum volume per user-state
+    const { data: txns } = await sb
+      .from("transactions")
+      .select("user_id,amount,status")
+      .eq("status", "success")
+      .gte("created_at", sinceIso)
+      .limit(50000);
+    for (const t of (txns ?? []) as any[]) {
+      const st = userToState[t.user_id] || "Unknown";
+      stateCounts[st] = stateCounts[st] || { state: st, users: 0, volume: 0, txns: 0 };
+      stateCounts[st].volume += Number(t.amount) || 0;
+      stateCounts[st].txns += 1;
+    }
+
+    const rows = Object.values(stateCounts)
+      .map((r) => ({ ...r, volume: +r.volume.toFixed(2) }))
+      .sort((a, b) => b.users - a.users);
+
+    return json({
+      days,
+      totalUsers: (users ?? []).length,
+      knownStates: rows.filter((r) => r.state !== "Unknown").length,
+      rows,
+      serverTs: new Date().toISOString(),
+    });
+  }
+
+  // ===============================================================
+  // Cohort analysis: weekly signup cohorts × week-N retention based
+  // on whether the user transacted within each week after signup.
+  // ===============================================================
+  if (action === "cohort_analysis") {
+    if (!can(me.role, "viewUsers")) return json({ error: "forbidden" }, 403);
+    const weeks = Math.min(12, Math.max(4, Number(body.weeks ?? 8)));
+    const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+    const lookbackMs = (weeks + 1) * WEEK_MS;
+    const sinceIso = new Date(Date.now() - lookbackMs).toISOString();
+
+    const { data: users } = await sb
+      .from("profiles")
+      .select("id,created_at")
+      .gte("created_at", sinceIso)
+      .order("created_at", { ascending: true })
+      .limit(10000);
+    const { data: txns } = await sb
+      .from("transactions")
+      .select("user_id,created_at")
+      .gte("created_at", sinceIso)
+      .limit(50000);
+
+    // Bucket users by week of signup
+    const now = Date.now();
+    const weekStart = (t: number) => Math.floor(t / WEEK_MS);
+    const currentWeek = weekStart(now);
+    const startWeek = currentWeek - weeks + 1;
+
+    // cohort: signupWeekIndex (0..weeks-1) → { signed, [weekN: Set<userId>] }
+    const cohorts: Array<{ label: string; size: number; retention: number[] }> = [];
+    const userToCohort: Record<string, number> = {};
+    const userSignupWeek: Record<string, number> = {};
+
+    for (let i = 0; i < weeks; i++) {
+      const wk = startWeek + i;
+      cohorts.push({
+        label: new Date(wk * WEEK_MS).toISOString().slice(0, 10),
+        size: 0,
+        retention: new Array(weeks - i).fill(0),
+      });
+    }
+
+    for (const u of (users ?? []) as any[]) {
+      const wk = weekStart(new Date(u.created_at).getTime());
+      const idx = wk - startWeek;
+      if (idx < 0 || idx >= weeks) continue;
+      cohorts[idx].size += 1;
+      userToCohort[u.id] = idx;
+      userSignupWeek[u.id] = wk;
+    }
+
+    // For each transacting user, mark which cohort weeks they were active in
+    const seenPerCohortWeek: Record<string, Set<string>> = {};
+    for (const t of (txns ?? []) as any[]) {
+      const cIdx = userToCohort[t.user_id];
+      if (cIdx === undefined) continue;
+      const txnWk = weekStart(new Date(t.created_at).getTime());
+      const offset = txnWk - userSignupWeek[t.user_id];
+      if (offset < 0 || offset >= cohorts[cIdx].retention.length) continue;
+      const key = `${cIdx}:${offset}`;
+      seenPerCohortWeek[key] = seenPerCohortWeek[key] || new Set();
+      seenPerCohortWeek[key].add(t.user_id);
+    }
+
+    for (let cIdx = 0; cIdx < cohorts.length; cIdx++) {
+      for (let off = 0; off < cohorts[cIdx].retention.length; off++) {
+        const seen = seenPerCohortWeek[`${cIdx}:${off}`]?.size ?? 0;
+        cohorts[cIdx].retention[off] = cohorts[cIdx].size > 0
+          ? +((seen / cohorts[cIdx].size) * 100).toFixed(1)
+          : 0;
+      }
+    }
+
+    return json({
+      weeks,
+      cohorts,
+      totalUsers: (users ?? []).length,
+      serverTs: new Date().toISOString(),
+    });
+  }
+
+  // ===============================================================
+  // API health: success rate, p50/p95 latency proxies, error trends
+  // from payment_attempts (the primary mutating critical path).
+  // ===============================================================
+  if (action === "api_health") {
+    if (!can(me.role, "viewDiagnostics")) return json({ error: "forbidden" }, 403);
+    const sinceIso = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+
+    const { data: attempts } = await sb
+      .from("payment_attempts")
+      .select("stage,created_at,completed_at,failure_reason")
+      .gte("created_at", sinceIso)
+      .order("created_at", { ascending: true })
+      .limit(20000);
+
+    const buckets: Array<{ ts: string; total: number; success: number; failed: number; p50: number; p95: number }> = [];
+    const HOUR_MS = 60 * 60 * 1000;
+    const now = Date.now();
+    for (let h = 23; h >= 0; h--) {
+      const ts = new Date(now - h * HOUR_MS);
+      buckets.push({
+        ts: `${String(ts.getHours()).padStart(2, "0")}:00`,
+        total: 0, success: 0, failed: 0, p50: 0, p95: 0,
+      });
+    }
+    const bucketLatencies: number[][] = buckets.map(() => []);
+
+    let total = 0, successCount = 0, failedCount = 0;
+    const failureReasons: Record<string, number> = {};
+    const allLat: number[] = [];
+
+    for (const a of (attempts ?? []) as any[]) {
+      total += 1;
+      const created = new Date(a.created_at).getTime();
+      const idx = 23 - Math.floor((now - created) / HOUR_MS);
+      if (idx < 0 || idx >= buckets.length) continue;
+      buckets[idx].total += 1;
+      if (a.stage === "success") {
+        buckets[idx].success += 1;
+        successCount += 1;
+      } else if (a.stage === "failed") {
+        buckets[idx].failed += 1;
+        failedCount += 1;
+        const r = String(a.failure_reason || "unknown").slice(0, 80);
+        failureReasons[r] = (failureReasons[r] || 0) + 1;
+      }
+      if (a.completed_at) {
+        const ms = new Date(a.completed_at).getTime() - created;
+        if (ms >= 0 && ms < 5 * 60 * 1000) {
+          bucketLatencies[idx].push(ms);
+          allLat.push(ms);
+        }
+      }
+    }
+
+    const pct = (arr: number[], p: number) => {
+      if (!arr.length) return 0;
+      const s = [...arr].sort((a, b) => a - b);
+      return s[Math.min(s.length - 1, Math.floor((p / 100) * s.length))];
+    };
+    for (let i = 0; i < buckets.length; i++) {
+      buckets[i].p50 = pct(bucketLatencies[i], 50);
+      buckets[i].p95 = pct(bucketLatencies[i], 95);
+    }
+
+    const topErrors = Object.entries(failureReasons)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10)
+      .map(([reason, count]) => ({ reason, count }));
+
+    return json({
+      windowHours: 24,
+      stats: {
+        total,
+        success: successCount,
+        failed: failedCount,
+        successRate: total ? +((successCount / total) * 100).toFixed(2) : 100,
+        p50: pct(allLat, 50),
+        p95: pct(allLat, 95),
+        p99: pct(allLat, 99),
+      },
+      buckets,
+      topErrors,
+      serverTs: new Date().toISOString(),
+    });
+  }
+
   return json({ error: "unknown_action" }, 400);
 });
 
