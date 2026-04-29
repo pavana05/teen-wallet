@@ -219,6 +219,27 @@ function AdminLayout() {
           perm: "viewRevenue",
         },
         {
+          to: "/admin/wallet",
+          label: "Wallets",
+          icon: Wallet,
+          kbd: "g w",
+          perm: "viewWallet",
+        },
+        {
+          to: "/admin/geo",
+          label: "Geographic",
+          icon: MapIcon,
+          kbd: "g m",
+          perm: "viewGeo",
+        },
+        {
+          to: "/admin/cohorts",
+          label: "Cohorts",
+          icon: Users,
+          kbd: "g h",
+          perm: "viewCohorts",
+        },
+        {
           to: "/admin/notifications",
           label: "Notifications",
           icon: Bell,
@@ -250,6 +271,13 @@ function AdminLayout() {
       label: "System",
       items: [
         { to: "/admin/diagnostics", label: "Diagnostics", icon: Activity, perm: "viewDiagnostics" },
+        {
+          to: "/admin/health",
+          label: "API Health",
+          icon: Activity,
+          kbd: "g y",
+          perm: "viewDiagnostics",
+        },
         {
           to: "/admin/admins",
           label: "Admin Accounts",
