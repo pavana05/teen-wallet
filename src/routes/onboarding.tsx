@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { Suspense, useEffect, useState } from "react";
 
 import { useApp, type Stage } from "@/lib/store";
@@ -7,6 +7,7 @@ import { lazyWithRetry } from "@/lib/lazyWithRetry";
 import { shouldShowReferralPrompt } from "@/lib/referral";
 import { OnboardingSkeleton } from "@/components/BootSkeletons";
 import { recordRedirect } from "@/lib/redirectLog";
+import { readPersistedSnapshot, readSessionFromStorage, stageRank as bootStageRank } from "@/lib/bootSelfCheck";
 
 // Lazy chunks. We also expose the raw factories so we can warm them up
 // (prefetch) ahead of the moment the user actually advances — this is the
