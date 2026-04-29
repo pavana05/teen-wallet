@@ -562,3 +562,123 @@ function ageFrom(dob: string) {
   if (m < 0 || (m === 0 && now.getDate() < d.getDate())) a--;
   return a;
 }
+
+function formatAddress(p: Profile): string {
+  const parts = [p.address_line1, p.address_city, p.address_state, p.address_pincode].filter(Boolean);
+  return parts.join(", ");
+}
+
+function ContactsTable({ rows }: { rows: Contact[] }) {
+  if (!rows.length) return <div style={{ color: "var(--a-muted)", fontSize: 13 }}>No saved contacts.</div>;
+  return (
+    <table style={{ width: "100%", fontSize: 12, borderCollapse: "collapse" }}>
+      <thead>
+        <tr style={{ textAlign: "left", color: "var(--a-muted)", borderBottom: "1px solid var(--a-border)" }}>
+          <th style={{ padding: 8 }}>Name</th>
+          <th style={{ padding: 8 }}>UPI</th>
+          <th style={{ padding: 8 }}>Phone</th>
+          <th style={{ padding: 8 }}>Verified</th>
+          <th style={{ padding: 8 }}>Last paid</th>
+          <th style={{ padding: 8 }}>Added</th>
+        </tr>
+      </thead>
+      <tbody>
+        {rows.map((c) => (
+          <tr key={c.id} style={{ borderBottom: "1px solid var(--a-border)" }}>
+            <td style={{ padding: 8 }}>{c.emoji ? `${c.emoji} ` : ""}{c.name}</td>
+            <td style={{ padding: 8 }} className="a-mono">{c.upi_id}</td>
+            <td style={{ padding: 8 }} className="a-mono">{c.phone || "—"}</td>
+            <td style={{ padding: 8 }}>{c.verified ? "✓" : "—"}</td>
+            <td style={{ padding: 8 }}>{c.last_paid_at ? new Date(c.last_paid_at).toLocaleDateString() : "—"}</td>
+            <td style={{ padding: 8 }}>{new Date(c.created_at).toLocaleDateString()}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
+function AttemptsTable({ rows }: { rows: Attempt[] }) {
+  if (!rows.length) return <div style={{ color: "var(--a-muted)", fontSize: 13 }}>No payment attempts recorded.</div>;
+  const stageColor = (s: string) =>
+    s === "success" ? "#86efac" : s === "failed" ? "#fca5a5" : s === "cancelled" ? "#a1a1aa" : "#fcd34d";
+  return (
+    <table style={{ width: "100%", fontSize: 12, borderCollapse: "collapse" }}>
+      <thead>
+        <tr style={{ textAlign: "left", color: "var(--a-muted)", borderBottom: "1px solid var(--a-border)" }}>
+          <th style={{ padding: 8 }}>When</th>
+          <th style={{ padding: 8 }}>Payee</th>
+          <th style={{ padding: 8 }}>UPI</th>
+          <th style={{ padding: 8 }}>Amount</th>
+          <th style={{ padding: 8 }}>Method</th>
+          <th style={{ padding: 8 }}>Stage</th>
+          <th style={{ padding: 8 }}>Reason / Ref</th>
+        </tr>
+      </thead>
+      <tbody>
+        {rows.map((a) => (
+          <tr key={a.id} style={{ borderBottom: "1px solid var(--a-border)" }}>
+            <td style={{ padding: 8 }}>{new Date(a.created_at).toLocaleString()}</td>
+            <td style={{ padding: 8 }}>{a.payee_name}</td>
+            <td style={{ padding: 8 }} className="a-mono">{a.upi_id}</td>
+            <td style={{ padding: 8 }} className="a-mono">₹{Number(a.amount).toLocaleString("en-IN")}</td>
+            <td style={{ padding: 8 }} className="a-mono">{a.method}</td>
+            <td style={{ padding: 8, color: stageColor(a.stage), fontWeight: 600, textTransform: "uppercase", fontSize: 11 }}>{a.stage}</td>
+            <td style={{ padding: 8, color: "var(--a-muted)" }}>{a.failure_reason || a.provider_ref || "—"}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
+function ReferralsTable({ rows, userId }: { rows: Referral[]; userId: string }) {
+  if (!rows.length) return <div style={{ color: "var(--a-muted)", fontSize: 13 }}>No referrals sent.</div>;
+  return (
+    <table style={{ width: "100%", fontSize: 12, borderCollapse: "collapse" }}>
+      <thead>
+        <tr style={{ textAlign: "left", color: "var(--a-muted)", borderBottom: "1px solid var(--a-border)" }}>
+          <th style={{ padding: 8 }}>When</th>
+          <th style={{ padding: 8 }}>Code</th>
+          <th style={{ padding: 8 }}>Referred user</th>
+          <th style={{ padding: 8 }}>Status</th>
+          <th style={{ padding: 8 }}>Reward earned</th>
+        </tr>
+      </thead>
+      <tbody>
+        {rows.map((r) => (
+          <tr key={r.id} style={{ borderBottom: "1px solid var(--a-border)" }}>
+            <td style={{ padding: 8 }}>{new Date(r.created_at).toLocaleString()}</td>
+            <td style={{ padding: 8 }} className="a-mono">{r.code}</td>
+            <td style={{ padding: 8 }}>
+              <Link to="/admin/users/$id" params={{ id: r.referred_user_id }} style={{ color: "var(--a-accent)" }} className="a-mono">
+                {r.referred_user_id.slice(0, 8)}…
+              </Link>
+            </td>
+            <td style={{ padding: 8, textTransform: "uppercase", fontSize: 11, fontWeight: 600 }}>{r.status}</td>
+            <td style={{ padding: 8 }} className="a-mono">₹{Number(r.referrer_reward).toLocaleString("en-IN")}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
+function NotifsTable({ rows }: { rows: Notif[] }) {
+  if (!rows.length) return <div style={{ color: "var(--a-muted)", fontSize: 13 }}>No notifications.</div>;
+  return (
+    <div style={{ display: "grid", gap: 8 }}>
+      {rows.map((n) => (
+        <div key={n.id} style={{ padding: 10, borderRadius: 8, border: "1px solid var(--a-border)", background: n.read ? "transparent" : "var(--a-elevated)" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" }}>
+            <div style={{ fontSize: 13, fontWeight: 600 }}>{n.title}</div>
+            <div style={{ fontSize: 10, color: "var(--a-muted)" }}>
+              {new Date(n.created_at).toLocaleString()} · <span className="a-mono">{n.type}</span>{!n.read && " · UNREAD"}
+            </div>
+          </div>
+          {n.body && <div style={{ fontSize: 12, color: "var(--a-muted)", marginTop: 4 }}>{n.body}</div>}
+        </div>
+      ))}
+    </div>
+  );
+}
