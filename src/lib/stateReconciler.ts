@@ -90,7 +90,21 @@ export function reconcileAppState(storage?: Storage): ReconcileResult {
 
   const repairs: Repair[] = [];
 
-  let snap = readPersistedSnapshot(ls);
+  // Inspect the RAW persisted blob first so we can detect invalid stage
+  // enums BEFORE readPersistedSnapshot silently coerces them to STAGE_0.
+  let rawStage: unknown = undefined;
+  let rawCorrupt = false;
+  const rawBlob = ls.getItem(PERSIST_KEY);
+  if (rawBlob) {
+    try {
+      const parsed = JSON.parse(rawBlob) as { state?: { stage?: unknown } };
+      rawStage = parsed?.state?.stage;
+    } catch {
+      rawCorrupt = true;
+    }
+  }
+
+  const snap = readPersistedSnapshot(ls);
   let stage: Stage = snap.stage;
   let userId: string | null = snap.userId;
   const session = readSessionFromStorage(ls);
@@ -98,9 +112,17 @@ export function reconcileAppState(storage?: Storage): ReconcileResult {
   let permsSeen = ls.getItem(PERMISSIONS_DONE_KEY) === "1";
   let referralPending = ls.getItem(REFERRAL_PROMPT_KEY) !== "done";
 
-  // 1) Stage is not a valid enum (corruption / version skew) → reset.
-  if (!VALID_STAGES.has(stage)) {
-    repairs.push({ code: "STAGE_RESET_INVALID_ENUM", detail: { from: stage } });
+  // 1) Stage is not a valid enum (corruption / version skew) → reset and
+  // record a repair. We compare against the RAW value so the coercion
+  // inside readPersistedSnapshot doesn't mask the inconsistency.
+  const rawStageInvalid =
+    rawBlob != null && !rawCorrupt &&
+    typeof rawStage === "string" && !VALID_STAGES.has(rawStage as Stage);
+  if (rawCorrupt || rawStageInvalid || !VALID_STAGES.has(stage)) {
+    repairs.push({
+      code: "STAGE_RESET_INVALID_ENUM",
+      detail: { from: rawStage ?? snap.stage, corrupt: rawCorrupt },
+    });
     stage = "STAGE_0";
     userId = null;
     writePersistedStage(stage, userId, ls);
