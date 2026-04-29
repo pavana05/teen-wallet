@@ -813,7 +813,165 @@ Deno.serve(async (req) => {
     return json({ ok: true });
   }
 
-  // ----- KYC list (cursor-based pagination) -----
+  // ----- Lock / unlock account -----
+  if (action === "user_set_lock") {
+    if (!can(me.role, "manageUsers")) return json({ error: "forbidden" }, 403);
+    const userId = String(body.userId ?? "");
+    const locked = !!body.locked;
+    const reason = String(body.reason ?? "");
+    if (!userId) return json({ error: "missing_userId" }, 400);
+    const { data: before } = await sb.from("profiles").select("account_locked").eq("id", userId).maybeSingle();
+    const { error } = await sb.from("profiles").update({ account_locked: locked, updated_at: new Date().toISOString() }).eq("id", userId);
+    if (error) return json({ error: error.message }, 500);
+    await sb.from("admin_audit_log").insert({
+      admin_id: me.id, admin_email: me.email, admin_role: me.role as any,
+      action_type: locked ? "user_lock" : "user_unlock", target_entity: "profiles", target_id: userId,
+      old_value: before as any, new_value: { account_locked: locked, reason } as any,
+      ip_address: ip, user_agent: ua,
+    });
+    // Notify the user about the action
+    await sb.from("notifications").insert({
+      user_id: userId, type: "system",
+      title: locked ? "Your account has been locked" : "Your account has been restored",
+      body: reason || (locked ? "Please contact support for assistance." : "You can use the app normally."),
+    });
+    return json({ ok: true });
+  }
+
+  // ----- Set account tag (standard / vip / risky) -----
+  if (action === "user_set_tag") {
+    if (!can(me.role, "manageUsers")) return json({ error: "forbidden" }, 403);
+    const userId = String(body.userId ?? "");
+    const tag = String(body.tag ?? "").toLowerCase();
+    if (!userId || !["standard", "vip", "risky", "watchlist"].includes(tag)) return json({ error: "invalid" }, 400);
+    const { data: before } = await sb.from("profiles").select("account_tag").eq("id", userId).maybeSingle();
+    const { error } = await sb.from("profiles").update({ account_tag: tag, updated_at: new Date().toISOString() }).eq("id", userId);
+    if (error) return json({ error: error.message }, 500);
+    await sb.from("admin_audit_log").insert({
+      admin_id: me.id, admin_email: me.email, admin_role: me.role as any,
+      action_type: "user_set_tag", target_entity: "profiles", target_id: userId,
+      old_value: before as any, new_value: { account_tag: tag } as any,
+      ip_address: ip, user_agent: ua,
+    });
+    return json({ ok: true });
+  }
+
+  // ----- Adjust wallet balance (credit / debit) -----
+  if (action === "user_adjust_balance") {
+    if (!can(me.role, "manageUsers")) return json({ error: "forbidden" }, 403);
+    const userId = String(body.userId ?? "");
+    const delta = Number(body.delta ?? 0);
+    const reason = String(body.reason ?? "").trim();
+    if (!userId || !Number.isFinite(delta) || delta === 0) return json({ error: "invalid" }, 400);
+    if (Math.abs(delta) > 100000) return json({ error: "amount_too_large" }, 400);
+    if (!reason) return json({ error: "reason_required" }, 400);
+    const { data: before } = await sb.from("profiles").select("balance").eq("id", userId).maybeSingle();
+    if (!before) return json({ error: "not_found" }, 404);
+    const newBalance = Number(before.balance ?? 0) + delta;
+    if (newBalance < 0) return json({ error: "would_go_negative" }, 400);
+    const { error } = await sb.from("profiles").update({ balance: newBalance, updated_at: new Date().toISOString() }).eq("id", userId);
+    if (error) return json({ error: error.message }, 500);
+    await sb.from("admin_audit_log").insert({
+      admin_id: me.id, admin_email: me.email, admin_role: me.role as any,
+      action_type: "user_adjust_balance", target_entity: "profiles", target_id: userId,
+      old_value: { balance: before.balance } as any,
+      new_value: { balance: newBalance, delta, reason } as any,
+      ip_address: ip, user_agent: ua,
+    });
+    await sb.from("notifications").insert({
+      user_id: userId, type: "system",
+      title: delta > 0 ? `₹${delta.toFixed(2)} credited to your wallet` : `₹${Math.abs(delta).toFixed(2)} debited from your wallet`,
+      body: `Reason: ${reason}`,
+    });
+    return json({ ok: true, newBalance });
+  }
+
+  // ----- Force logout (sign out everywhere via auth admin) -----
+  if (action === "user_force_logout") {
+    if (!can(me.role, "manageUsers")) return json({ error: "forbidden" }, 403);
+    const userId = String(body.userId ?? "");
+    if (!userId) return json({ error: "missing_userId" }, 400);
+    const { error } = await sb.auth.admin.signOut(userId, "global" as any);
+    if (error) return json({ error: error.message }, 500);
+    await sb.from("admin_audit_log").insert({
+      admin_id: me.id, admin_email: me.email, admin_role: me.role as any,
+      action_type: "user_force_logout", target_entity: "profiles", target_id: userId,
+      old_value: null, new_value: null,
+      ip_address: ip, user_agent: ua,
+    });
+    return json({ ok: true });
+  }
+
+  // ----- CSV export of arbitrary admin tables (filter-aware) -----
+  if (action === "export_csv") {
+    if (!can(me.role, "viewUsers")) return json({ error: "forbidden" }, 403);
+    const dataset = String(body.dataset ?? "");
+    const search = String(body.search ?? "").trim();
+    const since = body.since ? new Date(String(body.since)).toISOString() : null;
+    const until = body.until ? new Date(String(body.until)).toISOString() : null;
+    const status = String(body.status ?? "").trim();
+    const max = Math.min(Number(body.max ?? 5000), 10000);
+
+    let rows: any[] = [];
+    let headers: string[] = [];
+
+    if (dataset === "users") {
+      let q = sb.from("profiles").select("id,full_name,phone,email,dob,gender,kyc_status,onboarding_stage,balance,account_tag,account_locked,created_at,updated_at").limit(max);
+      if (search) q = q.or(`full_name.ilike.%${search}%,phone.ilike.%${search}%,email.ilike.%${search}%`);
+      if (status && status !== "all") q = q.eq("kyc_status", status as any);
+      if (since) q = q.gte("created_at", since);
+      if (until) q = q.lte("created_at", until);
+      const r = await q.order("created_at", { ascending: false });
+      rows = r.data ?? [];
+      headers = ["id","full_name","phone","email","dob","gender","kyc_status","onboarding_stage","balance","account_tag","account_locked","created_at","updated_at"];
+    } else if (dataset === "transactions") {
+      let q = sb.from("transactions").select("id,user_id,amount,merchant_name,upi_id,note,status,created_at").limit(max);
+      if (status && status !== "all") q = q.eq("status", status as any);
+      if (since) q = q.gte("created_at", since);
+      if (until) q = q.lte("created_at", until);
+      const r = await q.order("created_at", { ascending: false });
+      rows = r.data ?? [];
+      headers = ["id","user_id","amount","merchant_name","upi_id","note","status","created_at"];
+    } else if (dataset === "kyc") {
+      let q = sb.from("kyc_submissions").select("id,user_id,status,provider,provider_ref,match_score,reason,created_at,updated_at").limit(max);
+      if (status && status !== "all") q = q.eq("status", status as any);
+      if (since) q = q.gte("created_at", since);
+      if (until) q = q.lte("created_at", until);
+      const r = await q.order("created_at", { ascending: false });
+      rows = r.data ?? [];
+      headers = ["id","user_id","status","provider","provider_ref","match_score","reason","created_at","updated_at"];
+    } else if (dataset === "fraud") {
+      let q = sb.from("fraud_logs").select("id,user_id,transaction_id,rule_triggered,resolution,created_at").limit(max);
+      if (since) q = q.gte("created_at", since);
+      if (until) q = q.lte("created_at", until);
+      const r = await q.order("created_at", { ascending: false });
+      rows = r.data ?? [];
+      headers = ["id","user_id","transaction_id","rule_triggered","resolution","created_at"];
+    } else {
+      return json({ error: "unknown_dataset" }, 400);
+    }
+
+    const escape = (v: any) => {
+      if (v === null || v === undefined) return "";
+      const s = typeof v === "string" ? v : JSON.stringify(v);
+      if (/[",\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+      return s;
+    };
+    const lines = [headers.join(","), ...rows.map((r) => headers.map((h) => escape(r[h])).join(","))];
+    const csv = lines.join("\n");
+
+    await audit(me.id, me.email, me.role, "export_csv", { dataset, rowCount: rows.length, search, status, since, until });
+    return new Response(csv, {
+      status: 200,
+      headers: {
+        ...corsHeaders,
+        "Content-Type": "text/csv; charset=utf-8",
+        "Content-Disposition": `attachment; filename="${dataset}-${new Date().toISOString().slice(0,10)}.csv"`,
+      },
+    });
+  }
+
+
   // Cursor pagination uses (created_at, id) as a stable composite cursor so that
   // realtime inserts between page loads don't cause duplicate or skipped rows.
   // Backwards-compatible: if `cursor` is omitted, behaves like a fresh first page.

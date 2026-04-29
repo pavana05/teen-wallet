@@ -128,6 +128,34 @@ export async function callAdminFn<T = unknown>(payload: Record<string, unknown>)
   return json as T;
 }
 
+/** Like callAdminFn but returns the raw Response so callers can read text/blob
+ *  (used for CSV downloads where the server returns text/csv, not JSON). */
+export async function callAdminFnRaw(payload: Record<string, unknown>): Promise<Response> {
+  const action = typeof payload.action === "string" ? payload.action : undefined;
+  const requiresAdminSession = !!action && !SESSIONLESS_ACTIONS.has(action);
+  let body: Record<string, unknown> = { ...payload };
+  let sessionToken = typeof body.sessionToken === "string" ? body.sessionToken : "";
+  if (requiresAdminSession && !sessionToken) sessionToken = readAdminSession()?.sessionToken ?? "";
+  if (requiresAdminSession && !sessionToken) throw new AdminFnError("not_authenticated", 401, null);
+  if (requiresAdminSession) body = { ...body, sessionToken };
+
+  const res = await fetch(FN_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      apikey: ANON,
+      Authorization: `Bearer ${ANON}`,
+    },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const txt = await res.text().catch(() => "");
+    throw new AdminFnError(txt || `HTTP ${res.status}`, res.status, null);
+  }
+  return res;
+}
+
+
 export const ROLE_LABELS: Record<AdminRole, string> = {
   super_admin: "Super Admin",
   operations_manager: "Operations Manager",

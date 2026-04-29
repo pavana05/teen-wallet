@@ -6,6 +6,7 @@ import { VirtualTable, type Column } from "@/admin/components/VirtualTable";
 import { usePersistedState } from "@/admin/lib/usePersistedState";
 import { SavedViewsBar } from "@/admin/components/SavedViewsBar";
 import { recordPanelLoad } from "@/admin/lib/perfBus";
+import { ExportCsvButton } from "@/admin/components/ExportCsvButton";
 
 export const Route = createFileRoute("/admin/users")({
   component: UsersList,
@@ -265,6 +266,9 @@ function UsersList() {
           <option value="rejected">Rejected</option>
         </select>
         {(initialLoading || loadingMore) && <Loader2 size={14} className="animate-spin" style={{ color: "var(--a-muted)" }} />}
+        <div style={{ marginLeft: "auto" }}>
+          <ExportCsvButton dataset="users" filters={{ search: filters.search, status: filters.kyc }} />
+        </div>
       </div>
 
       <div className="a-surface" style={{ padding: 12, marginBottom: 12, display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>

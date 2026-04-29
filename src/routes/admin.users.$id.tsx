@@ -4,6 +4,7 @@ import { callAdminFn, readAdminSession, useAdminSession, can } from "@/admin/lib
 import {
   ArrowLeft, Loader2, ShieldCheck, ShieldX, RotateCcw,
   ShieldAlert, Activity as ActivityIcon, Wallet, FileCheck2, ScrollText,
+  Lock, Unlock, LogOut, Tag, Plus, Minus,
 } from "lucide-react";
 
 export const Route = createFileRoute("/admin/users/$id")({
@@ -36,7 +37,7 @@ interface Txn { id: string; amount: number; merchant_name: string; upi_id: strin
 interface Kyc { id: string; status: string; provider: string; provider_ref: string | null; match_score: number | null; reason: string | null; created_at: string; updated_at: string; }
 interface Fraud { id: string; rule_triggered: string; resolution: string | null; created_at: string; transaction_id: string | null; }
 interface Audit { id: string; admin_email: string | null; admin_role: string | null; action_type: string; created_at: string; new_value: any; }
-interface Contact { id: string; name: string; upi_id: string; phone: string | null; verified: boolean; last_paid_at: string | null; created_at: string; }
+interface Contact { id: string; name: string; upi_id: string; phone: string | null; verified: boolean; last_paid_at: string | null; created_at: string; emoji?: string | null; }
 interface Attempt { id: string; amount: number; payee_name: string; upi_id: string; stage: string; method: string; failure_reason: string | null; provider_ref: string | null; created_at: string; completed_at: string | null; }
 interface Referral { id: string; code: string; status: string; referrer_user_id: string; referred_user_id: string; referrer_reward: number; referred_reward: number; created_at: string; completed_at: string | null; }
 interface Notif { id: string; type: string; title: string; body: string | null; read: boolean; created_at: string; }
@@ -95,6 +96,61 @@ function UserDetail() {
     } catch (e: any) { setErr(e.message || "Failed"); }
     finally { setBusy(false); }
   }
+
+  async function setLock(locked: boolean) {
+    const verb = locked ? "lock" : "unlock";
+    const reason = prompt(`Reason to ${verb} this account (shown to the user):`) ?? "";
+    if (locked && !reason.trim()) { alert("A reason is required to lock an account."); return; }
+    if (!confirm(`${locked ? "Lock" : "Unlock"} this user's account?`)) return;
+    setBusy(true);
+    try {
+      const s = readAdminSession();
+      await callAdminFn({ action: "user_set_lock", sessionToken: s!.sessionToken, userId: id, locked, reason });
+      await load();
+    } catch (e: any) { setErr(e.message || "Failed"); }
+    finally { setBusy(false); }
+  }
+
+  async function setTag(tag: string) {
+    if (!confirm(`Set account tag to "${tag}"?`)) return;
+    setBusy(true);
+    try {
+      const s = readAdminSession();
+      await callAdminFn({ action: "user_set_tag", sessionToken: s!.sessionToken, userId: id, tag });
+      await load();
+    } catch (e: any) { setErr(e.message || "Failed"); }
+    finally { setBusy(false); }
+  }
+
+  async function adjustBalance(sign: 1 | -1) {
+    const verb = sign > 0 ? "credit" : "debit";
+    const raw = prompt(`Amount to ${verb} (₹):`);
+    if (!raw) return;
+    const amt = Math.abs(Number(raw));
+    if (!Number.isFinite(amt) || amt <= 0) { alert("Invalid amount."); return; }
+    const reason = prompt(`Reason for ${verb} (required, shown to the user):`)?.trim() ?? "";
+    if (!reason) { alert("A reason is required."); return; }
+    if (!confirm(`${verb.toUpperCase()} ₹${amt} ${sign > 0 ? "to" : "from"} this user's wallet?\n\nReason: ${reason}`)) return;
+    setBusy(true);
+    try {
+      const s = readAdminSession();
+      await callAdminFn({ action: "user_adjust_balance", sessionToken: s!.sessionToken, userId: id, delta: amt * sign, reason });
+      await load();
+    } catch (e: any) { setErr(e.message || "Failed"); }
+    finally { setBusy(false); }
+  }
+
+  async function forceLogout() {
+    if (!confirm("Force this user to log out of all devices? They'll need to sign in again.")) return;
+    setBusy(true);
+    try {
+      const s = readAdminSession();
+      await callAdminFn({ action: "user_force_logout", sessionToken: s!.sessionToken, userId: id });
+      alert("User has been signed out of all devices.");
+    } catch (e: any) { setErr(e.message || "Failed"); }
+    finally { setBusy(false); }
+  }
+
 
   const risk = useMemo(() => (data ? computeRisk(data) : null), [data]);
 
@@ -163,7 +219,7 @@ function UserDetail() {
 
           {canManage && (
             <div style={{ marginTop: 16, paddingTop: 16, borderTop: "1px solid var(--a-border)", display: "grid", gap: 8 }}>
-              <div className="a-label" style={{ marginBottom: 4 }}>Actions</div>
+              <div className="a-label" style={{ marginBottom: 4 }}>KYC</div>
               <button className="a-btn" disabled={busy || p.kyc_status === "approved"} onClick={() => setKyc("approved")}>
                 <ShieldCheck size={14} /> Approve KYC
               </button>
@@ -173,9 +229,50 @@ function UserDetail() {
               <button className="a-btn a-btn-ghost" disabled={busy} onClick={() => setKyc("not_started")}>
                 <RotateCcw size={14} /> Reset KYC
               </button>
+
+              <div className="a-label" style={{ marginTop: 12, marginBottom: 4 }}>Wallet</div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                <button className="a-btn" disabled={busy} onClick={() => adjustBalance(1)}>
+                  <Plus size={14} /> Credit
+                </button>
+                <button className="a-btn a-btn-ghost" disabled={busy} onClick={() => adjustBalance(-1)}>
+                  <Minus size={14} /> Debit
+                </button>
+              </div>
+
+              <div className="a-label" style={{ marginTop: 12, marginBottom: 4 }}>Tag</div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                <button className="a-btn a-btn-ghost" disabled={busy || p.account_tag === "standard"} onClick={() => setTag("standard")}>
+                  <Tag size={14} /> Standard
+                </button>
+                <button className="a-btn a-btn-ghost" disabled={busy || p.account_tag === "vip"} onClick={() => setTag("vip")}>
+                  <Tag size={14} /> VIP
+                </button>
+                <button className="a-btn a-btn-ghost" disabled={busy || p.account_tag === "watchlist"} onClick={() => setTag("watchlist")}>
+                  <Tag size={14} /> Watchlist
+                </button>
+                <button className="a-btn a-btn-ghost" disabled={busy || p.account_tag === "risky"} onClick={() => setTag("risky")}>
+                  <Tag size={14} /> Risky
+                </button>
+              </div>
+
+              <div className="a-label" style={{ marginTop: 12, marginBottom: 4 }}>Account</div>
+              {p.account_locked ? (
+                <button className="a-btn" disabled={busy} onClick={() => setLock(false)}>
+                  <Unlock size={14} /> Unlock account
+                </button>
+              ) : (
+                <button className="a-btn a-btn-ghost" disabled={busy} onClick={() => setLock(true)} style={{ color: "#fca5a5" }}>
+                  <Lock size={14} /> Lock account
+                </button>
+              )}
+              <button className="a-btn a-btn-ghost" disabled={busy} onClick={forceLogout}>
+                <LogOut size={14} /> Force logout
+              </button>
             </div>
           )}
         </div>
+
 
         {/* Right panel: tabs */}
         <div>
