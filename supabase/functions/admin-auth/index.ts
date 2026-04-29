@@ -2327,6 +2327,126 @@ Deno.serve(async (req) => {
     });
   }
 
+  // ===============================================================
+  // Revenue analytics: daily/weekly/monthly volume & estimated fees.
+  // Fees are an internal estimate (0.20% per success txn) — purely
+  // illustrative until a real fee-capture pipeline lands.
+  // ===============================================================
+  if (action === "revenue_analytics") {
+    if (!can(me.role, "viewTransactions")) return json({ error: "forbidden" }, 403);
+    const days = Math.min(180, Math.max(7, Number(body.days ?? 30)));
+    const FEE_RATE = 0.002; // 0.20%
+    const sinceTs = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+    const sinceIso = sinceTs.toISOString();
+
+    const { data: rows, error } = await sb
+      .from("transactions")
+      .select("amount,status,created_at,user_id,merchant_name")
+      .gte("created_at", sinceIso)
+      .order("created_at", { ascending: true })
+      .limit(50000);
+    if (error) return json({ error: error.message }, 500);
+
+    const dayMs = 24 * 60 * 60 * 1000;
+    const startDay = Math.floor(sinceTs.getTime() / dayMs);
+    const todayDay = Math.floor(Date.now() / dayMs);
+    const series: Array<{ date: string; volume: number; count: number; fees: number; success: number; failed: number }> = [];
+    for (let d = startDay; d <= todayDay; d++) {
+      const date = new Date(d * dayMs).toISOString().slice(0, 10);
+      series.push({ date, volume: 0, count: 0, fees: 0, success: 0, failed: 0 });
+    }
+    const idx = (iso: string) => Math.floor(new Date(iso).getTime() / dayMs) - startDay;
+
+    let lifetimeVolume = 0, lifetimeCount = 0, lifetimeFees = 0;
+    let successCount = 0, failedCount = 0;
+    const merchantTotals: Record<string, { name: string; volume: number; count: number }> = {};
+    const userVolume: Record<string, number> = {};
+    for (const r of (rows ?? []) as any[]) {
+      const i = idx(r.created_at);
+      if (i < 0 || i >= series.length) continue;
+      const amt = Number(r.amount) || 0;
+      const ok = r.status === "success";
+      const fee = ok ? amt * FEE_RATE : 0;
+      series[i].count += 1;
+      if (ok) {
+        series[i].volume += amt;
+        series[i].fees += fee;
+        series[i].success += 1;
+        lifetimeVolume += amt;
+        lifetimeFees += fee;
+        successCount += 1;
+        const m = String(r.merchant_name || "Unknown");
+        merchantTotals[m] = merchantTotals[m] || { name: m, volume: 0, count: 0 };
+        merchantTotals[m].volume += amt; merchantTotals[m].count += 1;
+        const u = String(r.user_id);
+        userVolume[u] = (userVolume[u] || 0) + amt;
+      } else {
+        series[i].failed += 1;
+        failedCount += 1;
+      }
+      lifetimeCount += 1;
+    }
+    // Round for clean JSON
+    for (const s of series) {
+      s.volume = +s.volume.toFixed(2);
+      s.fees = +s.fees.toFixed(2);
+    }
+
+    const topMerchants = Object.values(merchantTotals)
+      .sort((a, b) => b.volume - a.volume)
+      .slice(0, 10)
+      .map((m) => ({ ...m, volume: +m.volume.toFixed(2) }));
+
+    // Top users by volume → hydrate names
+    const topUserEntries = Object.entries(userVolume)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10);
+    const uids = topUserEntries.map(([id]) => id);
+    let names: Record<string, { name: string; phone: string | null }> = {};
+    if (uids.length) {
+      const { data: profs } = await sb.from("profiles").select("id,full_name,phone").in("id", uids);
+      for (const p of (profs ?? []) as any[]) names[p.id] = { name: p.full_name || "—", phone: p.phone };
+    }
+    const topUsers = topUserEntries.map(([id, vol]) => ({
+      id, volume: +vol.toFixed(2),
+      name: names[id]?.name || id.slice(0, 8),
+      phone: names[id]?.phone || null,
+    }));
+
+    // Period comparisons (this period vs prior period of equal length)
+    const halfMs = (days * dayMs) / 2;
+    const midTs = Date.now() - halfMs;
+    let recentVol = 0, priorVol = 0;
+    for (const r of (rows ?? []) as any[]) {
+      if (r.status !== "success") continue;
+      const t = new Date(r.created_at).getTime();
+      const amt = Number(r.amount) || 0;
+      if (t >= midTs) recentVol += amt; else priorVol += amt;
+    }
+    const growthPct = priorVol > 0 ? ((recentVol - priorVol) / priorVol) * 100 : null;
+
+    return json({
+      days,
+      feeRate: FEE_RATE,
+      series,
+      kpis: {
+        lifetimeVolume: +lifetimeVolume.toFixed(2),
+        lifetimeFees: +lifetimeFees.toFixed(2),
+        lifetimeCount,
+        successCount,
+        failedCount,
+        successRate: lifetimeCount ? +((successCount / lifetimeCount) * 100).toFixed(2) : 0,
+        avgTicket: successCount ? +(lifetimeVolume / successCount).toFixed(2) : 0,
+        recentVolume: +recentVol.toFixed(2),
+        priorVolume: +priorVol.toFixed(2),
+        growthPct: growthPct === null ? null : +growthPct.toFixed(2),
+      },
+      topMerchants,
+      topUsers,
+      serverTs: new Date().toISOString(),
+    });
+  }
+
   return json({ error: "unknown_action" }, 400);
 });
 

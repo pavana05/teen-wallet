@@ -214,6 +214,15 @@ export const PERMS = {
   viewCampaigns: ["super_admin", "operations_manager"] as AdminRole[],
   viewAppImages: ["super_admin", "operations_manager"] as AdminRole[],
   viewDiagnostics: ["super_admin", "operations_manager", "compliance_officer"] as AdminRole[],
+  viewRevenue: ["super_admin", "finance_manager", "operations_manager"] as AdminRole[],
+  viewNotifications: [
+    "super_admin",
+    "operations_manager",
+    "compliance_officer",
+    "customer_support",
+    "fraud_analyst",
+    "finance_manager",
+  ] as AdminRole[],
 };
 
 export function can(role: AdminRole | undefined, action: keyof typeof PERMS): boolean {
