@@ -27,7 +27,21 @@ import { recordCheckpoint } from "@/lib/navState";
 import { haptics } from "@/lib/haptics";
 
 type PermKey = "location" | "camera" | "contacts" | "notifications" | "phone" | "sms";
-type PermStatus = "idle" | "granted" | "denied" | "loading";
+type PermStatus = "idle" | "granted" | "denied" | "loading" | "unsupported";
+
+/**
+ * Detailed result returned by every permission probe so the UI can show the
+ * exact failure reason inline (instead of a generic "denied" pill).
+ */
+interface PermResult {
+  status: PermStatus;
+  /** One-line, user-facing reason. Empty for clean grants. */
+  reason?: string;
+  /** Hint shown on a second line — actionable next step. */
+  hint?: string;
+  /** Original error name (e.g. "NotAllowedError") for debugging only. */
+  errorName?: string;
+}
 
 interface PermDef {
   key: PermKey;
