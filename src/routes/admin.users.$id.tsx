@@ -4,6 +4,7 @@ import { callAdminFn, readAdminSession, useAdminSession, can } from "@/admin/lib
 import {
   ArrowLeft, Loader2, ShieldCheck, ShieldX, RotateCcw,
   ShieldAlert, Activity as ActivityIcon, Wallet, FileCheck2, ScrollText,
+  Lock, Unlock, LogOut, Tag, Plus, Minus,
 } from "lucide-react";
 
 export const Route = createFileRoute("/admin/users/$id")({
