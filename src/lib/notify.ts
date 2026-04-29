@@ -8,6 +8,18 @@
  * All inserts go through the user's RLS-scoped supabase client (own rows only).
  */
 import { supabase } from "@/integrations/supabase/client";
+import {
+  toastWelcome,
+  toastGreeting,
+  toastPaymentReceived,
+  toastPaymentFailed,
+  toastPaymentPending,
+  toastLowBalance,
+  toastFraudAlert,
+  toastIssueSubmitted,
+  toastIssueResolved,
+  toastOffer,
+} from "./notifyToast";
 
 export type NotifType =
   | "welcome"
