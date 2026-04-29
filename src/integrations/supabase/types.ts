@@ -1064,6 +1064,8 @@ export type Database = {
           referred_reward: number
         }[]
       }
+      send_birthday_saving_reminders: { Args: never; Returns: undefined }
+      send_daily_morning_greetings: { Args: never; Returns: undefined }
     }
     Enums: {
       admin_status: "active" | "locked" | "disabled" | "pending"
