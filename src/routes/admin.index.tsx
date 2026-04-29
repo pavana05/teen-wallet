@@ -46,14 +46,11 @@ interface ActivityItem {
 // --a-chart-*, --a-tooltip-*, --a-success/warn/danger/info). Resolved at render
 // time via adminChartTokens() so future theme changes flow through automatically.
 
-type RangeKey = 7 | 30 | 90;
-
 function CommandCenter() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [activity, setActivity] = useState<ActivityItem[]>([]);
   const [err, setErr] = useState("");
   const [updatedAt, setUpdatedAt] = useState<string>("");
-  const [days, setDays] = useState<RangeKey>(30);
 
   const lastLoadAt = useRef(0);
   const inflight = useRef(false);
@@ -65,7 +62,7 @@ function CommandCenter() {
     inflight.current = true;
     try {
       const [stats, act] = await Promise.all([
-        callAdminFn<DashboardData>({ action: "dashboard_stats", sessionToken: s.sessionToken, days }),
+        callAdminFn<DashboardData>({ action: "dashboard_stats", sessionToken: s.sessionToken }),
         callAdminFn<{ items: ActivityItem[] }>({ action: "recent_activity", sessionToken: s.sessionToken, limit: 40 }),
       ]);
       setData(stats);
@@ -78,7 +75,7 @@ function CommandCenter() {
     } finally {
       inflight.current = false;
     }
-  }, [days]);
+  }, []);
 
   useEffect(() => {
     void loadAll();
@@ -129,28 +126,13 @@ function CommandCenter() {
 
   return (
     <div>
-      <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 20, flexWrap: "wrap", gap: 12 }}>
+      <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 20 }}>
         <div>
           <h1 style={{ fontSize: 24, fontWeight: 700 }}>Command Center</h1>
-          <p style={{ fontSize: 13, color: "var(--a-muted)", marginTop: 4 }}>Live operational view. Auto-refreshes every 60s.</p>
+          <p style={{ fontSize: 13, color: "var(--a-muted)", marginTop: 4 }}>Live operational view. Auto-refreshes every 30s.</p>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <div style={{ display: "inline-flex", border: "1px solid var(--a-border)", borderRadius: 8, overflow: "hidden" }}>
-            {([7, 30, 90] as RangeKey[]).map((d) => (
-              <button
-                key={d}
-                onClick={() => setDays(d)}
-                style={{
-                  padding: "6px 12px", fontSize: 12, fontWeight: 600, cursor: "pointer", border: "none",
-                  background: days === d ? "var(--a-accent)" : "transparent",
-                  color: days === d ? "#0a0a0b" : "var(--a-muted)",
-                }}
-              >{d}d</button>
-            ))}
-          </div>
-          <div className="a-mono" style={{ fontSize: 11, color: "var(--a-muted)" }}>
-            {updatedAt ? `Updated ${updatedAt}` : "Loading…"}
-          </div>
+        <div className="a-mono" style={{ fontSize: 11, color: "var(--a-muted)" }}>
+          {updatedAt ? `Updated ${updatedAt}` : "Loading…"}
         </div>
       </div>
 
@@ -166,7 +148,7 @@ function CommandCenter() {
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 16, marginBottom: 16 }}>
-        <ChartCard title="Transaction Volume" subtitle={`Last ${days} days · ₹`}>
+        <ChartCard title="Transaction Volume" subtitle="Last 30 days · ₹">
           <ResponsiveContainer width="100%" height={260}>
             <AreaChart data={data?.txnSeries ?? []} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
               <defs>
@@ -204,7 +186,7 @@ function CommandCenter() {
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 16 }}>
-        <ChartCard title="Signups vs KYC" subtitle={`Last ${days} days`}>
+        <ChartCard title="Signups vs KYC" subtitle="Last 30 days">
           <ResponsiveContainer width="100%" height={240}>
             <BarChart data={data?.signupSeries ?? []} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
               <CartesianGrid stroke={t.grid} vertical={false} />

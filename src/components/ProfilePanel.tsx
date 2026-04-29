@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft, X, QrCode, Copy, Check, ChevronRight, ChevronDown, Pencil, Camera, ShieldCheck,
   ShieldAlert, BadgeCheck, Wallet, CreditCard, Building2, Bell, Lock, Smartphone,
@@ -1047,7 +1047,7 @@ function formatBirthday(dob: string): string {
   return age >= 0 && age < 130 ? `${pretty} · ${age}y` : pretty;
 }
 
-/* ───────── My QR lightbox ───────── */
+/* ───────── My QR sheet ───────── */
 function MyQrSheet({ upiId, payeeName, onClose }: { upiId: string; payeeName: string; onClose: () => void }) {
   const upiLink = useMemo(
     () => `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(payeeName)}&cu=INR`,
@@ -1056,190 +1056,51 @@ function MyQrSheet({ upiId, payeeName, onClose }: { upiId: string; payeeName: st
   const [dataUrl, setDataUrl] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
-  const generate = useCallback(() => {
-    const { dark, light } = qrColors();
-    return QRCode.toDataURL(upiLink, {
-      errorCorrectionLevel: "M",
-      margin: 2,
-      width: 512,
-      color: { dark, light },
-    });
-  }, [upiLink]);
-
   useEffect(() => {
     let active = true;
-    setErr(null);
-    generate()
+    const { dark, light } = qrColors();
+    QRCode.toDataURL(upiLink, { errorCorrectionLevel: "M", margin: 2, width: 320, color: { dark, light } })
       .then((url) => { if (active) setDataUrl(url); })
-      .catch((e: unknown) => {
-        if (!active) return;
-        const msg = e instanceof Error ? e.message : "Couldn't generate QR";
-        setErr(msg);
-        toast.error("Couldn't generate QR code");
-      });
+      .catch((e: unknown) => { if (active) setErr(e instanceof Error ? e.message : "Couldn't generate QR"); });
     return () => { active = false; };
-  }, [generate]);
+  }, [upiLink]);
 
-  // Keep QR stable across background/foreground: if the tab returns and the
-  // image somehow got dropped (rare on memory-pressured devices), regenerate
-  // silently without flickering the lightbox layout.
-  useEffect(() => {
-    const onVisible = () => {
-      if (document.visibilityState !== "visible") return;
-      if (dataUrl) return;
-      generate()
-        .then((url: string) => setDataUrl(url))
-        .catch(() => { /* surfaced by the main effect */ });
-    };
-    document.addEventListener("visibilitychange", onVisible);
-    window.addEventListener("pageshow", onVisible);
-    return () => {
-      document.removeEventListener("visibilitychange", onVisible);
-      window.removeEventListener("pageshow", onVisible);
-    };
-  }, [dataUrl, generate]);
-
-  // Lock background scroll while the lightbox is open. We pin the body at the
-  // current scroll offset so the page can't shift behind the popup (iOS Safari
-  // and Android Chrome both honour this pattern), and restore on close.
-  useEffect(() => {
-    const scrollY = window.scrollY;
-    const body = document.body;
-    const html = document.documentElement;
-    const prev = {
-      bodyOverflow: body.style.overflow,
-      bodyPosition: body.style.position,
-      bodyTop: body.style.top,
-      bodyWidth: body.style.width,
-      htmlOverflow: html.style.overflow,
-      htmlOverscroll: html.style.overscrollBehavior,
-    };
-    body.style.overflow = "hidden";
-    body.style.position = "fixed";
-    body.style.top = `-${scrollY}px`;
-    body.style.width = "100%";
-    html.style.overflow = "hidden";
-    html.style.overscrollBehavior = "contain";
-
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
-    window.addEventListener("keydown", onKey);
-
-    return () => {
-      body.style.overflow = prev.bodyOverflow;
-      body.style.position = prev.bodyPosition;
-      body.style.top = prev.bodyTop;
-      body.style.width = prev.bodyWidth;
-      html.style.overflow = prev.htmlOverflow;
-      html.style.overscrollBehavior = prev.htmlOverscroll;
-      window.scrollTo(0, scrollY);
-      window.removeEventListener("keydown", onKey);
-    };
-  }, [onClose]);
-
-  const fileName = `teenwallet-${upiId.replace(/[^a-z0-9]/gi, "_")}.png`;
-
-  const download = async () => {
-    if (!dataUrl) {
-      toast.error("QR isn't ready yet");
-      return;
-    }
-    try {
-      const { Capacitor } = await import("@capacitor/core");
-      if (Capacitor.isNativePlatform()) {
-        const { Filesystem, Directory } = await import("@capacitor/filesystem");
-        const base64 = dataUrl.split(",")[1] ?? "";
-        await Filesystem.writeFile({
-          path: fileName,
-          data: base64,
-          directory: Directory.Documents,
-          recursive: true,
-        });
-        toast.success("QR saved to Documents");
-        return;
-      }
-    } catch { /* fall through to web */ }
-    // Web fallback — trigger a real browser download.
-    try {
-      const a = document.createElement("a");
-      a.href = dataUrl;
-      a.download = fileName;
-      document.body.appendChild(a); a.click(); a.remove();
-      toast.success("QR saved to downloads");
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : "Download failed";
-      toast.error(msg);
-    }
+  const download = () => {
+    if (!dataUrl) return;
+    const a = document.createElement("a");
+    a.href = dataUrl;
+    a.download = `teenwallet-${upiId.replace(/[^a-z0-9]/gi, "_")}.png`;
+    document.body.appendChild(a); a.click(); a.remove();
+    toast.success("QR saved to downloads");
   };
 
   const share = async () => {
-    if (!dataUrl) return;
     try {
-      const { Capacitor } = await import("@capacitor/core");
-      if (Capacitor.isNativePlatform()) {
-        const { Filesystem, Directory } = await import("@capacitor/filesystem");
-        const { Share } = await import("@capacitor/share");
-        const base64 = dataUrl.split(",")[1] ?? "";
-        const written = await Filesystem.writeFile({
-          path: `share-${fileName}`,
-          data: base64,
-          directory: Directory.Cache,
-          recursive: true,
-        });
-        await Share.share({
-          title: "Pay me on TeenWallet",
-          text: `Pay ${payeeName} via UPI: ${upiLink}`,
-          url: written.uri,
-          dialogTitle: "Share my UPI QR",
-        });
-        return;
-      }
-
-      // Web — prefer Web Share with the file (Android Chrome opens the OS sheet).
-      const blob = await (await fetch(dataUrl)).blob();
-      const file = new File([blob], fileName, { type: "image/png" });
-      const nav = navigator as Navigator & { canShare?: (data: ShareData) => boolean };
-      if (nav.canShare?.({ files: [file] }) && navigator.share) {
-        await navigator.share({ files: [file], title: "Pay me on TeenWallet", text: `Pay ${payeeName} via UPI`, url: upiLink });
-        return;
-      }
-      if (navigator.share) {
-        await navigator.share({ title: "Pay me on TeenWallet", text: `Pay ${payeeName} via UPI`, url: upiLink });
-        return;
-      }
+      if (navigator.share) { await navigator.share({ title: "Pay me on TeenWallet", text: `Pay ${payeeName} via UPI`, url: upiLink }); return; }
       await navigator.clipboard.writeText(upiLink);
       toast.success("Payment link copied");
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : "";
-      if (msg && !/abort|cancel/i.test(msg)) toast.error("Couldn't open share sheet");
-    }
+    } catch { /* user cancelled */ }
   };
 
   return (
-    <div
-      className="fixed inset-0 z-[120] flex items-center justify-center pp-qr-lightbox"
-      onClick={onClose}
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="pp-qr-title"
-    >
-      <div className="pp-qr-lightbox-card" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between mb-4">
+    <div className="absolute inset-0 z-[80] flex items-end pp-sheet-backdrop" onClick={onClose} role="dialog" aria-modal="true" aria-labelledby="pp-qr-title">
+      <div className="pp-sheet" onClick={(e) => e.stopPropagation()}>
+        <div className="pp-sheet-grab" />
+        <div className="flex items-center justify-between px-1 mb-3">
           <p id="pp-qr-title" className="text-[15px] font-semibold text-white">My UPI QR</p>
           <button onClick={onClose} aria-label="Close" className="qa-icon-btn"><X className="w-4 h-4 text-white/80" /></button>
         </div>
         <div className="flex flex-col items-center">
           <div className="rounded-2xl bg-white p-3 shadow-2xl">
-            {dataUrl
-              ? <img src={dataUrl} alt="UPI QR code" width={260} height={260} className="block rounded-md" />
-              : <div className="w-[260px] h-[260px] rounded-md bg-neutral-200 animate-pulse" />}
+            {dataUrl ? <img src={dataUrl} alt="UPI QR code" width={240} height={240} className="block rounded-md" /> : <div className="w-[240px] h-[240px] rounded-md bg-neutral-200 animate-pulse" />}
           </div>
-          <p className="mt-4 text-[14px] text-white font-semibold">{payeeName}</p>
+          <p className="mt-4 text-[13px] text-white font-medium">{payeeName}</p>
           <p className="text-[12px] text-white/60 num-mono">{upiId}</p>
           {err && <p className="text-[12px] text-red-300 mt-2">{err}</p>}
         </div>
         <div className="flex gap-2 mt-5">
           <button onClick={download} disabled={!dataUrl} className="pp-btn-ghost flex-1 disabled:opacity-50"><Download className="w-4 h-4 inline -mt-0.5 mr-1.5" /> Save</button>
-          <button onClick={share} disabled={!dataUrl} className="pp-btn-primary flex-1 disabled:opacity-50"><Share2 className="w-4 h-4 inline -mt-0.5 mr-1.5" /> Share</button>
+          <button onClick={share} className="pp-btn-primary flex-1"><Share2 className="w-4 h-4 inline -mt-0.5 mr-1.5" /> Share</button>
         </div>
         <p className="text-[11px] text-white/45 text-center mt-3">Scan this QR in any UPI app to pay you instantly.</p>
       </div>

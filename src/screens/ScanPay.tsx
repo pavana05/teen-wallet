@@ -1,15 +1,13 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { Html5Qrcode } from "html5-qrcode";
 import QRCode from "qrcode";
-import { ArrowLeft, ArrowRight, Image as ImageIcon, Zap, ZapOff, X, Share2, Check, ShieldCheck, Wallet, Users, User as UserIcon, QrCode, Download, RotateCcw, Copy, ScanLine, ExternalLink, AlertTriangle, Info, Mail, MessageCircle, Phone, Plus, Hash, Send, Delete, ChevronDown } from "lucide-react";
+import { ArrowLeft, ArrowRight, Image as ImageIcon, Zap, ZapOff, X, Share2, Check, Bug, ShieldCheck, Wallet, Users, User as UserIcon, QrCode, Download, RotateCcw, Copy, ScanLine, ExternalLink, AlertTriangle, Info, Mail, MessageCircle, Phone, Plus, Hash, Send, Delete, ChevronDown } from "lucide-react";
 import { parseUpiQr, parseUpiQrWithReason, canOpenUpiApp, buildUpiDeepLink, type UpiPayload, type UpiParseResult } from "@/lib/upi";
 import { scanTransaction, logFraudFlags, type FraudFlag } from "@/lib/fraud";
 import { useApp } from "@/lib/store";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { downloadReceiptPdf, shareReceiptPdf, shareReceiptToWhatsApp, buildReceiptSummary, type ReceiptData } from "@/lib/receipt";
-import { notifyAttemptPendingOnce, notifyAttemptTerminalOnce } from "@/lib/notify";
-import { toastPaymentPending, toastPaymentSent, toastPaymentFailed } from "@/lib/notifyToast";
 import {
   recordReceiptDelivery,
   getLastDelivery,
@@ -156,9 +154,6 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
           setResultMsg(snap.failureReason ?? "Payment failed");
           setFailKind("generic");
           setPhase("failed");
-          if (userId) {
-            void notifyAttemptTerminalOnce(snap.id, "failed", userId, snap.amount, snap.payeeName, snap.failureReason);
-          }
         }
       },
     });
@@ -171,14 +166,6 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
     if (phase !== "processing" || !attemptId) return;
     let cancelled = false;
     const startedAt = Date.now();
-
-    // Fire ONE "pending" notification per attempt the moment we begin polling.
-    // notifyAttemptPendingOnce dedupes across reloads / re-renders.
-    if (userId && payload && typeof payload.amount === "number") {
-      void notifyAttemptPendingOnce(attemptId, userId, payload.amount, payload.payeeName);
-      // Live toast — same id will be replaced by success/failed below.
-      toastPaymentPending(attemptId, payload.amount, payload.payeeName);
-    }
 
     const tick = async () => {
       if (cancelled) return;
@@ -205,11 +192,6 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
           setSavedTxn(snapToSavedTxn(snap));
           setResultMsg(`₹${snap.amount.toFixed(0)} sent to ${snap.payeeName}`);
           if (navigator.vibrate) navigator.vibrate([30, 60, 30]);
-          if (userId) {
-            void notifyAttemptTerminalOnce(snap.id, "received", userId, snap.amount, snap.payeeName);
-          }
-          // Replace the pending live-toast with a success toast (same id).
-          toastPaymentSent(snap.id, snap.amount, snap.payeeName);
           setAttemptId(null);
           setPhase("success");
           return;
@@ -218,11 +200,6 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
           breadcrumb("payment.failed", { amount: snap.amount, reason: snap.failureReason ?? undefined }, "warning");
           setResultMsg(snap.failureReason ?? "Payment failed");
           setFailKind("generic");
-          if (userId) {
-            void notifyAttemptTerminalOnce(snap.id, "failed", userId, snap.amount, snap.payeeName, snap.failureReason);
-          }
-          // Replace the pending live-toast with an error toast (same id).
-          toastPaymentFailed(snap.id, snap.amount, snap.payeeName, snap.failureReason);
           setAttemptId(null);
           setPhase("failed");
           return;
@@ -232,8 +209,6 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
           setResultMsg("Payment is taking longer than expected. We'll keep trying in the background.");
           setFailKind("generic");
           setPhase("failed");
-          // Do NOT emit another pending notification here — the single
-          // pending notification was already sent at the start of polling.
           return;
         }
         setTimeout(tick, POLL_INTERVAL_MS);
@@ -911,6 +886,14 @@ function ScannerView({ onBack, onDecoded }: { onBack: () => void; onDecoded: (p:
         </div>
         <div className="flex items-center gap-2">
           <button
+            onClick={() => setDebugOpen((v) => !v)}
+            aria-label={debugOpen ? "Hide debug overlay" : "Show debug overlay"}
+            aria-pressed={debugOpen}
+            className={`sp2-icon-btn ${debugOpen ? "on" : ""}`}
+          >
+            <Bug className="w-5 h-5" />
+          </button>
+          <button
             onClick={toggleTorch}
             aria-label={torch ? "Turn flash off" : "Turn flash on"}
             aria-pressed={torch}
@@ -957,6 +940,26 @@ function ScannerView({ onBack, onDecoded }: { onBack: () => void; onDecoded: (p:
           </button>
         )}
       </div>
+
+      {debugOpen && (
+        <div className="absolute bottom-[140px] left-4 right-4 z-30 rounded-2xl bg-black/85 border border-white/10 backdrop-blur-md p-3 text-[11px] font-mono text-white/85 max-h-[36%] overflow-auto">
+          <p className="text-primary mb-1">⚙ {tuningRef.current.profile} · fps {tuningRef.current.fps} · qrbox {tuningRef.current.qrbox.width}px · cores {tuningRef.current.cores} · mem {tuningRef.current.mem}GB · soft-resets {softResetCount}</p>
+          {debug ? (
+            <>
+              <p className="text-white/55">raw:</p>
+              <p className="break-all text-white/95">{debug.raw}</p>
+              <p className="text-white/55 mt-2">matched: <span className="text-white/95">{debug.result.matched ?? "—"}</span></p>
+              <p className="text-white/55">parsed: <span className={debug.result.payload ? "text-[#6ee7a3]" : "text-[#ff8585]"}>{debug.result.payload ? "valid" : "invalid"}</span></p>
+              {debug.result.reason && <p className="text-[#ff8585]">reason: {debug.result.reason}</p>}
+              {debug.result.payload && (
+                <pre className="text-white/85 whitespace-pre-wrap mt-1">{JSON.stringify(debug.result.payload, null, 2)}</pre>
+              )}
+            </>
+          ) : (
+            <p className="text-white/55">Waiting for first decode…</p>
+          )}
+        </div>
+      )}
 
       {/* ── QR scan recovery panel ──
           Shown when the user has hit 3+ invalid QR decodes, has done 2+ soft

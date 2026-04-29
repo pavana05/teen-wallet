@@ -9,11 +9,6 @@ import { initNative } from "@/lib/native";
 import { breadcrumb, captureError } from "@/lib/breadcrumbs";
 import { installConsoleCapture } from "@/lib/consoleCapture";
 import { installAppLockListeners } from "@/lib/appLock";
-import { installOfflineQueue } from "@/lib/offlineQueue";
-
-import { OfflineOverlay } from "@/components/OfflineOverlay";
-import { GlobalErrorOverlay } from "@/components/GlobalErrorOverlay";
-import { OfflineQueueStatus } from "@/components/OfflineQueueStatus";
 
 import appCss from "../styles.css?url";
 
@@ -118,25 +113,15 @@ function RootComponent() {
     initNative();
     // Only the native app needs App Lock visibility/idle listeners.
     if (isNative()) installAppLockListeners();
-    // Drain queued offline actions and install reconnect listeners.
-    installOfflineQueue();
     breadcrumb("system.boot", { platform: typeof navigator !== "undefined" ? navigator.userAgent : undefined });
 
     const onError = (e: ErrorEvent) => captureError(e.error ?? e.message, { where: "window.onerror" });
     const onRejection = (e: PromiseRejectionEvent) => captureError(e.reason, { where: "window.unhandledrejection" });
-    const onBackHint = async () => {
-      try {
-        const { toast } = await import("sonner");
-        toast("Press back again to exit", { duration: 1800 });
-      } catch { /* ignore */ }
-    };
     window.addEventListener("error", onError);
     window.addEventListener("unhandledrejection", onRejection);
-    window.addEventListener("tw:back-exit-hint", onBackHint as EventListener);
     return () => {
       window.removeEventListener("error", onError);
       window.removeEventListener("unhandledrejection", onRejection);
-      window.removeEventListener("tw:back-exit-hint", onBackHint as EventListener);
     };
   }, []);
 
@@ -153,10 +138,6 @@ function RootComponent() {
       <ShakeToReport />
       {showAppLock && <AppLockSetupPrompt />}
       {showAppLock && <AppLockGate />}
-      
-      <OfflineOverlay />
-      <OfflineQueueStatus />
-      <GlobalErrorOverlay />
     </>
   );
 }

@@ -9,7 +9,7 @@
  * The full Referral Program is also accessible later from the profile menu,
  * so skipping here doesn't lock the user out of the feature.
  */
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Gift, Sparkles, ArrowRight, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { redeemReferralCode, markReferralPromptDone } from "@/lib/referral";
@@ -21,15 +21,6 @@ export function OnboardingReferral({ onDone }: Props) {
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  // Pre-warm the chunks for the screens that follow this one (Permissions,
-  // KycFlow). KycFlow is large and is the typical "after referral, app
-  // stops loading" culprit on slow connections — by the time the user
-  // taps Skip / Apply, those chunks are already in cache.
-  useEffect(() => {
-    void import("@/screens/Permissions").catch(() => {});
-    void import("@/screens/KycFlow").catch(() => {});
-  }, []);
 
   const finish = () => {
     markReferralPromptDone();

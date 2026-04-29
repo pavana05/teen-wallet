@@ -5,67 +5,19 @@ import { useApp, type Stage } from "@/lib/store";
 import { fetchProfile } from "@/lib/auth";
 import { PhoneShell } from "@/components/PhoneShell";
 import { lazyWithRetry } from "@/lib/lazyWithRetry";
-import { shouldShowReferralPrompt, markReferralPromptDone } from "@/lib/referral";
-import { OnboardingSkeleton, HomeSkeleton } from "@/components/BootSkeletons";
-import { recordRedirect } from "@/lib/redirectLog";
-import { runSelfCheck, stageRank, PERMISSIONS_DONE_KEY, type SelfCheckResult } from "@/lib/bootSelfCheck";
-import { reconcileAppState } from "@/lib/stateReconciler";
-import { StartupErrorScreen } from "@/components/StartupErrorScreen";
-import { reconcileNotificationState, shouldForceReprompt } from "@/lib/notificationState";
 
-// All app screens live behind a single route now ("/"). The component
-// below renders the right step based on the persisted Stage + session,
-// removing the previous /home and /onboarding split.
 
-const loadOnboardingChunk = () => import("@/screens/Onboarding").then(m => ({ default: m.Onboarding }));
-const loadAuthPhoneChunk = () => import("@/screens/AuthPhone").then(m => ({ default: m.AuthPhone }));
-const loadKycFlowChunk = () => import("@/screens/KycFlow").then(m => ({ default: m.KycFlow }));
-const loadKycPendingChunk = () => import("@/screens/KycPending").then(m => ({ default: m.KycPending }));
-const loadPermissionsChunk = () => import("@/screens/Permissions").then(m => ({ default: m.Permissions }));
-const loadReferralChunk = () => import("@/screens/OnboardingReferral").then(m => ({ default: m.OnboardingReferral }));
-const loadHomeChunk = () => import("@/screens/Home").then(m => ({ default: m.Home }));
+const Onboarding = lazyWithRetry(() => import("@/screens/Onboarding").then(m => ({ default: m.Onboarding })));
+const AuthPhone = lazyWithRetry(() => import("@/screens/AuthPhone").then(m => ({ default: m.AuthPhone })));
+const KycFlow = lazyWithRetry(() => import("@/screens/KycFlow").then(m => ({ default: m.KycFlow })));
+const KycPending = lazyWithRetry(() => import("@/screens/KycPending").then(m => ({ default: m.KycPending })));
+const Permissions = lazyWithRetry(() => import("@/screens/Permissions").then(m => ({ default: m.Permissions })));
+const Home = lazyWithRetry(() => import("@/screens/Home").then(m => ({ default: m.Home })));
+const OnboardingReferral = lazyWithRetry(() => import("@/screens/OnboardingReferral").then(m => ({ default: m.OnboardingReferral })));
 
-const Onboarding = lazyWithRetry(loadOnboardingChunk);
-const AuthPhone = lazyWithRetry(loadAuthPhoneChunk);
-const KycFlow = lazyWithRetry(loadKycFlowChunk);
-const KycPending = lazyWithRetry(loadKycPendingChunk);
-const Permissions = lazyWithRetry(loadPermissionsChunk);
-const OnboardingReferral = lazyWithRetry(loadReferralChunk);
-const Home = lazyWithRetry(loadHomeChunk);
+const PERMISSIONS_DONE_KEY = "tw_permissions_seen_v1";
 
-function prefetch(loaders: Array<() => Promise<unknown>>) {
-  if (typeof window === "undefined") return;
-  for (const l of loaders) { try { void l(); } catch { /* noop */ } }
-}
-function prefetchIdle(loaders: Array<() => Promise<unknown>>) {
-  if (typeof window === "undefined") return;
-  const run = () => prefetch(loaders);
-  const ric = (window as unknown as { requestIdleCallback?: (cb: () => void) => number }).requestIdleCallback;
-  if (typeof ric === "function") ric(run); else window.setTimeout(run, 60);
-}
-function warmAllChunks() {
-  // Warm immediately (not idle) so stage transitions never hit a Suspense
-  // fallback after the first paint. Each chunk is small and these loads
-  // happen in parallel — the browser will dedupe and the perceived nav
-  // becomes instant.
-  prefetch([
-    loadAuthPhoneChunk,
-    loadReferralChunk,
-    loadPermissionsChunk,
-    loadKycFlowChunk,
-    loadKycPendingChunk,
-    loadHomeChunk,
-  ]);
-}
-
-const VALID_STAGES = new Set<Stage>([
-  "STAGE_0", "STAGE_1", "STAGE_2", "STAGE_3", "STAGE_4", "STAGE_5",
-]);
-function isValidStage(s: unknown): s is Stage {
-  return typeof s === "string" && VALID_STAGES.has(s as Stage);
-}
-
-let pendingSelfCheckFailure: SelfCheckResult | null = null;
+import { shouldShowReferralPrompt } from "@/lib/referral";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -74,138 +26,111 @@ export const Route = createFileRoute("/")({
       { name: "description", content: "India's first teen-first UPI wallet. Aadhaar-only KYC. Scan, pay, and earn rewards in seconds." },
     ],
   }),
-  beforeLoad: () => {
-    if (typeof window === "undefined") return;
-
-    // Repair inconsistent persisted state before reading it.
-    const repair = reconcileAppState();
-    if (repair.changed) {
-      for (const r of repair.repairs) {
-        recordRedirect({
-          from: "boot:/", to: "boot:/",
-          stage: repair.finalStage, session: false,
-          reason: `reconcile:${r.code}`,
-        });
-      }
-    }
-
-    const check = runSelfCheck();
-    if (!check.ok) {
-      pendingSelfCheckFailure = check;
-      recordRedirect({
-        from: "boot:/", to: "/(error)",
-        stage: check.snapshot.stage,
-        session: check.snapshot.hasSession,
-        reason: `selfcheck_fail:${check.issues[0]?.code ?? "unknown"}`,
-      });
-      return;
-    }
-    pendingSelfCheckFailure = null;
-
-    // Suppress optional referral prompt for any returning auth'd user,
-    // and ensure the perms gate doesn't bounce them on a fresh device.
-    const { stage, userId, hasSession, sessionUserId } = check.snapshot;
-    const hasLiveSession = hasSession || !!sessionUserId;
-    if (hasLiveSession) {
-      try { markReferralPromptDone(); } catch { /* ignore */ }
-      if (isValidStage(stage) && stageRank[stage] >= stageRank["STAGE_5"]) {
-        try { window.localStorage.setItem(PERMISSIONS_DONE_KEY, "1"); } catch { /* ignore */ }
-      }
-    }
-
-    recordRedirect({
-      from: "boot:/", to: "/",
-      stage, session: !!userId,
-      reason: "boot_render_inplace",
-    });
-  },
-  component: AppRoot,
+  component: Index,
 });
 
-function AppRoot() {
-  const [failure] = useState<SelfCheckResult | null>(() => pendingSelfCheckFailure);
-  const { stage, setStage, hydrateFromProfile } = useApp();
+function ScreenFallback() {
+  // Premium dark boot skeleton — graphite surfaces with a soft champagne
+  // shimmer sweep. Mirrors the Home layout so the boot gate feels seamless.
+  return (
+    <div className="flex-1 flex flex-col gap-4 px-5 pt-8 pb-6 boot-slide-in">
+      {/* Top bar: avatar + bell */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="boot-skel" style={{ width: 40, height: 40, borderRadius: 999 }} />
+          <div className="flex flex-col gap-2">
+            <div className="boot-skel" style={{ width: 96, height: 10, borderRadius: 6 }} />
+            <div className="boot-skel" style={{ width: 64, height: 8, borderRadius: 6 }} />
+          </div>
+        </div>
+        <div className="boot-skel" style={{ width: 38, height: 38, borderRadius: 14 }} />
+      </div>
+
+      {/* Balance card */}
+      <div className="boot-skel boot-skel-card" style={{ height: 148, borderRadius: 22, marginTop: 6 }} />
+
+      {/* Quick action tiles */}
+      <div className="grid grid-cols-4 gap-3 mt-1">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="flex flex-col items-center gap-2">
+            <div className="boot-skel" style={{ width: 60, height: 60, borderRadius: 16 }} />
+            <div className="boot-skel" style={{ width: 44, height: 8, borderRadius: 6 }} />
+          </div>
+        ))}
+      </div>
+
+      {/* Section header */}
+      <div className="flex items-center justify-between mt-2">
+        <div className="boot-skel" style={{ width: 120, height: 12, borderRadius: 6 }} />
+        <div className="boot-skel" style={{ width: 48, height: 10, borderRadius: 6 }} />
+      </div>
+
+      {/* Offer / activity rows */}
+      <div className="flex flex-col gap-3">
+        <div className="boot-skel boot-skel-row" />
+        <div className="boot-skel boot-skel-row" />
+        <div className="boot-skel boot-skel-row" />
+      </div>
+
+      <span className="sr-only" role="status" aria-live="polite">Loading your wallet…</span>
+    </div>
+  );
+}
+
+function Index() {
+  const { stage, setStage, hydrateFromProfile, userId } = useApp();
+
+  const stageRank: Record<Stage, number> = {
+    STAGE_0: 0, STAGE_1: 1, STAGE_2: 2, STAGE_3: 3, STAGE_4: 4, STAGE_5: 5,
+  };
+
+  // Fast-boot: if we already have persisted state past pre-auth (or a known
+  // userId), render the correct screen immediately and reconcile with the
+  // backend in the background. Skeleton only shows on a true cold start.
+  const hasPersistedSession =
+    typeof window !== "undefined" &&
+    (!!userId || stageRank[stage] >= stageRank["STAGE_3"]);
+  const [booting, setBooting] = useState(!hasPersistedSession);
 
   const [permsSeen, setPermsSeen] = useState<boolean>(() => {
     if (typeof window === "undefined") return true;
-    try {
-      const seen = localStorage.getItem(PERMISSIONS_DONE_KEY) === "1";
-      if (!seen) return false;
-      // If notifications were previously granted but later revoked at the
-      // OS/browser level, surface the Permissions screen one more time so
-      // the user can flip them back on. shouldForceReprompt() returns true
-      // at most once per revocation event.
-      const liveStatus: "granted" | "denied" | "default" | "unknown" =
-        "Notification" in window
-          ? (Notification.permission as "granted" | "denied" | "default")
-          : "unknown";
-      reconcileNotificationState(liveStatus);
-      if (shouldForceReprompt()) return false;
-      return true;
-    } catch { return true; }
+    try { return localStorage.getItem(PERMISSIONS_DONE_KEY) === "1"; } catch { return true; }
   });
   const markPermsSeen = () => {
     try { localStorage.setItem(PERMISSIONS_DONE_KEY, "1"); } catch { /* ignore */ }
     setPermsSeen(true);
   };
 
+  // Optional referral step shown once between Auth and Permissions/KYC.
+  // The user can apply a code or skip; either way we mark it done so the
+  // screen never reappears on subsequent launches.
   const [referralPending, setReferralPending] = useState<boolean>(() => shouldShowReferralPrompt());
   const markReferralDone = () => setReferralPending(false);
 
-  // Warm all chunks so transitions between steps feel instant.
-  useEffect(() => { warmAllChunks(); }, []);
-
-  // Boot watchdog: if a lazy chunk silently hangs (network stall, slow CDN,
-  // sleeping service worker), the Suspense fallback skeleton would stay
-  // forever. After 12s with no successful render, force a one-time hard
-  // reload so lazyWithRetry can re-fetch with a fresh manifest. Only fires
-  // if the user hasn't interacted yet (clear sign they're stuck).
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    const KEY = "tw_boot_reload_v1";
-    const t = window.setTimeout(() => {
-      try {
-        const last = Number(sessionStorage.getItem(KEY) || "0");
-        if (Date.now() - last < 60_000) return; // avoid reload loops
-        sessionStorage.setItem(KEY, String(Date.now()));
-        window.location.reload();
-      } catch { /* ignore */ }
-    }, 12_000);
-    const cancel = () => window.clearTimeout(t);
-    window.addEventListener("pointerdown", cancel, { once: true });
-    window.addEventListener("keydown", cancel, { once: true });
-    return () => {
-      window.clearTimeout(t);
-      window.removeEventListener("pointerdown", cancel);
-      window.removeEventListener("keydown", cancel);
-    };
-  }, []);
-
-  // Prefetch the next-likely chunk based on current stage.
-  useEffect(() => {
-    if (stage === "STAGE_0" || stage === "STAGE_1") {
-      prefetch([loadAuthPhoneChunk, loadReferralChunk]);
-    } else if (stage === "STAGE_2") {
-      prefetch([loadReferralChunk, loadPermissionsChunk, loadKycFlowChunk]);
-    } else if (stage === "STAGE_3") {
-      prefetch([loadKycFlowChunk, loadPermissionsChunk]);
-      prefetchIdle([loadKycPendingChunk, loadHomeChunk]);
-    } else if (stage === "STAGE_4") {
-      prefetch([loadKycPendingChunk, loadHomeChunk]);
-    } else if (stage === "STAGE_5") {
-      prefetch([loadHomeChunk]);
-    }
-  }, [stage]);
-
-  // Background reconcile with backend profile (only relevant once a
-  // session exists). Runs once on mount and on auth state changes.
-  useEffect(() => {
-    if (failure) return;
     let mounted = true;
     (async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
-        if (!mounted || !session) return;
+        if (!mounted) return;
+        if (!session) {
+          // No session: ensure we don't show post-auth screens from stale persisted state.
+          const localStage = useApp.getState().stage;
+          if (stageRank[localStage] >= stageRank["STAGE_3"]) {
+            useApp.getState().setStageLocal("STAGE_0");
+          }
+          setBooting(false);
+          return;
+        }
+        // Session exists — make sure we don't flash Onboarding/AuthPhone while we
+        // fetch the profile. Bump local stage out of pre-auth screens immediately.
+        const localStage = useApp.getState().stage;
+        if (localStage === "STAGE_0" || localStage === "STAGE_1" || localStage === "STAGE_2") {
+          useApp.getState().setStageLocal("STAGE_3");
+        }
+        // Unblock UI immediately — fetch profile in the background and reconcile silently.
+        if (mounted) setBooting(false);
+
         const p = await fetchProfile();
         if (!p || !mounted) return;
         const profileStage = (p.onboarding_stage as Stage) ?? "STAGE_0";
@@ -229,78 +154,77 @@ function AppRoot() {
           balance: Number(p.balance),
           onboarding_stage: resolvedStage,
         });
+
         if (resolvedStage !== profileStage) setStage(resolvedStage);
       } catch (err) {
         console.error("[boot] hydrate failed", err);
+      } finally {
+        if (mounted) setBooting(false);
       }
     })();
-    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === "SIGNED_OUT" && !session) {
-        useApp.getState().reset();
+    const { data: sub } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event !== "SIGNED_OUT") return;
+      if (session) return;
+      try {
+        const { data } = await supabase.auth.getSession();
+        if (data.session) return;
+      } catch {
+        return;
       }
+      useApp.getState().reset();
     });
     return () => { mounted = false; sub.subscription.unsubscribe(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [failure]);
+  }, []);
 
-  if (failure) {
-    return <StartupErrorScreen result={failure} />;
-  }
-
-  // Decide which screen to render. Permissions/referral gates apply once
-  // the user has authenticated (>= STAGE_3).
-  const showReferral = referralPending && stageRank[stage] >= stageRank["STAGE_3"];
-  const showPermissions = !permsSeen && stageRank[stage] >= stageRank["STAGE_3"];
-  const isHome = stage === "STAGE_5" && permsSeen && !referralPending;
-
-  // Self-heal: if no branch matches, recover instead of forever-skeleton.
+  // Idle-time prefetch — warm the most likely next screens so navigation
+  // feels instant. Runs after first paint, never blocks rendering.
   useEffect(() => {
-    const matches =
-      stage === "STAGE_0" || stage === "STAGE_1" || stage === "STAGE_2" ||
-      showReferral || showPermissions ||
-      stage === "STAGE_3" || stage === "STAGE_4" || isHome;
-    if (matches) return;
-    if (stageRank[stage] >= stageRank["STAGE_3"]) {
-      setStage("STAGE_3");
-    } else {
-      setStage("STAGE_2");
-    }
-  }, [stage, permsSeen, referralPending, showReferral, showPermissions, isHome, setStage]);
+    if (typeof window === "undefined") return;
+    const idle = (cb: () => void) => {
+      const w = window as unknown as { requestIdleCallback?: (cb: () => void) => number };
+      if (typeof w.requestIdleCallback === "function") w.requestIdleCallback(cb);
+      else setTimeout(cb, 600);
+    };
+    idle(() => {
+      void import("@/screens/Home");
+      void import("@/screens/Onboarding");
+      void import("@/screens/AuthPhone");
+    });
+  }, []);
 
   return (
     <PhoneShell>
-      <Suspense fallback={isHome ? <HomeSkeleton /> : <OnboardingSkeleton />}>
-        {stage === "STAGE_0" || stage === "STAGE_1" ? (
+      <Suspense fallback={<ScreenFallback />}>
+        {booting ? (
+          <ScreenFallback />
+        ) : stage === "STAGE_0" || stage === "STAGE_1" ? (
           <Onboarding onDone={() => {
+            // Never downgrade — if persisted/profile-derived stage is already
+            // past auth, resume there instead of forcing the user back to STAGE_2.
             const s = useApp.getState().stage;
-            setStage(stageRank[s] >= stageRank["STAGE_2"] ? s : "STAGE_2");
+            const rank: Record<Stage, number> = { STAGE_0:0, STAGE_1:1, STAGE_2:2, STAGE_3:3, STAGE_4:4, STAGE_5:5 };
+            setStage(rank[s] >= rank["STAGE_2"] ? s : "STAGE_2");
           }} />
         ) : stage === "STAGE_2" ? (
           <AuthPhone onDone={() => {
             const s = useApp.getState().stage;
-            setStage(stageRank[s] > stageRank["STAGE_3"] ? s : "STAGE_3");
+            const rank: Record<Stage, number> = { STAGE_0:0, STAGE_1:1, STAGE_2:2, STAGE_3:3, STAGE_4:4, STAGE_5:5 };
+            // Resume to whichever is more advanced (persisted/profile vs STAGE_3).
+            setStage(rank[s] > rank["STAGE_3"] ? s : "STAGE_3");
           }} />
-        ) : showReferral ? (
+        ) : referralPending && (stage === "STAGE_3" || stage === "STAGE_4" || stage === "STAGE_5") ? (
           <OnboardingReferral onDone={markReferralDone} />
-        ) : showPermissions ? (
-          <Permissions onDone={markPermsSeen} />
+        ) : !permsSeen && (stage === "STAGE_3" || stage === "STAGE_4") ? (
+          <Permissions onDone={() => { markPermsSeen(); }} />
         ) : stage === "STAGE_3" ? (
           <KycFlow onDone={() => setStage("STAGE_4")} />
         ) : stage === "STAGE_4" ? (
           <KycPending onApproved={() => setStage("STAGE_5")} />
-        ) : isHome ? (
-          <Home />
         ) : (
-          <OnboardingSkeleton />
+          <Home />
         )}
       </Suspense>
     </PhoneShell>
   );
 }
-
-// Used by tests/devtools to clear cached failure between runs.
-export function __resetBootSelfCheckForTests() {
-  pendingSelfCheckFailure = null;
-}
-
-export { type Stage };

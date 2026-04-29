@@ -4,13 +4,12 @@ const config: CapacitorConfig = {
   appId: "com.teenwallet.app",
   appName: "Teen Wallet",
   // This app uses TanStack Start (SSR + server functions), so it cannot be
-  // bundled fully offline. Instead we ship a branded splash shell in
-  // `capacitor-shell/` that handles offline state and smoothly hands off to
-  // the live web app — no redirect flash, no browser chrome, feels native.
+  // bundled as static assets. Capacitor wraps the published Lovable URL.
+  // `webDir` still has to point at SOMETHING that exists, so we use a tiny
+  // bootstrap folder that just redirects — the real app loads from `server.url`.
   webDir: "capacitor-shell",
   server: {
-    // Allow navigating to the published app from inside the WebView.
-    allowNavigation: ["teen-wallet.lovable.app", "*.lovable.app", "*.supabase.co"],
+    url: "https://teen-wallet.lovable.app",
     cleartext: false,
     androidScheme: "https",
   },
@@ -21,17 +20,14 @@ const config: CapacitorConfig = {
   },
   plugins: {
     SplashScreen: {
-      // Keep the OS splash visible until our HTML splash takes over, so
-      // there's no white flash between native launch and web view paint.
-      launchShowDuration: 1500,
-      launchAutoHide: false,
+      launchShowDuration: 0,
+      launchAutoHide: true,
       backgroundColor: "#050505",
       androidSplashResourceName: "splash",
       androidScaleType: "CENTER_CROP",
       showSpinner: false,
       splashFullScreen: true,
       splashImmersive: true,
-      fadeOutDuration: 300,
     },
     StatusBar: {
       style: "DARK",

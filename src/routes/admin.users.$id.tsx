@@ -4,7 +4,6 @@ import { callAdminFn, readAdminSession, useAdminSession, can } from "@/admin/lib
 import {
   ArrowLeft, Loader2, ShieldCheck, ShieldX, RotateCcw,
   ShieldAlert, Activity as ActivityIcon, Wallet, FileCheck2, ScrollText,
-  Lock, Unlock, LogOut, Tag, Plus, Minus,
 } from "lucide-react";
 
 export const Route = createFileRoute("/admin/users/$id")({
@@ -15,7 +14,6 @@ interface Profile {
   id: string;
   full_name: string | null;
   phone: string | null;
-  email: string | null;
   dob: string | null;
   gender: string | null;
   aadhaar_last4: string | null;
@@ -24,23 +22,11 @@ interface Profile {
   balance: number;
   created_at: string;
   updated_at: string;
-  school_name: string | null;
-  address_line1: string | null;
-  address_city: string | null;
-  address_state: string | null;
-  address_pincode: string | null;
-  account_tag: string | null;
-  account_locked: boolean;
-  notif_prefs: Record<string, boolean> | null;
 }
 interface Txn { id: string; amount: number; merchant_name: string; upi_id: string; status: string; created_at: string; fraud_flags: any; }
 interface Kyc { id: string; status: string; provider: string; provider_ref: string | null; match_score: number | null; reason: string | null; created_at: string; updated_at: string; }
 interface Fraud { id: string; rule_triggered: string; resolution: string | null; created_at: string; transaction_id: string | null; }
 interface Audit { id: string; admin_email: string | null; admin_role: string | null; action_type: string; created_at: string; new_value: any; }
-interface Contact { id: string; name: string; upi_id: string; phone: string | null; verified: boolean; last_paid_at: string | null; created_at: string; emoji?: string | null; }
-interface Attempt { id: string; amount: number; payee_name: string; upi_id: string; stage: string; method: string; failure_reason: string | null; provider_ref: string | null; created_at: string; completed_at: string | null; }
-interface Referral { id: string; code: string; status: string; referrer_user_id: string; referred_user_id: string; referrer_reward: number; referred_reward: number; created_at: string; completed_at: string | null; }
-interface Notif { id: string; type: string; title: string; body: string | null; read: boolean; created_at: string; }
 
 interface DetailData {
   profile: Profile;
@@ -49,14 +35,9 @@ interface DetailData {
   fraud: Fraud[];
   parental: any;
   audit: Audit[];
-  contacts?: Contact[];
-  paymentAttempts?: Attempt[];
-  referralsGiven?: Referral[];
-  referralReceived?: Referral | null;
-  notifications?: Notif[];
 }
 
-type Tab = "timeline" | "txn" | "kyc" | "fraud" | "audit" | "contacts" | "attempts" | "referrals" | "notifs";
+type Tab = "timeline" | "txn" | "kyc" | "fraud" | "audit";
 
 function UserDetail() {
   const { id } = useParams({ from: "/admin/users/$id" });
@@ -70,7 +51,7 @@ function UserDetail() {
   useEffect(() => {
     const sp = new URLSearchParams(window.location.search);
     const t = sp.get("tab");
-    if (t && ["timeline", "txn", "kyc", "fraud", "audit", "contacts", "attempts", "referrals", "notifs"].includes(t)) setTab(t as Tab);
+    if (t && ["timeline", "txn", "kyc", "fraud", "audit"].includes(t)) setTab(t as Tab);
   }, []);
 
   async function load() {
@@ -96,61 +77,6 @@ function UserDetail() {
     } catch (e: any) { setErr(e.message || "Failed"); }
     finally { setBusy(false); }
   }
-
-  async function setLock(locked: boolean) {
-    const verb = locked ? "lock" : "unlock";
-    const reason = prompt(`Reason to ${verb} this account (shown to the user):`) ?? "";
-    if (locked && !reason.trim()) { alert("A reason is required to lock an account."); return; }
-    if (!confirm(`${locked ? "Lock" : "Unlock"} this user's account?`)) return;
-    setBusy(true);
-    try {
-      const s = readAdminSession();
-      await callAdminFn({ action: "user_set_lock", sessionToken: s!.sessionToken, userId: id, locked, reason });
-      await load();
-    } catch (e: any) { setErr(e.message || "Failed"); }
-    finally { setBusy(false); }
-  }
-
-  async function setTag(tag: string) {
-    if (!confirm(`Set account tag to "${tag}"?`)) return;
-    setBusy(true);
-    try {
-      const s = readAdminSession();
-      await callAdminFn({ action: "user_set_tag", sessionToken: s!.sessionToken, userId: id, tag });
-      await load();
-    } catch (e: any) { setErr(e.message || "Failed"); }
-    finally { setBusy(false); }
-  }
-
-  async function adjustBalance(sign: 1 | -1) {
-    const verb = sign > 0 ? "credit" : "debit";
-    const raw = prompt(`Amount to ${verb} (₹):`);
-    if (!raw) return;
-    const amt = Math.abs(Number(raw));
-    if (!Number.isFinite(amt) || amt <= 0) { alert("Invalid amount."); return; }
-    const reason = prompt(`Reason for ${verb} (required, shown to the user):`)?.trim() ?? "";
-    if (!reason) { alert("A reason is required."); return; }
-    if (!confirm(`${verb.toUpperCase()} ₹${amt} ${sign > 0 ? "to" : "from"} this user's wallet?\n\nReason: ${reason}`)) return;
-    setBusy(true);
-    try {
-      const s = readAdminSession();
-      await callAdminFn({ action: "user_adjust_balance", sessionToken: s!.sessionToken, userId: id, delta: amt * sign, reason });
-      await load();
-    } catch (e: any) { setErr(e.message || "Failed"); }
-    finally { setBusy(false); }
-  }
-
-  async function forceLogout() {
-    if (!confirm("Force this user to log out of all devices? They'll need to sign in again.")) return;
-    setBusy(true);
-    try {
-      const s = readAdminSession();
-      await callAdminFn({ action: "user_force_logout", sessionToken: s!.sessionToken, userId: id });
-      alert("User has been signed out of all devices.");
-    } catch (e: any) { setErr(e.message || "Failed"); }
-    finally { setBusy(false); }
-  }
-
 
   const risk = useMemo(() => (data ? computeRisk(data) : null), [data]);
 
@@ -190,36 +116,18 @@ function UserDetail() {
           </div>
 
           <Field label="Phone" value={maskPhone(p.phone)} mono />
-          <Field label="Email" value={p.email || "—"} mono />
           <Field label="Date of birth" value={p.dob ? `${p.dob} · ${ageFrom(p.dob)} yrs` : "—"} />
           <Field label="Gender" value={p.gender || "—"} />
           <Field label="Aadhaar" value={p.aadhaar_last4 ? `XXXX-XXXX-${p.aadhaar_last4}` : "—"} mono />
-          <Field label="School" value={p.school_name || "—"} />
-          <Field label="Address" value={formatAddress(p) || "—"} />
           <Field label="KYC Status" value={<KycBadge s={p.kyc_status} />} />
           <Field label="Onboarding" value={<span className="a-mono" style={{ fontSize: 11 }}>{p.onboarding_stage}</span>} />
-          <Field label="Account tag" value={<span className="a-mono" style={{ fontSize: 11, textTransform: "uppercase" }}>{p.account_tag || "standard"}</span>} />
-          <Field label="Account status" value={p.account_locked
-            ? <span style={{ color: "#fca5a5", fontWeight: 600 }}>Locked</span>
-            : <span style={{ color: "#86efac", fontWeight: 600 }}>Active</span>} />
           <Field label="Wallet balance" value={`₹${Number(p.balance).toLocaleString("en-IN", { maximumFractionDigits: 2 })}`} mono />
           <Field label="Joined" value={new Date(p.created_at).toLocaleString()} />
-          <Field label="Last updated" value={new Date(p.updated_at).toLocaleString()} />
           <Field label="Parental link" value={data.parental ? `${maskPhone(data.parental.parent_phone)} · ${data.parental.parent_verified ? "verified" : "unverified"}` : "—"} />
-          {data.referralReceived && (
-            <Field label="Referred by code" value={<span className="a-mono">{data.referralReceived.code}</span>} />
-          )}
-          {p.notif_prefs && (
-            <Field label="Notif prefs" value={
-              <span style={{ fontSize: 11, color: "var(--a-muted)" }}>
-                {Object.entries(p.notif_prefs).filter(([, v]) => v).map(([k]) => k).join(", ") || "none"}
-              </span>
-            } />
-          )}
 
           {canManage && (
             <div style={{ marginTop: 16, paddingTop: 16, borderTop: "1px solid var(--a-border)", display: "grid", gap: 8 }}>
-              <div className="a-label" style={{ marginBottom: 4 }}>KYC</div>
+              <div className="a-label" style={{ marginBottom: 4 }}>Actions</div>
               <button className="a-btn" disabled={busy || p.kyc_status === "approved"} onClick={() => setKyc("approved")}>
                 <ShieldCheck size={14} /> Approve KYC
               </button>
@@ -229,74 +137,25 @@ function UserDetail() {
               <button className="a-btn a-btn-ghost" disabled={busy} onClick={() => setKyc("not_started")}>
                 <RotateCcw size={14} /> Reset KYC
               </button>
-
-              <div className="a-label" style={{ marginTop: 12, marginBottom: 4 }}>Wallet</div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                <button className="a-btn" disabled={busy} onClick={() => adjustBalance(1)}>
-                  <Plus size={14} /> Credit
-                </button>
-                <button className="a-btn a-btn-ghost" disabled={busy} onClick={() => adjustBalance(-1)}>
-                  <Minus size={14} /> Debit
-                </button>
-              </div>
-
-              <div className="a-label" style={{ marginTop: 12, marginBottom: 4 }}>Tag</div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                <button className="a-btn a-btn-ghost" disabled={busy || p.account_tag === "standard"} onClick={() => setTag("standard")}>
-                  <Tag size={14} /> Standard
-                </button>
-                <button className="a-btn a-btn-ghost" disabled={busy || p.account_tag === "vip"} onClick={() => setTag("vip")}>
-                  <Tag size={14} /> VIP
-                </button>
-                <button className="a-btn a-btn-ghost" disabled={busy || p.account_tag === "watchlist"} onClick={() => setTag("watchlist")}>
-                  <Tag size={14} /> Watchlist
-                </button>
-                <button className="a-btn a-btn-ghost" disabled={busy || p.account_tag === "risky"} onClick={() => setTag("risky")}>
-                  <Tag size={14} /> Risky
-                </button>
-              </div>
-
-              <div className="a-label" style={{ marginTop: 12, marginBottom: 4 }}>Account</div>
-              {p.account_locked ? (
-                <button className="a-btn" disabled={busy} onClick={() => setLock(false)}>
-                  <Unlock size={14} /> Unlock account
-                </button>
-              ) : (
-                <button className="a-btn a-btn-ghost" disabled={busy} onClick={() => setLock(true)} style={{ color: "#fca5a5" }}>
-                  <Lock size={14} /> Lock account
-                </button>
-              )}
-              <button className="a-btn a-btn-ghost" disabled={busy} onClick={forceLogout}>
-                <LogOut size={14} /> Force logout
-              </button>
             </div>
           )}
         </div>
-
 
         {/* Right panel: tabs */}
         <div>
           <div className="a-surface" style={{ display: "flex", borderBottom: "1px solid var(--a-border)", padding: "0 8px", flexWrap: "wrap" }}>
             <TabBtn id="timeline" cur={tab} onClick={setTab}>Timeline</TabBtn>
             <TabBtn id="txn" cur={tab} onClick={setTab}>Transactions ({data.transactions.length})</TabBtn>
-            <TabBtn id="attempts" cur={tab} onClick={setTab}>Attempts ({data.paymentAttempts?.length ?? 0})</TabBtn>
             <TabBtn id="kyc" cur={tab} onClick={setTab}>KYC ({data.kyc.length})</TabBtn>
             <TabBtn id="fraud" cur={tab} onClick={setTab}>Fraud ({data.fraud.length})</TabBtn>
-            <TabBtn id="contacts" cur={tab} onClick={setTab}>Contacts ({data.contacts?.length ?? 0})</TabBtn>
-            <TabBtn id="referrals" cur={tab} onClick={setTab}>Referrals ({data.referralsGiven?.length ?? 0})</TabBtn>
-            <TabBtn id="notifs" cur={tab} onClick={setTab}>Notifications ({data.notifications?.length ?? 0})</TabBtn>
             <TabBtn id="audit" cur={tab} onClick={setTab}>Audit ({data.audit.length})</TabBtn>
           </div>
 
           <div className="a-surface" style={{ padding: 16, marginTop: -1, borderTop: "none", borderTopLeftRadius: 0, borderTopRightRadius: 0 }}>
             {tab === "timeline" && <MergedTimeline data={data} />}
             {tab === "txn" && <TxnTable rows={data.transactions} />}
-            {tab === "attempts" && <AttemptsTable rows={data.paymentAttempts ?? []} />}
             {tab === "kyc" && <KycTimeline rows={data.kyc} />}
             {tab === "fraud" && <FraudTable rows={data.fraud} />}
-            {tab === "contacts" && <ContactsTable rows={data.contacts ?? []} />}
-            {tab === "referrals" && <ReferralsTable rows={data.referralsGiven ?? []} userId={p.id} />}
-            {tab === "notifs" && <NotifsTable rows={data.notifications ?? []} />}
             {tab === "audit" && <AuditTable rows={data.audit} />}
           </div>
         </div>
@@ -658,124 +517,4 @@ function ageFrom(dob: string) {
   const m = now.getMonth() - d.getMonth();
   if (m < 0 || (m === 0 && now.getDate() < d.getDate())) a--;
   return a;
-}
-
-function formatAddress(p: Profile): string {
-  const parts = [p.address_line1, p.address_city, p.address_state, p.address_pincode].filter(Boolean);
-  return parts.join(", ");
-}
-
-function ContactsTable({ rows }: { rows: Contact[] }) {
-  if (!rows.length) return <div style={{ color: "var(--a-muted)", fontSize: 13 }}>No saved contacts.</div>;
-  return (
-    <table style={{ width: "100%", fontSize: 12, borderCollapse: "collapse" }}>
-      <thead>
-        <tr style={{ textAlign: "left", color: "var(--a-muted)", borderBottom: "1px solid var(--a-border)" }}>
-          <th style={{ padding: 8 }}>Name</th>
-          <th style={{ padding: 8 }}>UPI</th>
-          <th style={{ padding: 8 }}>Phone</th>
-          <th style={{ padding: 8 }}>Verified</th>
-          <th style={{ padding: 8 }}>Last paid</th>
-          <th style={{ padding: 8 }}>Added</th>
-        </tr>
-      </thead>
-      <tbody>
-        {rows.map((c) => (
-          <tr key={c.id} style={{ borderBottom: "1px solid var(--a-border)" }}>
-            <td style={{ padding: 8 }}>{c.emoji ? `${c.emoji} ` : ""}{c.name}</td>
-            <td style={{ padding: 8 }} className="a-mono">{c.upi_id}</td>
-            <td style={{ padding: 8 }} className="a-mono">{c.phone || "—"}</td>
-            <td style={{ padding: 8 }}>{c.verified ? "✓" : "—"}</td>
-            <td style={{ padding: 8 }}>{c.last_paid_at ? new Date(c.last_paid_at).toLocaleDateString() : "—"}</td>
-            <td style={{ padding: 8 }}>{new Date(c.created_at).toLocaleDateString()}</td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  );
-}
-
-function AttemptsTable({ rows }: { rows: Attempt[] }) {
-  if (!rows.length) return <div style={{ color: "var(--a-muted)", fontSize: 13 }}>No payment attempts recorded.</div>;
-  const stageColor = (s: string) =>
-    s === "success" ? "#86efac" : s === "failed" ? "#fca5a5" : s === "cancelled" ? "#a1a1aa" : "#fcd34d";
-  return (
-    <table style={{ width: "100%", fontSize: 12, borderCollapse: "collapse" }}>
-      <thead>
-        <tr style={{ textAlign: "left", color: "var(--a-muted)", borderBottom: "1px solid var(--a-border)" }}>
-          <th style={{ padding: 8 }}>When</th>
-          <th style={{ padding: 8 }}>Payee</th>
-          <th style={{ padding: 8 }}>UPI</th>
-          <th style={{ padding: 8 }}>Amount</th>
-          <th style={{ padding: 8 }}>Method</th>
-          <th style={{ padding: 8 }}>Stage</th>
-          <th style={{ padding: 8 }}>Reason / Ref</th>
-        </tr>
-      </thead>
-      <tbody>
-        {rows.map((a) => (
-          <tr key={a.id} style={{ borderBottom: "1px solid var(--a-border)" }}>
-            <td style={{ padding: 8 }}>{new Date(a.created_at).toLocaleString()}</td>
-            <td style={{ padding: 8 }}>{a.payee_name}</td>
-            <td style={{ padding: 8 }} className="a-mono">{a.upi_id}</td>
-            <td style={{ padding: 8 }} className="a-mono">₹{Number(a.amount).toLocaleString("en-IN")}</td>
-            <td style={{ padding: 8 }} className="a-mono">{a.method}</td>
-            <td style={{ padding: 8, color: stageColor(a.stage), fontWeight: 600, textTransform: "uppercase", fontSize: 11 }}>{a.stage}</td>
-            <td style={{ padding: 8, color: "var(--a-muted)" }}>{a.failure_reason || a.provider_ref || "—"}</td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  );
-}
-
-function ReferralsTable({ rows, userId }: { rows: Referral[]; userId: string }) {
-  if (!rows.length) return <div style={{ color: "var(--a-muted)", fontSize: 13 }}>No referrals sent.</div>;
-  return (
-    <table style={{ width: "100%", fontSize: 12, borderCollapse: "collapse" }}>
-      <thead>
-        <tr style={{ textAlign: "left", color: "var(--a-muted)", borderBottom: "1px solid var(--a-border)" }}>
-          <th style={{ padding: 8 }}>When</th>
-          <th style={{ padding: 8 }}>Code</th>
-          <th style={{ padding: 8 }}>Referred user</th>
-          <th style={{ padding: 8 }}>Status</th>
-          <th style={{ padding: 8 }}>Reward earned</th>
-        </tr>
-      </thead>
-      <tbody>
-        {rows.map((r) => (
-          <tr key={r.id} style={{ borderBottom: "1px solid var(--a-border)" }}>
-            <td style={{ padding: 8 }}>{new Date(r.created_at).toLocaleString()}</td>
-            <td style={{ padding: 8 }} className="a-mono">{r.code}</td>
-            <td style={{ padding: 8 }}>
-              <Link to="/admin/users/$id" params={{ id: r.referred_user_id }} style={{ color: "var(--a-accent)" }} className="a-mono">
-                {r.referred_user_id.slice(0, 8)}…
-              </Link>
-            </td>
-            <td style={{ padding: 8, textTransform: "uppercase", fontSize: 11, fontWeight: 600 }}>{r.status}</td>
-            <td style={{ padding: 8 }} className="a-mono">₹{Number(r.referrer_reward).toLocaleString("en-IN")}</td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  );
-}
-
-function NotifsTable({ rows }: { rows: Notif[] }) {
-  if (!rows.length) return <div style={{ color: "var(--a-muted)", fontSize: 13 }}>No notifications.</div>;
-  return (
-    <div style={{ display: "grid", gap: 8 }}>
-      {rows.map((n) => (
-        <div key={n.id} style={{ padding: 10, borderRadius: 8, border: "1px solid var(--a-border)", background: n.read ? "transparent" : "var(--a-elevated)" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" }}>
-            <div style={{ fontSize: 13, fontWeight: 600 }}>{n.title}</div>
-            <div style={{ fontSize: 10, color: "var(--a-muted)" }}>
-              {new Date(n.created_at).toLocaleString()} · <span className="a-mono">{n.type}</span>{!n.read && " · UNREAD"}
-            </div>
-          </div>
-          {n.body && <div style={{ fontSize: 12, color: "var(--a-muted)", marginTop: 4 }}>{n.body}</div>}
-        </div>
-      ))}
-    </div>
-  );
 }

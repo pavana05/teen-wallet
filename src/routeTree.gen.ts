@@ -19,31 +19,23 @@ import { Route as PreviewReferralProgramRouteImport } from './routes/preview.ref
 import { Route as PreviewProfileHelpRouteImport } from './routes/preview.profile-help'
 import { Route as PreviewPhoneVerifiedRouteImport } from './routes/preview.phone-verified'
 import { Route as PreviewPermissionsRouteImport } from './routes/preview.permissions'
+import { Route as PreviewOnboardingRouteImport } from './routes/preview.onboarding'
 import { Route as PreviewKycRejectedRouteImport } from './routes/preview.kyc-rejected'
 import { Route as PreviewKycPendingRouteImport } from './routes/preview.kyc-pending'
 import { Route as PreviewKycFlowRouteImport } from './routes/preview.kyc-flow'
 import { Route as PreviewKycApprovedRouteImport } from './routes/preview.kyc-approved'
+import { Route as PreviewHomeRouteImport } from './routes/preview.home'
 import { Route as PreviewAuthPhoneRouteImport } from './routes/preview.auth-phone'
-import { Route as DiagnosticsRoutesRouteImport } from './routes/diagnostics.routes'
-import { Route as AdminWalletRouteImport } from './routes/admin.wallet'
 import { Route as AdminUsersRouteImport } from './routes/admin.users'
 import { Route as AdminTransactionsRouteImport } from './routes/admin.transactions'
 import { Route as AdminSettingsRouteImport } from './routes/admin.settings'
-import { Route as AdminRevenueRouteImport } from './routes/admin.revenue'
 import { Route as AdminReportsRouteImport } from './routes/admin.reports'
-import { Route as AdminNotificationsRouteImport } from './routes/admin.notifications'
 import { Route as AdminLoginRouteImport } from './routes/admin.login'
-import { Route as AdminLiveRouteImport } from './routes/admin.live'
-import { Route as AdminKycFollowupsRouteImport } from './routes/admin.kyc-followups'
 import { Route as AdminKycRouteImport } from './routes/admin.kyc'
-import { Route as AdminHealthRouteImport } from './routes/admin.health'
-import { Route as AdminGeoRouteImport } from './routes/admin.geo'
 import { Route as AdminFraudRouteImport } from './routes/admin.fraud'
 import { Route as AdminDiagnosticsRouteImport } from './routes/admin.diagnostics'
-import { Route as AdminCohortsRouteImport } from './routes/admin.cohorts'
 import { Route as AdminCampaignsRouteImport } from './routes/admin.campaigns'
 import { Route as AdminAppImagesRouteImport } from './routes/admin.app-images'
-import { Route as AdminAdminsRouteImport } from './routes/admin.admins'
 import { Route as ApiKycVerifyRouteImport } from './routes/api/kyc.verify'
 import { Route as AdminUsersIdRouteImport } from './routes/admin.users.$id'
 
@@ -97,6 +89,11 @@ const PreviewPermissionsRoute = PreviewPermissionsRouteImport.update({
   path: '/preview/permissions',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PreviewOnboardingRoute = PreviewOnboardingRouteImport.update({
+  id: '/preview/onboarding',
+  path: '/preview/onboarding',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PreviewKycRejectedRoute = PreviewKycRejectedRouteImport.update({
   id: '/preview/kyc-rejected',
   path: '/preview/kyc-rejected',
@@ -117,20 +114,15 @@ const PreviewKycApprovedRoute = PreviewKycApprovedRouteImport.update({
   path: '/preview/kyc-approved',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PreviewHomeRoute = PreviewHomeRouteImport.update({
+  id: '/preview/home',
+  path: '/preview/home',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PreviewAuthPhoneRoute = PreviewAuthPhoneRouteImport.update({
   id: '/preview/auth-phone',
   path: '/preview/auth-phone',
   getParentRoute: () => rootRouteImport,
-} as any)
-const DiagnosticsRoutesRoute = DiagnosticsRoutesRouteImport.update({
-  id: '/diagnostics/routes',
-  path: '/diagnostics/routes',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AdminWalletRoute = AdminWalletRouteImport.update({
-  id: '/wallet',
-  path: '/wallet',
-  getParentRoute: () => AdminRoute,
 } as any)
 const AdminUsersRoute = AdminUsersRouteImport.update({
   id: '/users',
@@ -147,19 +139,9 @@ const AdminSettingsRoute = AdminSettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => AdminRoute,
 } as any)
-const AdminRevenueRoute = AdminRevenueRouteImport.update({
-  id: '/revenue',
-  path: '/revenue',
-  getParentRoute: () => AdminRoute,
-} as any)
 const AdminReportsRoute = AdminReportsRouteImport.update({
   id: '/reports',
   path: '/reports',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminNotificationsRoute = AdminNotificationsRouteImport.update({
-  id: '/notifications',
-  path: '/notifications',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminLoginRoute = AdminLoginRouteImport.update({
@@ -167,29 +149,9 @@ const AdminLoginRoute = AdminLoginRouteImport.update({
   path: '/login',
   getParentRoute: () => AdminRoute,
 } as any)
-const AdminLiveRoute = AdminLiveRouteImport.update({
-  id: '/live',
-  path: '/live',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminKycFollowupsRoute = AdminKycFollowupsRouteImport.update({
-  id: '/kyc-followups',
-  path: '/kyc-followups',
-  getParentRoute: () => AdminRoute,
-} as any)
 const AdminKycRoute = AdminKycRouteImport.update({
   id: '/kyc',
   path: '/kyc',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminHealthRoute = AdminHealthRouteImport.update({
-  id: '/health',
-  path: '/health',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminGeoRoute = AdminGeoRouteImport.update({
-  id: '/geo',
-  path: '/geo',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminFraudRoute = AdminFraudRouteImport.update({
@@ -202,11 +164,6 @@ const AdminDiagnosticsRoute = AdminDiagnosticsRouteImport.update({
   path: '/diagnostics',
   getParentRoute: () => AdminRoute,
 } as any)
-const AdminCohortsRoute = AdminCohortsRouteImport.update({
-  id: '/cohorts',
-  path: '/cohorts',
-  getParentRoute: () => AdminRoute,
-} as any)
 const AdminCampaignsRoute = AdminCampaignsRouteImport.update({
   id: '/campaigns',
   path: '/campaigns',
@@ -215,11 +172,6 @@ const AdminCampaignsRoute = AdminCampaignsRouteImport.update({
 const AdminAppImagesRoute = AdminAppImagesRouteImport.update({
   id: '/app-images',
   path: '/app-images',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminAdminsRoute = AdminAdminsRouteImport.update({
-  id: '/admins',
-  path: '/admins',
   getParentRoute: () => AdminRoute,
 } as any)
 const ApiKycVerifyRoute = ApiKycVerifyRouteImport.update({
@@ -236,31 +188,23 @@ const AdminUsersIdRoute = AdminUsersIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
-  '/admin/admins': typeof AdminAdminsRoute
   '/admin/app-images': typeof AdminAppImagesRoute
   '/admin/campaigns': typeof AdminCampaignsRoute
-  '/admin/cohorts': typeof AdminCohortsRoute
   '/admin/diagnostics': typeof AdminDiagnosticsRoute
   '/admin/fraud': typeof AdminFraudRoute
-  '/admin/geo': typeof AdminGeoRoute
-  '/admin/health': typeof AdminHealthRoute
   '/admin/kyc': typeof AdminKycRoute
-  '/admin/kyc-followups': typeof AdminKycFollowupsRoute
-  '/admin/live': typeof AdminLiveRoute
   '/admin/login': typeof AdminLoginRoute
-  '/admin/notifications': typeof AdminNotificationsRoute
   '/admin/reports': typeof AdminReportsRoute
-  '/admin/revenue': typeof AdminRevenueRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/transactions': typeof AdminTransactionsRoute
   '/admin/users': typeof AdminUsersRouteWithChildren
-  '/admin/wallet': typeof AdminWalletRoute
-  '/diagnostics/routes': typeof DiagnosticsRoutesRoute
   '/preview/auth-phone': typeof PreviewAuthPhoneRoute
+  '/preview/home': typeof PreviewHomeRoute
   '/preview/kyc-approved': typeof PreviewKycApprovedRoute
   '/preview/kyc-flow': typeof PreviewKycFlowRoute
   '/preview/kyc-pending': typeof PreviewKycPendingRoute
   '/preview/kyc-rejected': typeof PreviewKycRejectedRoute
+  '/preview/onboarding': typeof PreviewOnboardingRoute
   '/preview/permissions': typeof PreviewPermissionsRoute
   '/preview/phone-verified': typeof PreviewPhoneVerifiedRoute
   '/preview/profile-help': typeof PreviewProfileHelpRoute
@@ -274,31 +218,23 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/admin/admins': typeof AdminAdminsRoute
   '/admin/app-images': typeof AdminAppImagesRoute
   '/admin/campaigns': typeof AdminCampaignsRoute
-  '/admin/cohorts': typeof AdminCohortsRoute
   '/admin/diagnostics': typeof AdminDiagnosticsRoute
   '/admin/fraud': typeof AdminFraudRoute
-  '/admin/geo': typeof AdminGeoRoute
-  '/admin/health': typeof AdminHealthRoute
   '/admin/kyc': typeof AdminKycRoute
-  '/admin/kyc-followups': typeof AdminKycFollowupsRoute
-  '/admin/live': typeof AdminLiveRoute
   '/admin/login': typeof AdminLoginRoute
-  '/admin/notifications': typeof AdminNotificationsRoute
   '/admin/reports': typeof AdminReportsRoute
-  '/admin/revenue': typeof AdminRevenueRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/transactions': typeof AdminTransactionsRoute
   '/admin/users': typeof AdminUsersRouteWithChildren
-  '/admin/wallet': typeof AdminWalletRoute
-  '/diagnostics/routes': typeof DiagnosticsRoutesRoute
   '/preview/auth-phone': typeof PreviewAuthPhoneRoute
+  '/preview/home': typeof PreviewHomeRoute
   '/preview/kyc-approved': typeof PreviewKycApprovedRoute
   '/preview/kyc-flow': typeof PreviewKycFlowRoute
   '/preview/kyc-pending': typeof PreviewKycPendingRoute
   '/preview/kyc-rejected': typeof PreviewKycRejectedRoute
+  '/preview/onboarding': typeof PreviewOnboardingRoute
   '/preview/permissions': typeof PreviewPermissionsRoute
   '/preview/phone-verified': typeof PreviewPhoneVerifiedRoute
   '/preview/profile-help': typeof PreviewProfileHelpRoute
@@ -314,31 +250,23 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
-  '/admin/admins': typeof AdminAdminsRoute
   '/admin/app-images': typeof AdminAppImagesRoute
   '/admin/campaigns': typeof AdminCampaignsRoute
-  '/admin/cohorts': typeof AdminCohortsRoute
   '/admin/diagnostics': typeof AdminDiagnosticsRoute
   '/admin/fraud': typeof AdminFraudRoute
-  '/admin/geo': typeof AdminGeoRoute
-  '/admin/health': typeof AdminHealthRoute
   '/admin/kyc': typeof AdminKycRoute
-  '/admin/kyc-followups': typeof AdminKycFollowupsRoute
-  '/admin/live': typeof AdminLiveRoute
   '/admin/login': typeof AdminLoginRoute
-  '/admin/notifications': typeof AdminNotificationsRoute
   '/admin/reports': typeof AdminReportsRoute
-  '/admin/revenue': typeof AdminRevenueRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/transactions': typeof AdminTransactionsRoute
   '/admin/users': typeof AdminUsersRouteWithChildren
-  '/admin/wallet': typeof AdminWalletRoute
-  '/diagnostics/routes': typeof DiagnosticsRoutesRoute
   '/preview/auth-phone': typeof PreviewAuthPhoneRoute
+  '/preview/home': typeof PreviewHomeRoute
   '/preview/kyc-approved': typeof PreviewKycApprovedRoute
   '/preview/kyc-flow': typeof PreviewKycFlowRoute
   '/preview/kyc-pending': typeof PreviewKycPendingRoute
   '/preview/kyc-rejected': typeof PreviewKycRejectedRoute
+  '/preview/onboarding': typeof PreviewOnboardingRoute
   '/preview/permissions': typeof PreviewPermissionsRoute
   '/preview/phone-verified': typeof PreviewPhoneVerifiedRoute
   '/preview/profile-help': typeof PreviewProfileHelpRoute
@@ -355,31 +283,23 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/admin'
-    | '/admin/admins'
     | '/admin/app-images'
     | '/admin/campaigns'
-    | '/admin/cohorts'
     | '/admin/diagnostics'
     | '/admin/fraud'
-    | '/admin/geo'
-    | '/admin/health'
     | '/admin/kyc'
-    | '/admin/kyc-followups'
-    | '/admin/live'
     | '/admin/login'
-    | '/admin/notifications'
     | '/admin/reports'
-    | '/admin/revenue'
     | '/admin/settings'
     | '/admin/transactions'
     | '/admin/users'
-    | '/admin/wallet'
-    | '/diagnostics/routes'
     | '/preview/auth-phone'
+    | '/preview/home'
     | '/preview/kyc-approved'
     | '/preview/kyc-flow'
     | '/preview/kyc-pending'
     | '/preview/kyc-rejected'
+    | '/preview/onboarding'
     | '/preview/permissions'
     | '/preview/phone-verified'
     | '/preview/profile-help'
@@ -393,31 +313,23 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/admin/admins'
     | '/admin/app-images'
     | '/admin/campaigns'
-    | '/admin/cohorts'
     | '/admin/diagnostics'
     | '/admin/fraud'
-    | '/admin/geo'
-    | '/admin/health'
     | '/admin/kyc'
-    | '/admin/kyc-followups'
-    | '/admin/live'
     | '/admin/login'
-    | '/admin/notifications'
     | '/admin/reports'
-    | '/admin/revenue'
     | '/admin/settings'
     | '/admin/transactions'
     | '/admin/users'
-    | '/admin/wallet'
-    | '/diagnostics/routes'
     | '/preview/auth-phone'
+    | '/preview/home'
     | '/preview/kyc-approved'
     | '/preview/kyc-flow'
     | '/preview/kyc-pending'
     | '/preview/kyc-rejected'
+    | '/preview/onboarding'
     | '/preview/permissions'
     | '/preview/phone-verified'
     | '/preview/profile-help'
@@ -432,31 +344,23 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/admin'
-    | '/admin/admins'
     | '/admin/app-images'
     | '/admin/campaigns'
-    | '/admin/cohorts'
     | '/admin/diagnostics'
     | '/admin/fraud'
-    | '/admin/geo'
-    | '/admin/health'
     | '/admin/kyc'
-    | '/admin/kyc-followups'
-    | '/admin/live'
     | '/admin/login'
-    | '/admin/notifications'
     | '/admin/reports'
-    | '/admin/revenue'
     | '/admin/settings'
     | '/admin/transactions'
     | '/admin/users'
-    | '/admin/wallet'
-    | '/diagnostics/routes'
     | '/preview/auth-phone'
+    | '/preview/home'
     | '/preview/kyc-approved'
     | '/preview/kyc-flow'
     | '/preview/kyc-pending'
     | '/preview/kyc-rejected'
+    | '/preview/onboarding'
     | '/preview/permissions'
     | '/preview/phone-verified'
     | '/preview/profile-help'
@@ -472,12 +376,13 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRouteWithChildren
-  DiagnosticsRoutesRoute: typeof DiagnosticsRoutesRoute
   PreviewAuthPhoneRoute: typeof PreviewAuthPhoneRoute
+  PreviewHomeRoute: typeof PreviewHomeRoute
   PreviewKycApprovedRoute: typeof PreviewKycApprovedRoute
   PreviewKycFlowRoute: typeof PreviewKycFlowRoute
   PreviewKycPendingRoute: typeof PreviewKycPendingRoute
   PreviewKycRejectedRoute: typeof PreviewKycRejectedRoute
+  PreviewOnboardingRoute: typeof PreviewOnboardingRoute
   PreviewPermissionsRoute: typeof PreviewPermissionsRoute
   PreviewPhoneVerifiedRoute: typeof PreviewPhoneVerifiedRoute
   PreviewProfileHelpRoute: typeof PreviewProfileHelpRoute
@@ -560,6 +465,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PreviewPermissionsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/preview/onboarding': {
+      id: '/preview/onboarding'
+      path: '/preview/onboarding'
+      fullPath: '/preview/onboarding'
+      preLoaderRoute: typeof PreviewOnboardingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/preview/kyc-rejected': {
       id: '/preview/kyc-rejected'
       path: '/preview/kyc-rejected'
@@ -588,26 +500,19 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PreviewKycApprovedRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/preview/home': {
+      id: '/preview/home'
+      path: '/preview/home'
+      fullPath: '/preview/home'
+      preLoaderRoute: typeof PreviewHomeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/preview/auth-phone': {
       id: '/preview/auth-phone'
       path: '/preview/auth-phone'
       fullPath: '/preview/auth-phone'
       preLoaderRoute: typeof PreviewAuthPhoneRouteImport
       parentRoute: typeof rootRouteImport
-    }
-    '/diagnostics/routes': {
-      id: '/diagnostics/routes'
-      path: '/diagnostics/routes'
-      fullPath: '/diagnostics/routes'
-      preLoaderRoute: typeof DiagnosticsRoutesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/admin/wallet': {
-      id: '/admin/wallet'
-      path: '/wallet'
-      fullPath: '/admin/wallet'
-      preLoaderRoute: typeof AdminWalletRouteImport
-      parentRoute: typeof AdminRoute
     }
     '/admin/users': {
       id: '/admin/users'
@@ -630,25 +535,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminSettingsRouteImport
       parentRoute: typeof AdminRoute
     }
-    '/admin/revenue': {
-      id: '/admin/revenue'
-      path: '/revenue'
-      fullPath: '/admin/revenue'
-      preLoaderRoute: typeof AdminRevenueRouteImport
-      parentRoute: typeof AdminRoute
-    }
     '/admin/reports': {
       id: '/admin/reports'
       path: '/reports'
       fullPath: '/admin/reports'
       preLoaderRoute: typeof AdminReportsRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/notifications': {
-      id: '/admin/notifications'
-      path: '/notifications'
-      fullPath: '/admin/notifications'
-      preLoaderRoute: typeof AdminNotificationsRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/login': {
@@ -658,39 +549,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminLoginRouteImport
       parentRoute: typeof AdminRoute
     }
-    '/admin/live': {
-      id: '/admin/live'
-      path: '/live'
-      fullPath: '/admin/live'
-      preLoaderRoute: typeof AdminLiveRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/kyc-followups': {
-      id: '/admin/kyc-followups'
-      path: '/kyc-followups'
-      fullPath: '/admin/kyc-followups'
-      preLoaderRoute: typeof AdminKycFollowupsRouteImport
-      parentRoute: typeof AdminRoute
-    }
     '/admin/kyc': {
       id: '/admin/kyc'
       path: '/kyc'
       fullPath: '/admin/kyc'
       preLoaderRoute: typeof AdminKycRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/health': {
-      id: '/admin/health'
-      path: '/health'
-      fullPath: '/admin/health'
-      preLoaderRoute: typeof AdminHealthRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/geo': {
-      id: '/admin/geo'
-      path: '/geo'
-      fullPath: '/admin/geo'
-      preLoaderRoute: typeof AdminGeoRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/fraud': {
@@ -707,13 +570,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminDiagnosticsRouteImport
       parentRoute: typeof AdminRoute
     }
-    '/admin/cohorts': {
-      id: '/admin/cohorts'
-      path: '/cohorts'
-      fullPath: '/admin/cohorts'
-      preLoaderRoute: typeof AdminCohortsRouteImport
-      parentRoute: typeof AdminRoute
-    }
     '/admin/campaigns': {
       id: '/admin/campaigns'
       path: '/campaigns'
@@ -726,13 +582,6 @@ declare module '@tanstack/react-router' {
       path: '/app-images'
       fullPath: '/admin/app-images'
       preLoaderRoute: typeof AdminAppImagesRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/admins': {
-      id: '/admin/admins'
-      path: '/admins'
-      fullPath: '/admin/admins'
-      preLoaderRoute: typeof AdminAdminsRouteImport
       parentRoute: typeof AdminRoute
     }
     '/api/kyc/verify': {
@@ -765,48 +614,30 @@ const AdminUsersRouteWithChildren = AdminUsersRoute._addFileChildren(
 )
 
 interface AdminRouteChildren {
-  AdminAdminsRoute: typeof AdminAdminsRoute
   AdminAppImagesRoute: typeof AdminAppImagesRoute
   AdminCampaignsRoute: typeof AdminCampaignsRoute
-  AdminCohortsRoute: typeof AdminCohortsRoute
   AdminDiagnosticsRoute: typeof AdminDiagnosticsRoute
   AdminFraudRoute: typeof AdminFraudRoute
-  AdminGeoRoute: typeof AdminGeoRoute
-  AdminHealthRoute: typeof AdminHealthRoute
   AdminKycRoute: typeof AdminKycRoute
-  AdminKycFollowupsRoute: typeof AdminKycFollowupsRoute
-  AdminLiveRoute: typeof AdminLiveRoute
   AdminLoginRoute: typeof AdminLoginRoute
-  AdminNotificationsRoute: typeof AdminNotificationsRoute
   AdminReportsRoute: typeof AdminReportsRoute
-  AdminRevenueRoute: typeof AdminRevenueRoute
   AdminSettingsRoute: typeof AdminSettingsRoute
   AdminTransactionsRoute: typeof AdminTransactionsRoute
   AdminUsersRoute: typeof AdminUsersRouteWithChildren
-  AdminWalletRoute: typeof AdminWalletRoute
   AdminIndexRoute: typeof AdminIndexRoute
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
-  AdminAdminsRoute: AdminAdminsRoute,
   AdminAppImagesRoute: AdminAppImagesRoute,
   AdminCampaignsRoute: AdminCampaignsRoute,
-  AdminCohortsRoute: AdminCohortsRoute,
   AdminDiagnosticsRoute: AdminDiagnosticsRoute,
   AdminFraudRoute: AdminFraudRoute,
-  AdminGeoRoute: AdminGeoRoute,
-  AdminHealthRoute: AdminHealthRoute,
   AdminKycRoute: AdminKycRoute,
-  AdminKycFollowupsRoute: AdminKycFollowupsRoute,
-  AdminLiveRoute: AdminLiveRoute,
   AdminLoginRoute: AdminLoginRoute,
-  AdminNotificationsRoute: AdminNotificationsRoute,
   AdminReportsRoute: AdminReportsRoute,
-  AdminRevenueRoute: AdminRevenueRoute,
   AdminSettingsRoute: AdminSettingsRoute,
   AdminTransactionsRoute: AdminTransactionsRoute,
   AdminUsersRoute: AdminUsersRouteWithChildren,
-  AdminWalletRoute: AdminWalletRoute,
   AdminIndexRoute: AdminIndexRoute,
 }
 
@@ -815,12 +646,13 @@ const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRouteWithChildren,
-  DiagnosticsRoutesRoute: DiagnosticsRoutesRoute,
   PreviewAuthPhoneRoute: PreviewAuthPhoneRoute,
+  PreviewHomeRoute: PreviewHomeRoute,
   PreviewKycApprovedRoute: PreviewKycApprovedRoute,
   PreviewKycFlowRoute: PreviewKycFlowRoute,
   PreviewKycPendingRoute: PreviewKycPendingRoute,
   PreviewKycRejectedRoute: PreviewKycRejectedRoute,
+  PreviewOnboardingRoute: PreviewOnboardingRoute,
   PreviewPermissionsRoute: PreviewPermissionsRoute,
   PreviewPhoneVerifiedRoute: PreviewPhoneVerifiedRoute,
   PreviewProfileHelpRoute: PreviewProfileHelpRoute,

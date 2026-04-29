@@ -8,7 +8,6 @@ import { usePersistedState } from "@/admin/lib/usePersistedState";
 import { SavedViewsBar } from "@/admin/components/SavedViewsBar";
 import { recordPanelLoad, recordRealtime } from "@/admin/lib/perfBus";
 import { PermissionBanner, ErrorState } from "@/admin/components/AdminFeedback";
-import { ExportCsvButton } from "@/admin/components/ExportCsvButton";
 
 export const Route = createFileRoute("/admin/transactions")({
   component: TransactionsList,
@@ -221,10 +220,7 @@ function TransactionsList() {
             {total} total · showing {rows.length} · Vol <span className="a-mono">₹{fmtINR(pageVolume)}</span> · {pageSuccess} ok
           </p>
         </div>
-        <div style={{ display: "flex", gap: 8 }}>
-          <ExportCsvButton dataset="transactions" filters={{ search: filters.search, status: filters.status }} />
-          <button onClick={() => { setPage(1); void fetchPage(1); }} className="a-btn-ghost"><RefreshCw size={14} /> Refresh</button>
-        </div>
+        <button onClick={() => { setPage(1); void fetchPage(1); }} className="a-btn-ghost"><RefreshCw size={14} /> Refresh</button>
       </div>
 
       <PermissionBanner

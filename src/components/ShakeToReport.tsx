@@ -4,7 +4,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { getActiveShakeProfile } from "@/lib/shakeSensitivity";
 import { getRecentConsoleErrors, getLastStackTrace } from "@/lib/consoleCapture";
-import { notifyIssueSubmitted } from "@/lib/notify";
 
 /**
  * Shake-to-report
@@ -231,9 +230,6 @@ export function ShakeToReport() {
         camera_photo_path: cameraPath,
       }]);
       if (error) throw error;
-      if (userId) {
-        void notifyIssueSubmitted(userId, category);
-      }
       toast.success("Report sent — thank you!");
       setOpen(false);
       setMessage("");

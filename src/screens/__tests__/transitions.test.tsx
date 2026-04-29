@@ -34,10 +34,10 @@ vi.mock("@/lib/auth", () => ({
 }));
 
 // Onboarding hero assets — keep tests filesystem-light.
-vi.mock("@/assets/onboarding-wallet.webp", () => ({ default: "w.webp" }));
-vi.mock("@/assets/onboarding-payment.webp", () => ({ default: "p.webp" }));
-vi.mock("@/assets/onboarding-shield.webp", () => ({ default: "s.webp" }));
-vi.mock("@/assets/onboarding-gift.webp", () => ({ default: "g.webp" }));
+vi.mock("@/assets/onboarding-wallet.jpg", () => ({ default: "w.jpg" }));
+vi.mock("@/assets/onboarding-payment.jpg", () => ({ default: "p.jpg" }));
+vi.mock("@/assets/onboarding-shield.jpg", () => ({ default: "s.jpg" }));
+vi.mock("@/assets/onboarding-gift.jpg", () => ({ default: "g.jpg" }));
 
 beforeEach(() => {
   localStorage.clear();
@@ -53,11 +53,10 @@ describe("Boot-funnel screens render without blank output", () => {
     expect(screen.getByRole("button", { name: /skip/i })).toBeInTheDocument();
   });
 
-  it("Permissions renders all six permission rows", () => {
+  it("Permissions renders all five permission rows", () => {
     render(<Permissions onDone={() => {}} />);
-    // Use partial matches so copy tweaks (e.g. "All-time location") don't break the test.
-    for (const label of [/Contacts/i, /Location/i, /Camera/i, /Notifications/i, /Phone/i, /SMS/i]) {
-      expect(screen.getAllByText(label).length).toBeGreaterThan(0);
+    for (const label of ["Contacts", "Location", "Camera", "Notifications", "Microphone"]) {
+      expect(screen.getByText(label)).toBeInTheDocument();
     }
   });
 

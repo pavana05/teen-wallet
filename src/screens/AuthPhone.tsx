@@ -17,7 +17,7 @@ import {
 import { CopyableErrorId } from "@/components/CopyableErrorId";
 import { ResendCountdown } from "@/components/ResendCountdown";
 import { recordCheckpoint } from "@/lib/navState";
-import { maybeInsertWelcome, maybeInsertGreeting } from "@/lib/notify";
+import { maybeInsertWelcome } from "@/lib/notify";
 
 type Step = "phone" | "otp" | "verified";
 
@@ -183,11 +183,9 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
         await persistStage(resumedStage);
       }
       clearOtpState();
-      // Greet the user once per calendar day with an in-app entry notification,
-      // plus a time-of-day greeting (good morning / afternoon / evening) per day-part.
+      // Greet the user once per calendar day with an in-app entry notification.
       if (p?.id) {
         void maybeInsertWelcome(p.id, p.full_name ?? null);
-        void maybeInsertGreeting(p.id, p.full_name ?? null);
       }
       recordCheckpoint({
         screen: "auth",
