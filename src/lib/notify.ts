@@ -82,6 +82,7 @@ export async function maybeInsertWelcome(userId: string, fullName: string | null
   const body = "Glad to see you again. Your wallet is ready.";
 
   await insertNotification({ userId, type: "welcome", title, body });
+  toastWelcome(title, body);
 
   try {
     localStorage.setItem(WELCOME_KEY, JSON.stringify({ userId, day: today } satisfies GreetedRecord));
