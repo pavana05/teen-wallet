@@ -259,6 +259,15 @@
       <div class="handoff-text">Almost there…</div>
     </div>
 
+    <!-- APP IFRAME (mounted once handoff completes) -->
+    <iframe
+      id="app-frame"
+      title="Teen Wallet"
+      style="display:none; position:fixed; inset:0; width:100%; height:100%; border:0; background:#050505; z-index: 100;"
+      allow="camera; microphone; geolocation; clipboard-read; clipboard-write; payment; fullscreen"
+      referrerpolicy="origin"
+    ></iframe>
+
     <!-- OFFLINE -->
     <div id="offline" class="stage" role="alert">
       <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.5)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
@@ -436,38 +445,65 @@
 
         document.getElementById("ob-skip").addEventListener("click", finish);
 
-        // ----- handoff to real app -----
+        // ----- handoff to real app (via iframe, NOT window.location) -----
+        // Why iframe: replacing window.location to a remote URL inside a
+        // Capacitor WebView frequently leaves a blank screen if the network
+        // is slow, DNS fails, or the WebView's navigation policy intercepts
+        // the request. Hosting the live app in an in-shell iframe keeps the
+        // shell alive so we can always recover into the offline screen.
         var handoffStarted = false;
         var handoffWatchdog = null;
+        var appFrame = document.getElementById("app-frame");
+        var appFrameLoaded = false;
+
         function clearHandoffWatchdog() {
           if (handoffWatchdog) { clearTimeout(handoffWatchdog); handoffWatchdog = null; }
         }
-        function doNavigate() {
-          // Watchdog: if the WebView never paints the live app within 12s,
-          // fall back to the offline screen so the user is never stuck on
-          // a spinner forever (slow network, DNS failure, server cold start).
+        function revealAppFrame() {
+          appFrameLoaded = true;
           clearHandoffWatchdog();
-          handoffWatchdog = setTimeout(function () {
-            // If we're still here, the navigation never completed.
-            show("offline");
-            handoffStarted = false;
-          }, 12000);
+          appFrame.style.display = "block";
+          // Hide all shell stages once the live app is painted
+          Object.keys(stages).forEach(function (k) { stages[k].classList.remove("active"); });
+        }
+        appFrame.addEventListener("load", function () {
+          // The first 'load' event fires for about:blank too; only count real navigations.
           try {
-            window.location.replace(APP_URL);
+            var src = appFrame.getAttribute("src") || "";
+            if (src && src.indexOf("about:") !== 0) revealAppFrame();
+          } catch (e) { revealAppFrame(); }
+        });
+        appFrame.addEventListener("error", function () {
+          show("offline"); handoffStarted = false; clearHandoffWatchdog();
+        });
+
+        function doNavigate() {
+          clearHandoffWatchdog();
+          // Watchdog: if the iframe never loads within 15s, show offline.
+          handoffWatchdog = setTimeout(function () {
+            if (!appFrameLoaded) {
+              show("offline");
+              handoffStarted = false;
+              appFrame.removeAttribute("src");
+            }
+          }, 15000);
+          try {
+            appFrame.src = APP_URL;
           } catch (e) {
-            // Last-resort fallback if replace() throws inside a sandboxed WebView.
-            try { window.location.href = APP_URL; }
-            catch (e2) { show("offline"); handoffStarted = false; clearHandoffWatchdog(); }
+            show("offline"); handoffStarted = false; clearHandoffWatchdog();
           }
         }
         function handoffToApp() {
-          if (handoffStarted) return;
+          if (handoffStarted) {
+            // Already loaded — just reveal it
+            if (appFrameLoaded) { revealAppFrame(); return; }
+            return;
+          }
           handoffStarted = true;
           show("handoff");
-          if (!navigator.onLine) {
-            // Wait briefly in case the flag is stale on cold boot
+          if (typeof navigator !== "undefined" && navigator.onLine === false) {
             setTimeout(function () {
-              if (!navigator.onLine) { show("offline"); handoffStarted = false; }
+              if (navigator.onLine === false) { show("offline"); handoffStarted = false; }
               else doNavigate();
             }, 1000);
             return;
@@ -475,9 +511,6 @@
           // Tiny delay so the handoff spinner is visible (no flash)
           setTimeout(doNavigate, 250);
         }
-        // If the page is being unloaded the navigation succeeded — clear the watchdog.
-        window.addEventListener("pagehide", clearHandoffWatchdog);
-        window.addEventListener("beforeunload", clearHandoffWatchdog);
 
         // ----- offline retry -----
         document.getElementById("offline-retry").addEventListener("click", function () {
