@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { getActiveShakeProfile } from "@/lib/shakeSensitivity";
 import { getRecentConsoleErrors, getLastStackTrace } from "@/lib/consoleCapture";
+import { notifyIssueSubmitted } from "@/lib/notify";
 
 /**
  * Shake-to-report
