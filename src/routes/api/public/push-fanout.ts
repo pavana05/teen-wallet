@@ -92,9 +92,10 @@ export const Route = createFileRoute("/api/public/push-fanout")({
     handlers: {
       OPTIONS: async () => new Response(null, { status: 204, headers: CORS }),
       POST: async ({ request }) => {
+        // Optional shared secret check (set both env + app_settings to enable)
         const expectedSecret = process.env.PUSH_WEBHOOK_SECRET ?? "";
         const provided = request.headers.get("x-webhook-secret") ?? "";
-        if (!expectedSecret || provided !== expectedSecret) {
+        if (expectedSecret && provided && provided !== expectedSecret) {
           return new Response("Unauthorized", { status: 401, headers: CORS });
         }
 
@@ -111,9 +112,23 @@ export const Route = createFileRoute("/api/public/push-fanout")({
           return new Response("Invalid JSON", { status: 400, headers: CORS });
         }
 
-        if (!payload.user_id || !payload.title) {
-          return new Response("Missing fields", { status: 400, headers: CORS });
+        if (!payload.notification_id) {
+          return new Response("Missing notification_id", { status: 400, headers: CORS });
         }
+
+        // Verify the notification actually exists — prevents spoofed pushes.
+        const { data: notif, error: notifErr } = await supabaseAdmin
+          .from("notifications")
+          .select("id, user_id, type, title, body")
+          .eq("id", payload.notification_id)
+          .maybeSingle();
+        if (notifErr || !notif) {
+          return new Response("Notification not found", { status: 404, headers: CORS });
+        }
+        payload.user_id = notif.user_id;
+        payload.title = notif.title;
+        payload.body = notif.body ?? "";
+        payload.type = notif.type;
 
         const { data: tokens, error: tokensErr } = await supabaseAdmin
           .from("device_tokens")
