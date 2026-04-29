@@ -36,7 +36,7 @@ interface Txn { id: string; amount: number; merchant_name: string; upi_id: strin
 interface Kyc { id: string; status: string; provider: string; provider_ref: string | null; match_score: number | null; reason: string | null; created_at: string; updated_at: string; }
 interface Fraud { id: string; rule_triggered: string; resolution: string | null; created_at: string; transaction_id: string | null; }
 interface Audit { id: string; admin_email: string | null; admin_role: string | null; action_type: string; created_at: string; new_value: any; }
-interface Contact { id: string; name: string; upi_id: string; phone: string | null; verified: boolean; last_paid_at: string | null; created_at: string; }
+interface Contact { id: string; name: string; upi_id: string; phone: string | null; verified: boolean; last_paid_at: string | null; created_at: string; emoji?: string | null; }
 interface Attempt { id: string; amount: number; payee_name: string; upi_id: string; stage: string; method: string; failure_reason: string | null; provider_ref: string | null; created_at: string; completed_at: string | null; }
 interface Referral { id: string; code: string; status: string; referrer_user_id: string; referred_user_id: string; referrer_reward: number; referred_reward: number; created_at: string; completed_at: string | null; }
 interface Notif { id: string; type: string; title: string; body: string | null; read: boolean; created_at: string; }
