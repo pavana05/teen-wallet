@@ -17,7 +17,7 @@ import {
 import { CopyableErrorId } from "@/components/CopyableErrorId";
 import { ResendCountdown } from "@/components/ResendCountdown";
 import { recordCheckpoint } from "@/lib/navState";
-import { maybeInsertWelcome } from "@/lib/notify";
+import { maybeInsertWelcome, maybeInsertGreeting } from "@/lib/notify";
 
 type Step = "phone" | "otp" | "verified";
 
