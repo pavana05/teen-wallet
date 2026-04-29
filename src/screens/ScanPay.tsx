@@ -156,7 +156,7 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
           setFailKind("generic");
           setPhase("failed");
           if (userId) {
-            void notifyPaymentFailed(userId, snap.amount, snap.payeeName, snap.failureReason);
+            void notifyAttemptTerminalOnce(snap.id, "failed", userId, snap.amount, snap.payeeName, snap.failureReason);
           }
         }
       },
