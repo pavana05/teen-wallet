@@ -69,16 +69,21 @@ export const Route = createFileRoute("/")({
 
     const permsSeen = check.snapshot.permsSeen;
     const referralPending = shouldShowReferralPrompt();
-    const target: "/home" | "/onboarding" =
-      (userId && stageRank[stage] >= stageRank["STAGE_5"] && permsSeen && !referralPending)
-        ? "/home"
-        : "/onboarding";
+    // A user is "fully onboarded" once they have a session AND KYC is
+    // approved (STAGE_5). Permissions / referral are nice-to-have local
+    // prompts — we should NEVER bounce a logged-in, KYC-approved user
+    // back into the onboarding flow because of them. Doing so was the
+    // bug where returning users saw the splash/onboarding instead of
+    // their home screen.
+    const isFullyOnboarded =
+      !!userId && stageRank[stage] >= stageRank["STAGE_5"];
+    const target: "/home" | "/onboarding" = isFullyOnboarded ? "/home" : "/onboarding";
     recordRedirect({
       from: "boot:/",
       to: target,
       stage,
       session: !!userId,
-      reason: "boot_decide_sync",
+      reason: `boot_decide_sync${isFullyOnboarded && (!permsSeen || referralPending) ? ":skipped_local_prompts" : ""}`,
     });
     throw redirect({ to: target, replace: true });
   },
@@ -131,11 +136,10 @@ function Index() {
             useApp.getState().setStageLocal("STAGE_3");
           }
           const finalStage = useApp.getState().stage;
-          const permsSeen = (() => {
-            try { return localStorage.getItem(PERMISSIONS_DONE_KEY) === "1"; } catch { return true; }
-          })();
-          const referralPending = shouldShowReferralPrompt();
-          target = (finalStage === "STAGE_5" && permsSeen && !referralPending) ? "/home" : "/onboarding";
+          // Logged-in + KYC approved → straight to /home, regardless of
+          // local-only prompts (permissions, referral). See matching
+          // logic in beforeLoad above.
+          target = finalStage === "STAGE_5" ? "/home" : "/onboarding";
         } else {
           // No session at all — clear any stale stage > STAGE_2.
           const stage = useApp.getState().stage;

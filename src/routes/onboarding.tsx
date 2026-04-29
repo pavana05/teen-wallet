@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { Suspense, useEffect, useState } from "react";
 
 import { useApp, type Stage } from "@/lib/store";
@@ -7,6 +7,7 @@ import { lazyWithRetry } from "@/lib/lazyWithRetry";
 import { shouldShowReferralPrompt } from "@/lib/referral";
 import { OnboardingSkeleton } from "@/components/BootSkeletons";
 import { recordRedirect } from "@/lib/redirectLog";
+import { readPersistedSnapshot, readSessionFromStorage, stageRank as bootStageRank } from "@/lib/bootSelfCheck";
 
 // Lazy chunks. We also expose the raw factories so we can warm them up
 // (prefetch) ahead of the moment the user actually advances — this is the
@@ -72,6 +73,29 @@ export const Route = createFileRoute("/onboarding")({
       { name: "description", content: "Set up your Teen Wallet account: verify your phone, complete KYC, and start paying." },
     ],
   }),
+  // Synchronous guard: if the user already has an active Supabase session
+  // AND their persisted onboarding stage is STAGE_5 (KYC approved), they
+  // are fully onboarded — send them to /home instead of showing the
+  // onboarding flow. Runs entirely off localStorage so there's no async
+  // delay and no flash of the onboarding splash.
+  beforeLoad: ({ location }) => {
+    if (typeof window === "undefined") return;
+    const { stage, userId } = readPersistedSnapshot();
+    const session = readSessionFromStorage();
+    const hasLiveSession = session.hasSession || !!session.userId;
+    const isFullyOnboarded =
+      !!userId && hasLiveSession && bootStageRank[stage] >= bootStageRank["STAGE_5"];
+    if (isFullyOnboarded) {
+      recordRedirect({
+        from: location.pathname,
+        to: "/home",
+        stage,
+        session: true,
+        reason: "onboarding_guard:already_onboarded",
+      });
+      throw redirect({ to: "/home", replace: true });
+    }
+  },
   component: OnboardingPage,
 });
 
