@@ -63,7 +63,12 @@ export const getRouter = () => {
     // route changes — fixes the "lands at the previous page's scroll position"
     // bug when navigating between routes.
     scrollToTopSelectors: [".hp-root", ".qa-root", "[data-scroll-root]"],
-    defaultPreloadStaleTime: 0,
+    // Aggressive preloading for snappy navigation: preload route code + data
+    // as soon as the user hovers/touches a Link, and keep preloaded matches
+    // fresh for 30s so repeat navigations are instant.
+    defaultPreload: "intent",
+    defaultPreloadDelay: 30,
+    defaultPreloadStaleTime: 30_000,
     defaultErrorComponent: DefaultErrorComponent,
   });
 
