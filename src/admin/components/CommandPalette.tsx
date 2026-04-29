@@ -78,6 +78,7 @@ export function CommandPalette() {
       if (pendingG) {
         const map: Record<string, string> = {
           d: "/admin",
+          l: "/admin/live",
           u: "/admin/users",
           k: "/admin/kyc",
           t: "/admin/transactions",
