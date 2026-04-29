@@ -27,13 +27,36 @@ const Permissions = lazyWithRetry(loadPermissionsChunk);
 const OnboardingReferral = lazyWithRetry(loadReferralChunk);
 
 /** Fire a dynamic import without awaiting — warms the chunk so the next
- *  step renders instantly when the user advances. Idle-scheduled so it
- *  never competes with the current paint. */
+ *  step renders instantly when the user advances.
+ *
+ *  We deliberately do NOT use requestIdleCallback for the immediate next
+ *  step, because on slow networks (3G, weak Wi-Fi) the user can advance
+ *  faster than idle fires, causing the dreaded "Getting things ready…"
+ *  skeleton between steps. Critical chunks fire immediately; nice-to-haves
+ *  can be deferred via `prefetchIdle`. */
 function prefetch(loaders: Array<() => Promise<unknown>>) {
   if (typeof window === "undefined") return;
-  const run = () => { for (const l of loaders) { try { void l(); } catch { /* noop */ } } };
+  for (const l of loaders) { try { void l(); } catch { /* noop */ } }
+}
+function prefetchIdle(loaders: Array<() => Promise<unknown>>) {
+  if (typeof window === "undefined") return;
+  const run = () => prefetch(loaders);
   const ric = (window as unknown as { requestIdleCallback?: (cb: () => void) => number }).requestIdleCallback;
   if (typeof ric === "function") ric(run); else window.setTimeout(run, 60);
+}
+
+/** Fire-and-forget warm of every onboarding chunk. Called once on mount so
+ *  the entire flow is in the browser cache before the user reaches any
+ *  individual step. KycFlow is ~1k lines and is the most painful step to
+ *  lazy-load mid-flow — warming it during onboarding hides that cost. */
+function warmAllOnboardingChunks() {
+  prefetchIdle([
+    loadAuthPhoneChunk,
+    loadReferralChunk,
+    loadPermissionsChunk,
+    loadKycFlowChunk,
+    loadKycPendingChunk,
+  ]);
 }
 
 const PERMISSIONS_DONE_KEY = "tw_permissions_seen_v1";
@@ -68,15 +91,23 @@ function OnboardingPage() {
   const [referralPending, setReferralPending] = useState<boolean>(() => shouldShowReferralPrompt());
   const markReferralDone = () => setReferralPending(false);
 
-  // Prefetch the *likely next* chunk based on current step so transitions
-  // feel instant. Each effect is cheap and idle-scheduled.
+  // Warm ALL onboarding chunks once on mount. By the time the user
+  // reaches the referral screen (a few seconds in), KycFlow + Permissions
+  // are already cached so transitions feel instant instead of triggering
+  // a fresh network fetch behind the "Getting things ready…" skeleton.
+  useEffect(() => { warmAllOnboardingChunks(); }, []);
+
+  // Prefetch the *immediate next* chunk based on current step — fires
+  // SYNCHRONOUSLY (no idle gating) so a user who taps fast still hits a
+  // warm cache.
   useEffect(() => {
     if (stage === "STAGE_0" || stage === "STAGE_1") {
       prefetch([loadAuthPhoneChunk, loadReferralChunk]);
     } else if (stage === "STAGE_2") {
       prefetch([loadReferralChunk, loadPermissionsChunk, loadKycFlowChunk]);
     } else if (stage === "STAGE_3") {
-      prefetch([loadKycFlowChunk, loadKycPendingChunk, loadPermissionsChunk]);
+      prefetch([loadKycFlowChunk, loadPermissionsChunk]);
+      prefetchIdle([loadKycPendingChunk, loadHomeChunk]);
     } else if (stage === "STAGE_4") {
       prefetch([loadKycPendingChunk, loadHomeChunk]);
     } else if (stage === "STAGE_5") {
@@ -84,11 +115,13 @@ function OnboardingPage() {
     }
   }, [stage]);
 
-  // After referral is dismissed, the next step is always Permissions (if
-  // unseen) → KYC → Home. Warm them all immediately so the user never
-  // sees a blank loading screen.
+  // While the referral screen is mounted, KycFlow + Permissions are the
+  // immediate next steps — warm them aggressively (not idle) so the
+  // "after referral, app stops loading" gap disappears.
   useEffect(() => {
-    if (!referralPending) {
+    if (referralPending) {
+      prefetch([loadPermissionsChunk, loadKycFlowChunk]);
+    } else {
       prefetch([loadPermissionsChunk, loadKycFlowChunk, loadKycPendingChunk, loadHomeChunk]);
     }
   }, [referralPending]);
