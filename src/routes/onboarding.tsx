@@ -73,6 +73,29 @@ export const Route = createFileRoute("/onboarding")({
       { name: "description", content: "Set up your Teen Wallet account: verify your phone, complete KYC, and start paying." },
     ],
   }),
+  // Synchronous guard: if the user already has an active Supabase session
+  // AND their persisted onboarding stage is STAGE_5 (KYC approved), they
+  // are fully onboarded — send them to /home instead of showing the
+  // onboarding flow. Runs entirely off localStorage so there's no async
+  // delay and no flash of the onboarding splash.
+  beforeLoad: ({ location }) => {
+    if (typeof window === "undefined") return;
+    const { stage, userId } = readPersistedSnapshot();
+    const session = readSessionFromStorage();
+    const hasLiveSession = session.hasSession || !!session.userId;
+    const isFullyOnboarded =
+      !!userId && hasLiveSession && bootStageRank[stage] >= bootStageRank["STAGE_5"];
+    if (isFullyOnboarded) {
+      recordRedirect({
+        from: location.pathname,
+        to: "/home",
+        stage,
+        session: true,
+        reason: "onboarding_guard:already_onboarded",
+      });
+      throw redirect({ to: "/home", replace: true });
+    }
+  },
   component: OnboardingPage,
 });
 
