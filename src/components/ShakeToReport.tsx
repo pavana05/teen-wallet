@@ -231,6 +231,9 @@ export function ShakeToReport() {
         camera_photo_path: cameraPath,
       }]);
       if (error) throw error;
+      if (userId) {
+        void notifyIssueSubmitted(userId, category);
+      }
       toast.success("Report sent — thank you!");
       setOpen(false);
       setMessage("");
