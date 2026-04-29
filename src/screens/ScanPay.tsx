@@ -8,6 +8,7 @@ import { useApp } from "@/lib/store";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { downloadReceiptPdf, shareReceiptPdf, shareReceiptToWhatsApp, buildReceiptSummary, type ReceiptData } from "@/lib/receipt";
+import { notifyPaymentFailed, notifyPaymentPending } from "@/lib/notify";
 import {
   recordReceiptDelivery,
   getLastDelivery,
@@ -154,6 +155,9 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
           setResultMsg(snap.failureReason ?? "Payment failed");
           setFailKind("generic");
           setPhase("failed");
+          if (userId) {
+            void notifyPaymentFailed(userId, snap.amount, snap.payeeName, snap.failureReason);
+          }
         }
       },
     });
@@ -202,6 +206,9 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
           setFailKind("generic");
           setAttemptId(null);
           setPhase("failed");
+          if (userId) {
+            void notifyPaymentFailed(userId, snap.amount, snap.payeeName, snap.failureReason);
+          }
           return;
         }
         // Still processing — schedule next tick.
@@ -209,6 +216,9 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
           setResultMsg("Payment is taking longer than expected. We'll keep trying in the background.");
           setFailKind("generic");
           setPhase("failed");
+          if (userId) {
+            void notifyPaymentPending(userId, snap.amount, snap.payeeName);
+          }
           return;
         }
         setTimeout(tick, POLL_INTERVAL_MS);

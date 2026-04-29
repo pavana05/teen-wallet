@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, X, Bell, BellOff, CheckCheck, Trash2, Zap, ShieldAlert, Gift, ArrowDownLeft, ArrowUpRight, Sparkles, Settings, PartyPopper, Wallet } from "lucide-react";
+import { ArrowLeft, X, Bell, BellOff, CheckCheck, Trash2, Zap, ShieldAlert, Gift, ArrowDownLeft, ArrowUpRight, Sparkles, Settings, PartyPopper, Wallet, AlertTriangle, Clock, Sun, Wrench, CheckCircle2 } from "lucide-react";
 import { useApp } from "@/lib/store";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -62,7 +62,8 @@ export function NotificationsPanel({ onClose }: Props) {
       // "Payments" chip groups all money-movement notifications
       return notifs.filter((n) =>
         n.type === "transaction" || n.type === "payment_sent" ||
-        n.type === "payment_received" || n.type === "low_balance",
+        n.type === "payment_received" || n.type === "payment_failed" ||
+        n.type === "payment_pending" || n.type === "low_balance",
       );
     }
     return notifs.filter((n) => n.type === filter);
@@ -225,13 +226,18 @@ function Group({ title, items, onRead, onRemove }: { title: string; items: Notif
 function iconFor(type: string) {
   switch (type) {
     case "welcome": return { Icon: PartyPopper, tint: "bg-emerald-500/15 text-emerald-300" };
+    case "greeting": return { Icon: Sun, tint: "bg-amber-300/15 text-amber-200" };
     case "payment_received": return { Icon: ArrowDownLeft, tint: "bg-emerald-500/15 text-emerald-300" };
     case "payment_sent":
     case "transaction": return { Icon: ArrowUpRight, tint: "bg-primary/15 text-primary" };
+    case "payment_failed": return { Icon: AlertTriangle, tint: "bg-destructive/15 text-destructive" };
+    case "payment_pending": return { Icon: Clock, tint: "bg-amber-400/15 text-amber-300" };
     case "low_balance": return { Icon: Wallet, tint: "bg-amber-400/15 text-amber-300" };
     case "fraud": return { Icon: ShieldAlert, tint: "bg-destructive/15 text-destructive" };
     case "offer": return { Icon: Gift, tint: "bg-fuchsia-500/15 text-fuchsia-300" };
     case "alert": return { Icon: Zap, tint: "bg-yellow-400/15 text-yellow-300" };
+    case "issue_submitted": return { Icon: Wrench, tint: "bg-sky-500/15 text-sky-300" };
+    case "issue_resolved": return { Icon: CheckCircle2, tint: "bg-emerald-500/15 text-emerald-300" };
     default: return { Icon: Sparkles, tint: "bg-white/10 text-white/80" };
   }
 }
