@@ -112,6 +112,7 @@ export async function notifyPaymentReceived(
     title,
     body: bodyParts.length > 0 ? bodyParts.join(" · ") : "Tap to view in History",
   });
+  toastPaymentReceived(null, amount, fromName ?? null);
 }
 
 /** Optional helper for low-balance warnings used by Home/balance watcher. */
@@ -119,6 +120,7 @@ export async function notifyLowBalance(userId: string, balance: number, threshol
   const title = `Low balance · ₹${balance.toLocaleString("en-IN")}`;
   const body = `Your wallet dropped below ₹${threshold.toLocaleString("en-IN")}. Top up to keep paying.`;
   await insertNotification({ userId, type: "low_balance", title, body });
+  toastLowBalance(balance, threshold);
 }
 
 /**
