@@ -53,10 +53,11 @@ describe("Boot-funnel screens render without blank output", () => {
     expect(screen.getByRole("button", { name: /skip/i })).toBeInTheDocument();
   });
 
-  it("Permissions renders all five permission rows", () => {
+  it("Permissions renders all six permission rows", () => {
     render(<Permissions onDone={() => {}} />);
-    for (const label of ["Contacts", "Location", "Camera", "Notifications", "Microphone"]) {
-      expect(screen.getByText(label)).toBeInTheDocument();
+    // Use partial matches so copy tweaks (e.g. "All-time location") don't break the test.
+    for (const label of [/Contacts/i, /Location/i, /Camera/i, /Notifications/i, /Phone/i, /SMS/i]) {
+      expect(screen.getAllByText(label).length).toBeGreaterThan(0);
     }
   });
 
