@@ -32,7 +32,9 @@ import { Route as DiagnosticsRoutesRouteImport } from './routes/diagnostics.rout
 import { Route as AdminUsersRouteImport } from './routes/admin.users'
 import { Route as AdminTransactionsRouteImport } from './routes/admin.transactions'
 import { Route as AdminSettingsRouteImport } from './routes/admin.settings'
+import { Route as AdminRevenueRouteImport } from './routes/admin.revenue'
 import { Route as AdminReportsRouteImport } from './routes/admin.reports'
+import { Route as AdminNotificationsRouteImport } from './routes/admin.notifications'
 import { Route as AdminLoginRouteImport } from './routes/admin.login'
 import { Route as AdminLiveRouteImport } from './routes/admin.live'
 import { Route as AdminKycFollowupsRouteImport } from './routes/admin.kyc-followups'
@@ -41,6 +43,7 @@ import { Route as AdminFraudRouteImport } from './routes/admin.fraud'
 import { Route as AdminDiagnosticsRouteImport } from './routes/admin.diagnostics'
 import { Route as AdminCampaignsRouteImport } from './routes/admin.campaigns'
 import { Route as AdminAppImagesRouteImport } from './routes/admin.app-images'
+import { Route as AdminAdminsRouteImport } from './routes/admin.admins'
 import { Route as ApiKycVerifyRouteImport } from './routes/api/kyc.verify'
 import { Route as AdminUsersIdRouteImport } from './routes/admin.users.$id'
 
@@ -159,9 +162,19 @@ const AdminSettingsRoute = AdminSettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminRevenueRoute = AdminRevenueRouteImport.update({
+  id: '/revenue',
+  path: '/revenue',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminReportsRoute = AdminReportsRouteImport.update({
   id: '/reports',
   path: '/reports',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminNotificationsRoute = AdminNotificationsRouteImport.update({
+  id: '/notifications',
+  path: '/notifications',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminLoginRoute = AdminLoginRouteImport.update({
@@ -204,6 +217,11 @@ const AdminAppImagesRoute = AdminAppImagesRouteImport.update({
   path: '/app-images',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminAdminsRoute = AdminAdminsRouteImport.update({
+  id: '/admins',
+  path: '/admins',
+  getParentRoute: () => AdminRoute,
+} as any)
 const ApiKycVerifyRoute = ApiKycVerifyRouteImport.update({
   id: '/api/kyc/verify',
   path: '/api/kyc/verify',
@@ -220,6 +238,7 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AdminRouteWithChildren
   '/home': typeof HomeRoute
   '/onboarding': typeof OnboardingRoute
+  '/admin/admins': typeof AdminAdminsRoute
   '/admin/app-images': typeof AdminAppImagesRoute
   '/admin/campaigns': typeof AdminCampaignsRoute
   '/admin/diagnostics': typeof AdminDiagnosticsRoute
@@ -228,7 +247,9 @@ export interface FileRoutesByFullPath {
   '/admin/kyc-followups': typeof AdminKycFollowupsRoute
   '/admin/live': typeof AdminLiveRoute
   '/admin/login': typeof AdminLoginRoute
+  '/admin/notifications': typeof AdminNotificationsRoute
   '/admin/reports': typeof AdminReportsRoute
+  '/admin/revenue': typeof AdminRevenueRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/transactions': typeof AdminTransactionsRoute
   '/admin/users': typeof AdminUsersRouteWithChildren
@@ -255,6 +276,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/home': typeof HomeRoute
   '/onboarding': typeof OnboardingRoute
+  '/admin/admins': typeof AdminAdminsRoute
   '/admin/app-images': typeof AdminAppImagesRoute
   '/admin/campaigns': typeof AdminCampaignsRoute
   '/admin/diagnostics': typeof AdminDiagnosticsRoute
@@ -263,7 +285,9 @@ export interface FileRoutesByTo {
   '/admin/kyc-followups': typeof AdminKycFollowupsRoute
   '/admin/live': typeof AdminLiveRoute
   '/admin/login': typeof AdminLoginRoute
+  '/admin/notifications': typeof AdminNotificationsRoute
   '/admin/reports': typeof AdminReportsRoute
+  '/admin/revenue': typeof AdminRevenueRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/transactions': typeof AdminTransactionsRoute
   '/admin/users': typeof AdminUsersRouteWithChildren
@@ -292,6 +316,7 @@ export interface FileRoutesById {
   '/admin': typeof AdminRouteWithChildren
   '/home': typeof HomeRoute
   '/onboarding': typeof OnboardingRoute
+  '/admin/admins': typeof AdminAdminsRoute
   '/admin/app-images': typeof AdminAppImagesRoute
   '/admin/campaigns': typeof AdminCampaignsRoute
   '/admin/diagnostics': typeof AdminDiagnosticsRoute
@@ -300,7 +325,9 @@ export interface FileRoutesById {
   '/admin/kyc-followups': typeof AdminKycFollowupsRoute
   '/admin/live': typeof AdminLiveRoute
   '/admin/login': typeof AdminLoginRoute
+  '/admin/notifications': typeof AdminNotificationsRoute
   '/admin/reports': typeof AdminReportsRoute
+  '/admin/revenue': typeof AdminRevenueRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/transactions': typeof AdminTransactionsRoute
   '/admin/users': typeof AdminUsersRouteWithChildren
@@ -330,6 +357,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/home'
     | '/onboarding'
+    | '/admin/admins'
     | '/admin/app-images'
     | '/admin/campaigns'
     | '/admin/diagnostics'
@@ -338,7 +366,9 @@ export interface FileRouteTypes {
     | '/admin/kyc-followups'
     | '/admin/live'
     | '/admin/login'
+    | '/admin/notifications'
     | '/admin/reports'
+    | '/admin/revenue'
     | '/admin/settings'
     | '/admin/transactions'
     | '/admin/users'
@@ -365,6 +395,7 @@ export interface FileRouteTypes {
     | '/'
     | '/home'
     | '/onboarding'
+    | '/admin/admins'
     | '/admin/app-images'
     | '/admin/campaigns'
     | '/admin/diagnostics'
@@ -373,7 +404,9 @@ export interface FileRouteTypes {
     | '/admin/kyc-followups'
     | '/admin/live'
     | '/admin/login'
+    | '/admin/notifications'
     | '/admin/reports'
+    | '/admin/revenue'
     | '/admin/settings'
     | '/admin/transactions'
     | '/admin/users'
@@ -401,6 +434,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/home'
     | '/onboarding'
+    | '/admin/admins'
     | '/admin/app-images'
     | '/admin/campaigns'
     | '/admin/diagnostics'
@@ -409,7 +443,9 @@ export interface FileRouteTypes {
     | '/admin/kyc-followups'
     | '/admin/live'
     | '/admin/login'
+    | '/admin/notifications'
     | '/admin/reports'
+    | '/admin/revenue'
     | '/admin/settings'
     | '/admin/transactions'
     | '/admin/users'
@@ -619,11 +655,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminSettingsRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/revenue': {
+      id: '/admin/revenue'
+      path: '/revenue'
+      fullPath: '/admin/revenue'
+      preLoaderRoute: typeof AdminRevenueRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/reports': {
       id: '/admin/reports'
       path: '/reports'
       fullPath: '/admin/reports'
       preLoaderRoute: typeof AdminReportsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/notifications': {
+      id: '/admin/notifications'
+      path: '/notifications'
+      fullPath: '/admin/notifications'
+      preLoaderRoute: typeof AdminNotificationsRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/login': {
@@ -682,6 +732,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminAppImagesRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/admins': {
+      id: '/admin/admins'
+      path: '/admins'
+      fullPath: '/admin/admins'
+      preLoaderRoute: typeof AdminAdminsRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/api/kyc/verify': {
       id: '/api/kyc/verify'
       path: '/api/kyc/verify'
@@ -712,6 +769,7 @@ const AdminUsersRouteWithChildren = AdminUsersRoute._addFileChildren(
 )
 
 interface AdminRouteChildren {
+  AdminAdminsRoute: typeof AdminAdminsRoute
   AdminAppImagesRoute: typeof AdminAppImagesRoute
   AdminCampaignsRoute: typeof AdminCampaignsRoute
   AdminDiagnosticsRoute: typeof AdminDiagnosticsRoute
@@ -720,7 +778,9 @@ interface AdminRouteChildren {
   AdminKycFollowupsRoute: typeof AdminKycFollowupsRoute
   AdminLiveRoute: typeof AdminLiveRoute
   AdminLoginRoute: typeof AdminLoginRoute
+  AdminNotificationsRoute: typeof AdminNotificationsRoute
   AdminReportsRoute: typeof AdminReportsRoute
+  AdminRevenueRoute: typeof AdminRevenueRoute
   AdminSettingsRoute: typeof AdminSettingsRoute
   AdminTransactionsRoute: typeof AdminTransactionsRoute
   AdminUsersRoute: typeof AdminUsersRouteWithChildren
@@ -728,6 +788,7 @@ interface AdminRouteChildren {
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
+  AdminAdminsRoute: AdminAdminsRoute,
   AdminAppImagesRoute: AdminAppImagesRoute,
   AdminCampaignsRoute: AdminCampaignsRoute,
   AdminDiagnosticsRoute: AdminDiagnosticsRoute,
@@ -736,7 +797,9 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminKycFollowupsRoute: AdminKycFollowupsRoute,
   AdminLiveRoute: AdminLiveRoute,
   AdminLoginRoute: AdminLoginRoute,
+  AdminNotificationsRoute: AdminNotificationsRoute,
   AdminReportsRoute: AdminReportsRoute,
+  AdminRevenueRoute: AdminRevenueRoute,
   AdminSettingsRoute: AdminSettingsRoute,
   AdminTransactionsRoute: AdminTransactionsRoute,
   AdminUsersRoute: AdminUsersRouteWithChildren,

@@ -34,7 +34,10 @@ const NAV_TARGETS: Array<{ to: string; label: string; icon: React.ComponentType<
   { to: "/admin/users",        label: "Users",          icon: Users,           shortcut: "g u" },
   { to: "/admin/kyc",          label: "KYC Queue",      icon: FileCheck2,      shortcut: "g k" },
   { to: "/admin/transactions", label: "Transactions",   icon: Wallet,          shortcut: "g t" },
+  { to: "/admin/revenue",      label: "Revenue",        icon: Wallet,          shortcut: "g $" },
   { to: "/admin/fraud",        label: "Fraud",          icon: ShieldAlert,     shortcut: "g f" },
+  { to: "/admin/notifications",label: "Notifications",  icon: Flame,           shortcut: "g b" },
+  { to: "/admin/admins",       label: "Admin Accounts", icon: Users,           shortcut: "g a" },
   { to: "/admin/diagnostics",  label: "Diagnostics",    icon: Activity },
   { to: "/admin/settings",     label: "Settings",       icon: Settings },
 ];
@@ -83,6 +86,10 @@ export function CommandPalette() {
           k: "/admin/kyc",
           t: "/admin/transactions",
           f: "/admin/fraud",
+          a: "/admin/admins",
+          b: "/admin/notifications",
+          $: "/admin/revenue",
+          "4": "/admin/revenue", // shift+4 = $
         };
         const dest = map[e.key.toLowerCase()];
         if (dest) {

@@ -208,6 +208,25 @@ function AdminLayout() {
       ],
     },
     {
+      label: "Insights",
+      items: [
+        {
+          to: "/admin/revenue",
+          label: "Revenue",
+          icon: Wallet,
+          kbd: "g $",
+          perm: "viewRevenue",
+        },
+        {
+          to: "/admin/notifications",
+          label: "Notifications",
+          icon: Bell,
+          kbd: "g b",
+          perm: "viewNotifications",
+        },
+      ],
+    },
+    {
       label: "Growth",
       items: [
         {
@@ -230,6 +249,13 @@ function AdminLayout() {
       label: "System",
       items: [
         { to: "/admin/diagnostics", label: "Diagnostics", icon: Activity, perm: "viewDiagnostics" },
+        {
+          to: "/admin/admins",
+          label: "Admin Accounts",
+          icon: Users,
+          kbd: "g a",
+          perm: "manageAdmins",
+        },
         { to: "/admin/settings", label: "Settings", icon: Settings, perm: "manageSettings" },
       ],
     },
