@@ -105,7 +105,7 @@ function ProfileHelpPage() {
 
         <header className="relative z-10 flex items-center justify-between px-5 pt-7 pb-2">
           <button
-            onClick={() => nav({ to: "/preview/home" })}
+            onClick={() => nav({ to: "/" })}
             aria-label="Back"
             className="qa-icon-btn"
           >
@@ -274,7 +274,7 @@ function ProfileHelpPage() {
 
           <div className="text-center">
             <Link
-              to="/preview/home"
+              to="/"
               className="text-[12px] text-white/55 underline-offset-4 hover:underline"
             >
               Back to app
