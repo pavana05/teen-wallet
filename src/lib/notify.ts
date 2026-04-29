@@ -167,6 +167,7 @@ export async function maybeInsertGreeting(userId: string, fullName: string | nul
   const g = GREETINGS[part];
   const title = firstName ? `${g.emoji} ${g.label}, ${firstName}!` : `${g.emoji} ${g.label}!`;
   await insertNotification({ userId, type: "greeting", title, body: g.body });
+  toastGreeting(title, g.body);
 
   try {
     localStorage.setItem(GREETING_KEY, JSON.stringify({ userId, day: today, part } satisfies GreetingRecord));
