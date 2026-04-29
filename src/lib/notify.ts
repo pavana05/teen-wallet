@@ -11,12 +11,17 @@ import { supabase } from "@/integrations/supabase/client";
 
 export type NotifType =
   | "welcome"
+  | "greeting"           // good morning / afternoon / evening
   | "transaction"        // outgoing payment (legacy / payment_sent)
   | "payment_sent"
   | "payment_received"
+  | "payment_failed"
+  | "payment_pending"
   | "low_balance"
   | "fraud"
   | "alert"
+  | "issue_submitted"
+  | "issue_resolved"
   | "offer";
 
 interface InsertArgs {
