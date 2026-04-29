@@ -136,6 +136,32 @@ function AppRoot() {
   // Warm all chunks so transitions between steps feel instant.
   useEffect(() => { warmAllChunks(); }, []);
 
+  // Boot watchdog: if a lazy chunk silently hangs (network stall, slow CDN,
+  // sleeping service worker), the Suspense fallback skeleton would stay
+  // forever. After 12s with no successful render, force a one-time hard
+  // reload so lazyWithRetry can re-fetch with a fresh manifest. Only fires
+  // if the user hasn't interacted yet (clear sign they're stuck).
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const KEY = "tw_boot_reload_v1";
+    const t = window.setTimeout(() => {
+      try {
+        const last = Number(sessionStorage.getItem(KEY) || "0");
+        if (Date.now() - last < 60_000) return; // avoid reload loops
+        sessionStorage.setItem(KEY, String(Date.now()));
+        window.location.reload();
+      } catch { /* ignore */ }
+    }, 12_000);
+    const cancel = () => window.clearTimeout(t);
+    window.addEventListener("pointerdown", cancel, { once: true });
+    window.addEventListener("keydown", cancel, { once: true });
+    return () => {
+      window.clearTimeout(t);
+      window.removeEventListener("pointerdown", cancel);
+      window.removeEventListener("keydown", cancel);
+    };
+  }, []);
+
   // Prefetch the next-likely chunk based on current stage.
   useEffect(() => {
     if (stage === "STAGE_0" || stage === "STAGE_1") {
