@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { downloadReceiptPdf, shareReceiptPdf, shareReceiptToWhatsApp, buildReceiptSummary, type ReceiptData } from "@/lib/receipt";
 import { notifyAttemptPendingOnce, notifyAttemptTerminalOnce } from "@/lib/notify";
+import { toastPaymentPending, toastPaymentSent, toastPaymentFailed } from "@/lib/notifyToast";
 import {
   recordReceiptDelivery,
   getLastDelivery,
@@ -175,6 +176,8 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
     // notifyAttemptPendingOnce dedupes across reloads / re-renders.
     if (userId && payload && typeof payload.amount === "number") {
       void notifyAttemptPendingOnce(attemptId, userId, payload.amount, payload.payeeName);
+      // Live toast — same id will be replaced by success/failed below.
+      toastPaymentPending(attemptId, payload.amount, payload.payeeName);
     }
 
     const tick = async () => {
@@ -205,6 +208,8 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
           if (userId) {
             void notifyAttemptTerminalOnce(snap.id, "received", userId, snap.amount, snap.payeeName);
           }
+          // Replace the pending live-toast with a success toast (same id).
+          toastPaymentSent(snap.id, snap.amount, snap.payeeName);
           setAttemptId(null);
           setPhase("success");
           return;
@@ -216,6 +221,8 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
           if (userId) {
             void notifyAttemptTerminalOnce(snap.id, "failed", userId, snap.amount, snap.payeeName, snap.failureReason);
           }
+          // Replace the pending live-toast with an error toast (same id).
+          toastPaymentFailed(snap.id, snap.amount, snap.payeeName, snap.failureReason);
           setAttemptId(null);
           setPhase("failed");
           return;

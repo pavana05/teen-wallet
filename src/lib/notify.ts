@@ -8,6 +8,18 @@
  * All inserts go through the user's RLS-scoped supabase client (own rows only).
  */
 import { supabase } from "@/integrations/supabase/client";
+import {
+  toastWelcome,
+  toastGreeting,
+  toastPaymentReceived,
+  toastPaymentFailed,
+  toastPaymentPending,
+  toastLowBalance,
+  toastFraudAlert,
+  toastIssueSubmitted,
+  toastIssueResolved,
+  toastOffer,
+} from "./notifyToast";
 
 export type NotifType =
   | "welcome"
@@ -70,6 +82,7 @@ export async function maybeInsertWelcome(userId: string, fullName: string | null
   const body = "Glad to see you again. Your wallet is ready.";
 
   await insertNotification({ userId, type: "welcome", title, body });
+  toastWelcome(title, body);
 
   try {
     localStorage.setItem(WELCOME_KEY, JSON.stringify({ userId, day: today } satisfies GreetedRecord));
@@ -99,6 +112,7 @@ export async function notifyPaymentReceived(
     title,
     body: bodyParts.length > 0 ? bodyParts.join(" · ") : "Tap to view in History",
   });
+  toastPaymentReceived(null, amount, fromName ?? null);
 }
 
 /** Optional helper for low-balance warnings used by Home/balance watcher. */
@@ -106,6 +120,7 @@ export async function notifyLowBalance(userId: string, balance: number, threshol
   const title = `Low balance · ₹${balance.toLocaleString("en-IN")}`;
   const body = `Your wallet dropped below ₹${threshold.toLocaleString("en-IN")}. Top up to keep paying.`;
   await insertNotification({ userId, type: "low_balance", title, body });
+  toastLowBalance(balance, threshold);
 }
 
 /**
@@ -152,6 +167,7 @@ export async function maybeInsertGreeting(userId: string, fullName: string | nul
   const g = GREETINGS[part];
   const title = firstName ? `${g.emoji} ${g.label}, ${firstName}!` : `${g.emoji} ${g.label}!`;
   await insertNotification({ userId, type: "greeting", title, body: g.body });
+  toastGreeting(title, g.body);
 
   try {
     localStorage.setItem(GREETING_KEY, JSON.stringify({ userId, day: today, part } satisfies GreetingRecord));
@@ -171,6 +187,7 @@ export async function notifyPaymentFailed(
   const title = `Payment of ${formatted} to ${payeeName} failed`;
   const body = (reason && reason.trim()) ? reason : "Tap to retry from History.";
   await insertNotification({ userId, type: "payment_failed", title, body });
+  toastPaymentFailed(null, amount, payeeName, reason);
 }
 
 /** Payment taking longer than expected — call when a payment stays in processing too long. */
@@ -183,6 +200,7 @@ export async function notifyPaymentPending(
   const title = `Payment of ${formatted} to ${payeeName} is pending`;
   const body = "Bank is taking longer than usual. We'll update you as soon as it settles.";
   await insertNotification({ userId, type: "payment_pending", title, body });
+  // Pending live-toast is owned by ScanPay (it has the attemptId for in-place updates).
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -270,5 +288,25 @@ export async function notifyIssueSubmitted(userId: string, category: string) {
   const title = "Report received 🛠️";
   const body = `Thanks for flagging this (${category}). Our team will look into it shortly.`;
   await insertNotification({ userId, type: "issue_submitted", title, body });
+  toastIssueSubmitted(category);
+}
+
+/** Issue resolved — fire when an admin marks a user's report as fixed. */
+export async function notifyIssueResolved(userId: string, summary: string, body?: string | null) {
+  const title = `Resolved: ${summary}`;
+  await insertNotification({ userId, type: "issue_resolved", title, body: body ?? null });
+  toastIssueResolved(title, body);
+}
+
+/** Promotional / offer notification — both feed + toast. */
+export async function notifyOffer(userId: string, title: string, body?: string | null) {
+  await insertNotification({ userId, type: "offer", title, body: body ?? null });
+  toastOffer(title, body);
+}
+
+/** Fraud / security alert — high-priority. */
+export async function notifyFraud(userId: string, title: string, body?: string | null) {
+  await insertNotification({ userId, type: "fraud", title, body: body ?? null });
+  toastFraudAlert(title, body);
 }
 
