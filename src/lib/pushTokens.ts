@@ -3,8 +3,10 @@ import {
   PushNotifications,
   type Token,
   type PushNotificationSchema,
+  type ActionPerformed,
 } from "@capacitor/push-notifications";
 import { supabase } from "@/integrations/supabase/client";
+import { setPendingDeepLink } from "./deepLink";
 
 let registered = false;
 
@@ -61,6 +63,21 @@ export async function registerPushNotifications() {
       (_n: PushNotificationSchema) => {
         // App is in foreground — notification row already exists in DB,
         // so the in-app NotificationsPanel will reflect it via realtime/refetch.
+      }
+    );
+
+    // User tapped a push (app was background or closed) — deep-link them.
+    PushNotifications.addListener(
+      "pushNotificationActionPerformed",
+      (action: ActionPerformed) => {
+        const data = (action.notification?.data ?? {}) as Record<string, string>;
+        const type = data.type ?? "";
+        const txnId = data.transaction_id ?? "";
+        if (txnId && /^payment_|^transaction$/.test(type)) {
+          setPendingDeepLink({ kind: "transaction", transactionId: txnId });
+        } else {
+          setPendingDeepLink({ kind: "notifications" });
+        }
       }
     );
 

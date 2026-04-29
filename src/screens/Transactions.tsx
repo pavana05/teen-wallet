@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useApp } from "@/lib/store";
 import { haptics } from "@/lib/haptics";
 import { TransactionDetail } from "@/components/TransactionDetail";
+import { consumePendingDeepLink, type PendingDeepLink } from "@/lib/deepLink";
 
 interface Txn {
   id: string;
@@ -109,6 +110,19 @@ export function Transactions({ onBack }: Props) {
       return { txn: t, credit, signed, balanceAfter: after };
     });
   }, [txns, balance]);
+
+  // Open a transaction detail when arriving via push-notification deep-link.
+  useEffect(() => {
+    const tryOpen = (link: PendingDeepLink | null) => {
+      if (!link || link.kind !== "transaction") return;
+      const match = enriched.find(({ txn }) => txn.id === link.transactionId);
+      if (match) setOpenTxn({ txn: match.txn, credit: match.credit, balanceAfter: match.balanceAfter });
+    };
+    tryOpen(consumePendingDeepLink());
+    const handler = () => tryOpen(consumePendingDeepLink());
+    window.addEventListener("tw:deeplink", handler);
+    return () => window.removeEventListener("tw:deeplink", handler);
+  }, [enriched]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();

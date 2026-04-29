@@ -119,7 +119,7 @@ export const Route = createFileRoute("/api/public/push-fanout")({
         // Verify the notification actually exists — prevents spoofed pushes.
         const { data: notif, error: notifErr } = await supabaseAdmin
           .from("notifications")
-          .select("id, user_id, type, title, body")
+          .select("id, user_id, type, title, body, transaction_id")
           .eq("id", payload.notification_id)
           .maybeSingle();
         if (notifErr || !notif) {
@@ -129,6 +129,7 @@ export const Route = createFileRoute("/api/public/push-fanout")({
         payload.title = notif.title;
         payload.body = notif.body ?? "";
         payload.type = notif.type;
+        const transactionId = (notif as { transaction_id: string | null }).transaction_id ?? "";
 
         const { data: tokens, error: tokensErr } = await supabaseAdmin
           .from("device_tokens")
@@ -176,6 +177,7 @@ export const Route = createFileRoute("/api/public/push-fanout")({
                 data: {
                   type: payload.type ?? "general",
                   notification_id: payload.notification_id ?? "",
+                  transaction_id: transactionId,
                 },
                 android: {
                   priority: "HIGH",
