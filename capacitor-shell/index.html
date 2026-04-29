@@ -259,6 +259,15 @@
       <div class="handoff-text">Almost there…</div>
     </div>
 
+    <!-- APP IFRAME (mounted once handoff completes) -->
+    <iframe
+      id="app-frame"
+      title="Teen Wallet"
+      style="display:none; position:fixed; inset:0; width:100%; height:100%; border:0; background:#050505; z-index: 100;"
+      allow="camera; microphone; geolocation; clipboard-read; clipboard-write; payment; fullscreen"
+      referrerpolicy="origin"
+    ></iframe>
+
     <!-- OFFLINE -->
     <div id="offline" class="stage" role="alert">
       <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.5)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
