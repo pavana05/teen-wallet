@@ -134,14 +134,32 @@ function UserDetail() {
           </div>
 
           <Field label="Phone" value={maskPhone(p.phone)} mono />
+          <Field label="Email" value={p.email || "—"} mono />
           <Field label="Date of birth" value={p.dob ? `${p.dob} · ${ageFrom(p.dob)} yrs` : "—"} />
           <Field label="Gender" value={p.gender || "—"} />
           <Field label="Aadhaar" value={p.aadhaar_last4 ? `XXXX-XXXX-${p.aadhaar_last4}` : "—"} mono />
+          <Field label="School" value={p.school_name || "—"} />
+          <Field label="Address" value={formatAddress(p) || "—"} />
           <Field label="KYC Status" value={<KycBadge s={p.kyc_status} />} />
           <Field label="Onboarding" value={<span className="a-mono" style={{ fontSize: 11 }}>{p.onboarding_stage}</span>} />
+          <Field label="Account tag" value={<span className="a-mono" style={{ fontSize: 11, textTransform: "uppercase" }}>{p.account_tag || "standard"}</span>} />
+          <Field label="Account status" value={p.account_locked
+            ? <span style={{ color: "#fca5a5", fontWeight: 600 }}>Locked</span>
+            : <span style={{ color: "#86efac", fontWeight: 600 }}>Active</span>} />
           <Field label="Wallet balance" value={`₹${Number(p.balance).toLocaleString("en-IN", { maximumFractionDigits: 2 })}`} mono />
           <Field label="Joined" value={new Date(p.created_at).toLocaleString()} />
+          <Field label="Last updated" value={new Date(p.updated_at).toLocaleString()} />
           <Field label="Parental link" value={data.parental ? `${maskPhone(data.parental.parent_phone)} · ${data.parental.parent_verified ? "verified" : "unverified"}` : "—"} />
+          {data.referralReceived && (
+            <Field label="Referred by code" value={<span className="a-mono">{data.referralReceived.code}</span>} />
+          )}
+          {p.notif_prefs && (
+            <Field label="Notif prefs" value={
+              <span style={{ fontSize: 11, color: "var(--a-muted)" }}>
+                {Object.entries(p.notif_prefs).filter(([, v]) => v).map(([k]) => k).join(", ") || "none"}
+              </span>
+            } />
+          )}
 
           {canManage && (
             <div style={{ marginTop: 16, paddingTop: 16, borderTop: "1px solid var(--a-border)", display: "grid", gap: 8 }}>
