@@ -183,9 +183,11 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
         await persistStage(resumedStage);
       }
       clearOtpState();
-      // Greet the user once per calendar day with an in-app entry notification.
+      // Greet the user once per calendar day with an in-app entry notification,
+      // plus a time-of-day greeting (good morning / afternoon / evening) per day-part.
       if (p?.id) {
         void maybeInsertWelcome(p.id, p.full_name ?? null);
+        void maybeInsertGreeting(p.id, p.full_name ?? null);
       }
       recordCheckpoint({
         screen: "auth",
