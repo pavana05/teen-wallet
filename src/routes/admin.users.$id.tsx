@@ -182,16 +182,24 @@ function UserDetail() {
           <div className="a-surface" style={{ display: "flex", borderBottom: "1px solid var(--a-border)", padding: "0 8px", flexWrap: "wrap" }}>
             <TabBtn id="timeline" cur={tab} onClick={setTab}>Timeline</TabBtn>
             <TabBtn id="txn" cur={tab} onClick={setTab}>Transactions ({data.transactions.length})</TabBtn>
+            <TabBtn id="attempts" cur={tab} onClick={setTab}>Attempts ({data.paymentAttempts?.length ?? 0})</TabBtn>
             <TabBtn id="kyc" cur={tab} onClick={setTab}>KYC ({data.kyc.length})</TabBtn>
             <TabBtn id="fraud" cur={tab} onClick={setTab}>Fraud ({data.fraud.length})</TabBtn>
+            <TabBtn id="contacts" cur={tab} onClick={setTab}>Contacts ({data.contacts?.length ?? 0})</TabBtn>
+            <TabBtn id="referrals" cur={tab} onClick={setTab}>Referrals ({data.referralsGiven?.length ?? 0})</TabBtn>
+            <TabBtn id="notifs" cur={tab} onClick={setTab}>Notifications ({data.notifications?.length ?? 0})</TabBtn>
             <TabBtn id="audit" cur={tab} onClick={setTab}>Audit ({data.audit.length})</TabBtn>
           </div>
 
           <div className="a-surface" style={{ padding: 16, marginTop: -1, borderTop: "none", borderTopLeftRadius: 0, borderTopRightRadius: 0 }}>
             {tab === "timeline" && <MergedTimeline data={data} />}
             {tab === "txn" && <TxnTable rows={data.transactions} />}
+            {tab === "attempts" && <AttemptsTable rows={data.paymentAttempts ?? []} />}
             {tab === "kyc" && <KycTimeline rows={data.kyc} />}
             {tab === "fraud" && <FraudTable rows={data.fraud} />}
+            {tab === "contacts" && <ContactsTable rows={data.contacts ?? []} />}
+            {tab === "referrals" && <ReferralsTable rows={data.referralsGiven ?? []} userId={p.id} />}
+            {tab === "notifs" && <NotifsTable rows={data.notifications ?? []} />}
             {tab === "audit" && <AuditTable rows={data.audit} />}
           </div>
         </div>
