@@ -208,6 +208,8 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
           if (userId) {
             void notifyAttemptTerminalOnce(snap.id, "received", userId, snap.amount, snap.payeeName);
           }
+          // Replace the pending live-toast with a success toast (same id).
+          toastPaymentSent(snap.id, snap.amount, snap.payeeName);
           setAttemptId(null);
           setPhase("success");
           return;
@@ -219,6 +221,8 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
           if (userId) {
             void notifyAttemptTerminalOnce(snap.id, "failed", userId, snap.amount, snap.payeeName, snap.failureReason);
           }
+          // Replace the pending live-toast with an error toast (same id).
+          toastPaymentFailed(snap.id, snap.amount, snap.payeeName, snap.failureReason);
           setAttemptId(null);
           setPhase("failed");
           return;
