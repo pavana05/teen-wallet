@@ -30,6 +30,7 @@ import {
   Rows3,
   Rows2,
   Sparkles,
+  Map as MapIcon,
 } from "lucide-react";
 
 const PerfOverlay = lazy(() =>
