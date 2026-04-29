@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useApp } from "@/lib/store";
 import { haptics } from "@/lib/haptics";
 import { TransactionDetail } from "@/components/TransactionDetail";
+import { consumePendingDeepLink, type PendingDeepLink } from "@/lib/deepLink";
 
 interface Txn {
   id: string;
