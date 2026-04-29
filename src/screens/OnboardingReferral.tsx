@@ -9,7 +9,7 @@
  * The full Referral Program is also accessible later from the profile menu,
  * so skipping here doesn't lock the user out of the feature.
  */
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Gift, Sparkles, ArrowRight, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { redeemReferralCode, markReferralPromptDone } from "@/lib/referral";
