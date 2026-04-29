@@ -7,6 +7,7 @@ import { VirtualTable, type Column } from "@/admin/components/VirtualTable";
 import { usePersistedState } from "@/admin/lib/usePersistedState";
 import { SavedViewsBar } from "@/admin/components/SavedViewsBar";
 import { recordPanelLoad, recordRealtime } from "@/admin/lib/perfBus";
+import { ExportCsvButton } from "@/admin/components/ExportCsvButton";
 
 export const Route = createFileRoute("/admin/fraud")({
   component: FraudPage,
@@ -209,7 +210,10 @@ function FraudPage() {
           <h1 style={{ fontSize: 24, fontWeight: 700 }}>Fraud Alerts</h1>
           <p style={{ fontSize: 13, color: "var(--a-muted)", marginTop: 4 }}>{openTotal} open · {total} {filters.status} · showing {rows.length}</p>
         </div>
-        <button className="a-btn-ghost" onClick={() => { setPage(1); void fetchPage(1); }}><RefreshCw size={14} /> Refresh</button>
+        <div style={{ display: "flex", gap: 8 }}>
+          <ExportCsvButton dataset="fraud" filters={{ status: filters.status }} />
+          <button className="a-btn-ghost" onClick={() => { setPage(1); void fetchPage(1); }}><RefreshCw size={14} /> Refresh</button>
+        </div>
       </div>
 
       {ruleNames.length > 0 && (
