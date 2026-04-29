@@ -13,7 +13,7 @@ import heroScanHoli from "@/assets/home-hero-scan-holi.png";
 import { useAppImage } from "@/lib/useAppImage";
 import { haptics } from "@/lib/haptics";
 import { useGenderPersona } from "@/lib/genderPersona";
-import { notifyPaymentReceived } from "@/lib/notify";
+import { notifyPaymentReceived, maybeInsertGreeting, maybeNotifyLowBalance, notifyAppIssue } from "@/lib/notify";
 import { toast } from "sonner";
 
 interface PersonaOffer {
