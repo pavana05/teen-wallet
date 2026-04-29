@@ -6,6 +6,7 @@ import { VirtualTable, type Column } from "@/admin/components/VirtualTable";
 import { usePersistedState } from "@/admin/lib/usePersistedState";
 import { SavedViewsBar } from "@/admin/components/SavedViewsBar";
 import { recordPanelLoad } from "@/admin/lib/perfBus";
+import { ExportCsvButton } from "@/admin/components/ExportCsvButton";
 
 export const Route = createFileRoute("/admin/users")({
   component: UsersList,
