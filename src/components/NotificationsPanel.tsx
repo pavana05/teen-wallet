@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, X, Bell, BellOff, CheckCheck, Trash2, Zap, ShieldAlert, Gift, ArrowDownLeft, ArrowUpRight, Sparkles, Settings, PartyPopper, Wallet } from "lucide-react";
+import { ArrowLeft, X, Bell, BellOff, CheckCheck, Trash2, Zap, ShieldAlert, Gift, ArrowDownLeft, ArrowUpRight, Sparkles, Settings, PartyPopper, Wallet, Sun, AlertTriangle, Clock, XCircle } from "lucide-react";
 import { useApp } from "@/lib/store";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
