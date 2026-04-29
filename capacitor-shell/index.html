@@ -485,32 +485,21 @@
 
         document.getElementById("ob-skip").addEventListener("click", finish);
 
-        // ----- handoff to real app (via iframe, NOT window.location) -----
-        // Why iframe: replacing window.location to a remote URL inside a
-        // Capacitor WebView frequently leaves a blank screen if the network
-        // is slow, DNS fails, or the WebView's navigation policy intercepts
-        // the request. Hosting the live app in an in-shell iframe keeps the
-        // shell alive so we can always recover into the offline screen.
+        // ----- handoff to real app (direct WebView navigation) -----
+        // We use window.location.replace so the live app fully owns the
+        // WebView (camera, auth popups, deep links, cookies all just work).
+        // Before navigating we run a quick reachability probe so we never
+        // commit the WebView to a blank page on a flaky network.
         var handoffStarted = false;
-        var handoffWatchdog = null;
-        var appFrame = document.getElementById("app-frame");
-        var appFrameLoaded = false;
-
-        // ----- retry / failure reporting state -----
         var MAX_ATTEMPTS = 3;
-        var WATCHDOG_MS = 12000;
         var attempt = 0;
-        var lastFailure = null; // { reason, when, attempts, network, target, ua }
+        var lastFailure = null;
         var retryTimer = null;
         var retryStatusEl = document.getElementById("retry-status");
         var errPanelEl = document.getElementById("err-panel");
 
-        function setRetryStatus(msg) {
-          if (retryStatusEl) retryStatusEl.textContent = msg || "";
-        }
-        function fmtTime(d) {
-          try { return new Date(d).toLocaleTimeString(); } catch (e) { return String(d); }
-        }
+        function setRetryStatus(msg) { if (retryStatusEl) retryStatusEl.textContent = msg || ""; }
+        function fmtTime(d) { try { return new Date(d).toLocaleTimeString(); } catch (e) { return String(d); } }
         function reportFailure(reason) {
           lastFailure = {
             reason: reason || "Unknown failure",
@@ -520,7 +509,6 @@
             target: APP_URL,
             ua: (typeof navigator !== "undefined" ? navigator.userAgent : "n/a"),
           };
-          // Populate panel
           var setText = function (id, v) { var el = document.getElementById(id); if (el) el.textContent = v; };
           setText("err-reason", lastFailure.reason);
           setText("err-when", fmtTime(lastFailure.when));
@@ -537,130 +525,77 @@
             : "We couldn't reach Teen Wallet after " + lastFailure.attempts + " attempt" + (lastFailure.attempts === 1 ? "" : "s") + ". Tap Try again or expand details below.";
         }
 
-        // Re-check actual network reachability (not just navigator.onLine,
-        // which lies on some Android WebViews). Resolves true if we can
-        // round-trip a tiny request.
-        function checkNetwork() {
+        // Probe the actual APP_URL (HEAD-style via no-cors GET). If it
+        // resolves within budget we know the WebView can navigate there.
+        function probeAppReachable() {
           return new Promise(function (resolve) {
-            if (typeof navigator !== "undefined" && navigator.onLine === false) {
-              return resolve(false);
-            }
             var done = false;
-            var to = setTimeout(function () { if (!done) { done = true; resolve(false); } }, 4000);
+            var to = setTimeout(function () { if (!done) { done = true; resolve(false); } }, 5000);
             try {
-              fetch("https://www.gstatic.com/generate_204", { method: "GET", mode: "no-cors", cache: "no-store" })
+              fetch(APP_URL, { method: "GET", mode: "no-cors", cache: "no-store" })
                 .then(function () { if (!done) { done = true; clearTimeout(to); resolve(true); } })
-                .catch(function () { if (!done) { done = true; clearTimeout(to); resolve(false); } });
+                .catch(function () {
+                  // fetch may fail in WebView even when navigation works —
+                  // fall back to a generic connectivity probe.
+                  fetch("https://www.gstatic.com/generate_204", { method: "GET", mode: "no-cors", cache: "no-store" })
+                    .then(function () { if (!done) { done = true; clearTimeout(to); resolve(true); } })
+                    .catch(function () { if (!done) { done = true; clearTimeout(to); resolve(false); } });
+                });
             } catch (e) {
               if (!done) { done = true; clearTimeout(to); resolve(false); }
             }
           });
         }
 
-        function clearHandoffWatchdog() {
-          if (handoffWatchdog) { clearTimeout(handoffWatchdog); handoffWatchdog = null; }
-        }
-        function clearRetryTimer() {
-          if (retryTimer) { clearTimeout(retryTimer); retryTimer = null; }
-        }
-        function revealAppFrame() {
-          appFrameLoaded = true;
-          clearHandoffWatchdog();
-          clearRetryTimer();
-          appFrame.style.display = "block";
-          Object.keys(stages).forEach(function (k) { stages[k].classList.remove("active"); });
-        }
-        appFrame.addEventListener("load", function () {
-          try {
-            var src = appFrame.getAttribute("src") || "";
-            if (src && src.indexOf("about:") !== 0) revealAppFrame();
-          } catch (e) { revealAppFrame(); }
-        });
-        appFrame.addEventListener("error", function () {
-          handleHandoffFailure("Iframe error event (network or navigation blocked)");
-        });
+        function clearRetryTimer() { if (retryTimer) { clearTimeout(retryTimer); retryTimer = null; } }
 
-        function handleHandoffFailure(reason) {
-          clearHandoffWatchdog();
-          if (appFrameLoaded) return;
-          if (attempt < MAX_ATTEMPTS) {
-            // Auto-retry: re-check network, backoff, then try again
-            var nextDelay = Math.min(8000, 1500 * Math.pow(2, attempt - 1));
-            setRetryStatus("Attempt " + attempt + " failed — retrying in " + Math.round(nextDelay / 1000) + "s…");
-            // Show handoff stage during retry, with status visible on offline screen if user opened it
-            retryTimer = setTimeout(function () {
-              checkNetwork().then(function (ok) {
-                if (!ok) {
-                  // Still no network — keep trying inside the budget
-                  attempt += 1;
-                  if (attempt > MAX_ATTEMPTS) {
-                    reportFailure(reason + " (network unreachable)");
-                    show("offline");
-                    setRetryStatus("");
-                    return;
-                  }
-                  setRetryStatus("Re-checking network… (attempt " + attempt + "/" + MAX_ATTEMPTS + ")");
-                  doNavigate();
-                } else {
-                  setRetryStatus("Network back — retrying (attempt " + (attempt + 1) + "/" + MAX_ATTEMPTS + ")…");
-                  doNavigate();
-                }
-              });
-            }, nextDelay);
-          } else {
-            reportFailure(reason);
+        function commitNavigation() {
+          // After this call the shell unmounts — the live app owns the view.
+          try { window.location.replace(APP_URL); }
+          catch (e) {
+            reportFailure("location.replace threw: " + (e && e.message ? e.message : String(e)));
             show("offline");
-            setRetryStatus("");
           }
         }
 
-        function doNavigate() {
-          clearHandoffWatchdog();
+        function tryHandoff() {
           attempt += 1;
-          handoffWatchdog = setTimeout(function () {
-            if (!appFrameLoaded) {
-              try { appFrame.removeAttribute("src"); } catch (e) {}
-              handleHandoffFailure("Watchdog timeout after " + (WATCHDOG_MS / 1000) + "s (WebView did not load)");
-            }
-          }, WATCHDOG_MS);
-          try {
-            // Cache-bust on retries to bypass any stale failed-load cache
-            appFrame.src = attempt > 1 ? (APP_URL + "?_r=" + attempt) : APP_URL;
-          } catch (e) {
-            handleHandoffFailure("Iframe src assignment threw: " + (e && e.message ? e.message : String(e)));
-          }
-        }
-        function handoffToApp() {
-          if (handoffStarted) {
-            if (appFrameLoaded) { revealAppFrame(); return; }
-            return;
-          }
-          handoffStarted = true;
-          attempt = 0;
-          appFrameLoaded = false;
-          show("handoff");
-          checkNetwork().then(function (ok) {
-            if (!ok) {
-              reportFailure("No network connectivity at boot");
-              show("offline");
+          setRetryStatus(attempt > 1 ? ("Retrying… (" + attempt + "/" + MAX_ATTEMPTS + ")") : "");
+          probeAppReachable().then(function (ok) {
+            if (ok) {
+              commitNavigation();
               return;
             }
-            setTimeout(doNavigate, 250);
+            if (attempt < MAX_ATTEMPTS) {
+              var delay = Math.min(6000, 1200 * Math.pow(2, attempt - 1));
+              setRetryStatus("Network not ready — retrying in " + Math.round(delay / 1000) + "s…");
+              retryTimer = setTimeout(tryHandoff, delay);
+            } else {
+              reportFailure("App unreachable after " + MAX_ATTEMPTS + " attempts");
+              show("offline");
+              setRetryStatus("");
+            }
           });
+        }
+
+        function handoffToApp() {
+          if (handoffStarted) return;
+          handoffStarted = true;
+          attempt = 0;
+          show("handoff");
+          tryHandoff();
         }
 
         // ----- offline retry (manual) -----
         document.getElementById("offline-retry").addEventListener("click", function () {
-          // Reset attempts on manual retry so user gets a fresh 3-try budget
           attempt = 0;
-          appFrameLoaded = false;
           handoffStarted = false;
+          clearRetryTimer();
           setRetryStatus("");
           if (errPanelEl) errPanelEl.hidden = true;
           if (hasCompletedOnboarding()) handoffToApp();
           else { show("onboarding"); renderSlide("fwd"); }
         });
-        // Copy diagnostic report
         var copyBtn = document.getElementById("err-copy");
         if (copyBtn) {
           copyBtn.addEventListener("click", function () {
@@ -686,7 +621,7 @@
         }
         window.addEventListener("online", function () {
           if (stages.offline.classList.contains("active")) {
-            attempt = 0; handoffStarted = false; appFrameLoaded = false;
+            attempt = 0; handoffStarted = false; clearRetryTimer();
             handoffToApp();
           }
         });
