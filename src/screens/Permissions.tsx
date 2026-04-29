@@ -293,7 +293,7 @@ export function Permissions({ onDone }: Props) {
     recordCheckpoint({
       screen: "permissions",
       action: r.status === "granted" ? "permission_granted" : "permission_denied",
-      detail: { key, reason: r.reason, errorName: r.errorName },
+      detail: { key, reason: r.reason ?? null, errorName: r.errorName ?? null },
     });
     if (r.status === "denied") {
       void haptics.bloom();
@@ -313,7 +313,7 @@ export function Permissions({ onDone }: Props) {
       recordCheckpoint({
         screen: "permissions",
         action: r.status === "granted" ? "permission_granted" : "permission_denied",
-        detail: { key: p.key, reason: r.reason, errorName: r.errorName },
+        detail: { key: p.key, reason: r.reason ?? null, errorName: r.errorName ?? null },
       });
     }
     setBusyAll(false);
