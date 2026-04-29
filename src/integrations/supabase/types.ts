@@ -682,6 +682,7 @@ export type Database = {
           id: string
           read: boolean
           title: string
+          transaction_id: string | null
           type: string
           user_id: string
         }
@@ -691,6 +692,7 @@ export type Database = {
           id?: string
           read?: boolean
           title: string
+          transaction_id?: string | null
           type: string
           user_id: string
         }
@@ -700,6 +702,7 @@ export type Database = {
           id?: string
           read?: boolean
           title?: string
+          transaction_id?: string | null
           type?: string
           user_id?: string
         }
