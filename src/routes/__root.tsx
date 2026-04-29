@@ -13,6 +13,7 @@ import { installOfflineQueue } from "@/lib/offlineQueue";
 
 import { OfflineOverlay } from "@/components/OfflineOverlay";
 import { GlobalErrorOverlay } from "@/components/GlobalErrorOverlay";
+import { OfflineQueueStatus } from "@/components/OfflineQueueStatus";
 
 import appCss from "../styles.css?url";
 
