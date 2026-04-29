@@ -14,7 +14,7 @@ export function StartupErrorScreen({ result }: Props) {
   const primary = result.issues[0];
   const onReset = () => {
     resetLocalAppState();
-    if (typeof window !== "undefined") window.location.replace("/onboarding");
+    if (typeof window !== "undefined") window.location.replace("/");
   };
 
   return (

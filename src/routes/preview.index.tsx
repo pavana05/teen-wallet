@@ -7,14 +7,12 @@ export const Route = createFileRoute("/preview/")({
 
 const screens = [
   { path: "/preview/splash", label: "Splash", desc: "Boot animation" },
-  { path: "/preview/onboarding", label: "Onboarding", desc: "5-slide intro carousel" },
   { path: "/preview/auth-phone", label: "AuthPhone", desc: "Phone + OTP entry" },
   { path: "/preview/phone-verified", label: "PhoneVerified", desc: "Premium success screen" },
   { path: "/preview/kyc-flow", label: "KycFlow", desc: "DOB → Aadhaar → selfie" },
   { path: "/preview/kyc-approved", label: "KYC Approved", desc: "Green tick celebration" },
   { path: "/preview/kyc-rejected", label: "KYC Rejected", desc: "Red error screen" },
   { path: "/preview/kyc-pending", label: "KYC Pending", desc: "Reviewing state" },
-  { path: "/preview/home", label: "Home", desc: "Orange hero + tiles" },
   { path: "/preview/scan-pay", label: "ScanPay", desc: "Scan & Pay flow" },
 ] as const;
 
