@@ -17,7 +17,8 @@ let registered = false;
 export async function registerPushNotifications() {
   if (registered) return;
   if (!Capacitor.isNativePlatform()) return;
-  if (Capacitor.getPlatform() !== "android") return;
+  const platform = Capacitor.getPlatform();
+  if (platform !== "android" && platform !== "ios") return;
 
   registered = true;
 
@@ -43,7 +44,7 @@ export async function registerPushNotifications() {
             {
               user_id: user.id,
               token: token.value,
-              platform: "android",
+              platform,
               last_seen_at: new Date().toISOString(),
             },
             { onConflict: "user_id,token" }

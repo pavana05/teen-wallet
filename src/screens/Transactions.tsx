@@ -112,11 +112,24 @@ export function Transactions({ onBack }: Props) {
   }, [txns, balance]);
 
   // Open a transaction detail when arriving via push-notification deep-link.
+  // Fallback: if transaction_id is missing or not found in the loaded list,
+  // open the most recent transaction (top of the list) so the user lands on
+  // the relevant context instead of a dead end.
   useEffect(() => {
     const tryOpen = (link: PendingDeepLink | null) => {
-      if (!link || link.kind !== "transaction") return;
-      const match = enriched.find(({ txn }) => txn.id === link.transactionId);
-      if (match) setOpenTxn({ txn: match.txn, credit: match.credit, balanceAfter: match.balanceAfter });
+      if (!link) return;
+      if (link.kind === "transaction") {
+        const match = enriched.find(({ txn }) => txn.id === link.transactionId);
+        if (match) {
+          setOpenTxn({ txn: match.txn, credit: match.credit, balanceAfter: match.balanceAfter });
+          return;
+        }
+      }
+      // Fallback — surface the most recent transaction.
+      const fallback = enriched[0];
+      if (fallback) {
+        setOpenTxn({ txn: fallback.txn, credit: fallback.credit, balanceAfter: fallback.balanceAfter });
+      }
     };
     tryOpen(consumePendingDeepLink());
     const handler = () => tryOpen(consumePendingDeepLink());

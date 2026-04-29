@@ -240,6 +240,21 @@ export function Home() {
 
   useEffect(() => { void fetchTxns(); }, [fetchTxns]);
 
+  // Push-notification deep link → switch into the Transactions screen.
+  // Transactions.tsx then resolves the txn id (or falls back to the most recent).
+  useEffect(() => {
+    const onDeepLink = () => setView("transactions");
+    // Handle a deep-link captured before this listener attached.
+    if (typeof window !== "undefined") {
+      try {
+        const raw = localStorage.getItem("tw-pending-deeplink-v1");
+        if (raw) setView("transactions");
+      } catch { /* ignore */ }
+    }
+    window.addEventListener("tw:deeplink", onDeepLink);
+    return () => window.removeEventListener("tw:deeplink", onDeepLink);
+  }, []);
+
   // Persona-targeted offers feed (admin-managed via gender_offers)
   useEffect(() => {
     let cancelled = false;
