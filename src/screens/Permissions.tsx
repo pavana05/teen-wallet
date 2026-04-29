@@ -300,6 +300,67 @@ export function Permissions({ onDone }: Props) {
         </div>
       )}
 
+      {/* Summary card — itemised granted/denied breakdown. Visible as soon as
+          any permission has resolved (e.g. web auto-grants for phone/sms,
+          or after the user has tapped a row). Lets the user see at a glance
+          which specific permissions are still blocking Continue and which
+          ones are already done — including ones the browser sandbox
+          auto-grants vs. blocks. */}
+      {(grantedCount > 0 || deniedCount > 0) && (
+        <section
+          aria-label="Permission status summary"
+          data-testid="perm-summary"
+          className="relative z-10 mt-3 rounded-xl border border-white/8 bg-white/[.03] px-3.5 py-3"
+        >
+          <header className="flex items-center justify-between mb-2">
+            <h2 className="text-[11px] uppercase tracking-[0.18em] text-white/60 font-medium">
+              Status summary
+            </h2>
+            <span
+              data-testid="perm-summary-counts"
+              className={`text-[11px] font-medium ${allGranted ? "text-emerald-300" : deniedCount > 0 ? "text-amber-300" : "text-white/70"}`}
+            >
+              {grantedCount} granted · {deniedCount} denied
+            </span>
+          </header>
+          <ul className="grid grid-cols-2 gap-x-3 gap-y-1.5">
+            {PERMS.map((p) => {
+              const s = status[p.key];
+              const isGranted = s === "granted";
+              const isDenied = s === "denied";
+              return (
+                <li
+                  key={`summary-${p.key}`}
+                  data-testid={`perm-summary-${p.key}`}
+                  data-status={s}
+                  className="flex items-center gap-1.5 text-[11.5px]"
+                >
+                  {isGranted ? (
+                    <Check className="w-3 h-3 text-emerald-300 flex-shrink-0" strokeWidth={3} />
+                  ) : isDenied ? (
+                    <AlertCircle className="w-3 h-3 text-amber-300 flex-shrink-0" strokeWidth={2.4} />
+                  ) : (
+                    <ChevronRight className="w-3 h-3 text-white/40 flex-shrink-0" strokeWidth={2} />
+                  )}
+                  <span className={isGranted ? "text-white/85" : isDenied ? "text-amber-100/85" : "text-white/55"}>
+                    {p.short}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+          {allGranted && (
+            <p
+              data-testid="perm-summary-ready"
+              className="mt-2 text-[11.5px] text-emerald-300/90 flex items-center gap-1.5"
+            >
+              <Check className="w-3 h-3" strokeWidth={3} />
+              All permissions granted — you can continue.
+            </p>
+          )}
+        </section>
+      )}
+
       <div className="flex-1" />
 
       <div className="relative z-10 space-y-2.5 pt-6">
