@@ -322,11 +322,18 @@ export function Home() {
   // Surface uncaught runtime issues into the notification feed (throttled).
   useEffect(() => {
     if (!userId || typeof window === "undefined") return;
+    const isNoise = (msg: string) =>
+      /Failed to fetch dynamically imported module|Importing a module script failed|ResizeObserver loop|Load failed/i.test(msg);
     const onError = (e: ErrorEvent) => {
-      void notifyAppIssue(userId, "We hit a hiccup", e.message || "An unexpected error occurred. We're on it.");
+      const msg = e.message || "";
+      if (isNoise(msg)) return;
+      void notifyAppIssue(userId, "We hit a hiccup", msg || "An unexpected error occurred. We're on it.");
     };
     const onRejection = (e: PromiseRejectionEvent) => {
-      const msg = (e.reason && typeof e.reason === "object" && "message" in e.reason) ? String((e.reason as { message: unknown }).message) : "Background task failed";
+      const msg = (e.reason && typeof e.reason === "object" && "message" in e.reason)
+        ? String((e.reason as { message: unknown }).message)
+        : (typeof e.reason === "string" ? e.reason : "Background task failed");
+      if (isNoise(msg)) return;
       void notifyAppIssue(userId, "Something didn't go through", msg);
     };
     window.addEventListener("error", onError);
