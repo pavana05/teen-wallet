@@ -133,19 +133,14 @@ function AppRoot() {
       if (!seen) return false;
       // If notifications were previously granted but later revoked at the
       // OS/browser level, surface the Permissions screen one more time so
-      // the user can flip them back on. shouldForceReprompt() is true at
-      // most once per revocation event.
-      try {
-        // Lazy require avoids pulling notification state on SSR.
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
-        const mod = require("@/lib/notificationState") as typeof import("@/lib/notificationState");
-        const liveStatus: "granted" | "denied" | "default" | "unknown" =
-          typeof window !== "undefined" && "Notification" in window
-            ? (Notification.permission as "granted" | "denied" | "default")
-            : "unknown";
-        mod.reconcileNotificationState(liveStatus);
-        if (mod.shouldForceReprompt()) return false;
-      } catch { /* ignore */ }
+      // the user can flip them back on. shouldForceReprompt() returns true
+      // at most once per revocation event.
+      const liveStatus: "granted" | "denied" | "default" | "unknown" =
+        "Notification" in window
+          ? (Notification.permission as "granted" | "denied" | "default")
+          : "unknown";
+      reconcileNotificationState(liveStatus);
+      if (shouldForceReprompt()) return false;
       return true;
     } catch { return true; }
   });
