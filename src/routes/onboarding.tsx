@@ -8,6 +8,7 @@ import { shouldShowReferralPrompt, markReferralPromptDone } from "@/lib/referral
 import { OnboardingSkeleton } from "@/components/BootSkeletons";
 import { recordRedirect } from "@/lib/redirectLog";
 import { readPersistedSnapshot, readSessionFromStorage, stageRank as bootStageRank, PERMISSIONS_DONE_KEY as BOOT_PERMISSIONS_DONE_KEY } from "@/lib/bootSelfCheck";
+import { reconcileAppState } from "@/lib/stateReconciler";
 
 // Lazy chunks. We also expose the raw factories so we can warm them up
 // (prefetch) ahead of the moment the user actually advances — this is the
@@ -83,6 +84,9 @@ export const Route = createFileRoute("/onboarding")({
   // flash of the onboarding splash.
   beforeLoad: ({ location }) => {
     if (typeof window === "undefined") return;
+    // Repair inconsistent state BEFORE deciding which screen to render —
+    // ensures users never get stranded on the wrong onboarding step.
+    reconcileAppState();
     const { stage, userId } = readPersistedSnapshot();
     const session = readSessionFromStorage();
     const hasLiveSession = session.hasSession || !!session.userId;

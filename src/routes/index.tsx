@@ -7,6 +7,7 @@ import { shouldShowReferralPrompt } from "@/lib/referral";
 import { HomeSkeleton } from "@/components/BootSkeletons";
 import { recordRedirect } from "@/lib/redirectLog";
 import { runSelfCheck, stageRank, PERMISSIONS_DONE_KEY, type SelfCheckResult } from "@/lib/bootSelfCheck";
+import { reconcileAppState } from "@/lib/stateReconciler";
 import { StartupErrorScreen } from "@/components/StartupErrorScreen";
 import { reportError } from "@/lib/lastError";
 
@@ -38,6 +39,21 @@ export const Route = createFileRoute("/")({
   }),
   beforeLoad: () => {
     if (typeof window === "undefined") return;
+
+    // Repair any inconsistent persisted state BEFORE the self-check
+    // reads from storage, so users never get stuck on a wrong screen.
+    const repair = reconcileAppState();
+    if (repair.changed) {
+      for (const r of repair.repairs) {
+        recordRedirect({
+          from: "boot:/",
+          to: "boot:/",
+          stage: repair.finalStage,
+          session: false,
+          reason: `reconcile:${r.code}`,
+        });
+      }
+    }
 
     const check = runSelfCheck();
     if (!check.ok) {
