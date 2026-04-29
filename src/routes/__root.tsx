@@ -116,7 +116,15 @@ function RootComponent() {
     breadcrumb("system.boot", { platform: typeof navigator !== "undefined" ? navigator.userAgent : undefined });
 
     const onError = (e: ErrorEvent) => captureError(e.error ?? e.message, { where: "window.onerror" });
-    const onRejection = (e: PromiseRejectionEvent) => captureError(e.reason, { where: "window.unhandledrejection" });
+    const onRejection = (e: PromiseRejectionEvent) => {
+      // Stale chunk after deploy / HMR — lazyWithRetry already handles recovery,
+      // so don't spam captureError with a noisy false-positive.
+      const msg = typeof e.reason === "string"
+        ? e.reason
+        : (e.reason && typeof e.reason === "object" && "message" in e.reason ? String((e.reason as { message: unknown }).message) : "");
+      if (/Failed to fetch dynamically imported module|Importing a module script failed/i.test(msg)) return;
+      captureError(e.reason, { where: "window.unhandledrejection" });
+    };
     window.addEventListener("error", onError);
     window.addEventListener("unhandledrejection", onRejection);
     return () => {
