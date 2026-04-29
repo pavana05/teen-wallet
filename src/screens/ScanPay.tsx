@@ -8,6 +8,7 @@ import { useApp } from "@/lib/store";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { downloadReceiptPdf, shareReceiptPdf, shareReceiptToWhatsApp, buildReceiptSummary, type ReceiptData } from "@/lib/receipt";
+import { notifyPaymentFailed, notifyPaymentPending } from "@/lib/notify";
 import {
   recordReceiptDelivery,
   getLastDelivery,
