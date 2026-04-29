@@ -139,7 +139,7 @@ export async function enqueue<K extends QueuedKind>(
   const action: QueuedAction = {
     id,
     kind,
-    payload: payload as Record<string, unknown>,
+    payload: payload as unknown as Record<string, unknown>,
     attempts: 0,
     nextAttemptAt: Date.now(),
     enqueuedAt: Date.now(),
@@ -193,7 +193,8 @@ async function getOwnUserId(): Promise<string> {
 const EXECUTORS = {
   profile_update: async (p: ProfileUpdatePayload) => {
     const userId = await getOwnUserId();
-    const { error } = await supabase.from("profiles").update(p.fields).eq("id", userId);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error } = await supabase.from("profiles").update(p.fields as any).eq("id", userId);
     if (error) throw error;
   },
   notif_mark_read: async (p: NotifMarkReadPayload) => {
@@ -211,7 +212,8 @@ const EXECUTORS = {
     if (error) throw error;
   },
   issue_report_submit: async (p: IssueReportPayload) => {
-    const { error } = await supabase.from("issue_reports").insert(p);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error } = await supabase.from("issue_reports").insert(p as any);
     if (error) throw error;
   },
   contact_upsert: async (p: ContactUpsertPayload) => {
