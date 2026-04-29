@@ -173,7 +173,7 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
 
     // Fire ONE "pending" notification per attempt the moment we begin polling.
     // notifyAttemptPendingOnce dedupes across reloads / re-renders.
-    if (userId && payload) {
+    if (userId && payload && typeof payload.amount === "number") {
       void notifyAttemptPendingOnce(attemptId, userId, payload.amount, payload.payeeName);
     }
 
