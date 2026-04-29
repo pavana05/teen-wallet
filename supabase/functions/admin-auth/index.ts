@@ -625,7 +625,7 @@ Deno.serve(async (req) => {
     // Daily series (30d)
     const txnsAllList = txnsAll.data ?? [];
     const dayBuckets: Record<string, { volume: number; count: number; success: number }> = {};
-    for (let i = 29; i >= 0; i--) {
+    for (let i = reqDays - 1; i >= 0; i--) {
       const d = new Date(now.getTime() - i * 86400000);
       const k = d.toISOString().slice(0, 10);
       dayBuckets[k] = { volume: 0, count: 0, success: 0 };
@@ -645,7 +645,7 @@ Deno.serve(async (req) => {
       .select("created_at,kyc_status")
       .gte("created_at", thirtyDaysAgo);
     const signupBuckets: Record<string, { approved: number; pending: number; other: number }> = {};
-    for (let i = 29; i >= 0; i--) {
+    for (let i = reqDays - 1; i >= 0; i--) {
       const d = new Date(now.getTime() - i * 86400000);
       const k = d.toISOString().slice(0, 10);
       signupBuckets[k] = { approved: 0, pending: 0, other: 0 };
