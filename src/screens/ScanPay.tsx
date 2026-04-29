@@ -29,6 +29,12 @@ import {
 } from "@/lib/paymentAttempts.functions";
 import { sampleFrames } from "@/lib/fpsGuard";
 import { haptics } from "@/lib/haptics";
+import {
+  notifyPaymentSent,
+  notifyPaymentFailed,
+  notifyPaymentPending,
+  maybeNotifyLowBalance,
+} from "@/lib/notify";
 
 const reducedMotion = () => {
   if (typeof window === "undefined") return false;
