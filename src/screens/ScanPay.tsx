@@ -171,6 +171,12 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
     let cancelled = false;
     const startedAt = Date.now();
 
+    // Fire ONE "pending" notification per attempt the moment we begin polling.
+    // notifyAttemptPendingOnce dedupes across reloads / re-renders.
+    if (userId && payload) {
+      void notifyAttemptPendingOnce(attemptId, userId, payload.amount, payload.payeeName);
+    }
+
     const tick = async () => {
       if (cancelled) return;
       try {
@@ -196,6 +202,9 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
           setSavedTxn(snapToSavedTxn(snap));
           setResultMsg(`₹${snap.amount.toFixed(0)} sent to ${snap.payeeName}`);
           if (navigator.vibrate) navigator.vibrate([30, 60, 30]);
+          if (userId) {
+            void notifyAttemptTerminalOnce(snap.id, "received", userId, snap.amount, snap.payeeName);
+          }
           setAttemptId(null);
           setPhase("success");
           return;
@@ -204,11 +213,11 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
           breadcrumb("payment.failed", { amount: snap.amount, reason: snap.failureReason ?? undefined }, "warning");
           setResultMsg(snap.failureReason ?? "Payment failed");
           setFailKind("generic");
+          if (userId) {
+            void notifyAttemptTerminalOnce(snap.id, "failed", userId, snap.amount, snap.payeeName, snap.failureReason);
+          }
           setAttemptId(null);
           setPhase("failed");
-          if (userId) {
-            void notifyPaymentFailed(userId, snap.amount, snap.payeeName, snap.failureReason);
-          }
           return;
         }
         // Still processing — schedule next tick.
@@ -216,9 +225,8 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
           setResultMsg("Payment is taking longer than expected. We'll keep trying in the background.");
           setFailKind("generic");
           setPhase("failed");
-          if (userId) {
-            void notifyPaymentPending(userId, snap.amount, snap.payeeName);
-          }
+          // Do NOT emit another pending notification here — the single
+          // pending notification was already sent at the start of polling.
           return;
         }
         setTimeout(tick, POLL_INTERVAL_MS);
