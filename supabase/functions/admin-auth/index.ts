@@ -2173,6 +2173,160 @@ Deno.serve(async (req) => {
     return json({ ok: true });
   }
 
+  // ----- Live Activity feed (admin-only, near-realtime via polling) -----
+  // Returns latest txns + kyc + new signups + fraud since `sinceTs`, plus
+  // rolling per-minute stats for the last 60 minutes. Designed to be polled
+  // every 3-5s; clients pass back the last `ts` they saw to receive only
+  // newer items.
+  if (action === "live_feed") {
+    if (!can(me.role, "viewDashboard")) return json({ error: "forbidden" }, 403);
+    const sinceTs = body.sinceTs ? String(body.sinceTs) : null;
+    const limit = Math.min(Math.max(Number(body.limit ?? 60), 10), 200);
+    const now = Date.now();
+    const sixtyMinAgo = new Date(now - 60 * 60 * 1000).toISOString();
+    const tenMinAgo = new Date(now - 10 * 60 * 1000).toISOString();
+    const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+
+    // Build base queries; if sinceTs provided, fetch only items after it.
+    const txnQ = sb.from("transactions")
+      .select("id,user_id,amount,merchant_name,upi_id,status,created_at,fraud_flags")
+      .order("created_at", { ascending: false }).limit(limit);
+    const kycQ = sb.from("kyc_submissions")
+      .select("id,user_id,status,created_at,updated_at")
+      .order("updated_at", { ascending: false }).limit(limit);
+    const newUsersQ = sb.from("profiles")
+      .select("id,full_name,phone,created_at,kyc_status")
+      .order("created_at", { ascending: false }).limit(limit);
+    const fraudQ = sb.from("fraud_logs")
+      .select("id,user_id,rule_triggered,created_at,transaction_id")
+      .order("created_at", { ascending: false }).limit(limit);
+
+    // For per-minute stats we need the last 60min of txns regardless of sinceTs.
+    const tpmQ = sb.from("transactions")
+      .select("amount,merchant_name,user_id,status,created_at")
+      .gte("created_at", sixtyMinAgo).order("created_at", { ascending: false }).limit(2000);
+    // Today aggregate
+    const todayQ = sb.from("transactions")
+      .select("amount,status,created_at")
+      .gte("created_at", todayStart.toISOString()).limit(20000);
+    // Active users last 10 min (anyone who transacted)
+    const activeQ = sb.from("transactions")
+      .select("user_id").gte("created_at", tenMinAgo).limit(5000);
+
+    const [txns, kyc, newUsers, fraud, tpm, today, active] = await Promise.all([
+      txnQ, kycQ, newUsersQ, fraudQ, tpmQ, todayQ, activeQ,
+    ]);
+
+    type Item = { id: string; kind: string; ts: string; title: string; subtitle?: string; amount?: number; status?: string; userId?: string; refId?: string };
+    const items: Item[] = [];
+    for (const t of (txns.data ?? []) as any[]) {
+      const flagged = Array.isArray(t.fraud_flags) && t.fraud_flags.length > 0;
+      items.push({
+        id: `txn:${t.id}`, kind: t.status === "failed" ? "txn_failed" : (flagged ? "txn_flagged" : (t.status === "pending" ? "txn_pending" : "txn_done")),
+        ts: t.created_at, title: `${t.status === "failed" ? "Failed" : "Paid"} ₹${Number(t.amount).toFixed(2)}`,
+        subtitle: t.merchant_name || t.upi_id, amount: Number(t.amount), status: t.status, userId: t.user_id, refId: t.id,
+      });
+    }
+    for (const k of (kyc.data ?? []) as any[]) {
+      items.push({
+        id: `kyc:${k.id}:${k.updated_at || k.created_at}`, kind: `kyc_${k.status}`,
+        ts: k.updated_at || k.created_at, title: `KYC ${k.status}`, subtitle: k.user_id, status: k.status, userId: k.user_id, refId: k.id,
+      });
+    }
+    for (const p of (newUsers.data ?? []) as any[]) {
+      items.push({
+        id: `user:${p.id}`, kind: "user_new", ts: p.created_at,
+        title: "New user", subtitle: p.full_name || p.phone || p.id, userId: p.id, refId: p.id,
+      });
+    }
+    for (const f of (fraud.data ?? []) as any[]) {
+      items.push({
+        id: `fraud:${f.id}`, kind: "fraud", ts: f.created_at,
+        title: `Fraud rule: ${f.rule_triggered}`, subtitle: f.user_id, userId: f.user_id, refId: f.id,
+      });
+    }
+
+    let filtered = items;
+    if (sinceTs) filtered = items.filter((it) => it.ts > sinceTs);
+    filtered.sort((a, b) => (a.ts < b.ts ? 1 : -1));
+    filtered = filtered.slice(0, limit);
+
+    // Per-minute buckets for the last 60 minutes.
+    const buckets: Array<{ ts: string; count: number; volume: number; success: number; failed: number }> = [];
+    const baseMin = Math.floor(now / 60000) - 59;
+    for (let i = 0; i < 60; i++) {
+      const minTs = (baseMin + i) * 60000;
+      buckets.push({ ts: new Date(minTs).toISOString(), count: 0, volume: 0, success: 0, failed: 0 });
+    }
+    for (const t of (tpm.data ?? []) as any[]) {
+      const m = Math.floor(new Date(t.created_at).getTime() / 60000);
+      const idx = m - baseMin;
+      if (idx >= 0 && idx < 60) {
+        buckets[idx].count += 1;
+        buckets[idx].volume += Number(t.amount) || 0;
+        if (t.status === "success") buckets[idx].success += 1;
+        else if (t.status === "failed") buckets[idx].failed += 1;
+      }
+    }
+
+    // Today aggregate
+    let todayCount = 0, todayVolume = 0, todaySuccess = 0, todayFailed = 0;
+    for (const t of (today.data ?? []) as any[]) {
+      todayCount += 1;
+      if (t.status === "success") { todayVolume += Number(t.amount) || 0; todaySuccess += 1; }
+      else if (t.status === "failed") todayFailed += 1;
+    }
+
+    // Top merchants & top users from last-60min window
+    const merchantMap: Record<string, { name: string; count: number; volume: number }> = {};
+    const userMap: Record<string, { id: string; count: number; volume: number }> = {};
+    for (const t of (tpm.data ?? []) as any[]) {
+      const m = String(t.merchant_name || "Unknown");
+      merchantMap[m] = merchantMap[m] || { name: m, count: 0, volume: 0 };
+      merchantMap[m].count += 1; merchantMap[m].volume += Number(t.amount) || 0;
+      const u = String(t.user_id);
+      userMap[u] = userMap[u] || { id: u, count: 0, volume: 0 };
+      userMap[u].count += 1; userMap[u].volume += Number(t.amount) || 0;
+    }
+    const topMerchants = Object.values(merchantMap).sort((a, b) => b.count - a.count).slice(0, 5);
+    const topUsers = Object.values(userMap).sort((a, b) => b.count - a.count).slice(0, 5);
+
+    // Hydrate user names for topUsers (best effort)
+    const uids = topUsers.map((u) => u.id);
+    let nameMap: Record<string, string> = {};
+    if (uids.length) {
+      const { data: profs } = await sb.from("profiles").select("id,full_name,phone").in("id", uids);
+      for (const p of (profs ?? []) as any[]) nameMap[p.id] = p.full_name || p.phone || p.id.slice(0, 8);
+    }
+    const topUsersHydrated = topUsers.map((u) => ({ ...u, name: nameMap[u.id] || u.id.slice(0, 8) }));
+
+    // Anomaly detection: TPS spike vs prior-hour baseline
+    const last5 = buckets.slice(-5).reduce((s, b) => s + b.count, 0);
+    const prior55 = buckets.slice(0, 55).reduce((s, b) => s + b.count, 0);
+    const baseline = prior55 / 55; // avg per minute
+    const recent = last5 / 5;
+    const anomaly = baseline >= 1 && recent >= baseline * 3
+      ? { active: true, baseline: +baseline.toFixed(2), recent: +recent.toFixed(2), message: `TPS spike: ${recent.toFixed(1)}/min vs ${baseline.toFixed(1)}/min baseline` }
+      : { active: false };
+
+    const activeUsers = new Set((active.data ?? []).map((r: any) => r.user_id)).size;
+
+    return json({
+      items: filtered,
+      stats: {
+        todayCount, todayVolume, todaySuccess, todayFailed,
+        tpm: +(buckets.reduce((s, b) => s + b.count, 0) / 60).toFixed(2),
+        last5MinCount: last5,
+        activeUsersLast10Min: activeUsers,
+      },
+      buckets,
+      topMerchants,
+      topUsers: topUsersHydrated,
+      anomaly,
+      serverTs: new Date().toISOString(),
+    });
+  }
+
   return json({ error: "unknown_action" }, 400);
 });
 
