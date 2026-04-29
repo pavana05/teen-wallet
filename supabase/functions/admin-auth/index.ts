@@ -603,7 +603,7 @@ Deno.serve(async (req) => {
       sb.from("profiles").select("id", { count: "exact", head: true }).gte("created_at", sevenDaysAgo),
       sb.from("profiles").select("id", { count: "exact", head: true }).eq("kyc_status", "pending"),
       sb.from("transactions").select("amount,status,created_at").gte("created_at", startOfToday),
-      sb.from("transactions").select("amount,created_at,status").gte("created_at", thirtyDaysAgo),
+      sb.from("transactions").select("amount,created_at,status").gte("created_at", windowStart),
       sb.from("fraud_logs").select("id,rule_triggered,created_at").is("resolution", null),
     ]);
 
@@ -643,7 +643,7 @@ Deno.serve(async (req) => {
     const { data: signups } = await sb
       .from("profiles")
       .select("created_at,kyc_status")
-      .gte("created_at", thirtyDaysAgo);
+      .gte("created_at", windowStart);
     const signupBuckets: Record<string, { approved: number; pending: number; other: number }> = {};
     for (let i = reqDays - 1; i >= 0; i--) {
       const d = new Date(now.getTime() - i * 86400000);
