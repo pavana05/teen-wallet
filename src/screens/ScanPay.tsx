@@ -176,6 +176,8 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
     // notifyAttemptPendingOnce dedupes across reloads / re-renders.
     if (userId && payload && typeof payload.amount === "number") {
       void notifyAttemptPendingOnce(attemptId, userId, payload.amount, payload.payeeName);
+      // Live toast — same id will be replaced by success/failed below.
+      toastPaymentPending(attemptId, payload.amount, payload.payeeName);
     }
 
     const tick = async () => {
