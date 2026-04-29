@@ -107,3 +107,88 @@ export async function notifyLowBalance(userId: string, balance: number, threshol
   const body = `Your wallet dropped below ₹${threshold.toLocaleString("en-IN")}. Top up to keep paying.`;
   await insertNotification({ userId, type: "low_balance", title, body });
 }
+
+/**
+ * Time-of-day greeting — fires once per (user, day-part) so the user sees a
+ * "Good morning / afternoon / evening" notification on the first session of
+ * each day-part. Not spammy: stored in localStorage with a daily reset.
+ */
+const GREETING_KEY = "tw-greeting-v1";
+type DayPart = "morning" | "afternoon" | "evening" | "night";
+
+function currentDayPart(d: Date = new Date()): DayPart {
+  const h = d.getHours();
+  if (h >= 5 && h < 12) return "morning";
+  if (h >= 12 && h < 17) return "afternoon";
+  if (h >= 17 && h < 22) return "evening";
+  return "night";
+}
+
+const GREETINGS: Record<DayPart, { emoji: string; label: string; body: string }> = {
+  morning:   { emoji: "☀️", label: "Good morning",   body: "Have a great day ahead — your wallet is ready." },
+  afternoon: { emoji: "🌤️", label: "Good afternoon", body: "Hope your day is going well." },
+  evening:   { emoji: "🌆", label: "Good evening",   body: "Wrap up your day with a quick payment if needed." },
+  night:     { emoji: "🌙", label: "Good night",     body: "Late one? We're here whenever you need us." },
+};
+
+interface GreetingRecord { userId: string; day: string; part: DayPart }
+
+export async function maybeInsertGreeting(userId: string, fullName: string | null) {
+  if (typeof window === "undefined") return;
+  const now = new Date();
+  const today = now.toISOString().slice(0, 10);
+  const part = currentDayPart(now);
+  try {
+    const raw = localStorage.getItem(GREETING_KEY);
+    if (raw) {
+      const prev = JSON.parse(raw) as GreetingRecord;
+      if (prev.userId === userId && prev.day === today && prev.part === part) return;
+    }
+  } catch {
+    // ignore
+  }
+
+  const firstName = (fullName ?? "").trim().split(/\s+/)[0];
+  const g = GREETINGS[part];
+  const title = firstName ? `${g.emoji} ${g.label}, ${firstName}!` : `${g.emoji} ${g.label}!`;
+  await insertNotification({ userId, type: "greeting", title, body: g.body });
+
+  try {
+    localStorage.setItem(GREETING_KEY, JSON.stringify({ userId, day: today, part } satisfies GreetingRecord));
+  } catch {
+    // best-effort
+  }
+}
+
+/** Payment failed notification — call from ScanPay when an attempt enters `failed` stage. */
+export async function notifyPaymentFailed(
+  userId: string,
+  amount: number,
+  payeeName: string,
+  reason?: string | null,
+) {
+  const formatted = `₹${amount.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
+  const title = `Payment of ${formatted} to ${payeeName} failed`;
+  const body = (reason && reason.trim()) ? reason : "Tap to retry from History.";
+  await insertNotification({ userId, type: "payment_failed", title, body });
+}
+
+/** Payment taking longer than expected — call when a payment stays in processing too long. */
+export async function notifyPaymentPending(
+  userId: string,
+  amount: number,
+  payeeName: string,
+) {
+  const formatted = `₹${amount.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
+  const title = `Payment of ${formatted} to ${payeeName} is pending`;
+  const body = "Bank is taking longer than usual. We'll update you as soon as it settles.";
+  await insertNotification({ userId, type: "payment_pending", title, body });
+}
+
+/** Issue report submitted — give the user confirmation in their notification feed. */
+export async function notifyIssueSubmitted(userId: string, category: string) {
+  const title = "Report received 🛠️";
+  const body = `Thanks for flagging this (${category}). Our team will look into it shortly.`;
+  await insertNotification({ userId, type: "issue_submitted", title, body });
+}
+
