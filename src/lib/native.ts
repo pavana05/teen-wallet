@@ -34,7 +34,7 @@ export async function initNative() {
     let lastBackPress = 0;
     App.addListener("backButton", ({ canGoBack }) => {
       const path = window.location.pathname || "/";
-      const isRoot = path === "/" || path === "/home" || path === "/onboarding";
+      const isRoot = path === "/";
 
       if (canGoBack && !isRoot) {
         window.history.back();
@@ -42,8 +42,8 @@ export async function initNative() {
       }
 
       if (!isRoot) {
-        // Deep-linked into a nested route with no history — go to /home.
-        const parent = path.split("/").slice(0, -1).join("/") || "/home";
+        // Deep-linked into a nested route with no history — go home.
+        const parent = path.split("/").slice(0, -1).join("/") || "/";
         window.history.replaceState({}, "", parent);
         window.dispatchEvent(new PopStateEvent("popstate"));
         return;

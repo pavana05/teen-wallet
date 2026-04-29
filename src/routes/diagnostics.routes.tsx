@@ -26,12 +26,9 @@ interface PingResult {
 }
 
 const KNOWN_ROUTES: { path: string; label: string; group: "core" | "preview" | "admin" | "diagnostics" }[] = [
-  { path: "/", label: "Boot / redirect", group: "core" },
-  { path: "/onboarding", label: "Onboarding", group: "core" },
-  { path: "/home", label: "Home", group: "core" },
+  { path: "/", label: "App (single route)", group: "core" },
   { path: "/preview", label: "Preview index", group: "preview" },
   { path: "/preview/splash", label: "Splash", group: "preview" },
-  { path: "/preview/onboarding", label: "Onboarding", group: "preview" },
   { path: "/preview/auth-phone", label: "Phone auth", group: "preview" },
   { path: "/preview/phone-verified", label: "Phone verified", group: "preview" },
   { path: "/preview/permissions", label: "Permissions", group: "preview" },
