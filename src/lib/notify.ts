@@ -288,5 +288,25 @@ export async function notifyIssueSubmitted(userId: string, category: string) {
   const title = "Report received 🛠️";
   const body = `Thanks for flagging this (${category}). Our team will look into it shortly.`;
   await insertNotification({ userId, type: "issue_submitted", title, body });
+  toastIssueSubmitted(category);
+}
+
+/** Issue resolved — fire when an admin marks a user's report as fixed. */
+export async function notifyIssueResolved(userId: string, summary: string, body?: string | null) {
+  const title = `Resolved: ${summary}`;
+  await insertNotification({ userId, type: "issue_resolved", title, body: body ?? null });
+  toastIssueResolved(title, body);
+}
+
+/** Promotional / offer notification — both feed + toast. */
+export async function notifyOffer(userId: string, title: string, body?: string | null) {
+  await insertNotification({ userId, type: "offer", title, body: body ?? null });
+  toastOffer(title, body);
+}
+
+/** Fraud / security alert — high-priority. */
+export async function notifyFraud(userId: string, title: string, body?: string | null) {
+  await insertNotification({ userId, type: "fraud", title, body: body ?? null });
+  toastFraudAlert(title, body);
 }
 
