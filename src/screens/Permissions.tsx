@@ -25,6 +25,14 @@ import { Contacts } from "@capacitor-community/contacts";
 import { toast } from "sonner";
 import { recordCheckpoint } from "@/lib/navState";
 import { haptics } from "@/lib/haptics";
+import {
+  markNotificationDenied,
+  markNotificationGranted,
+  markRePromptShown,
+  markSuccessShown,
+  readNotificationState,
+  reconcileNotificationState,
+} from "@/lib/notificationState";
 
 type PermKey = "location" | "camera" | "contacts" | "notifications" | "phone" | "sms";
 type PermStatus = "idle" | "granted" | "denied" | "loading" | "unsupported";
