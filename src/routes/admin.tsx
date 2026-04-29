@@ -169,6 +169,13 @@ function AdminLayout() {
           kbd: "g d",
           perm: "viewDashboard",
         },
+        {
+          to: "/admin/live",
+          label: "Live Activity",
+          icon: Activity,
+          kbd: "g l",
+          perm: "viewDashboard",
+        },
       ],
     },
     {

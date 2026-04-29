@@ -30,6 +30,7 @@ interface TxnRow  { id: string; amount: number; merchant_name: string; upi_id: s
 // Static nav targets (shown when query is empty).
 const NAV_TARGETS: Array<{ to: string; label: string; icon: React.ComponentType<{ size?: number }>; shortcut?: string }> = [
   { to: "/admin",              label: "Command Center", icon: LayoutDashboard, shortcut: "g d" },
+  { to: "/admin/live",         label: "Live Activity",  icon: Activity,        shortcut: "g l" },
   { to: "/admin/users",        label: "Users",          icon: Users,           shortcut: "g u" },
   { to: "/admin/kyc",          label: "KYC Queue",      icon: FileCheck2,      shortcut: "g k" },
   { to: "/admin/transactions", label: "Transactions",   icon: Wallet,          shortcut: "g t" },
@@ -77,6 +78,7 @@ export function CommandPalette() {
       if (pendingG) {
         const map: Record<string, string> = {
           d: "/admin",
+          l: "/admin/live",
           u: "/admin/users",
           k: "/admin/kyc",
           t: "/admin/transactions",
