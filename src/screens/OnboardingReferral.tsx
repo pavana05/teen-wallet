@@ -22,6 +22,15 @@ export function OnboardingReferral({ onDone }: Props) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Pre-warm the chunks for the screens that follow this one (Permissions,
+  // KycFlow). KycFlow is large and is the typical "after referral, app
+  // stops loading" culprit on slow connections — by the time the user
+  // taps Skip / Apply, those chunks are already in cache.
+  useEffect(() => {
+    void import("@/screens/Permissions").catch(() => {});
+    void import("@/screens/KycFlow").catch(() => {});
+  }, []);
+
   const finish = () => {
     markReferralPromptDone();
     onDone();
