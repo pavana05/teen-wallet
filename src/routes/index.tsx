@@ -11,6 +11,7 @@ import { recordRedirect } from "@/lib/redirectLog";
 import { runSelfCheck, stageRank, PERMISSIONS_DONE_KEY, type SelfCheckResult } from "@/lib/bootSelfCheck";
 import { reconcileAppState } from "@/lib/stateReconciler";
 import { StartupErrorScreen } from "@/components/StartupErrorScreen";
+import { reconcileNotificationState, shouldForceReprompt } from "@/lib/notificationState";
 
 // All app screens live behind a single route now ("/"). The component
 // below renders the right step based on the persisted Stage + session,
@@ -127,7 +128,21 @@ function AppRoot() {
 
   const [permsSeen, setPermsSeen] = useState<boolean>(() => {
     if (typeof window === "undefined") return true;
-    try { return localStorage.getItem(PERMISSIONS_DONE_KEY) === "1"; } catch { return true; }
+    try {
+      const seen = localStorage.getItem(PERMISSIONS_DONE_KEY) === "1";
+      if (!seen) return false;
+      // If notifications were previously granted but later revoked at the
+      // OS/browser level, surface the Permissions screen one more time so
+      // the user can flip them back on. shouldForceReprompt() returns true
+      // at most once per revocation event.
+      const liveStatus: "granted" | "denied" | "default" | "unknown" =
+        "Notification" in window
+          ? (Notification.permission as "granted" | "denied" | "default")
+          : "unknown";
+      reconcileNotificationState(liveStatus);
+      if (shouldForceReprompt()) return false;
+      return true;
+    } catch { return true; }
   });
   const markPermsSeen = () => {
     try { localStorage.setItem(PERMISSIONS_DONE_KEY, "1"); } catch { /* ignore */ }

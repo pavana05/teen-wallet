@@ -25,6 +25,14 @@ import { Contacts } from "@capacitor-community/contacts";
 import { toast } from "sonner";
 import { recordCheckpoint } from "@/lib/navState";
 import { haptics } from "@/lib/haptics";
+import {
+  markNotificationDenied,
+  markNotificationGranted,
+  markRePromptShown,
+  markSuccessShown,
+  readNotificationState,
+  reconcileNotificationState,
+} from "@/lib/notificationState";
 
 type PermKey = "location" | "camera" | "contacts" | "notifications" | "phone" | "sms";
 type PermStatus = "idle" | "granted" | "denied" | "loading" | "unsupported";
@@ -274,7 +282,9 @@ export function Permissions({ onDone }: Props) {
 
   // Auto-mark phone/sms as granted on the web preview at mount — the OS-level
   // permission only exists on native, but the user must still see the rows so
-  // they understand what the production app will request.
+  // they understand what the production app will request. Also hydrate the
+  // notifications row from persisted state so a previously-granted user is
+  // never re-prompted, and a previously-failed user sees Retry immediately.
   useEffect(() => {
     if (!isNative()) {
       setResults((s) => ({
@@ -283,9 +293,60 @@ export function Permissions({ onDone }: Props) {
         sms:   { status: "granted", reason: "Granted at install time on the mobile app." },
       }));
     }
+    const liveStatus: "granted" | "denied" | "default" | "unknown" =
+      typeof window !== "undefined" && "Notification" in window
+        ? (Notification.permission as "granted" | "denied" | "default")
+        : "unknown";
+    const reconciled = reconcileNotificationState(liveStatus);
+    if (reconciled.phase === "granted") {
+      setResults((s) => ({
+        ...s,
+        notifications: { status: "granted", reason: "Notifications are enabled on this device." },
+      }));
+    } else if (reconciled.phase === "denied" || reconciled.phase === "disabled") {
+      setResults((s) => ({
+        ...s,
+        notifications: {
+          status: "denied",
+          reason: reconciled.lastError ?? "Notifications were not granted.",
+          hint: reconciled.phase === "disabled"
+            ? "They were turned off in your settings — tap Retry to enable them again."
+            : "Tap Retry to allow notifications.",
+          errorName: reconciled.lastErrorName ?? undefined,
+        },
+      }));
+      if (reconciled.phase === "disabled") markRePromptShown();
+    }
+  }, []);
+
+  const persistNotificationOutcome = useCallback((r: PermResult) => {
+    if (r.status === "granted") {
+      const prev = readNotificationState();
+      markNotificationGranted();
+      if (!prev.successShown) {
+        toast.success("Notifications enabled", {
+          description: "You'll get real-time alerts for payments, OTPs and KYC updates.",
+          duration: 3500,
+        });
+        markSuccessShown();
+      }
+    } else if (r.status === "denied") {
+      markNotificationDenied(
+        r.reason ?? "Notification permission was not granted.",
+        r.errorName ?? null,
+      );
+    }
   }, []);
 
   const ask = useCallback(async (key: PermKey) => {
+    // Hard-guard: never re-prompt for notifications once granted.
+    if (key === "notifications" && readNotificationState().phase === "granted") {
+      setResults((s) => ({
+        ...s,
+        notifications: { status: "granted", reason: "Notifications are already enabled." },
+      }));
+      return;
+    }
     setResults((s) => ({ ...s, [key]: { status: "loading" } }));
     void haptics.tap();
     const r = await requestPermission(key);
@@ -295,17 +356,28 @@ export function Permissions({ onDone }: Props) {
       action: r.status === "granted" ? "permission_granted" : "permission_denied",
       detail: { key, reason: r.reason ?? null, errorName: r.errorName ?? null },
     });
+    if (key === "notifications") persistNotificationOutcome(r);
     if (r.status === "denied") {
       void haptics.bloom();
       toast.error(`${labelFor(key)} permission required`, {
-        description: r.reason ?? "Tap the row to try again, or enable it from your device settings.",
+        description: r.reason ?? "Tap Retry to try again, or enable it from your device settings.",
+        action: { label: "Retry", onClick: () => { void ask(key); } },
+        duration: 6000,
       });
     }
-  }, []);
+  }, [persistNotificationOutcome]);
 
   const askAll = async () => {
     setBusyAll(true);
     for (const p of PERMS) {
+      // Skip re-asking notifications once already granted.
+      if (p.key === "notifications" && readNotificationState().phase === "granted") {
+        setResults((s) => ({
+          ...s,
+          notifications: { status: "granted", reason: "Notifications are already enabled." },
+        }));
+        continue;
+      }
       // sequential to avoid OS blocking concurrent prompts
       // eslint-disable-next-line no-await-in-loop
       const r = await requestPermission(p.key);
@@ -315,6 +387,7 @@ export function Permissions({ onDone }: Props) {
         action: r.status === "granted" ? "permission_granted" : "permission_denied",
         detail: { key: p.key, reason: r.reason ?? null, errorName: r.errorName ?? null },
       });
+      if (p.key === "notifications") persistNotificationOutcome(r);
     }
     setBusyAll(false);
   };
