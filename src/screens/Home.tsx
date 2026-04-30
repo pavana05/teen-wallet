@@ -1,4 +1,4 @@
-import { Bell, Home as HomeIcon, ScanLine, ShoppingBag, CreditCard, ArrowUpRight, Building2, Wallet, History, Smartphone, Zap, MoreHorizontal, Gift, ArrowDownLeft, RefreshCw, User, Sparkles, Inbox, Send } from "lucide-react";
+import { Bell, Home as HomeIcon, ScanLine, CreditCard, ArrowUpRight, Building2, Wallet, History, Smartphone, Zap, MoreHorizontal, RefreshCw, User, Sparkles, Send } from "lucide-react";
 import { useApp } from "@/lib/store";
 import { useEffect, useState, useCallback, useRef, Suspense } from "react";
 import { createPortal } from "react-dom";
@@ -126,33 +126,6 @@ function RechargeTile({ icon: Icon, label, tint }: { icon: React.ComponentType<{
       </div>
       <span className="text-[11px] text-white/70 leading-tight text-center">{label}</span>
     </button>
-  );
-}
-
-function TxnRow({ txn }: { txn: Txn }) {
-  const date = new Date(txn.created_at);
-  const time = date.toLocaleString("en-IN", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
-  const failed = txn.status === "failed";
-  const amountStr = `−₹${Number(txn.amount).toFixed(2)}`;
-  return (
-    <div
-      className="hp-row"
-      role="article"
-      aria-label={`Payment to ${txn.merchant_name}, ${amountStr}, status ${txn.status}, on ${time}`}
-      tabIndex={0}
-    >
-      <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${failed ? "bg-destructive/15" : "bg-primary/15"}`} aria-hidden="true">
-        <ArrowDownLeft className={`w-5 h-5 ${failed ? "text-destructive" : "text-primary"}`} strokeWidth={2} />
-      </div>
-      <div className="flex-1 min-w-0">
-        <p className="text-[13px] font-medium text-white truncate">{txn.merchant_name}</p>
-        <p className="text-[11px] text-white/50 truncate">{txn.note ? txn.note : txn.upi_id} · {time}</p>
-      </div>
-      <div className="text-right shrink-0">
-        <p className={`text-[14px] font-semibold num-mono ${failed ? "text-destructive line-through" : "text-white"}`}>{amountStr}</p>
-        <p className={`text-[10px] uppercase tracking-wider ${txn.status === "success" ? "text-primary/80" : txn.status === "pending" ? "text-yellow-400/80" : "text-destructive/80"}`}>{txn.status}</p>
-      </div>
-    </div>
   );
 }
 
@@ -553,8 +526,7 @@ export function Home() {
       className={`hp-root ${persona.accentClass} flex-1 min-h-0 flex flex-col tw-slide-up pb-32 ${showProfile ? "overflow-hidden" : "overflow-y-auto"} relative`}
       style={{ transform: pullY ? `translateY(${pullY}px)` : undefined, transition: pullY ? "none" : "transform 220ms ease" }}
     >
-      {/* Keyboard skip-link to payment history */}
-      <a href="#hp-payment-history" className="hp-skip-link">Skip to payment history</a>
+
 
       {/* Pull-to-refresh indicator */}
       {(pullY > 0 || refreshing) && (
@@ -779,78 +751,8 @@ export function Home() {
         </div>
       </div>
 
-      <div className="hp-divider mt-14" aria-hidden="true" />
-
-      {/* ===== PAYMENT HISTORY ===== */}
-      <section
-        id="hp-payment-history"
-        aria-label="Payment history"
-        aria-busy={loading}
-        aria-live="polite"
-        tabIndex={-1}
-        className="px-5 mt-10 scroll-mt-4"
-      >
-        <div className="hp-section-head">
-          <div>
-            <span className="hp-section-eyebrow">Activity</span>
-            <h3 className="hp-section-title">Payment history</h3>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => { void haptics.tap(); setView("transactions"); }}
-              aria-label="See all transactions"
-              className="hp-section-link inline-flex items-center gap-1"
-            >
-              See all <ArrowUpRight className="w-3 h-3" aria-hidden="true" />
-            </button>
-            <button
-              type="button"
-              onClick={handleRefresh}
-              aria-label={refreshing ? "Refreshing payment history" : "Refresh payment history"}
-              className="hp-section-link inline-flex items-center gap-1.5"
-            >
-              <RefreshCw className={`w-3 h-3 ${refreshing ? "animate-spin" : ""}`} aria-hidden="true" /> Refresh
-            </button>
-          </div>
-        </div>
-        {loading ? (
-          <div className="space-y-2" aria-hidden="true">
-            {[0, 1, 2].map((i) => (
-              <div key={i} className="hp-skeleton-row" />
-            ))}
-          </div>
-        ) : error ? (
-          <div key={`hist-err-${shakeKey}`} role="alert" className="hp-empty hp-shake-error hp-fade-in">
-            <div className="hp-empty-illu" aria-hidden="true">
-              <RefreshCw className="w-7 h-7 text-white/85" strokeWidth={1.6} />
-            </div>
-            <p className="hp-empty-title">Couldn't load payments</p>
-            <p className="hp-empty-sub">We hit a snag fetching your history. Tap retry — we'll fix it on the next try.</p>
-            <button
-              type="button"
-              onClick={() => { setLoading(true); void fetchTxns(); }}
-              className="hp-cta-pill"
-              aria-label="Retry loading payment history"
-            >
-              <RefreshCw className="w-3.5 h-3.5" strokeWidth={2.2} aria-hidden="true" />
-              <span>Retry</span>
-            </button>
-          </div>
-        ) : txns.length === 0 ? (
-          <div className="hp-empty hp-fade-in">
-            <div className="hp-empty-illu" aria-hidden="true">
-              <Inbox className="w-7 h-7 text-white/85" strokeWidth={1.6} />
-            </div>
-            <p className="hp-empty-title">No transactions yet</p>
-            <p className="hp-empty-sub">Tap the scan button below to make your first payment — it'll show up here instantly.</p>
-          </div>
-        ) : (
-          <div className="space-y-2 hp-fade-in" role="list" aria-label="Recent transactions">
-            {txns.map((t) => <TxnRow key={t.id} txn={t} />)}
-          </div>
-        )}
-      </section>
+      {/* Payment history moved to dedicated Transactions screen — accessible
+          via the bottom nav and the "Transaction history" quick action. */}
 
       {/* trailing breathing room above floating nav */}
       <div className="h-6" />
@@ -876,7 +778,7 @@ export function Home() {
                   data-hidden={navCollapsed || navMode === "profile-morph" ? "true" : "false"}
                   aria-hidden={navCollapsed || navMode === "profile-morph" ? "true" : "false"}
                 >
-                  <NavItem icon={Gift} label="Shop" />
+                  <NavItem icon={History} label="Transactions" onClick={() => setView("transactions")} />
                 </span>
                 <span
                   className="hp-nav-tab"
