@@ -471,6 +471,7 @@ export function Home() {
   // already open before flipping state.
   const openProfile = useCallback(() => {
     if (showProfile) return;
+    if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
     // Kick the import in case the prefetch failed — Suspense will show
     // the skeleton fallback while the chunk arrives.
     if (!profileReady) {
@@ -493,6 +494,13 @@ export function Home() {
     requestAnimationFrame(() => {
       scrollerRef.current?.scrollTo({ top: 0, behavior: "smooth" });
     });
+  }, []);
+
+  const openTransactionsFromProfile = useCallback(() => {
+    if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+    setShowProfile(false);
+    setNavMode("full");
+    setView("transactions");
   }, []);
 
   // Scan FAB → liquid expansion into ScanPay. The FAB grows into a circular
@@ -767,7 +775,6 @@ export function Home() {
             aria-label="Primary"
             data-mode={navMode}
             data-collapsed={navCollapsed ? "true" : "false"}
-            aria-hidden={showProfile ? "true" : "false"}
             className={`hp-nav-shell hp-nav-fixed z-[60] transition-opacity duration-300 ease-out ${showProfile ? "opacity-0 pointer-events-none translate-y-4" : "opacity-100"}`}
           >
             <div className="flex items-center gap-3">
@@ -866,7 +873,7 @@ export function Home() {
             </div>
           }
         >
-          <ProfilePanel onClose={closeProfile} />
+          <ProfilePanel onClose={closeProfile} onTransactions={openTransactionsFromProfile} />
         </Suspense>
       )}
     </div>
