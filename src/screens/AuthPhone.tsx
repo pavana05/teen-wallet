@@ -399,7 +399,26 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
     return <PhoneVerified onContinue={onDone} />;
   }
 
-  return (
+  if (step === "google-gate") {
+    return (
+      <VerifyGoogleOnNewDevice
+        phone10={phone}
+        emailHint={googleEmailHint}
+        onBack={() => {
+          setStep("phone");
+          setGoogleEmailHint(null);
+        }}
+        onVerified={() => {
+          // Google identity matched the linked account — now actually send
+          // the OTP. Reset to phone step internally and re-trigger.
+          setStep("phone");
+          setGoogleEmailHint(null);
+          // Defer one tick so React re-renders the phone step before we send.
+          setTimeout(() => { void handleSendOtp(); }, 0);
+        }}
+      />
+    );
+  }
     <div className="flex-1 flex flex-col p-6 tw-slide-up">
       <div className="flex items-center justify-between mb-12">
         <button onClick={() => step === "otp" ? setStep("phone") : null} className="w-10 h-10 rounded-full glass flex items-center justify-center">
