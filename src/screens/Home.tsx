@@ -422,8 +422,15 @@ export function Home() {
   // Idle-time prefetch — warm the heavy panels after Home has painted so
   // the first tap on Scan / Notifications / Profile / Quick actions feels
   // instant without bloating the initial Home chunk.
+  // Eagerly prefetch ProfilePanel right after first paint — it's the largest
+  // lazy chunk on this screen and waiting until idle made the first tap feel
+  // like the app was hanging. Other panels stay idle-prefetched.
   useEffect(() => {
     if (typeof window === "undefined") return;
+    // Kick the Profile panel chunk on next microtask so initial paint isn't
+    // blocked, but it's downloading well before the user can tap.
+    void import("@/components/ProfilePanel");
+
     const idle = (cb: () => void) => {
       const w = window as unknown as { requestIdleCallback?: (cb: () => void) => number };
       if (typeof w.requestIdleCallback === "function") w.requestIdleCallback(cb);
@@ -431,23 +438,27 @@ export function Home() {
     };
     idle(() => {
       void import("@/screens/ScanPay");
-      void import("@/components/ProfilePanel");
       void import("@/components/NotificationsPanel");
       void import("@/components/QuickActionsPanel");
       void import("@/screens/Transactions");
     });
   }, []);
 
-  // Profile tap → fluid morph: nav contracts to a single Profile pill,
-  // then we open the Profile panel after the morph settles. Works in both
-  // expanded and collapsed scroll states because the Profile tab is always
-  // kept reachable (never hidden) — and we briefly force-expand the nav so
-  // the morph reads as a continuous liquid transition either way.
+  // Warm the chunk on hover / pointerdown so even slow networks have it ready
+  // by the time the click lands. Safe to call repeatedly — module imports are
+  // de-duped by the bundler.
+  const warmProfile = useCallback(() => {
+    void import("@/components/ProfilePanel");
+  }, []);
+
+  // Profile tap → open immediately. The previous 360ms morph delay made the
+  // app feel frozen; we now flip showProfile right away and let the panel's
+  // own enter animation cover the transition.
   const openProfile = useCallback(() => {
     void haptics.bloom();
     setNavCollapsed(false);
     setNavMode("profile-morph");
-    window.setTimeout(() => setShowProfile(true), 360);
+    setShowProfile(true);
   }, []);
 
   const closeProfile = useCallback(() => {
@@ -817,7 +828,14 @@ export function Home() {
                 >
                   <NavItem icon={Gift} label="Shop" />
                 </span>
-                <span className="hp-nav-tab" data-hidden="false" data-testid="hp-nav-profile-wrap">
+                <span
+                  className="hp-nav-tab"
+                  data-hidden="false"
+                  data-testid="hp-nav-profile-wrap"
+                  onPointerEnter={warmProfile}
+                  onPointerDown={warmProfile}
+                  onTouchStart={warmProfile}
+                >
                   <NavItem icon={User} label="Profile" onClick={openProfile} />
                 </span>
               </div>
@@ -854,7 +872,42 @@ export function Home() {
         </Suspense>
       )}
       {showProfile && (
-        <Suspense fallback={null}>
+        <Suspense
+          fallback={
+            <div
+              className="absolute inset-0 z-[60] flex flex-col bg-background overflow-hidden"
+              aria-busy="true"
+              aria-label="Loading profile"
+            >
+              <div className="qa-bg" />
+              <div className="qa-grid" />
+              {/* Header skeleton */}
+              <div className="relative z-10 flex items-center justify-between px-5 pt-7 pb-2">
+                <div className="w-9 h-9 rounded-full bg-white/[0.06] animate-pulse" />
+                <div className="h-4 w-20 rounded bg-white/[0.06] animate-pulse" />
+                <div className="w-9 h-9" />
+              </div>
+              {/* Avatar + name skeleton */}
+              <div className="relative z-10 px-5 mt-4 flex flex-col items-center gap-3">
+                <div className="w-20 h-20 rounded-full bg-white/[0.06] animate-pulse" />
+                <div className="h-4 w-32 rounded bg-white/[0.06] animate-pulse" />
+                <div className="h-3 w-24 rounded bg-white/[0.05] animate-pulse" />
+              </div>
+              {/* Tabs skeleton */}
+              <div className="relative z-10 px-5 mt-6 flex gap-2">
+                {[0,1,2,3].map((i) => (
+                  <div key={i} className="h-8 flex-1 rounded-full bg-white/[0.05] animate-pulse" />
+                ))}
+              </div>
+              {/* Cards skeleton */}
+              <div className="relative z-10 px-5 mt-5 space-y-3">
+                {[0,1,2].map((i) => (
+                  <div key={i} className="h-20 rounded-2xl bg-white/[0.04] animate-pulse" />
+                ))}
+              </div>
+            </div>
+          }
+        >
           <ProfilePanel onClose={closeProfile} />
         </Suspense>
       )}
