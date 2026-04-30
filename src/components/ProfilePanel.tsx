@@ -701,12 +701,12 @@ export function ProfilePanel({ onClose }: Props) {
                 <Row
                   icon={FileText}
                   label="Terms of service"
-                  onClick={() => window.open("https://teen-wallet.lovable.app/terms", "_blank", "noopener,noreferrer")}
+                  onClick={() => { onClose(); window.location.assign("/preview/terms"); }}
                 />
                 <Row
                   icon={FileText}
                   label="Privacy policy"
-                  onClick={() => window.open("https://teen-wallet.lovable.app/privacy", "_blank", "noopener,noreferrer")}
+                  onClick={() => { onClose(); window.location.assign("/preview/privacy"); }}
                 />
                 <Row icon={Settings} label="App version" hint="v1.0.6" />
               </CollapsibleSection>
