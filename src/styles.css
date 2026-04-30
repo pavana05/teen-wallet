@@ -9254,3 +9254,43 @@ html.motion-off    .otp-resend-ring svg circle { transition: none !important; }
   .hp-scan-fab:active,
   .hp-tile:active { transform: none !important; }
 }
+
+/* ───────── Premium champagne shimmer reveal ─────────
+   A soft platinum/warm-gold highlight sweeps once across the element
+   on mount, then settles. Used for hero on first load and the QR popup. */
+.hp-shimmer-reveal {
+  position: relative;
+  isolation: isolate;
+}
+.hp-shimmer-reveal::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 3;
+  background: linear-gradient(
+    115deg,
+    transparent 0%,
+    transparent 38%,
+    rgba(212, 197, 160, 0.00) 44%,
+    rgba(232, 218, 180, 0.28) 50%,
+    rgba(212, 197, 160, 0.00) 56%,
+    transparent 62%,
+    transparent 100%
+  );
+  background-size: 220% 220%;
+  background-position: -120% 0;
+  mix-blend-mode: screen;
+  opacity: 0;
+  animation: hp-shimmer-sweep 1.4s cubic-bezier(.22,.61,.36,1) .12s 1 forwards;
+}
+@keyframes hp-shimmer-sweep {
+  0%   { background-position: -120% 0; opacity: 0; }
+  18%  { opacity: 1; }
+  82%  { opacity: 1; }
+  100% { background-position: 220% 0; opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hp-shimmer-reveal::after { animation: none; opacity: 0; }
+}

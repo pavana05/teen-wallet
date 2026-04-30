@@ -1090,7 +1090,7 @@ function MyQrSheet({ upiId, payeeName, onClose }: { upiId: string; payeeName: st
 
   return (
     <div className="fixed inset-0 z-[120] flex items-center justify-center pp-qr-backdrop p-4" onClick={onClose} role="dialog" aria-modal="true" aria-labelledby="pp-qr-title">
-      <div className="pp-qr-card" onClick={(e) => e.stopPropagation()}>
+      <div className="pp-qr-card hp-shimmer-reveal" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between px-1 mb-3">
           <p id="pp-qr-title" className="text-[15px] font-semibold text-white">My UPI QR</p>
           <button onClick={onClose} aria-label="Close" className="qa-icon-btn"><X className="w-4 h-4 text-white/80" /></button>
