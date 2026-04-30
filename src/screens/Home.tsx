@@ -411,16 +411,23 @@ export function Home() {
   }, [fetchTxns]);
 
   const onTouchStart = (e: React.TouchEvent) => {
+    if (showProfile) return;
     if ((scrollerRef.current?.scrollTop ?? 0) <= 0) {
       touchStartY.current = e.touches[0].clientY;
     }
   };
   const onTouchMove = (e: React.TouchEvent) => {
+    if (showProfile) return;
     if (touchStartY.current == null) return;
     const dy = e.touches[0].clientY - touchStartY.current;
     if (dy > 0) setPullY(Math.min(dy * 0.5, 80));
   };
   const onTouchEnd = () => {
+    if (showProfile) {
+      setPullY(0);
+      touchStartY.current = null;
+      return;
+    }
     if (pullY > 60) { void haptics.swipe(); void handleRefresh(); }
     setPullY(0);
     touchStartY.current = null;
@@ -536,7 +543,7 @@ export function Home() {
       onTouchStart={onTouchStart}
       onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}
-      className={`hp-root ${persona.accentClass} flex-1 flex flex-col tw-slide-up pb-32 overflow-y-auto relative`}
+      className={`hp-root ${persona.accentClass} flex-1 min-h-0 flex flex-col tw-slide-up pb-32 ${showProfile ? "overflow-hidden" : "overflow-y-auto"} relative`}
       style={{ transform: pullY ? `translateY(${pullY}px)` : undefined, transition: pullY ? "none" : "transform 220ms ease" }}
     >
       {/* Keyboard skip-link to payment history */}

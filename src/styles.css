@@ -129,9 +129,11 @@
     background: #050505;
     /* Kill any stray horizontal scrollbar / right-side gutter caused by
        child elements that overflow the viewport width. */
-    overflow-x: hidden;
+    overflow: hidden;
   }
-  body { margin-right: 0 !important; }
+  html { scrollbar-width: none; }
+  html::-webkit-scrollbar, body::-webkit-scrollbar { display: none; }
+  body { margin-right: 0 !important; overscroll-behavior: none; }
   body {
     color: var(--color-foreground);
     font-family: var(--font-display);
@@ -141,6 +143,22 @@
   }
   h1, h2, h3 { letter-spacing: -0.025em; }
 }
+
+html,
+body {
+  overflow: hidden !important;
+  overscroll-behavior: none;
+}
+
+body > div:first-child,
+.tw-page-shell {
+  width: 100%;
+  max-width: 100%;
+  height: 100svh;
+  overflow: hidden;
+}
+
+.tw-page-shell { min-height: 100svh !important; }
 
 @layer components {
   /* The phone frame on desktop */
@@ -152,6 +170,8 @@
        desktop viewports where the simulated phone frame still makes sense. */
     max-width: 100%;
     min-height: 100vh;
+    min-height: 100svh;
+    max-height: 100svh;
     background: var(--color-background);
     box-shadow: 0 30px 80px -20px rgba(0,0,0,0.8), 0 0 0 1px rgba(255,255,255,0.04);
   }
@@ -159,6 +179,8 @@
     .tw-app-shell {
       max-width: 430px;
       min-height: min(900px, 100vh - 32px);
+      min-height: min(900px, 100svh - 32px);
+      max-height: min(900px, 100svh - 32px);
       margin-top: 16px;
       border-radius: 36px;
     }
@@ -1646,7 +1668,7 @@ button:focus-visible .hp-tile{
 
 /* ----- Floating nav shell: width morphs as it collapses / shifts to profile ----- */
 .hp-nav-shell{
-  width: calc(100% - 2rem);
+  width: min(calc(100dvw - 2rem), 400px);
   max-width: 400px;
   transition: width 480ms var(--hp-ease), max-width 480ms var(--hp-ease);
   will-change: width, max-width;
@@ -1666,11 +1688,11 @@ button:focus-visible .hp-tile{
   transform: translateX(-50%) translateY(1rem);
 }
 .hp-nav-shell[data-collapsed="true"][data-mode="full"]{
-  width: calc(100% - 2rem);
+  width: min(calc(100dvw - 2rem), 240px);
   max-width: 240px;
 }
 .hp-nav-shell[data-mode="profile-morph"]{
-  width: calc(100% - 2rem);
+  width: min(calc(100dvw - 2rem), 220px);
   max-width: 220px;
 }
 
@@ -2521,7 +2543,22 @@ button:focus-visible .hp-tile{
   animation: qa-in 540ms cubic-bezier(.16,1,.3,1) both;
   transform-origin: 50% 60%;
   will-change: transform, opacity, filter;
+  height: 100%;
+  max-height: 100%;
+  overscroll-behavior: contain;
 }
+.pp-scroll {
+  scrollbar-gutter: stable both-edges;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+}
+.pp-scroll::-webkit-scrollbar { width: 3px; }
+.pp-scroll::-webkit-scrollbar-track { background: transparent; }
+.pp-scroll::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(255,255,255,.14);
+}
+.pp-scroll::-webkit-scrollbar-thumb:hover { background: rgba(212,197,160,.24); }
 @keyframes qa-in {
   0%   { opacity: 0; transform: translateY(18px) scale(.975); filter: blur(6px); }
   60%  { opacity: 1; filter: blur(0); }
@@ -6945,7 +6982,7 @@ html.motion-off    .otp-resend-ring svg circle { transition: none !important; }
    --fd-shimmer : pill shimmer sweep               (2.6s loop)
    ============================================================ */
 .fd-shell {
-  width: calc(100% - 2rem);
+  width: min(calc(100dvw - 2rem), 320px);
   max-width: 320px;
   /* Smooth premium spring — coordinates transform/opacity/width together */
   transition:
@@ -6973,7 +7010,7 @@ html.motion-off    .otp-resend-ring svg circle { transition: none !important; }
   transform: translateX(-50%) translateY(0.75rem);
 }
 /* Collapsed — hugs the active tab + FAB */
-.fd-shell[data-collapsed="true"] { max-width: 200px; }
+.fd-shell[data-collapsed="true"] { width: min(calc(100dvw - 2rem), 200px); max-width: 200px; }
 
 /* JS-driven reduced-motion gate (live matchMedia) — instant, no transitions */
 .fd-shell[data-reduced="true"],
