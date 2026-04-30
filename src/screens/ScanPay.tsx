@@ -763,6 +763,11 @@ function ScannerView({ onBack, onDecoded }: { onBack: () => void; onDecoded: (p:
   const watchdogRef = useRef<number | null>(null);
   const tuningRef = useRef(pickAdaptiveTuning());
 
+  // Available cameras + currently selected index. Drives the "Change camera"
+  // control on devices with both front+back (or multiple back) lenses.
+  const [cameras, setCameras] = useState<{ id: string; label: string }[]>([]);
+  const [cameraIndex, setCameraIndex] = useState(0);
+
   // Bumping this value forces the scanner-init effect to re-run, which is our
   // "soft reset": dispose the current Html5Qrcode + camera, then start fresh.
   const [restartTick, setRestartTick] = useState(0);
