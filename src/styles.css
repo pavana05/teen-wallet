@@ -2525,7 +2525,22 @@ button:focus-visible .hp-tile{
   animation: qa-in 540ms cubic-bezier(.16,1,.3,1) both;
   transform-origin: 50% 60%;
   will-change: transform, opacity, filter;
+  height: 100%;
+  max-height: 100%;
+  overscroll-behavior: contain;
 }
+.pp-scroll {
+  scrollbar-gutter: stable both-edges;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+}
+.pp-scroll::-webkit-scrollbar { width: 3px; }
+.pp-scroll::-webkit-scrollbar-track { background: transparent; }
+.pp-scroll::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(255,255,255,.14);
+}
+.pp-scroll::-webkit-scrollbar-thumb:hover { background: rgba(212,197,160,.24); }
 @keyframes qa-in {
   0%   { opacity: 0; transform: translateY(18px) scale(.975); filter: blur(6px); }
   60%  { opacity: 1; filter: blur(0); }
