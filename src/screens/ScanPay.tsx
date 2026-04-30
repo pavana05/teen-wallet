@@ -920,8 +920,7 @@ function ScannerView({ onBack, onDecoded }: { onBack: () => void; onDecoded: (p:
     setRestartTick((t) => t + 1);
   };
 
-
-  // a struggling user can fall back from camera scanning to file upload in
+  // Trigger gallery picker programmatically — used by the recovery panel so
   // Wraps `openGalleryPicker` to clear any prior #FF4444 banner first so the
   // user gets a clean retry state when they tap "Retry".
   const openGalleryPickerFresh = () => {
