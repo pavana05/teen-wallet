@@ -259,6 +259,13 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
   }
 
   async function handleVerify(code: string) {
+    // Hard client-side block when the user has burned through their attempts.
+    if (verifyLockedUntil !== null && verifyLockedUntil > Date.now()) {
+      const secs = Math.ceil((verifyLockedUntil - Date.now()) / 1000);
+      setError(`Too many wrong codes. Try again in ${Math.ceil(secs / 60)} min.`);
+      setErrorKind("rate_limited");
+      return;
+    }
     setBusy(true); setError(""); setErrorKind(null); setErrorId(null);
     try {
       await verifyOtp(phone, code);
