@@ -1089,8 +1089,8 @@ function MyQrSheet({ upiId, payeeName, onClose }: { upiId: string; payeeName: st
   };
 
   return (
-    <div className="absolute inset-0 z-[80] flex items-end pp-sheet-backdrop" onClick={onClose} role="dialog" aria-modal="true" aria-labelledby="pp-qr-title">
-      <div className="pp-sheet" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-[120] flex items-center justify-center pp-qr-backdrop p-4" onClick={onClose} role="dialog" aria-modal="true" aria-labelledby="pp-qr-title">
+      <div className="pp-qr-card" onClick={(e) => e.stopPropagation()}>
         <div className="pp-sheet-grab" />
         <div className="flex items-center justify-between px-1 mb-3">
           <p id="pp-qr-title" className="text-[15px] font-semibold text-white">My UPI QR</p>
