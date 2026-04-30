@@ -289,7 +289,6 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
       }
     };
 
-
     // Slight delay so the premium animation has a beat to settle in.
     const initial = setTimeout(tick, 800);
     return () => {
@@ -763,6 +762,11 @@ function ScannerView({ onBack, onDecoded }: { onBack: () => void; onDecoded: (p:
   const watchdogRef = useRef<number | null>(null);
   const tuningRef = useRef(pickAdaptiveTuning());
 
+  // Available cameras + currently selected index. Drives the "Change camera"
+  // control on devices with both front+back (or multiple back) lenses.
+  const [cameras, setCameras] = useState<{ id: string; label: string }[]>([]);
+  const [cameraIndex, setCameraIndex] = useState(0);
+
   // Bumping this value forces the scanner-init effect to re-run, which is our
   // "soft reset": dispose the current Html5Qrcode + camera, then start fresh.
   const [restartTick, setRestartTick] = useState(0);
@@ -773,9 +777,15 @@ function ScannerView({ onBack, onDecoded }: { onBack: () => void; onDecoded: (p:
       try {
         const scanner = new Html5Qrcode(containerId, { verbose: false });
         scannerRef.current = scanner;
-        const cameras = await Html5Qrcode.getCameras();
-        if (!cameras.length) throw new Error("No camera available");
-        const camId = cameras.find((c) => /back|rear|environment/i.test(c.label))?.id ?? cameras[0].id;
+        const cams = await Html5Qrcode.getCameras();
+        if (!cams.length) throw new Error("No camera available");
+        setCameras(cams);
+        // First boot: pick the rear camera. Subsequent restarts respect the
+        // user's "Change camera" selection via cameraIndex.
+        const preferIdx = cams.findIndex((c) => /back|rear|environment/i.test(c.label));
+        const idx = restartTick === 0 && preferIdx >= 0 ? preferIdx : Math.min(cameraIndex, cams.length - 1);
+        if (restartTick === 0 && preferIdx >= 0) setCameraIndex(preferIdx);
+        const camId = cams[idx]?.id ?? cams[0].id;
         if (cancelled) return;
 
         const tuning = tuningRef.current;
@@ -897,8 +907,20 @@ function ScannerView({ onBack, onDecoded }: { onBack: () => void; onDecoded: (p:
     setRestartTick((t) => t + 1);
   };
 
+  // Cycle to the next available camera (front ↔ back, or through multiple
+  // back lenses on phones that expose them). Triggers a soft reset so the
+  // new camera is picked up by the scanner-init effect.
+  const switchCamera = () => {
+    if (cameras.length < 2) {
+      toast.message("Only one camera available");
+      return;
+    }
+    setCameraIndex((i) => (i + 1) % cameras.length);
+    setStarting(true);
+    setRestartTick((t) => t + 1);
+  };
+
   // Trigger gallery picker programmatically — used by the recovery panel so
-  // a struggling user can fall back from camera scanning to file upload in
   // Wraps `openGalleryPicker` to clear any prior #FF4444 banner first so the
   // user gets a clean retry state when they tap "Retry".
   const openGalleryPickerFresh = () => {
@@ -1037,44 +1059,33 @@ function ScannerView({ onBack, onDecoded }: { onBack: () => void; onDecoded: (p:
       {/* Torch active glow — subtle warm pulse for "flash on" feedback. */}
       {torch && <div className="sp2-torch-glow" aria-hidden="true" />}
 
-      {/* Minimal top bar — back, title, debug, torch. No brand pill, no borders. */}
+      {/* Minimal top bar — back + title only. */}
       <div className="sp2-topbar sp2-topbar-clean">
         <button onClick={onBack} aria-label="Back" className="sp2-icon-btn focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-black">
           <ArrowLeft className="w-5 h-5" />
         </button>
         <span className="sp2-clean-title">Scan & Pay</span>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setDebugOpen((v) => !v)}
-            aria-label={debugOpen ? "Hide debug overlay" : "Show debug overlay"}
-            aria-pressed={debugOpen}
-            className={`sp2-icon-btn ${debugOpen ? "on" : ""}`}
-          >
-            <Bug className="w-5 h-5" />
-          </button>
-          <button
-            onClick={toggleTorch}
-            aria-label={torch ? "Turn flash off" : "Turn flash on"}
-            aria-pressed={torch}
-            className={`sp2-icon-btn ${torch ? "on sp2-icon-btn-torch" : ""}`}
-          >
-            {torch ? <Zap className="w-5 h-5" /> : <ZapOff className="w-5 h-5" />}
-          </button>
-        </div>
+        <button
+          onClick={() => setDebugOpen((v) => !v)}
+          aria-label={debugOpen ? "Hide debug overlay" : "Show debug overlay"}
+          aria-pressed={debugOpen}
+          className={`sp2-icon-btn ${debugOpen ? "on" : ""}`}
+          style={{ opacity: debugOpen ? 1 : 0.35 }}
+        >
+          <Bug className="w-5 h-5" />
+        </button>
       </div>
 
-      {/* Centered hint + QR-detected confirmation. No frame, no corners, no beam. */}
+      {/* Single centered status: hint while scanning, single-line "QR detected"
+          confirmation with a champagne glow when locked (no neon, no borders). */}
       <div className="sp2-clean-stage">
         {scanState === "locked" ? (
-          <div className="sp2-detected-overlay" role="status" aria-live="polite">
-            <div className="sp2-detected-pulse" aria-hidden="true" />
-            <div className="sp2-detected-card">
-              <div className="sp2-detected-check">
-                <Check className="w-6 h-6" strokeWidth={3} />
-              </div>
-              <p className="sp2-detected-title">QR detected</p>
-              <p className="sp2-detected-sub">Opening payment…</p>
-            </div>
+          <div className="sp2-confirm-pill" role="status" aria-live="polite">
+            <span className="sp2-confirm-glow" aria-hidden="true" />
+            <span className="sp2-confirm-check">
+              <Check className="w-4 h-4" strokeWidth={3} />
+            </span>
+            <span className="sp2-confirm-text">QR detected</span>
           </div>
         ) : (
           <p className="sp2-clean-hint">
@@ -1087,6 +1098,22 @@ function ScannerView({ onBack, onDecoded }: { onBack: () => void; onDecoded: (p:
           </button>
         )}
       </div>
+
+      {/* Single tappable control: Change camera. Long-press toggles torch. */}
+      {!starting && scanState !== "locked" && (
+        <div className="sp2-clean-controls">
+          <button
+            type="button"
+            onClick={switchCamera}
+            onContextMenu={(e) => { e.preventDefault(); void toggleTorch(); }}
+            aria-label="Change camera"
+            className="sp2-clean-cta"
+          >
+            <RotateCcw className="w-4 h-4" />
+            <span>Change camera</span>
+          </button>
+        </div>
+      )}
       {debugOpen && (
         <div className="absolute bottom-[140px] left-4 right-4 z-30 rounded-2xl bg-black/85 border border-white/10 backdrop-blur-md p-3 text-[11px] font-mono text-white/85 max-h-[36%] overflow-auto">
           <p className="text-primary mb-1">⚙ {tuningRef.current.profile} · fps {tuningRef.current.fps} · qrbox {tuningRef.current.qrbox.width}px · cores {tuningRef.current.cores} · mem {tuningRef.current.mem}GB · soft-resets {softResetCount}</p>

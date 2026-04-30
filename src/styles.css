@@ -8903,3 +8903,92 @@ html.motion-off    .otp-resend-ring svg circle { transition: none !important; }
   color: rgba(15,15,18,0.78);
   background: rgba(255,255,255,0.6);
 }
+
+/* ── Single-line QR-detected confirmation pill (champagne glow, no border) ── */
+.sp2-confirm-pill {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 18px 10px 14px;
+  border-radius: 999px;
+  background: rgba(20,20,20,0.62);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  isolation: isolate;
+  animation: sp2-confirm-in 240ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+.sp2-confirm-check {
+  display: inline-grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  /* Champagne / warm-gold (per project palette — not neon-lime). */
+  background: linear-gradient(135deg, #E9D8A6, #C9A24A);
+  color: #1A1407;
+  box-shadow: 0 0 16px rgba(233, 216, 166, 0.55);
+}
+.sp2-confirm-text { line-height: 1; }
+.sp2-confirm-glow {
+  position: absolute; inset: -22px;
+  border-radius: 999px;
+  pointer-events: none;
+  z-index: -1;
+  background: radial-gradient(closest-side, rgba(233,216,166,0.40), rgba(233,216,166,0) 70%);
+  animation: sp2-confirm-glow 700ms ease-out forwards;
+}
+@keyframes sp2-confirm-in {
+  0% { opacity: 0; transform: translateY(6px) scale(.94); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes sp2-confirm-glow {
+  0% { opacity: 0; transform: scale(.6); }
+  40% { opacity: 1; }
+  100% { opacity: 0; transform: scale(1.4); }
+}
+.light .sp2-confirm-pill,
+[data-theme="light"] .sp2-confirm-pill {
+  background: rgba(255,255,255,0.78);
+  color: var(--premium-ink);
+}
+
+/* ── Single floating "Change camera" CTA (no border) ── */
+.sp2-clean-controls {
+  position: absolute;
+  left: 0; right: 0;
+  bottom: max(28px, env(safe-area-inset-bottom));
+  display: flex;
+  justify-content: center;
+  z-index: 8;
+  pointer-events: none;
+}
+.sp2-clean-cta {
+  pointer-events: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  border-radius: 999px;
+  background: rgba(20,20,20,0.62);
+  color: #fff;
+  font-size: 13.5px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  transition: transform 180ms ease, background 180ms ease;
+}
+.sp2-clean-cta:active { transform: scale(.96); }
+.light .sp2-clean-cta,
+[data-theme="light"] .sp2-clean-cta {
+  background: rgba(255,255,255,0.82);
+  color: var(--premium-ink);
+}
+@media (prefers-reduced-motion: reduce) {
+  .sp2-confirm-pill, .sp2-confirm-glow { animation: none !important; }
+}
