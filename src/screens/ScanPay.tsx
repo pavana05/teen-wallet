@@ -659,6 +659,32 @@ function ScannerView({ onBack, onDecoded }: { onBack: () => void; onDecoded: (p:
   //   "tracking" → camera is feeding frames + decoder is alive (no QR yet)
   //   "locked"   → a valid UPI QR was decoded; transitioning to confirm
   const [scanState, setScanState] = useState<"starting" | "tracking" | "locked">("starting");
+
+  // Play a short confirmation beep + haptic the moment we lock onto a QR.
+  // Uses WebAudio (no asset bundle hit) and falls back silently if blocked.
+  useEffect(() => {
+    if (scanState !== "locked") return;
+    try {
+      type WebkitWindow = Window & { webkitAudioContext?: typeof AudioContext };
+      const Ctx = window.AudioContext ?? (window as WebkitWindow).webkitAudioContext;
+      if (Ctx) {
+        const ctx = new Ctx();
+        const o = ctx.createOscillator();
+        const g = ctx.createGain();
+        o.type = "sine";
+        o.frequency.setValueAtTime(880, ctx.currentTime);
+        o.frequency.exponentialRampToValueAtTime(1320, ctx.currentTime + 0.12);
+        g.gain.setValueAtTime(0.0001, ctx.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.18, ctx.currentTime + 0.02);
+        g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.22);
+        o.connect(g).connect(ctx.destination);
+        o.start();
+        o.stop(ctx.currentTime + 0.24);
+        setTimeout(() => { ctx.close().catch(() => {}); }, 400);
+      }
+    } catch { /* audio blocked — ignore */ }
+    try { navigator.vibrate?.([20, 30, 20]); } catch { /* ignore */ }
+  }, [scanState]);
   const decodedRef = useRef(false);
   const lastInvalidToastRef = useRef(0);
   const lastDecodeAttemptRef = useRef<number>(Date.now());
