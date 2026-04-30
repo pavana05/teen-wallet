@@ -236,6 +236,23 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
       stage: "STAGE_2",
     });
     try {
+      // New-device gate: BEFORE sending OTP, check whether this phone is
+      // bound to a Google account. If so, the user must complete Google
+      // verification on this device first. Skipped on resend (we already
+      // passed the gate when we entered the OTP step).
+      if (step === "phone") {
+        try {
+          const req = await getLoginRequirements(phone);
+          if (req.requires_google) {
+            setGoogleEmailHint(req.google_email_hint);
+            setStep("google-gate");
+            return;
+          }
+        } catch (gateErr) {
+          // Don't block signup if the lookup itself fails — just log it.
+          console.warn("[auth] login requirements lookup failed", gateErr);
+        }
+      }
       const r = await sendOtp(phone);
       setPendingPhone("+91" + phone);
       toast.success(`OTP sent — dev code: ${r.devOtp}`);
