@@ -6999,15 +6999,16 @@ html.motion-off    .otp-resend-ring svg circle { transition: none !important; }
    bottom of the screen. Honors iOS safe-area inset. */
 .fd-shell-fixed {
   position: fixed;
-  left: 50%;
+  left: calc(16px + env(safe-area-inset-left, 0px));
   bottom: calc(20px + env(safe-area-inset-bottom, 0px));
-  transform: translateX(-50%);
-  /* Keep transform composition stable through the centering shift. */
+  transform: translateX(0);
+  /* Keep transform composition stable. */
   will-change: transform, max-width, opacity;
+  transition: left 420ms cubic-bezier(.16,1,.3,1), transform 420ms cubic-bezier(.16,1,.3,1), opacity 320ms ease;
 }
-/* When hidden, slide down slightly without losing the centering transform. */
+/* When hidden, slide down slightly while staying left-anchored. */
 .fd-shell-fixed.translate-y-3 {
-  transform: translateX(-50%) translateY(0.75rem);
+  transform: translateX(0) translateY(0.75rem);
 }
 /* Collapsed — hugs the active tab + FAB */
 .fd-shell[data-collapsed="true"] { width: min(calc(100dvw - 2rem), 200px); max-width: 200px; }
