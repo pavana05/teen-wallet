@@ -778,9 +778,15 @@ function ScannerView({ onBack, onDecoded }: { onBack: () => void; onDecoded: (p:
       try {
         const scanner = new Html5Qrcode(containerId, { verbose: false });
         scannerRef.current = scanner;
-        const cameras = await Html5Qrcode.getCameras();
-        if (!cameras.length) throw new Error("No camera available");
-        const camId = cameras.find((c) => /back|rear|environment/i.test(c.label))?.id ?? cameras[0].id;
+        const cams = await Html5Qrcode.getCameras();
+        if (!cams.length) throw new Error("No camera available");
+        setCameras(cams);
+        // First boot: pick the rear camera. Subsequent restarts respect the
+        // user's "Change camera" selection via cameraIndex.
+        const preferIdx = cams.findIndex((c) => /back|rear|environment/i.test(c.label));
+        const idx = restartTick === 0 && preferIdx >= 0 ? preferIdx : Math.min(cameraIndex, cams.length - 1);
+        if (restartTick === 0 && preferIdx >= 0) setCameraIndex(preferIdx);
+        const camId = cams[idx]?.id ?? cams[0].id;
         if (cancelled) return;
 
         const tuning = tuningRef.current;
