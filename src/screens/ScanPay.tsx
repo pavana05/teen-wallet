@@ -1031,28 +1031,18 @@ function ScannerView({ onBack, onDecoded }: { onBack: () => void; onDecoded: (p:
 
   return (
     <div className="flex-1 flex flex-col bg-[#0B0B0B] relative overflow-hidden">
-      {/* Full-screen camera feed — no vignette mask, edge-to-edge for an
-          immersive, premium viewing experience. */}
+      {/* Full-screen camera feed — clean, edge-to-edge, no decorative borders. */}
       <div id={containerId} className="absolute inset-0 [&_video]:object-cover [&_video]:w-full [&_video]:h-full" />
-      {/* Soft top + bottom edge gradients only — keep camera fully visible
-          across the rest of the screen so users see what they're scanning. */}
-      <div className="sp2-edge-fade-top" aria-hidden="true" />
-      <div className="sp2-edge-fade-bottom" aria-hidden="true" />
 
-      {/* Torch active glow — warm-yellow pulse around the entire viewport so
-          the user gets immediate "flash is on" feedback even before the camera
-          stream brightens. Pointer-events-none so it never blocks the QR. */}
+      {/* Torch active glow — subtle warm pulse for "flash on" feedback. */}
       {torch && <div className="sp2-torch-glow" aria-hidden="true" />}
 
-      {/* Top brand bar */}
-      <div className="sp2-topbar">
-        <button onClick={onBack} aria-label="Back to previous screen" className="sp2-icon-btn focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-black">
+      {/* Minimal top bar — back, title, debug, torch. No brand pill, no borders. */}
+      <div className="sp2-topbar sp2-topbar-clean">
+        <button onClick={onBack} aria-label="Back" className="sp2-icon-btn focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-black">
           <ArrowLeft className="w-5 h-5" />
         </button>
-        <div className="sp2-brand">
-          <span className="sp2-brand-dot">TW</span>
-          <span className="sp2-brand-text">Scan & Pay</span>
-        </div>
+        <span className="sp2-clean-title">Scan & Pay</span>
         <div className="flex items-center gap-2">
           <button
             onClick={() => setDebugOpen((v) => !v)}
@@ -1073,30 +1063,9 @@ function ScannerView({ onBack, onDecoded }: { onBack: () => void; onDecoded: (p:
         </div>
       </div>
 
-      {/* Live state strip — sits just under the topbar so the user always sees
-          a current-status line: starting / tracking / locked. */}
-      <div className="sp2-state-strip" role="status" aria-live="polite">
-        <span className={`sp2-state-dot sp2-state-${scanState}`} />
-        <span className="sp2-state-text">{stateLabel}</span>
-      </div>
-
-      {/* Viewfinder */}
-      <div className="sp2-frame-wrap">
-        <div className={`sp2-frame ${scanState === "locked" ? "sp2-frame-locked" : ""} ${scanState === "tracking" ? "sp2-frame-tracking" : ""}`}>
-          <div className="sp2-frame-halo" />
-          <span className="sp2-frame-corner top-0 left-0 border-t-[3px] border-l-[3px] rounded-tl-[22px]" />
-          <span className="sp2-frame-corner top-0 right-0 border-t-[3px] border-r-[3px] rounded-tr-[22px]" />
-          <span className="sp2-frame-corner bottom-0 left-0 border-b-[3px] border-l-[3px] rounded-bl-[22px]" />
-          <span className="sp2-frame-corner bottom-0 right-0 border-b-[3px] border-r-[3px] rounded-br-[22px]" />
-          <div className="sp2-beam" />
-          {scanState === "locked" && (
-            <div className="sp2-lock-badge" aria-hidden="true">
-              <ScanLine className="w-4 h-4" />
-              <span>Locked</span>
-            </div>
-          )}
-        </div>
-        {scanState === "locked" && (
+      {/* Centered hint + QR-detected confirmation. No frame, no corners, no beam. */}
+      <div className="sp2-clean-stage">
+        {scanState === "locked" ? (
           <div className="sp2-detected-overlay" role="status" aria-live="polite">
             <div className="sp2-detected-pulse" aria-hidden="true" />
             <div className="sp2-detected-card">
@@ -1107,21 +1076,17 @@ function ScannerView({ onBack, onDecoded }: { onBack: () => void; onDecoded: (p:
               <p className="sp2-detected-sub">Opening payment…</p>
             </div>
           </div>
+        ) : (
+          <p className="sp2-clean-hint">
+            {starting ? "Starting camera…" : "Point at any UPI QR"}
+          </p>
         )}
-        <p className="sp2-frame-hint">
-          {scanState === "locked"
-            ? "Got it! Hold steady…"
-            : starting
-              ? "Starting camera…"
-              : "Align the QR inside the frame"}
-        </p>
         {!starting && scanState !== "locked" && (
           <button onClick={manualSoftReset} className="sp2-retune">
             Camera stuck? Re-tune
           </button>
         )}
       </div>
-
       {debugOpen && (
         <div className="absolute bottom-[140px] left-4 right-4 z-30 rounded-2xl bg-black/85 border border-white/10 backdrop-blur-md p-3 text-[11px] font-mono text-white/85 max-h-[36%] overflow-auto">
           <p className="text-primary mb-1">⚙ {tuningRef.current.profile} · fps {tuningRef.current.fps} · qrbox {tuningRef.current.qrbox.width}px · cores {tuningRef.current.cores} · mem {tuningRef.current.mem}GB · soft-resets {softResetCount}</p>

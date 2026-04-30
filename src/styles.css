@@ -8852,3 +8852,54 @@ html.motion-off    .otp-resend-ring svg circle { transition: none !important; }
 @media (prefers-reduced-motion: reduce){
   .sp2-detected-overlay, .sp2-detected-card, .sp2-detected-pulse{ animation:none !important; }
 }
+
+/* ── Clean / minimal Scan & Pay (no borders, no frame) ──────────────── */
+.sp2-topbar-clean {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+.sp2-topbar-clean .sp2-icon-btn {
+  background: rgba(255,255,255,0.06);
+  border: 0 !important;
+  box-shadow: none !important;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+.sp2-clean-title {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: rgba(255,255,255,0.92);
+}
+.sp2-clean-stage {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  pointer-events: none;
+  z-index: 5;
+}
+.sp2-clean-stage > * { pointer-events: auto; }
+.sp2-clean-hint {
+  font-size: 13.5px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  color: rgba(255,255,255,0.78);
+  text-align: center;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: rgba(0,0,0,0.32);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+.light .sp2-clean-title,
+[data-theme="light"] .sp2-clean-title { color: var(--premium-ink); }
+.light .sp2-clean-hint,
+[data-theme="light"] .sp2-clean-hint {
+  color: rgba(15,15,18,0.78);
+  background: rgba(255,255,255,0.6);
+}
