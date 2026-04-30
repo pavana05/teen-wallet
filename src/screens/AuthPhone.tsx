@@ -496,12 +496,33 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
             Sent to +91 {formatted} — <button onClick={() => setStep("phone")} className="text-primary underline">Edit number</button>
           </p>
 
+          {verifyLocked && (
+            <div
+              className="mt-5 rounded-xl border border-destructive/40 bg-destructive/10 px-4 py-3"
+              role="alert"
+            >
+              <p className="text-[12.5px] font-semibold text-destructive">
+                Verification paused for {Math.floor(verifyLockSeconds / 60)}:{String(verifyLockSeconds % 60).padStart(2, "0")}
+              </p>
+              <p className="text-[11.5px] text-destructive/85 mt-1 leading-relaxed">
+                Too many wrong codes on this OTP. Wait it out, or tap <span className="font-semibold">Resend</span> below to get a fresh code (resets your attempts).
+              </p>
+            </div>
+          )}
+
+          {!verifyLocked && verifyAttempts > 0 && verifyAttemptsLeft > 0 && (
+            <p className="mt-4 text-[11.5px] text-amber-300/85" aria-live="polite">
+              {verifyAttemptsLeft} attempt{verifyAttemptsLeft === 1 ? "" : "s"} left before this OTP locks.
+            </p>
+          )}
+
           <div
             ref={otpRowRef}
             onClick={focusOtp}
             role="group"
             aria-label="6-digit OTP"
-            className={`mt-12 flex gap-3 ${error ? "tw-shake" : ""}`}
+            className={`mt-8 flex gap-3 ${error ? "tw-shake" : ""} ${verifyLocked ? "opacity-60 pointer-events-none" : ""}`}
+            aria-disabled={verifyLocked}
           >
             {otp.map((v, i) => (
               <input
@@ -510,7 +531,7 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
                 inputMode="numeric"
                 maxLength={1}
                 value={v}
-                disabled={busy}
+                disabled={busy || verifyLocked}
                 aria-invalid={!!error}
                 aria-describedby={error ? "tw-otp-error" : undefined}
                 onChange={(e) => onOtpChange(i, e.target.value)}
