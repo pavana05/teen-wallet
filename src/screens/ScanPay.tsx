@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from "react";
+import { useNavigate } from "@tanstack/react-router";
 import { Html5Qrcode } from "html5-qrcode";
 import QRCode from "qrcode";
 import { ArrowLeft, ArrowRight, Image as ImageIcon, Zap, ZapOff, X, Share2, Check, Bug, ShieldCheck, Wallet, Users, User as UserIcon, QrCode, Download, RotateCcw, Copy, ScanLine, ExternalLink, AlertTriangle, Info, Mail, MessageCircle, Phone, Plus, Hash, Send, Delete, ChevronDown } from "lucide-react";
@@ -82,6 +83,7 @@ interface SavedTxn {
 
 export function ScanPay({ onBack }: { onBack: () => void }) {
   const { userId, balance } = useApp();
+  const navigate = useNavigate();
 
   // Hydrate persisted flow (scan phase + parsed payload + amount) so a
   // refresh / accidental nav doesn't drop the user back into a broken loop.
@@ -2164,6 +2166,7 @@ function PayContactSheet({
  */
 function MyQrSheet({ onClose }: { onClose: () => void }) {
   const { userId, fullName } = useApp();
+  const navigate = useNavigate();
   const [profile, setProfile] = useState<{ phone: string | null; full_name: string | null } | null>(null);
   const [loading, setLoading] = useState(true);
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
@@ -2297,7 +2300,7 @@ function MyQrSheet({ onClose }: { onClose: () => void }) {
             </div>
             <button
               type="button"
-              onClick={() => { onClose(); window.location.assign("/preview/profile-help"); }}
+              onClick={() => { onClose(); void navigate({ to: "/preview/profile-help" }); }}
               style={{
                 alignSelf: "flex-start",
                 fontSize: 12, fontWeight: 600,

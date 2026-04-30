@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "@tanstack/react-router";
 import {
   ArrowLeft, X, QrCode, Copy, Check, ChevronRight, ChevronDown, Pencil, Camera, ShieldCheck,
   ShieldAlert, BadgeCheck, Wallet, CreditCard, Building2, Bell, Lock, Smartphone,
@@ -40,6 +41,11 @@ interface Stats {
 
 export function ProfilePanel({ onClose }: Props) {
   const { fullName, userId, balance, reset } = useApp();
+  const navigate = useNavigate();
+  // Helper: close the panel and push an internal route via the router.
+  // Avoids window.location.assign which forces a full document reload and
+  // (on native shells) can look like a browser redirect.
+  const goTo = (to: string) => { onClose(); void navigate({ to }); };
 
   // Persisted: which tab the user was on, and which collapsible sections were expanded.
   const [tab, setTab] = usePersistentState<Tab>("tw-profile-tab", "overview");
@@ -535,14 +541,14 @@ export function ProfilePanel({ onClose }: Props) {
               <p className="pp-group-label">Settings</p>
               <div className="pp-card divide-y divide-white/5">
                 <Row icon={Bell} label="Notifications" hint="Manage" onClick={() => setTab("preferences")} />
-                <Row icon={Lock} label="Privacy Policy" onClick={() => { onClose(); window.location.assign("/preview/privacy"); }} />
-                <Row icon={FileText} label="Terms & Conditions" onClick={() => { onClose(); window.location.assign("/preview/terms"); }} />
+                <Row icon={Lock} label="Privacy Policy" onClick={() => goTo("/preview/privacy")} />
+                <Row icon={FileText} label="Terms & Conditions" onClick={() => goTo("/preview/terms")} />
               </div>
 
               {/* Others */}
               <p className="pp-group-label">Others</p>
               <div className="pp-card divide-y divide-white/5">
-                <Row icon={HelpCircle} label="Help & Support" onClick={() => { onClose(); window.location.assign("/preview/profile-help"); }} />
+                <Row icon={HelpCircle} label="Help & Support" onClick={() => goTo("/preview/profile-help")} />
                 <Row icon={Star} label="Rate us" onClick={() => toast.success("Thanks for the love! ❤️")} />
                 <Row icon={LogOut} label="Logout" onClick={() => setConfirmLogout(true)} />
               </div>
@@ -696,17 +702,17 @@ export function ProfilePanel({ onClose }: Props) {
                   icon={HelpCircle}
                   label="Help center"
                   hint="My reports & shake settings"
-                  onClick={() => { onClose(); window.location.assign("/preview/profile-help"); }}
+                  onClick={() => goTo("/preview/profile-help")}
                 />
                 <Row
                   icon={FileText}
                   label="Terms of service"
-                  onClick={() => { onClose(); window.location.assign("/preview/terms"); }}
+                  onClick={() => goTo("/preview/terms")}
                 />
                 <Row
                   icon={FileText}
                   label="Privacy policy"
-                  onClick={() => { onClose(); window.location.assign("/preview/privacy"); }}
+                  onClick={() => goTo("/preview/privacy")}
                 />
                 <Row icon={Settings} label="App version" hint="v1.0.6" />
               </CollapsibleSection>
