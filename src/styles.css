@@ -147,13 +147,21 @@
   .tw-app-shell {
     @apply mx-auto relative overflow-hidden;
     width: 100%;
-    max-width: 430px;
+    /* Let the shell fill the full viewport width — no extra side gutter
+       around the phone canvas. The 430px cap is only applied on very wide
+       desktop viewports where the simulated phone frame still makes sense. */
+    max-width: 100%;
     min-height: 100vh;
     background: var(--color-background);
     box-shadow: 0 30px 80px -20px rgba(0,0,0,0.8), 0 0 0 1px rgba(255,255,255,0.04);
   }
-  @media (min-width: 640px) {
-    .tw-app-shell { min-height: min(900px, 100vh - 32px); margin-top: 16px; border-radius: 36px; }
+  @media (min-width: 1024px) {
+    .tw-app-shell {
+      max-width: 430px;
+      min-height: min(900px, 100vh - 32px);
+      margin-top: 16px;
+      border-radius: 36px;
+    }
   }
 
   /* Subtle grain overlay */
