@@ -872,7 +872,13 @@ export function Home() {
                   onPointerDown={warmProfile}
                   onTouchStart={warmProfile}
                 >
-                  <NavItem icon={User} label="Profile" onClick={openProfile} />
+                  <NavItem
+                    icon={User}
+                    label="Profile"
+                    onClick={openProfile}
+                    disabled={!profileReady || showProfile}
+                    loading={!profileReady}
+                  />
                 </span>
               </div>
               <button
