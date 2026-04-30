@@ -422,14 +422,23 @@ export function Home() {
   // Idle-time prefetch — warm the heavy panels after Home has painted so
   // the first tap on Scan / Notifications / Profile / Quick actions feels
   // instant without bloating the initial Home chunk.
+  // Track whether the lazy ProfilePanel chunk is fully loaded. We disable the
+  // Profile nav button until it is, so a flurry of taps can never spawn
+  // overlapping mounts or race with Suspense (e.g. user double-taps before
+  // the chunk arrives → only one open is registered, no flicker).
+  const [profileReady, setProfileReady] = useState(false);
+
   // Eagerly prefetch ProfilePanel right after first paint — it's the largest
   // lazy chunk on this screen and waiting until idle made the first tap feel
   // like the app was hanging. Other panels stay idle-prefetched.
   useEffect(() => {
     if (typeof window === "undefined") return;
+    let cancelled = false;
     // Kick the Profile panel chunk on next microtask so initial paint isn't
     // blocked, but it's downloading well before the user can tap.
-    void import("@/components/ProfilePanel");
+    import("@/components/ProfilePanel")
+      .then(() => { if (!cancelled) setProfileReady(true); })
+      .catch(() => { /* network hiccup — button stays disabled, retried on hover */ });
 
     const idle = (cb: () => void) => {
       const w = window as unknown as { requestIdleCallback?: (cb: () => void) => number };
@@ -442,24 +451,30 @@ export function Home() {
       void import("@/components/QuickActionsPanel");
       void import("@/screens/Transactions");
     });
+    return () => { cancelled = true; };
   }, []);
 
   // Warm the chunk on hover / pointerdown so even slow networks have it ready
   // by the time the click lands. Safe to call repeatedly — module imports are
-  // de-duped by the bundler.
+  // de-duped by the bundler. Also flips profileReady once the chunk arrives,
+  // re-enabling the nav button if the initial prefetch failed.
   const warmProfile = useCallback(() => {
-    void import("@/components/ProfilePanel");
-  }, []);
+    if (profileReady) return;
+    import("@/components/ProfilePanel")
+      .then(() => setProfileReady(true))
+      .catch(() => { /* still not ready — keep disabled */ });
+  }, [profileReady]);
 
-  // Profile tap → open immediately. The previous 360ms morph delay made the
-  // app feel frozen; we now flip showProfile right away and let the panel's
-  // own enter animation cover the transition.
+  // Profile tap → open immediately. We guard against double-taps and race
+  // conditions by requiring the chunk to be loaded AND that the panel isn't
+  // already open before flipping state.
   const openProfile = useCallback(() => {
+    if (showProfile || !profileReady) return;
     void haptics.bloom();
     setNavCollapsed(false);
     setNavMode("profile-morph");
     setShowProfile(true);
-  }, []);
+  }, [showProfile, profileReady]);
 
   const closeProfile = useCallback(() => {
     void haptics.swipe();
