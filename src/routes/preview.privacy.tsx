@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { ArrowLeft } from "lucide-react";
 import { PhoneShell } from "@/components/PhoneShell";
+import { goBackInApp } from "@/lib/goBack";
 
 export const Route = createFileRoute("/preview/privacy")({
   component: () => (
