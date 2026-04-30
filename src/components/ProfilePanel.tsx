@@ -246,7 +246,7 @@ export function ProfilePanel({ onClose }: Props) {
         <div className="qa-icon-btn invisible" aria-hidden="true" />
       </header>
 
-      <div ref={scrollRef} className="relative z-10 flex-1 overflow-y-auto pb-32 qa-enter">
+      <div ref={scrollRef} className="pp-scroll relative z-10 flex-1 min-h-0 overflow-y-auto overflow-x-hidden pb-32 qa-enter">
         {/* error banner */}
         {profileError && (
           <div className="px-5 mt-3">
