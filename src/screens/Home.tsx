@@ -129,33 +129,6 @@ function RechargeTile({ icon: Icon, label, tint }: { icon: React.ComponentType<{
   );
 }
 
-function TxnRow({ txn }: { txn: Txn }) {
-  const date = new Date(txn.created_at);
-  const time = date.toLocaleString("en-IN", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
-  const failed = txn.status === "failed";
-  const amountStr = `−₹${Number(txn.amount).toFixed(2)}`;
-  return (
-    <div
-      className="hp-row"
-      role="article"
-      aria-label={`Payment to ${txn.merchant_name}, ${amountStr}, status ${txn.status}, on ${time}`}
-      tabIndex={0}
-    >
-      <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${failed ? "bg-destructive/15" : "bg-primary/15"}`} aria-hidden="true">
-        <ArrowDownLeft className={`w-5 h-5 ${failed ? "text-destructive" : "text-primary"}`} strokeWidth={2} />
-      </div>
-      <div className="flex-1 min-w-0">
-        <p className="text-[13px] font-medium text-white truncate">{txn.merchant_name}</p>
-        <p className="text-[11px] text-white/50 truncate">{txn.note ? txn.note : txn.upi_id} · {time}</p>
-      </div>
-      <div className="text-right shrink-0">
-        <p className={`text-[14px] font-semibold num-mono ${failed ? "text-destructive line-through" : "text-white"}`}>{amountStr}</p>
-        <p className={`text-[10px] uppercase tracking-wider ${txn.status === "success" ? "text-primary/80" : txn.status === "pending" ? "text-yellow-400/80" : "text-destructive/80"}`}>{txn.status}</p>
-      </div>
-    </div>
-  );
-}
-
 function NavItem({
   icon: Icon,
   label,
