@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { render, screen, fireEvent, act } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import { Home } from "@/screens/Home";
 import { useApp } from "@/lib/store";
 
