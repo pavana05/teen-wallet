@@ -28,6 +28,7 @@ import { FloatingDock } from "@/components/FloatingDock";
 
 interface Props {
   onClose: () => void;
+  onTransactions?: () => void;
 }
 
 type Tab = "overview" | "account" | "security" | "preferences" | "support";
@@ -39,7 +40,7 @@ interface Stats {
   successRate: number;
 }
 
-export function ProfilePanel({ onClose }: Props) {
+export function ProfilePanel({ onClose, onTransactions }: Props) {
   const { fullName, userId, balance, reset } = useApp();
   const navigate = useNavigate();
   // Helper: close the panel and push an internal route via the router.
@@ -468,7 +469,7 @@ export function ProfilePanel({ onClose }: Props) {
               <p className="pp-group-label">UPI</p>
               <div className="pp-card divide-y divide-white/5">
                 <Row icon={Settings} label="Account management" />
-                <Row icon={Receipt} label="Transaction history" onClick={() => { onClose(); toast("Tap History on home", { description: "We took you back so you can open Transactions." }); }} />
+                <Row icon={Receipt} label="Transaction history" onClick={() => { onTransactions?.(); }} />
                 <Row icon={Wallet} label="Everything UPI" />
               </div>
 
