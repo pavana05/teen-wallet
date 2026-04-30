@@ -6854,6 +6854,24 @@ html.motion-off    .otp-resend-ring svg circle { transition: none !important; }
     max-width 520ms cubic-bezier(.22,1,.36,1);
   will-change: max-width, transform;
 }
+
+/* Pinned-to-viewport variant: stays at the bottom of the device on every
+   scroll, like a real mobile app's bottom nav. We center horizontally and
+   cap width at the phone-shell's max (430px) so on desktop it sits inside
+   the simulated phone frame, while on real mobile devices it's just the
+   bottom of the screen. Honors iOS safe-area inset. */
+.fd-shell-fixed {
+  position: fixed;
+  left: 50%;
+  bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%);
+  /* Keep transform composition stable through the centering shift. */
+  will-change: transform, max-width;
+}
+/* When hidden, slide down slightly without losing the centering transform. */
+.fd-shell-fixed.translate-y-3 {
+  transform: translateX(-50%) translateY(0.75rem);
+}
 /* Collapsed — hugs the active tab + FAB */
 .fd-shell[data-collapsed="true"] { max-width: 200px; }
 
