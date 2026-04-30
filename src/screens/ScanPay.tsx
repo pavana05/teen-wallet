@@ -43,6 +43,7 @@ const reducedMotion = () => {
 
 const SCANPAY_PERSIST_KEY = "tw-scanpay-flow-v1";
 const SCANPAY_ATTEMPT_KEY = "tw-scanpay-attempt-id-v1";
+const SCANPAY_LAST_QR_KEY = "tw-scanpay-last-qr-v1";
 const POLL_INTERVAL_MS = 1500;
 const POLL_MAX_MS = 60_000;
 
@@ -56,11 +57,11 @@ interface PersistedFlow {
 }
 
 /**
- * Persisted scan flow is only resumed if it's fresh (a brief in-app nav-away).
- * If the user fully closed the app or left it for a while, we want a clean
- * scanner — never auto-restore the previous scanned QR / confirm screen.
+ * Persisted scan flow is resumed for up to 24h so users who close the app
+ * mid-scan land back on the same step (scanning / confirm) on reopen,
+ * including the last decoded QR payload.
  */
-const SCANPAY_RESUME_MAX_AGE_MS = 90_000;
+const SCANPAY_RESUME_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
 type Phase = "scanning" | "confirm" | "processing" | "success" | "failed";
 type FailKind = "generic" | "balance_changed" | "insufficient" | "blocked";
@@ -141,6 +142,10 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
     if (resumedRef.current) return;
     if (!userId) return;
     resumedRef.current = true;
+    // Offline mode: skip the backend resume call entirely. The local
+    // persisted flow (read on mount above) already restored the scan step
+    // and last decoded QR payload, so the user sees zero latency.
+    if (typeof navigator !== "undefined" && navigator.onLine === false) return;
     void resumeFromBackend({
       userId,
       cachedAttemptId: attemptId,
@@ -424,15 +429,18 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
 function readPersisted(): PersistedFlow | null {
   if (typeof window === "undefined") return null;
   try {
-    const raw = window.sessionStorage.getItem(SCANPAY_PERSIST_KEY);
+    // Prefer localStorage (survives app restart). Fall back to sessionStorage
+    // for older builds that wrote there.
+    const raw =
+      window.localStorage.getItem(SCANPAY_PERSIST_KEY) ??
+      window.sessionStorage.getItem(SCANPAY_PERSIST_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as PersistedFlow;
     // Only resume into safe phases — never resume into processing/success/failed.
     if (parsed.phase !== "scanning" && parsed.phase !== "confirm") return null;
-    // Drop stale flows: if the app was closed and reopened (or just left
-    // alone), the user expects a fresh scanner — not the previous QR.
     const ts = typeof parsed.ts === "number" ? parsed.ts : 0;
     if (!ts || Date.now() - ts > SCANPAY_RESUME_MAX_AGE_MS) {
+      try { window.localStorage.removeItem(SCANPAY_PERSIST_KEY); } catch { /* ignore */ }
       try { window.sessionStorage.removeItem(SCANPAY_PERSIST_KEY); } catch { /* ignore */ }
       return null;
     }
@@ -443,10 +451,15 @@ function readPersisted(): PersistedFlow | null {
 }
 function writePersisted(p: PersistedFlow) {
   if (typeof window === "undefined") return;
-  try { window.sessionStorage.setItem(SCANPAY_PERSIST_KEY, JSON.stringify({ ...p, ts: Date.now() })); } catch { /* quota — ignore */ }
+  try { window.localStorage.setItem(SCANPAY_PERSIST_KEY, JSON.stringify({ ...p, ts: Date.now() })); } catch { /* quota — ignore */ }
+  // Also cache the last decoded QR payload separately for quick reference.
+  if (p.payload) {
+    try { window.localStorage.setItem(SCANPAY_LAST_QR_KEY, JSON.stringify({ payload: p.payload, ts: Date.now() })); } catch { /* ignore */ }
+  }
 }
 function clearPersisted() {
   if (typeof window === "undefined") return;
+  try { window.localStorage.removeItem(SCANPAY_PERSIST_KEY); } catch { /* ignore */ }
   try { window.sessionStorage.removeItem(SCANPAY_PERSIST_KEY); } catch { /* ignore */ }
 }
 
@@ -646,6 +659,32 @@ function ScannerView({ onBack, onDecoded }: { onBack: () => void; onDecoded: (p:
   //   "tracking" → camera is feeding frames + decoder is alive (no QR yet)
   //   "locked"   → a valid UPI QR was decoded; transitioning to confirm
   const [scanState, setScanState] = useState<"starting" | "tracking" | "locked">("starting");
+
+  // Play a short confirmation beep + haptic the moment we lock onto a QR.
+  // Uses WebAudio (no asset bundle hit) and falls back silently if blocked.
+  useEffect(() => {
+    if (scanState !== "locked") return;
+    try {
+      type WebkitWindow = Window & { webkitAudioContext?: typeof AudioContext };
+      const Ctx = window.AudioContext ?? (window as WebkitWindow).webkitAudioContext;
+      if (Ctx) {
+        const ctx = new Ctx();
+        const o = ctx.createOscillator();
+        const g = ctx.createGain();
+        o.type = "sine";
+        o.frequency.setValueAtTime(880, ctx.currentTime);
+        o.frequency.exponentialRampToValueAtTime(1320, ctx.currentTime + 0.12);
+        g.gain.setValueAtTime(0.0001, ctx.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.18, ctx.currentTime + 0.02);
+        g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.22);
+        o.connect(g).connect(ctx.destination);
+        o.start();
+        o.stop(ctx.currentTime + 0.24);
+        setTimeout(() => { ctx.close().catch(() => {}); }, 400);
+      }
+    } catch { /* audio blocked — ignore */ }
+    try { navigator.vibrate?.([20, 30, 20]); } catch { /* ignore */ }
+  }, [scanState]);
   const decodedRef = useRef(false);
   const lastInvalidToastRef = useRef(0);
   const lastDecodeAttemptRef = useRef<number>(Date.now());
@@ -985,6 +1024,18 @@ function ScannerView({ onBack, onDecoded }: { onBack: () => void; onDecoded: (p:
             </div>
           )}
         </div>
+        {scanState === "locked" && (
+          <div className="sp2-detected-overlay" role="status" aria-live="polite">
+            <div className="sp2-detected-pulse" aria-hidden="true" />
+            <div className="sp2-detected-card">
+              <div className="sp2-detected-check">
+                <Check className="w-6 h-6" strokeWidth={3} />
+              </div>
+              <p className="sp2-detected-title">QR detected</p>
+              <p className="sp2-detected-sub">Opening payment…</p>
+            </div>
+          </div>
+        )}
         <p className="sp2-frame-hint">
           {scanState === "locked"
             ? "Got it! Hold steady…"
