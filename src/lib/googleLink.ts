@@ -55,7 +55,7 @@ export async function registerCurrentDeviceTrusted(label?: string): Promise<void
   const fp = await getDeviceFingerprint();
   const { error } = await supabase.rpc("register_trusted_device", {
     _fingerprint_hash: fp,
-    _label: label ?? null,
+    _label: label,
   });
   if (error) throw error;
 }
