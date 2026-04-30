@@ -548,7 +548,7 @@ export function ProfilePanel({ onClose }: Props) {
               {/* Others */}
               <p className="pp-group-label">Others</p>
               <div className="pp-card divide-y divide-white/5">
-                <Row icon={HelpCircle} label="Help & Support" onClick={() => { onClose(); window.location.assign("/preview/profile-help"); }} />
+                <Row icon={HelpCircle} label="Help & Support" onClick={() => goTo("/preview/profile-help")} />
                 <Row icon={Star} label="Rate us" onClick={() => toast.success("Thanks for the love! ❤️")} />
                 <Row icon={LogOut} label="Logout" onClick={() => setConfirmLogout(true)} />
               </div>
