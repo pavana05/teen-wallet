@@ -29,6 +29,7 @@ import {
 } from "@/lib/paymentAttempts.functions";
 import { sampleFrames } from "@/lib/fpsGuard";
 import { haptics } from "@/lib/haptics";
+import { encryptJson, decryptJson } from "@/lib/persistCrypto";
 import {
   notifyPaymentSent,
   notifyPaymentFailed,
@@ -62,6 +63,8 @@ interface PersistedFlow {
  * including the last decoded QR payload.
  */
 const SCANPAY_RESUME_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+/** Last-decoded QR cache TTL — cleared automatically after this idle period. */
+const SCANPAY_LAST_QR_TTL_MS = 15 * 60 * 1000;
 
 type Phase = "scanning" | "confirm" | "processing" | "success" | "failed";
 type FailKind = "generic" | "balance_changed" | "insufficient" | "blocked";
@@ -82,10 +85,12 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
 
   // Hydrate persisted flow (scan phase + parsed payload + amount) so a
   // refresh / accidental nav doesn't drop the user back into a broken loop.
-  const persisted = readPersisted();
-  const [phase, setPhase] = useState<Phase>(persisted?.phase ?? "scanning");
-  const [payload, setPayload] = useState<UpiPayload | null>(persisted?.payload ?? null);
-  const [amount, setAmount] = useState<number>(persisted?.amount ?? 0);
+  // We try a synchronous read first (legacy plaintext from older builds /
+  // sessionStorage); if the persisted value is encrypted we hydrate async.
+  const initialPersisted = readPersistedSync();
+  const [phase, setPhase] = useState<Phase>(initialPersisted?.phase ?? "scanning");
+  const [payload, setPayload] = useState<UpiPayload | null>(initialPersisted?.payload ?? null);
+  const [amount, setAmount] = useState<number>(initialPersisted?.amount ?? 0);
   const [resultMsg, setResultMsg] = useState("");
   const [failKind, setFailKind] = useState<FailKind>("generic");
   // Inline error shown directly within the Confirm screen (does not eject the
@@ -95,23 +100,44 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
   // The actual transaction returned from the API after a successful insert.
   // Drives the success screen's reference ID + receipt PDF.
   const [savedTxn, setSavedTxn] = useState<SavedTxn | null>(null);
-  const [note, setNote] = useState<string>(persisted?.note ?? "");
+  const [note, setNote] = useState<string>(initialPersisted?.note ?? "");
   // Bump this to force-remount the ScannerView and dispose its camera + Html5Qrcode instance.
   const [scannerKey, setScannerKey] = useState(0);
+  const [hydrated, setHydrated] = useState(!!initialPersisted);
 
   // Persisted server-side payment attempt id. When present, we are mid-flow
   // and polling the backend for status updates rather than running a timer.
   const [attemptId, setAttemptId] = useState<string | null>(() => readAttemptId());
 
+  // Async hydration for encrypted persisted blobs.
+  useEffect(() => {
+    if (hydrated) return;
+    let cancelled = false;
+    void readPersisted().then((p) => {
+      if (cancelled) return;
+      if (p) {
+        setPhase(p.phase);
+        setPayload(p.payload);
+        setAmount(p.amount ?? 0);
+        setNote(p.note ?? "");
+      }
+      setHydrated(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [hydrated]);
+
   // Keep persistence in sync; clear on terminal states. Including `note` so a
   // user-typed memo survives accidental nav-away mid-flow.
   useEffect(() => {
+    if (!hydrated) return;
     if (phase === "scanning" || phase === "confirm") {
-      writePersisted({ phase, payload, amount, note });
+      void writePersisted({ phase, payload, amount, note });
     } else {
       clearPersisted();
     }
-  }, [phase, payload, amount, note]);
+  }, [hydrated, phase, payload, amount, note]);
 
   // Mirror attemptId into localStorage so a refresh during processing
   // resumes against the same backend record.
@@ -426,7 +452,31 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
 /* ============================================================
    Persistence helpers
    ============================================================ */
-function readPersisted(): PersistedFlow | null {
+/**
+ * Synchronous best-effort read used to seed initial state on mount. Returns
+ * null when the persisted blob is encrypted (callers fall back to async).
+ * This preserves zero-latency resume for legacy plaintext entries (and tests).
+ */
+function readPersistedSync(): PersistedFlow | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw =
+      window.localStorage.getItem(SCANPAY_PERSIST_KEY) ??
+      window.sessionStorage.getItem(SCANPAY_PERSIST_KEY);
+    if (!raw) return null;
+    if (raw.startsWith("e:")) return null; // encrypted — defer to async path
+    const json = raw.startsWith("p:") ? raw.slice(2) : raw;
+    const parsed = JSON.parse(json) as PersistedFlow;
+    if (parsed.phase !== "scanning" && parsed.phase !== "confirm") return null;
+    const ts = typeof parsed.ts === "number" ? parsed.ts : 0;
+    if (ts && Date.now() - ts > SCANPAY_RESUME_MAX_AGE_MS) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+async function readPersisted(): Promise<PersistedFlow | null> {
   if (typeof window === "undefined") return null;
   try {
     // Prefer localStorage (survives app restart). Fall back to sessionStorage
@@ -435,32 +485,54 @@ function readPersisted(): PersistedFlow | null {
       window.localStorage.getItem(SCANPAY_PERSIST_KEY) ??
       window.sessionStorage.getItem(SCANPAY_PERSIST_KEY);
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as PersistedFlow;
+    const parsed = await decryptJson<PersistedFlow>(raw);
+    if (!parsed) {
+      try { window.localStorage.removeItem(SCANPAY_PERSIST_KEY); } catch { /* ignore */ }
+      return null;
+    }
     // Only resume into safe phases — never resume into processing/success/failed.
     if (parsed.phase !== "scanning" && parsed.phase !== "confirm") return null;
     const ts = typeof parsed.ts === "number" ? parsed.ts : 0;
     if (!ts || Date.now() - ts > SCANPAY_RESUME_MAX_AGE_MS) {
       try { window.localStorage.removeItem(SCANPAY_PERSIST_KEY); } catch { /* ignore */ }
       try { window.sessionStorage.removeItem(SCANPAY_PERSIST_KEY); } catch { /* ignore */ }
+      try { window.localStorage.removeItem(SCANPAY_LAST_QR_KEY); } catch { /* ignore */ }
       return null;
     }
+    // TTL-clear the last-decoded QR cache independently if it has expired.
+    try {
+      const lastRaw = window.localStorage.getItem(SCANPAY_LAST_QR_KEY);
+      if (lastRaw) {
+        const last = await decryptJson<{ ts?: number }>(lastRaw);
+        if (!last || !last.ts || Date.now() - last.ts > SCANPAY_LAST_QR_TTL_MS) {
+          window.localStorage.removeItem(SCANPAY_LAST_QR_KEY);
+        }
+      }
+    } catch { /* ignore */ }
     return parsed;
   } catch {
     return null;
   }
 }
-function writePersisted(p: PersistedFlow) {
+async function writePersisted(p: PersistedFlow) {
   if (typeof window === "undefined") return;
-  try { window.localStorage.setItem(SCANPAY_PERSIST_KEY, JSON.stringify({ ...p, ts: Date.now() })); } catch { /* quota — ignore */ }
-  // Also cache the last decoded QR payload separately for quick reference.
+  try {
+    const enc = await encryptJson({ ...p, ts: Date.now() });
+    window.localStorage.setItem(SCANPAY_PERSIST_KEY, enc);
+  } catch { /* quota — ignore */ }
+  // Also cache the last decoded QR payload separately (encrypted) for quick reference.
   if (p.payload) {
-    try { window.localStorage.setItem(SCANPAY_LAST_QR_KEY, JSON.stringify({ payload: p.payload, ts: Date.now() })); } catch { /* ignore */ }
+    try {
+      const enc = await encryptJson({ payload: p.payload, ts: Date.now() });
+      window.localStorage.setItem(SCANPAY_LAST_QR_KEY, enc);
+    } catch { /* ignore */ }
   }
 }
 function clearPersisted() {
   if (typeof window === "undefined") return;
   try { window.localStorage.removeItem(SCANPAY_PERSIST_KEY); } catch { /* ignore */ }
   try { window.sessionStorage.removeItem(SCANPAY_PERSIST_KEY); } catch { /* ignore */ }
+  try { window.localStorage.removeItem(SCANPAY_LAST_QR_KEY); } catch { /* ignore */ }
 }
 
 // ── Attempt-id cache (localStorage so it survives a full restart) ──
