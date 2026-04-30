@@ -76,7 +76,29 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
     }
   }, []);
 
-  // Resend cooldown ticker — also honors a server-side rate-limit window.
+  // Detect Android Contact-Picker support so we can offer one-tap pre-fill.
+  useEffect(() => {
+    let cancelled = false;
+    void isPhoneHintAvailable().then((ok) => { if (!cancelled) setHintAvailable(ok); });
+    return () => { cancelled = true; };
+  }, []);
+
+  async function handleUseMyNumber() {
+    if (hintBusy) return;
+    setHintBusy(true);
+    try {
+      const num = await requestPhoneHint();
+      if (num) {
+        setPhone(num);
+        setError("");
+      } else {
+        toast("No number selected", { description: "Pick a contact with your number, or type it in." });
+      }
+    } finally {
+      setHintBusy(false);
+    }
+  }
+
   useEffect(() => {
     if (step !== "otp") return;
     const computeRemaining = () => {
