@@ -872,7 +872,42 @@ export function Home() {
         </Suspense>
       )}
       {showProfile && (
-        <Suspense fallback={null}>
+        <Suspense
+          fallback={
+            <div
+              className="absolute inset-0 z-[60] flex flex-col bg-background overflow-hidden"
+              aria-busy="true"
+              aria-label="Loading profile"
+            >
+              <div className="qa-bg" />
+              <div className="qa-grid" />
+              {/* Header skeleton */}
+              <div className="relative z-10 flex items-center justify-between px-5 pt-7 pb-2">
+                <div className="w-9 h-9 rounded-full bg-white/[0.06] animate-pulse" />
+                <div className="h-4 w-20 rounded bg-white/[0.06] animate-pulse" />
+                <div className="w-9 h-9" />
+              </div>
+              {/* Avatar + name skeleton */}
+              <div className="relative z-10 px-5 mt-4 flex flex-col items-center gap-3">
+                <div className="w-20 h-20 rounded-full bg-white/[0.06] animate-pulse" />
+                <div className="h-4 w-32 rounded bg-white/[0.06] animate-pulse" />
+                <div className="h-3 w-24 rounded bg-white/[0.05] animate-pulse" />
+              </div>
+              {/* Tabs skeleton */}
+              <div className="relative z-10 px-5 mt-6 flex gap-2">
+                {[0,1,2,3].map((i) => (
+                  <div key={i} className="h-8 flex-1 rounded-full bg-white/[0.05] animate-pulse" />
+                ))}
+              </div>
+              {/* Cards skeleton */}
+              <div className="relative z-10 px-5 mt-5 space-y-3">
+                {[0,1,2].map((i) => (
+                  <div key={i} className="h-20 rounded-2xl bg-white/[0.04] animate-pulse" />
+                ))}
+              </div>
+            </div>
+          }
+        >
           <ProfilePanel onClose={closeProfile} />
         </Suspense>
       )}
