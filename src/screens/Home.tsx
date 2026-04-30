@@ -824,9 +824,21 @@ export function Home() {
         </div>
       )}
 
-      {quickAction && <QuickActionsPanel kind={quickAction} onClose={() => setQuickAction(null)} />}
-      {showNotifs && <NotificationsPanel onClose={() => setShowNotifs(false)} />}
-      {showProfile && <ProfilePanel onClose={closeProfile} />}
+      {quickAction && (
+        <Suspense fallback={null}>
+          <QuickActionsPanel kind={quickAction} onClose={() => setQuickAction(null)} />
+        </Suspense>
+      )}
+      {showNotifs && (
+        <Suspense fallback={null}>
+          <NotificationsPanel onClose={() => setShowNotifs(false)} />
+        </Suspense>
+      )}
+      {showProfile && (
+        <Suspense fallback={null}>
+          <ProfilePanel onClose={closeProfile} />
+        </Suspense>
+      )}
     </div>
   );
 }
