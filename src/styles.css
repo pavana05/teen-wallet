@@ -1577,15 +1577,16 @@ button:active .hp-tile,
 button:active .hp-tile svg,
 .hp-tile:active svg{ animation: hp-icon-pulse 420ms ease-out; }
 button:focus-visible .hp-tile{
-  border-color: rgba(200,241,53,.55);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.06), 0 6px 24px -10px rgba(200,241,53,.55);
+  /* Champagne focus glow — premium, no neon. */
+  border-color: rgba(212,197,160,.55);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.06), 0 6px 24px -10px rgba(212,197,160,.55);
 }
 
-/* Bottom nav */
+/* Bottom nav — glass spec: 0.08 border, frosted blur, dark-only shadows */
 .hp-nav{
   display:flex; align-items:center; gap:2px;
   background: rgba(14,14,16,.72);
-  border: 1px solid var(--hp-glass-border);
+  border: 1px solid rgba(255,255,255,.08);
   border-radius: 999px; padding: 5px;
   backdrop-filter: blur(24px) saturate(140%);
   -webkit-backdrop-filter: blur(24px) saturate(140%);
@@ -1603,12 +1604,23 @@ button:focus-visible .hp-tile{
 .hp-nav button:active svg{ animation: hp-icon-pulse 420ms ease-out; }
 .hp-nav button:focus-visible{
   outline: none;
-  box-shadow: inset 0 0 0 1px rgba(200,241,53,.45), 0 0 0 2px rgba(200,241,53,.18);
+  /* Champagne focus ring — replaces previous lime accent. */
+  box-shadow: inset 0 0 0 1px rgba(212,197,160,.45), 0 0 0 2px rgba(212,197,160,.18);
+}
+.hp-nav button[aria-disabled="true"]{
+  opacity: .55;
+  pointer-events: none;
+  cursor: progress;
 }
 .hp-nav-active{
-  background: rgba(255,255,255,.08);
-  border: 1px solid var(--hp-glass-border-strong);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.08);
+  /* Glass spec: 0.08 border, frosted blur, dark-only inset highlight */
+  background: rgba(255,255,255,.06);
+  border: 1px solid rgba(255,255,255,.08);
+  backdrop-filter: blur(18px) saturate(140%);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.06),
+    0 8px 24px -12px rgba(0,0,0,.85);
 }
 .hp-scan-fab{
   width: 58px; height: 58px; border-radius: 50%;
@@ -1627,8 +1639,9 @@ button:focus-visible .hp-tile{
 .hp-scan-fab:active svg{ animation: hp-icon-pulse 420ms ease-out; }
 .hp-scan-fab:focus-visible{
   outline: none;
-  border-color: rgba(200,241,53,.85);
-  box-shadow: 0 0 0 2px rgba(200,241,53,.35), 0 14px 32px -10px rgba(0,0,0,.8);
+  /* Champagne focus ring — replaces previous lime accent. */
+  border-color: rgba(212,197,160,.85);
+  box-shadow: 0 0 0 2px rgba(212,197,160,.35), 0 14px 32px -10px rgba(0,0,0,.8);
 }
 
 /* ----- Floating nav shell: width morphs as it collapses / shifts to profile ----- */
@@ -2560,12 +2573,19 @@ button:focus-visible .hp-tile{
 .qa-icon-btn {
   width: 38px; height: 38px; border-radius: 999px;
   display: flex; align-items: center; justify-content: center;
-  background: rgba(255,255,255,.06);
+  /* Glass spec: 0.08 border, frosted blur, dark-only shadow */
+  background: rgba(255,255,255,.05);
   border: 1px solid rgba(255,255,255,.08);
-  backdrop-filter: blur(10px);
-  transition: all .18s ease;
+  backdrop-filter: blur(14px) saturate(140%);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  box-shadow: 0 6px 18px -10px rgba(0,0,0,.8), inset 0 1px 0 rgba(255,255,255,.05);
+  transition: transform .18s var(--hp-ease, cubic-bezier(.22,1,.36,1)),
+              background .18s ease,
+              border-color .18s ease;
 }
-.qa-icon-btn:active { transform: scale(.93); background: rgba(255,255,255,.10); }
+.qa-icon-btn:hover { background: rgba(255,255,255,.08); border-color: rgba(255,255,255,.12); }
+.qa-icon-btn:active { transform: scale(.96); background: rgba(255,255,255,.10); }
+.qa-icon-btn:active svg { animation: hp-icon-pulse 420ms ease-out; }
 
 .qa-search {
   display: flex; align-items: center; gap: 10px;
@@ -4411,27 +4431,42 @@ button:focus-visible .hp-tile{
 .pp-tl-failed .pp-tl-dot { background: rgba(239,68,68,.15); border-color: rgba(239,68,68,.45); color: #fca5a5; }
 .pp-tl-future .pp-tl-dot { opacity: .55; }
 
-/* Quick action buttons */
+/* Quick action buttons — premium glass spec */
 .pp-quick-action {
   display: flex; align-items: center; gap: 12px;
   padding: 14px;
   border-radius: 18px;
-  background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.015));
-  border: 1px solid rgba(255,255,255,.09);
-  transition: transform .15s ease, border-color .15s ease, background .15s ease;
+  background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.012));
+  border: 1px solid rgba(255,255,255,.08);
+  backdrop-filter: blur(14px) saturate(140%);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  box-shadow: 0 8px 22px -14px rgba(0,0,0,.85), inset 0 1px 0 rgba(255,255,255,.04);
+  transition:
+    transform .18s cubic-bezier(.22,1,.36,1),
+    border-color .18s ease,
+    background .18s ease,
+    box-shadow .18s ease;
 }
-.pp-quick-action:hover { transform: translateY(-1px); border-color: rgba(255,255,255,.18); }
+.pp-quick-action:hover {
+  transform: translateY(-1px);
+  border-color: rgba(255,255,255,.14);
+  background: linear-gradient(180deg, rgba(255,255,255,.07), rgba(255,255,255,.02));
+}
+.pp-quick-action:active { transform: scale(.96); }
+.pp-quick-action:active .pp-quick-icon svg { animation: hp-icon-pulse 420ms ease-out; }
 .pp-quick-icon {
   width: 38px; height: 38px; border-radius: 12px;
   display: flex; align-items: center; justify-content: center;
-  background: rgba(255,255,255,.06);
+  background: rgba(255,255,255,.05);
   border: 1px solid rgba(255,255,255,.08);
   color: #f4ead3;
   flex-shrink: 0;
+  transition: transform .2s cubic-bezier(.22,1,.36,1);
 }
-.pp-quick-violet  .pp-quick-icon { background: linear-gradient(135deg, rgba(167,139,250,.2), rgba(139,92,246,.10)); border-color: rgba(167,139,250,.35); color: #c4b5fd; }
-.pp-quick-emerald .pp-quick-icon { background: linear-gradient(135deg, rgba(16,185,129,.2), rgba(5,150,105,.10));   border-color: rgba(16,185,129,.35); color: #6ee7b7; }
-.pp-quick-amber   .pp-quick-icon { background: linear-gradient(135deg, rgba(251,191,36,.2), rgba(217,119,6,.10));   border-color: rgba(251,191,36,.35); color: #fcd34d; }
+/* Champagne/platinum tones — no purple/green/amber neon */
+.pp-quick-violet  .pp-quick-icon { background: linear-gradient(135deg, rgba(232,220,192,.18), rgba(212,197,160,.06)); border-color: rgba(232,220,192,.28); color: #f4ead3; }
+.pp-quick-emerald .pp-quick-icon { background: linear-gradient(135deg, rgba(212,197,160,.16), rgba(255,255,255,.04));  border-color: rgba(212,197,160,.26); color: #f0e6cc; }
+.pp-quick-amber   .pp-quick-icon { background: linear-gradient(135deg, rgba(255,235,200,.18), rgba(212,197,160,.06));  border-color: rgba(232,220,192,.30); color: #fcecc4; }
 
 /* Inline edit row controls */
 .pp-inline-input {
@@ -9124,4 +9159,28 @@ html.motion-off    .otp-resend-ring svg circle { transition: none !important; }
 @keyframes tw-skel-root-in {
   from { opacity: 0; transform: translateY(6px); }
   to   { opacity: 1; transform: none; }
+}
+
+/* ============================================================
+   Reduced-motion safety net for newly tuned premium surfaces.
+   Honors prefers-reduced-motion across all micro-animations.
+   ============================================================ */
+@media (prefers-reduced-motion: reduce) {
+  .pp-quick-action,
+  .pp-quick-action:active,
+  .pp-quick-action:hover,
+  .qa-icon-btn,
+  .qa-icon-btn:active,
+  .pp-quick-icon,
+  .hp-nav button,
+  .hp-scan-fab,
+  .hp-tile {
+    transition: none !important;
+    animation: none !important;
+  }
+  .pp-quick-action:active,
+  .qa-icon-btn:active,
+  .hp-nav button:active,
+  .hp-scan-fab:active,
+  .hp-tile:active { transform: none !important; }
 }
