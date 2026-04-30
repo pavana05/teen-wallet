@@ -2502,28 +2502,59 @@ button:focus-visible .hp-tile{
 }
 
 
-/* ============= Quick Actions Panel ============= */
-.qa-root { animation: qa-in 360ms cubic-bezier(.2,.8,.2,1) both; }
-@keyframes qa-in { from { opacity: 0; transform: translateY(14px) scale(.985); } to { opacity: 1; transform: none; } }
-.qa-enter > * { animation: qa-stagger 480ms cubic-bezier(.2,.8,.2,1) both; }
-@keyframes qa-stagger { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+/* ============= Quick Actions / Profile Panel — Premium ============= */
+/* Ultra-smooth entrance: subtle fade + lift + scale on a long ease-out curve. */
+.qa-root {
+  animation: qa-in 540ms cubic-bezier(.16,1,.3,1) both;
+  transform-origin: 50% 60%;
+  will-change: transform, opacity, filter;
+}
+@keyframes qa-in {
+  0%   { opacity: 0; transform: translateY(18px) scale(.975); filter: blur(6px); }
+  60%  { opacity: 1; filter: blur(0); }
+  100% { opacity: 1; transform: none; filter: blur(0); }
+}
+/* Children stagger — silky cascade with each child arriving 40ms after the prev */
+.qa-enter > * { animation: qa-stagger 620ms cubic-bezier(.16,1,.3,1) both; }
+.qa-enter > *:nth-child(1) { animation-delay: 60ms; }
+.qa-enter > *:nth-child(2) { animation-delay: 100ms; }
+.qa-enter > *:nth-child(3) { animation-delay: 140ms; }
+.qa-enter > *:nth-child(4) { animation-delay: 180ms; }
+.qa-enter > *:nth-child(5) { animation-delay: 220ms; }
+.qa-enter > *:nth-child(6) { animation-delay: 260ms; }
+.qa-enter > *:nth-child(n+7) { animation-delay: 300ms; }
+@keyframes qa-stagger {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: none; }
+}
 
 .qa-bg {
   position: absolute; inset: 0;
+  /* Premium dark with champagne/platinum accents — no neon. */
   background:
-    radial-gradient(80% 50% at 80% 0%, rgba(255,140,60,.18), transparent 60%),
-    radial-gradient(60% 40% at 0% 10%, rgba(200,241,53,.10), transparent 60%),
+    radial-gradient(80% 50% at 80% 0%, rgba(212,197,160,.10), transparent 60%),
+    radial-gradient(60% 40% at 0% 10%, rgba(255,255,255,.04), transparent 60%),
+    radial-gradient(120% 80% at 50% 120%, rgba(212,197,160,.05), transparent 70%),
     linear-gradient(180deg, #0a0a0a 0%, #050505 100%);
   pointer-events: none;
 }
 .qa-grid {
   position: absolute; inset: 0;
   background-image:
-    linear-gradient(rgba(255,255,255,.025) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255,255,255,.025) 1px, transparent 1px);
-  background-size: 28px 28px;
+    linear-gradient(rgba(255,255,255,.022) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.022) 1px, transparent 1px);
+  background-size: 32px 32px;
   mask-image: radial-gradient(ellipse at top, black 30%, transparent 75%);
   pointer-events: none;
+  /* Faint drift gives the panel a sense of life without being busy. */
+  animation: qa-grid-drift 24s ease-in-out infinite alternate;
+}
+@keyframes qa-grid-drift {
+  0%   { background-position: 0 0, 0 0; }
+  100% { background-position: 32px 16px, 16px 32px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .qa-root, .qa-enter > *, .qa-grid { animation: none !important; }
 }
 
 .qa-icon-btn {
@@ -6966,16 +6997,21 @@ html.motion-off    .otp-resend-ring svg circle { transition: none !important; }
   bottom: 6px;
   left: 0;
   border-radius: 9999px;
-  background: linear-gradient(180deg, rgba(255,255,255,0.14) 0%, rgba(255,255,255,0.06) 100%);
+  /* Premium soft platinum highlight with a subtle champagne kiss at the top */
+  background:
+    linear-gradient(180deg,
+      rgba(255,255,255,0.18) 0%,
+      rgba(255,255,255,0.08) 50%,
+      rgba(212,197,160,0.06) 100%);
   box-shadow:
-    inset 0 1px 0 rgba(255,255,255,0.12),
-    0 4px 14px -6px rgba(0,0,0,0.7);
-  /* Smooth glide between tabs — independent of pill collapse animation,
-     so switching tabs while collapsed never causes layout jumps. */
+    inset 0 1px 0 rgba(255,255,255,0.16),
+    inset 0 -1px 0 rgba(0,0,0,0.25),
+    0 6px 18px -8px rgba(0,0,0,0.75);
+  /* Smoother, slightly longer glide for a luxurious feel. */
   transition:
-    transform 440ms cubic-bezier(.22,1,.36,1),
-    width 440ms cubic-bezier(.22,1,.36,1),
-    opacity 240ms ease-out;
+    transform 520ms cubic-bezier(.16,1,.3,1),
+    width 520ms cubic-bezier(.16,1,.3,1),
+    opacity 280ms ease-out;
   pointer-events: none;
   z-index: 1;
   will-change: transform, width;
@@ -9043,4 +9079,49 @@ html.motion-off    .otp-resend-ring svg circle { transition: none !important; }
 }
 @media (prefers-reduced-motion: reduce) {
   .sp2-confirm-pill, .sp2-confirm-glow { animation: none !important; }
+}
+
+/* ============================================================
+   Premium skeleton shimmer — used by lazy-loaded panels.
+   Soft champagne-tinted sweep across a subtle glass surface.
+   ============================================================ */
+.tw-skel {
+  position: relative;
+  overflow: hidden;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.025));
+  border: 1px solid rgba(255,255,255,.04);
+  isolation: isolate;
+}
+.tw-skel::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    100deg,
+    transparent 30%,
+    rgba(255,255,255,.07) 48%,
+    rgba(212,197,160,.10) 50%,
+    rgba(255,255,255,.07) 52%,
+    transparent 70%
+  );
+  transform: translateX(-100%);
+  animation: tw-skel-sweep 1.6s cubic-bezier(.45,.05,.55,.95) infinite;
+  pointer-events: none;
+}
+@keyframes tw-skel-sweep {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(120%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tw-skel::after { animation: none; }
+}
+
+/* Premium fade-in container for the skeleton itself so it doesn't pop. */
+.tw-skel-root {
+  animation: tw-skel-root-in 320ms cubic-bezier(.16,1,.3,1) both;
+}
+@keyframes tw-skel-root-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: none; }
 }
