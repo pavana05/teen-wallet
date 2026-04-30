@@ -54,6 +54,10 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
   const [cooldownTotalMs, setCooldownTotalMs] = useState<number>(RESEND_LADDER_S[0] * 1000);
   // Number of successful resends this attempt — drives the escalating ladder.
   const [resendCount, setResendCount] = useState<number>(0);
+  // Wrong-code attempts within the current OTP — locks verify after MAX_VERIFY_ATTEMPTS.
+  const [verifyAttempts, setVerifyAttempts] = useState<number>(0);
+  const [verifyLockedUntil, setVerifyLockedUntil] = useState<number | null>(null);
+  const [verifyLockTick, setVerifyLockTick] = useState(0);
   const inputs = useRef<(HTMLInputElement | null)[]>([]);
   const otpRowRef = useRef<HTMLDivElement | null>(null);
   const [hintAvailable, setHintAvailable] = useState(false);
