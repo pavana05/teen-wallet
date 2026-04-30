@@ -526,8 +526,7 @@ export function Home() {
       className={`hp-root ${persona.accentClass} flex-1 min-h-0 flex flex-col tw-slide-up pb-32 ${showProfile ? "overflow-hidden" : "overflow-y-auto"} relative`}
       style={{ transform: pullY ? `translateY(${pullY}px)` : undefined, transition: pullY ? "none" : "transform 220ms ease" }}
     >
-      {/* Keyboard skip-link to payment history */}
-      <a href="#hp-payment-history" className="hp-skip-link">Skip to payment history</a>
+
 
       {/* Pull-to-refresh indicator */}
       {(pullY > 0 || refreshing) && (
