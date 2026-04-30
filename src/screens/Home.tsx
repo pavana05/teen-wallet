@@ -422,8 +422,15 @@ export function Home() {
   // Idle-time prefetch — warm the heavy panels after Home has painted so
   // the first tap on Scan / Notifications / Profile / Quick actions feels
   // instant without bloating the initial Home chunk.
+  // Eagerly prefetch ProfilePanel right after first paint — it's the largest
+  // lazy chunk on this screen and waiting until idle made the first tap feel
+  // like the app was hanging. Other panels stay idle-prefetched.
   useEffect(() => {
     if (typeof window === "undefined") return;
+    // Kick the Profile panel chunk on next microtask so initial paint isn't
+    // blocked, but it's downloading well before the user can tap.
+    void import("@/components/ProfilePanel");
+
     const idle = (cb: () => void) => {
       const w = window as unknown as { requestIdleCallback?: (cb: () => void) => number };
       if (typeof w.requestIdleCallback === "function") w.requestIdleCallback(cb);
@@ -431,23 +438,27 @@ export function Home() {
     };
     idle(() => {
       void import("@/screens/ScanPay");
-      void import("@/components/ProfilePanel");
       void import("@/components/NotificationsPanel");
       void import("@/components/QuickActionsPanel");
       void import("@/screens/Transactions");
     });
   }, []);
 
-  // Profile tap → fluid morph: nav contracts to a single Profile pill,
-  // then we open the Profile panel after the morph settles. Works in both
-  // expanded and collapsed scroll states because the Profile tab is always
-  // kept reachable (never hidden) — and we briefly force-expand the nav so
-  // the morph reads as a continuous liquid transition either way.
+  // Warm the chunk on hover / pointerdown so even slow networks have it ready
+  // by the time the click lands. Safe to call repeatedly — module imports are
+  // de-duped by the bundler.
+  const warmProfile = useCallback(() => {
+    void import("@/components/ProfilePanel");
+  }, []);
+
+  // Profile tap → open immediately. The previous 360ms morph delay made the
+  // app feel frozen; we now flip showProfile right away and let the panel's
+  // own enter animation cover the transition.
   const openProfile = useCallback(() => {
     void haptics.bloom();
     setNavCollapsed(false);
     setNavMode("profile-morph");
-    window.setTimeout(() => setShowProfile(true), 360);
+    setShowProfile(true);
   }, []);
 
   const closeProfile = useCallback(() => {
