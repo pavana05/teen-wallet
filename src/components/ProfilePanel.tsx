@@ -707,7 +707,7 @@ export function ProfilePanel({ onClose }: Props) {
                 <Row
                   icon={FileText}
                   label="Terms of service"
-                  onClick={() => { onClose(); window.location.assign("/preview/terms"); }}
+                  onClick={() => goTo("/preview/terms")}
                 />
                 <Row
                   icon={FileText}
