@@ -1652,7 +1652,7 @@ button:focus-visible .hp-tile{
 
 /* ----- Floating nav shell: width morphs as it collapses / shifts to profile ----- */
 .hp-nav-shell{
-  width: calc(100% - 2rem);
+  width: min(calc(100dvw - 2rem), 400px);
   max-width: 400px;
   transition: width 480ms var(--hp-ease), max-width 480ms var(--hp-ease);
   will-change: width, max-width;
@@ -1672,11 +1672,11 @@ button:focus-visible .hp-tile{
   transform: translateX(-50%) translateY(1rem);
 }
 .hp-nav-shell[data-collapsed="true"][data-mode="full"]{
-  width: calc(100% - 2rem);
+  width: min(calc(100dvw - 2rem), 240px);
   max-width: 240px;
 }
 .hp-nav-shell[data-mode="profile-morph"]{
-  width: calc(100% - 2rem);
+  width: min(calc(100dvw - 2rem), 220px);
   max-width: 220px;
 }
 
