@@ -152,6 +152,8 @@
        desktop viewports where the simulated phone frame still makes sense. */
     max-width: 100%;
     min-height: 100vh;
+    min-height: 100svh;
+    max-height: 100svh;
     background: var(--color-background);
     box-shadow: 0 30px 80px -20px rgba(0,0,0,0.8), 0 0 0 1px rgba(255,255,255,0.04);
   }
@@ -159,6 +161,8 @@
     .tw-app-shell {
       max-width: 430px;
       min-height: min(900px, 100vh - 32px);
+      min-height: min(900px, 100svh - 32px);
+      max-height: min(900px, 100svh - 32px);
       margin-top: 16px;
       border-radius: 36px;
     }
