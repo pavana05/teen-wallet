@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from "react";
+import { useNavigate } from "@tanstack/react-router";
 import { Html5Qrcode } from "html5-qrcode";
 import QRCode from "qrcode";
 import { ArrowLeft, ArrowRight, Image as ImageIcon, Zap, ZapOff, X, Share2, Check, Bug, ShieldCheck, Wallet, Users, User as UserIcon, QrCode, Download, RotateCcw, Copy, ScanLine, ExternalLink, AlertTriangle, Info, Mail, MessageCircle, Phone, Plus, Hash, Send, Delete, ChevronDown } from "lucide-react";
