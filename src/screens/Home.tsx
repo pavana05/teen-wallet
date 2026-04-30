@@ -828,7 +828,14 @@ export function Home() {
                 >
                   <NavItem icon={Gift} label="Shop" />
                 </span>
-                <span className="hp-nav-tab" data-hidden="false" data-testid="hp-nav-profile-wrap">
+                <span
+                  className="hp-nav-tab"
+                  data-hidden="false"
+                  data-testid="hp-nav-profile-wrap"
+                  onPointerEnter={warmProfile}
+                  onPointerDown={warmProfile}
+                  onTouchStart={warmProfile}
+                >
                   <NavItem icon={User} label="Profile" onClick={openProfile} />
                 </span>
               </div>
