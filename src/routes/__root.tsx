@@ -102,11 +102,11 @@ export const Route = createRootRoute({
 
 function RootShell({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning style={{ height: "100%", overflow: "hidden" }}>
       <head>
         <HeadContent />
       </head>
-      <body suppressHydrationWarning>
+      <body suppressHydrationWarning style={{ margin: 0, height: "100%", overflow: "hidden", overscrollBehavior: "none" }}>
         {children}
         <Scripts />
       </body>
