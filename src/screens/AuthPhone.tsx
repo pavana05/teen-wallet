@@ -194,6 +194,12 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
   const formatted = phone.replace(/(\d{5})(\d{0,5})/, (_, a, b) => (b ? `${a} ${b}` : a));
   const resendBlocked = resendIn > 0 || (resendBlockedUntil !== null && resendBlockedUntil > Date.now());
   const lockedOut = resendCount >= MAX_RESENDS_BEFORE_LOCK && resendBlocked;
+  // Verify-side lockout: derived live so the UI auto-unlocks when the timer expires.
+  // `verifyLockTick` participates in the dep so the derived value re-evaluates each second.
+  void verifyLockTick;
+  const verifyLocked = verifyLockedUntil !== null && verifyLockedUntil > Date.now();
+  const verifyLockSeconds = verifyLocked ? Math.ceil((verifyLockedUntil! - Date.now()) / 1000) : 0;
+  const verifyAttemptsLeft = Math.max(0, MAX_VERIFY_ATTEMPTS - verifyAttempts);
 
 
   /**
