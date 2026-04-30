@@ -142,6 +142,10 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
     if (resumedRef.current) return;
     if (!userId) return;
     resumedRef.current = true;
+    // Offline mode: skip the backend resume call entirely. The local
+    // persisted flow (read on mount above) already restored the scan step
+    // and last decoded QR payload, so the user sees zero latency.
+    if (typeof navigator !== "undefined" && navigator.onLine === false) return;
     void resumeFromBackend({
       userId,
       cachedAttemptId: attemptId,
