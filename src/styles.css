@@ -1619,14 +1619,15 @@ button:focus-visible .hp-tile{
   will-change: width, max-width;
 }
 
-/* Pin nav to the device viewport bottom (escapes any transformed ancestor
-   like the pull-to-refresh wrapper). Centered, constrained to mobile width,
-   respects iOS safe area. */
+/* Pin nav to the device viewport bottom. Portaled to <body> in JS so no
+   transformed ancestor can trap it. Centered, mobile-width constrained,
+   respects iOS/Android safe areas. */
 .hp-nav-fixed{
   position: fixed;
   left: 50%;
-  bottom: calc(1.25rem + env(safe-area-inset-bottom, 0px));
+  bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
   transform: translateX(-50%);
+  pointer-events: auto;
 }
 .hp-nav-fixed.translate-y-4{
   transform: translateX(-50%) translateY(1rem);

@@ -1,6 +1,7 @@
 import { Bell, Home as HomeIcon, ScanLine, ShoppingBag, CreditCard, ArrowUpRight, Building2, Wallet, History, Smartphone, Zap, MoreHorizontal, Gift, ArrowDownLeft, RefreshCw, User, Sparkles, Inbox, Send } from "lucide-react";
 import { useApp } from "@/lib/store";
 import { useEffect, useState, useCallback, useRef, Suspense } from "react";
+import { createPortal } from "react-dom";
 import { supabase } from "@/integrations/supabase/client";
 // Heavy panels are lazy-loaded — they only mount when the user opens them
 // (Scan, Transactions, Notifications, Profile, or a Quick Action). Eagerly
@@ -794,49 +795,52 @@ export function Home() {
       <div className="h-6" />
 
       {/* ===== FLOATING BOTTOM NAV (scroll-collapsing + liquid morph) =====
-          Hidden while the Profile panel is open so the floating dock doesn't
-          overlay the profile screen. The panel has its own back affordance. */}
-      <nav
-        aria-label="Primary"
-        data-mode={navMode}
-        data-collapsed={navCollapsed ? "true" : "false"}
-        aria-hidden={showProfile ? "true" : "false"}
-        className={`hp-nav-shell hp-nav-fixed z-50 transition-opacity duration-300 ease-out ${showProfile ? "opacity-0 pointer-events-none translate-y-4" : "opacity-100"}`}
-      >
-        <div className="flex items-center gap-3">
-          <div className="hp-nav hp-nav-pill flex-1" role="tablist" aria-label="Sections">
-            <NavItem icon={HomeIcon} label="Home" active />
-            <span
-              className="hp-nav-tab"
-              data-hidden={navCollapsed || navMode === "profile-morph" ? "true" : "false"}
-              aria-hidden={navCollapsed || navMode === "profile-morph" ? "true" : "false"}
-            >
-              <NavItem icon={Gift} label="Shop" />
-            </span>
-            {/* Profile is ALWAYS reachable: never hidden in collapsed/morph states.
-                Keeps keyboard focus order intact and ensures the liquid morph
-                transition has a consistent target element. */}
-            <span className="hp-nav-tab" data-hidden="false" data-testid="hp-nav-profile-wrap">
-              <NavItem icon={User} label="Profile" onClick={openProfile} />
-            </span>
-          </div>
-          <button
-            type="button"
-            onClick={launchScan}
-            className="hp-scan-fab"
-            aria-label="Scan to pay"
-            data-launching={scanLaunching ? "true" : "false"}
+          Portaled to <body> so no transformed/scrolling ancestor (e.g. the
+          pull-to-refresh wrapper) can trap position: fixed. This guarantees
+          the dock stays pinned to the device viewport on every device. */}
+      {typeof document !== "undefined" && createPortal(
+        <>
+          <nav
+            aria-label="Primary"
+            data-mode={navMode}
+            data-collapsed={navCollapsed ? "true" : "false"}
+            aria-hidden={showProfile ? "true" : "false"}
+            className={`hp-nav-shell hp-nav-fixed z-[60] transition-opacity duration-300 ease-out ${showProfile ? "opacity-0 pointer-events-none translate-y-4" : "opacity-100"}`}
           >
-            <ScanLine className="w-6 h-6 text-black" strokeWidth={2.4} aria-hidden="true" />
-          </button>
-        </div>
-      </nav>
+            <div className="flex items-center gap-3">
+              <div className="hp-nav hp-nav-pill flex-1" role="tablist" aria-label="Sections">
+                <NavItem icon={HomeIcon} label="Home" active />
+                <span
+                  className="hp-nav-tab"
+                  data-hidden={navCollapsed || navMode === "profile-morph" ? "true" : "false"}
+                  aria-hidden={navCollapsed || navMode === "profile-morph" ? "true" : "false"}
+                >
+                  <NavItem icon={Gift} label="Shop" />
+                </span>
+                <span className="hp-nav-tab" data-hidden="false" data-testid="hp-nav-profile-wrap">
+                  <NavItem icon={User} label="Profile" onClick={openProfile} />
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={launchScan}
+                className="hp-scan-fab"
+                aria-label="Scan to pay"
+                data-launching={scanLaunching ? "true" : "false"}
+              >
+                <ScanLine className="w-6 h-6 text-black" strokeWidth={2.4} aria-hidden="true" />
+              </button>
+            </div>
+          </nav>
 
-      {/* Liquid expansion overlay for the Scan FAB → ScanPay transition */}
-      {scanLaunching && (
-        <div className="hp-scan-launch" aria-hidden="true">
-          <span className="hp-scan-launch-bubble" />
-        </div>
+          {/* Liquid expansion overlay for the Scan FAB → ScanPay transition */}
+          {scanLaunching && (
+            <div className="hp-scan-launch" aria-hidden="true">
+              <span className="hp-scan-launch-bubble" />
+            </div>
+          )}
+        </>,
+        document.body,
       )}
 
       {quickAction && (
