@@ -2608,6 +2608,32 @@ function ProcessingView({ amount }: { amount: number }) {
    5. SUCCESS
    ============================================================ */
 
+function CountUpAmount({ value, delayMs = 0, durationMs = 900 }: { value: number; delayMs?: number; durationMs?: number }) {
+  const [display, setDisplay] = useState(0);
+  const [focused, setFocused] = useState(false);
+  useEffect(() => {
+    const reduce = typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    if (reduce) { setDisplay(value); setFocused(true); return; }
+    let raf = 0;
+    const start = performance.now() + delayMs;
+    const tick = (now: number) => {
+      if (now < start) { raf = requestAnimationFrame(tick); return; }
+      const t = Math.min(1, (now - start) / durationMs);
+      const eased = 1 - Math.pow(1 - t, 3);
+      setDisplay(value * eased);
+      if (t < 1) raf = requestAnimationFrame(tick);
+      else setFocused(true);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [value, delayMs, durationMs]);
+  return (
+    <span className={`num-mono text-[28px] font-bold text-white sp-amount-countup ${focused ? "is-focused" : ""}`}>
+      ₹{display.toFixed(2)}
+    </span>
+  );
+}
+
 function SuccessView({
   txn, payerName, payerPhone, onDone, onScanAgain,
 }: {
@@ -2724,11 +2750,13 @@ function SuccessView({
   };
 
   return (
-    <div className="sp-success-root sp-success-vlines" role="region" aria-label="Payment successful">
+    <div className="sp-success-root sp-success-vlines sp-success-fadein" role="region" aria-label="Payment successful">
+      <span className="sp-success-shimmer" aria-hidden="true" />
       <div className="relative z-10 flex-1 flex flex-col items-center justify-start pt-10 px-6 text-center overflow-y-auto">
-        <div className="relative w-[140px] h-[140px] flex items-center justify-center">
+        <div className="relative w-[140px] h-[140px] flex items-center justify-center sp-success-badge-wrap">
           <span className="sp-success-ring" />
           <span className="sp-success-ring delay" />
+          <span className="sp-success-glow" aria-hidden="true" />
           <div className="sp-success-badge">
             <svg viewBox="0 0 64 64" width="48" height="48" fill="none" stroke="#1a1208" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d="M16 33 L28 45 L48 22" className="sp-success-check" />
@@ -2749,18 +2777,29 @@ function SuccessView({
               />
             );
           })}
+          {Array.from({ length: 8 }).map((_, i) => (
+            <span
+              key={`spark-${i}`}
+              className="sp-spark"
+              style={{
+                ["--sx" as string]: `${(Math.random() * 2 - 1) * 70}px`,
+                ["--sy" as string]: `${(Math.random() * 2 - 1) * 70}px`,
+                animationDelay: `${1.4 + i * 0.18}s`,
+              } as React.CSSProperties}
+            />
+          ))}
         </div>
 
-        <h2 className="mt-6 text-[22px] font-bold text-white tracking-tight kyc-fade-up">Payment successful</h2>
-        <p className="mt-1 text-[13px] text-white/65 kyc-fade-up" style={{ animationDelay: "120ms" }}>
+        <h2 className="mt-6 text-[22px] font-bold text-white tracking-tight kyc-fade-up" style={{ animationDelay: "1100ms" }}>Payment successful</h2>
+        <p className="mt-1 text-[13px] text-white/65 kyc-fade-up" style={{ animationDelay: "1220ms" }}>
           to <span className="text-white/90 font-medium">{txn.payee || "recipient"}</span>
         </p>
 
         {/* Receipt card */}
-        <div className="sp-receipt-card kyc-fade-up" style={{ animationDelay: "180ms" }}>
+        <div className="sp-receipt-card kyc-fade-up" style={{ animationDelay: "1340ms" }}>
           <div className="sp-receipt-amount">
             <span className="text-white/55 text-[12px] mr-2">Amount paid</span>
-            <span className="num-mono text-[28px] font-bold text-white">₹{txn.amount.toFixed(2)}</span>
+            <CountUpAmount value={txn.amount} delayMs={1300} durationMs={900} />
           </div>
           <div className="sp-receipt-divider" />
           <dl className="sp-receipt-grid">
@@ -2784,6 +2823,17 @@ function SuccessView({
             <dt>Status</dt>
             <dd><span className="sp-receipt-status-ok">SUCCESS</span></dd>
           </dl>
+        </div>
+
+        {/* Rewards card — slides up after receipt */}
+        <div className="sp-rewards-card kyc-fade-up" style={{ animationDelay: "1700ms" }}>
+          <div className="sp-rewards-coin" aria-hidden="true">
+            <span className="sp-rewards-coin-face">P</span>
+          </div>
+          <div className="flex-1 text-left">
+            <div className="text-[13px] font-semibold text-white">+3 P Coins earned</div>
+            <div className="text-[11px] text-white/55">Reward credited to your wallet</div>
+          </div>
         </div>
       </div>
 
