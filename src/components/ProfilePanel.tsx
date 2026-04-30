@@ -535,8 +535,8 @@ export function ProfilePanel({ onClose }: Props) {
               <p className="pp-group-label">Settings</p>
               <div className="pp-card divide-y divide-white/5">
                 <Row icon={Bell} label="Notifications" hint="Manage" onClick={() => setTab("preferences")} />
-                <Row icon={Lock} label="Privacy Policy" onClick={() => window.open("https://teen-wallet.lovable.app/privacy", "_blank", "noopener,noreferrer")} />
-                <Row icon={FileText} label="Terms & Conditions" onClick={() => toast("Terms & Conditions", { description: "Opening soon." })} />
+                <Row icon={Lock} label="Privacy Policy" onClick={() => { onClose(); window.location.assign("/preview/privacy"); }} />
+                <Row icon={FileText} label="Terms & Conditions" onClick={() => { onClose(); window.location.assign("/preview/terms"); }} />
               </div>
 
               {/* Others */}
