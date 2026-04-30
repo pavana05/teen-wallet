@@ -144,6 +144,19 @@
   h1, h2, h3 { letter-spacing: -0.025em; }
 }
 
+html,
+body {
+  overflow: hidden !important;
+  overscroll-behavior: none;
+}
+
+body > div:first-child {
+  width: 100%;
+  max-width: 100%;
+  height: 100svh;
+  overflow: hidden;
+}
+
 @layer components {
   /* The phone frame on desktop */
   .tw-app-shell {
