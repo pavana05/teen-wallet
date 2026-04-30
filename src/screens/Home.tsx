@@ -418,6 +418,25 @@ export function Home() {
     return () => el.removeEventListener("scroll", onScroll);
   }, []);
 
+  // Idle-time prefetch — warm the heavy panels after Home has painted so
+  // the first tap on Scan / Notifications / Profile / Quick actions feels
+  // instant without bloating the initial Home chunk.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const idle = (cb: () => void) => {
+      const w = window as unknown as { requestIdleCallback?: (cb: () => void) => number };
+      if (typeof w.requestIdleCallback === "function") w.requestIdleCallback(cb);
+      else window.setTimeout(cb, 800);
+    };
+    idle(() => {
+      void import("@/screens/ScanPay");
+      void import("@/components/ProfilePanel");
+      void import("@/components/NotificationsPanel");
+      void import("@/components/QuickActionsPanel");
+      void import("@/screens/Transactions");
+    });
+  }, []);
+
   // Profile tap → fluid morph: nav contracts to a single Profile pill,
   // then we open the Profile panel after the morph settles. Works in both
   // expanded and collapsed scroll states because the Profile tab is always
