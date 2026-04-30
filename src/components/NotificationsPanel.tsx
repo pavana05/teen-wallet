@@ -63,14 +63,17 @@ export function NotificationsPanel({ onClose }: Props) {
       .limit(80)
       .then(({ data }) => {
         if (!mounted) return;
-        setNotifs((data ?? []) as Notif[]);
+        const rows = (data ?? []) as Notif[];
+        setNotifs(rows.filter(isImportant));
         setLoading(false);
       });
 
     const ch = supabase
       .channel("notifs-panel")
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "notifications", filter: `user_id=eq.${userId}` }, (payload) => {
-        setNotifs((prev) => [payload.new as Notif, ...prev]);
+        const next = payload.new as Notif;
+        if (!isImportant(next)) return;
+        setNotifs((prev) => [next, ...prev]);
       })
       .subscribe();
     return () => { mounted = false; supabase.removeChannel(ch); };
