@@ -890,7 +890,7 @@ export function Home() {
                     icon={User}
                     label="Profile"
                     onClick={openProfile}
-                    disabled={!profileReady || showProfile}
+                    disabled={showProfile}
                     loading={!profileReady}
                   />
                 </span>
