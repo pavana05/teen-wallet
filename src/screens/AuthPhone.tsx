@@ -347,6 +347,8 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
   }
 
   function onOtpChange(i: number, v: string) {
+    // Don't even let typing happen while locked — keeps the row stable.
+    if (verifyLocked) return;
     const d = v.replace(/\D/g, "").slice(-1);
     const next = [...otp]; next[i] = d; setOtp(next);
     // Editing any digit clears the prior error so the user gets immediate feedback.
