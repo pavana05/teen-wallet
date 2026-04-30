@@ -181,7 +181,7 @@ export function FloatingDock({ active, onHome, onProfile, hidden }: DockProps) {
         aria-hidden={hidden ? "true" : "false"}
         data-collapsed={collapsed ? "true" : "false"}
         data-reduced={reduced ? "true" : "false"}
-        className={`fd-shell absolute bottom-5 left-1/2 -translate-x-1/2 z-[55] ${hidden ? "opacity-0 pointer-events-none translate-y-3" : "opacity-100"}`}
+        className={`fd-shell fd-shell-fixed z-[55] ${hidden ? "opacity-0 pointer-events-none translate-y-3" : "opacity-100"}`}
       >
         <div className="flex items-center gap-3">
           <div ref={pillRef} className="fd-pill flex items-center relative" role="tablist" aria-label="Sections">
