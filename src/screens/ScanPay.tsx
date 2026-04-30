@@ -63,6 +63,8 @@ interface PersistedFlow {
  * including the last decoded QR payload.
  */
 const SCANPAY_RESUME_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+/** Last-decoded QR cache TTL — cleared automatically after this idle period. */
+const SCANPAY_LAST_QR_TTL_MS = 15 * 60 * 1000;
 
 type Phase = "scanning" | "confirm" | "processing" | "success" | "failed";
 type FailKind = "generic" | "balance_changed" | "insufficient" | "blocked";
