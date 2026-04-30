@@ -6997,16 +6997,21 @@ html.motion-off    .otp-resend-ring svg circle { transition: none !important; }
   bottom: 6px;
   left: 0;
   border-radius: 9999px;
-  background: linear-gradient(180deg, rgba(255,255,255,0.14) 0%, rgba(255,255,255,0.06) 100%);
+  /* Premium soft platinum highlight with a subtle champagne kiss at the top */
+  background:
+    linear-gradient(180deg,
+      rgba(255,255,255,0.18) 0%,
+      rgba(255,255,255,0.08) 50%,
+      rgba(212,197,160,0.06) 100%);
   box-shadow:
-    inset 0 1px 0 rgba(255,255,255,0.12),
-    0 4px 14px -6px rgba(0,0,0,0.7);
-  /* Smooth glide between tabs — independent of pill collapse animation,
-     so switching tabs while collapsed never causes layout jumps. */
+    inset 0 1px 0 rgba(255,255,255,0.16),
+    inset 0 -1px 0 rgba(0,0,0,0.25),
+    0 6px 18px -8px rgba(0,0,0,0.75);
+  /* Smoother, slightly longer glide for a luxurious feel. */
   transition:
-    transform 440ms cubic-bezier(.22,1,.36,1),
-    width 440ms cubic-bezier(.22,1,.36,1),
-    opacity 240ms ease-out;
+    transform 520ms cubic-bezier(.16,1,.3,1),
+    width 520ms cubic-bezier(.16,1,.3,1),
+    opacity 280ms ease-out;
   pointer-events: none;
   z-index: 1;
   will-change: transform, width;
