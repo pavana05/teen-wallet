@@ -452,6 +452,30 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
 /* ============================================================
    Persistence helpers
    ============================================================ */
+/**
+ * Synchronous best-effort read used to seed initial state on mount. Returns
+ * null when the persisted blob is encrypted (callers fall back to async).
+ * This preserves zero-latency resume for legacy plaintext entries (and tests).
+ */
+function readPersistedSync(): PersistedFlow | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw =
+      window.localStorage.getItem(SCANPAY_PERSIST_KEY) ??
+      window.sessionStorage.getItem(SCANPAY_PERSIST_KEY);
+    if (!raw) return null;
+    if (raw.startsWith("e:")) return null; // encrypted — defer to async path
+    const json = raw.startsWith("p:") ? raw.slice(2) : raw;
+    const parsed = JSON.parse(json) as PersistedFlow;
+    if (parsed.phase !== "scanning" && parsed.phase !== "confirm") return null;
+    const ts = typeof parsed.ts === "number" ? parsed.ts : 0;
+    if (ts && Date.now() - ts > SCANPAY_RESUME_MAX_AGE_MS) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
 async function readPersisted(): Promise<PersistedFlow | null> {
   if (typeof window === "undefined") return null;
   try {
