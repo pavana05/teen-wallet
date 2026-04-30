@@ -163,10 +163,19 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step]);
 
-  const valid = /^[6-9]\d{9}$/.test(phone);
+  const phoneState = classifyPhoneField(phone);
+  const valid = phoneState === "valid";
+  // Live, friendly hint message for the field — only shown when there's something to say.
+  const phoneHint =
+    phoneState === "bad_prefix"
+      ? "Indian mobiles start with 6, 7, 8 or 9."
+      : phoneState === "incomplete" && phone.length > 0
+        ? `${10 - phone.length} more digit${10 - phone.length === 1 ? "" : "s"} to go`
+        : "";
   const formatted = phone.replace(/(\d{5})(\d{0,5})/, (_, a, b) => (b ? `${a} ${b}` : a));
   const resendBlocked = resendIn > 0 || (resendBlockedUntil !== null && resendBlockedUntil > Date.now());
   const lockedOut = resendCount >= MAX_RESENDS_BEFORE_LOCK && resendBlocked;
+
 
   /**
    * Start a fresh cooldown window. `escalate=true` advances the ladder (used
