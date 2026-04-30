@@ -41,6 +41,11 @@ interface Stats {
 
 export function ProfilePanel({ onClose }: Props) {
   const { fullName, userId, balance, reset } = useApp();
+  const navigate = useNavigate();
+  // Helper: close the panel and push an internal route via the router.
+  // Avoids window.location.assign which forces a full document reload and
+  // (on native shells) can look like a browser redirect.
+  const goTo = (to: string) => { onClose(); void navigate({ to }); };
 
   // Persisted: which tab the user was on, and which collapsible sections were expanded.
   const [tab, setTab] = usePersistentState<Tab>("tw-profile-tab", "overview");
