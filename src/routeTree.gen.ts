@@ -13,10 +13,12 @@ import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as PreviewIndexRouteImport } from './routes/preview.index'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
+import { Route as PreviewTermsRouteImport } from './routes/preview.terms'
 import { Route as PreviewSplashRouteImport } from './routes/preview.splash'
 import { Route as PreviewScanPayRouteImport } from './routes/preview.scan-pay'
 import { Route as PreviewReferralProgramRouteImport } from './routes/preview.referral-program'
 import { Route as PreviewProfileHelpRouteImport } from './routes/preview.profile-help'
+import { Route as PreviewPrivacyRouteImport } from './routes/preview.privacy'
 import { Route as PreviewPhoneVerifiedRouteImport } from './routes/preview.phone-verified'
 import { Route as PreviewPermissionsRouteImport } from './routes/preview.permissions'
 import { Route as PreviewOnboardingRouteImport } from './routes/preview.onboarding'
@@ -60,6 +62,11 @@ const AdminIndexRoute = AdminIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AdminRoute,
 } as any)
+const PreviewTermsRoute = PreviewTermsRouteImport.update({
+  id: '/preview/terms',
+  path: '/preview/terms',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PreviewSplashRoute = PreviewSplashRouteImport.update({
   id: '/preview/splash',
   path: '/preview/splash',
@@ -78,6 +85,11 @@ const PreviewReferralProgramRoute = PreviewReferralProgramRouteImport.update({
 const PreviewProfileHelpRoute = PreviewProfileHelpRouteImport.update({
   id: '/preview/profile-help',
   path: '/preview/profile-help',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PreviewPrivacyRoute = PreviewPrivacyRouteImport.update({
+  id: '/preview/privacy',
+  path: '/preview/privacy',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PreviewPhoneVerifiedRoute = PreviewPhoneVerifiedRouteImport.update({
@@ -213,10 +225,12 @@ export interface FileRoutesByFullPath {
   '/preview/onboarding': typeof PreviewOnboardingRoute
   '/preview/permissions': typeof PreviewPermissionsRoute
   '/preview/phone-verified': typeof PreviewPhoneVerifiedRoute
+  '/preview/privacy': typeof PreviewPrivacyRoute
   '/preview/profile-help': typeof PreviewProfileHelpRoute
   '/preview/referral-program': typeof PreviewReferralProgramRoute
   '/preview/scan-pay': typeof PreviewScanPayRoute
   '/preview/splash': typeof PreviewSplashRoute
+  '/preview/terms': typeof PreviewTermsRoute
   '/admin/': typeof AdminIndexRoute
   '/preview/': typeof PreviewIndexRoute
   '/admin/users/$id': typeof AdminUsersIdRoute
@@ -244,10 +258,12 @@ export interface FileRoutesByTo {
   '/preview/onboarding': typeof PreviewOnboardingRoute
   '/preview/permissions': typeof PreviewPermissionsRoute
   '/preview/phone-verified': typeof PreviewPhoneVerifiedRoute
+  '/preview/privacy': typeof PreviewPrivacyRoute
   '/preview/profile-help': typeof PreviewProfileHelpRoute
   '/preview/referral-program': typeof PreviewReferralProgramRoute
   '/preview/scan-pay': typeof PreviewScanPayRoute
   '/preview/splash': typeof PreviewSplashRoute
+  '/preview/terms': typeof PreviewTermsRoute
   '/admin': typeof AdminIndexRoute
   '/preview': typeof PreviewIndexRoute
   '/admin/users/$id': typeof AdminUsersIdRoute
@@ -277,10 +293,12 @@ export interface FileRoutesById {
   '/preview/onboarding': typeof PreviewOnboardingRoute
   '/preview/permissions': typeof PreviewPermissionsRoute
   '/preview/phone-verified': typeof PreviewPhoneVerifiedRoute
+  '/preview/privacy': typeof PreviewPrivacyRoute
   '/preview/profile-help': typeof PreviewProfileHelpRoute
   '/preview/referral-program': typeof PreviewReferralProgramRoute
   '/preview/scan-pay': typeof PreviewScanPayRoute
   '/preview/splash': typeof PreviewSplashRoute
+  '/preview/terms': typeof PreviewTermsRoute
   '/admin/': typeof AdminIndexRoute
   '/preview/': typeof PreviewIndexRoute
   '/admin/users/$id': typeof AdminUsersIdRoute
@@ -311,10 +329,12 @@ export interface FileRouteTypes {
     | '/preview/onboarding'
     | '/preview/permissions'
     | '/preview/phone-verified'
+    | '/preview/privacy'
     | '/preview/profile-help'
     | '/preview/referral-program'
     | '/preview/scan-pay'
     | '/preview/splash'
+    | '/preview/terms'
     | '/admin/'
     | '/preview/'
     | '/admin/users/$id'
@@ -342,10 +362,12 @@ export interface FileRouteTypes {
     | '/preview/onboarding'
     | '/preview/permissions'
     | '/preview/phone-verified'
+    | '/preview/privacy'
     | '/preview/profile-help'
     | '/preview/referral-program'
     | '/preview/scan-pay'
     | '/preview/splash'
+    | '/preview/terms'
     | '/admin'
     | '/preview'
     | '/admin/users/$id'
@@ -374,10 +396,12 @@ export interface FileRouteTypes {
     | '/preview/onboarding'
     | '/preview/permissions'
     | '/preview/phone-verified'
+    | '/preview/privacy'
     | '/preview/profile-help'
     | '/preview/referral-program'
     | '/preview/scan-pay'
     | '/preview/splash'
+    | '/preview/terms'
     | '/admin/'
     | '/preview/'
     | '/admin/users/$id'
@@ -397,10 +421,12 @@ export interface RootRouteChildren {
   PreviewOnboardingRoute: typeof PreviewOnboardingRoute
   PreviewPermissionsRoute: typeof PreviewPermissionsRoute
   PreviewPhoneVerifiedRoute: typeof PreviewPhoneVerifiedRoute
+  PreviewPrivacyRoute: typeof PreviewPrivacyRoute
   PreviewProfileHelpRoute: typeof PreviewProfileHelpRoute
   PreviewReferralProgramRoute: typeof PreviewReferralProgramRoute
   PreviewScanPayRoute: typeof PreviewScanPayRoute
   PreviewSplashRoute: typeof PreviewSplashRoute
+  PreviewTermsRoute: typeof PreviewTermsRoute
   PreviewIndexRoute: typeof PreviewIndexRoute
   ApiKycVerifyRoute: typeof ApiKycVerifyRoute
   ApiPublicPushFanoutRoute: typeof ApiPublicPushFanoutRoute
@@ -436,6 +462,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminIndexRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/preview/terms': {
+      id: '/preview/terms'
+      path: '/preview/terms'
+      fullPath: '/preview/terms'
+      preLoaderRoute: typeof PreviewTermsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/preview/splash': {
       id: '/preview/splash'
       path: '/preview/splash'
@@ -462,6 +495,13 @@ declare module '@tanstack/react-router' {
       path: '/preview/profile-help'
       fullPath: '/preview/profile-help'
       preLoaderRoute: typeof PreviewProfileHelpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/preview/privacy': {
+      id: '/preview/privacy'
+      path: '/preview/privacy'
+      fullPath: '/preview/privacy'
+      preLoaderRoute: typeof PreviewPrivacyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/preview/phone-verified': {
@@ -675,10 +715,12 @@ const rootRouteChildren: RootRouteChildren = {
   PreviewOnboardingRoute: PreviewOnboardingRoute,
   PreviewPermissionsRoute: PreviewPermissionsRoute,
   PreviewPhoneVerifiedRoute: PreviewPhoneVerifiedRoute,
+  PreviewPrivacyRoute: PreviewPrivacyRoute,
   PreviewProfileHelpRoute: PreviewProfileHelpRoute,
   PreviewReferralProgramRoute: PreviewReferralProgramRoute,
   PreviewScanPayRoute: PreviewScanPayRoute,
   PreviewSplashRoute: PreviewSplashRoute,
+  PreviewTermsRoute: PreviewTermsRoute,
   PreviewIndexRoute: PreviewIndexRoute,
   ApiKycVerifyRoute: ApiKycVerifyRoute,
   ApiPublicPushFanoutRoute: ApiPublicPushFanoutRoute,
