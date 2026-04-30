@@ -568,7 +568,7 @@ export function Home() {
         </div>
       )}
       {/* ===== HERO (orange grid bg + scan card image) ===== */}
-      <div className="hp-hero relative">
+      <div className="hp-hero hp-shimmer-reveal relative">
         <div className="hp-hero-bg" />
         <div className="hp-hero-pattern" />
         <div className="hp-hero-spot" />
