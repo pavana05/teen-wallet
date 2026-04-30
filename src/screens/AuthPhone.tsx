@@ -99,6 +99,7 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
     }
   }
 
+  // Resend cooldown ticker — also honors a server-side rate-limit window.
   useEffect(() => {
     if (step !== "otp") return;
     const computeRemaining = () => {
