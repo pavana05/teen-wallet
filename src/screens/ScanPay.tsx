@@ -597,21 +597,25 @@ interface DebugSnapshot {
 }
 
 function pickAdaptiveTuning() {
-  // Heuristic: low-end devices → smaller fps + smaller scan area to keep
-  // each decode pass fast. Detection still triggers within 1–2 frames.
+  // Heuristic: low-end devices get a tighter pipeline so each decode pass stays
+  // fast; mid/high-end devices push FPS hard for near-instant lock-on.
   const cores = (typeof navigator !== "undefined" && Number(navigator.hardwareConcurrency)) || 4;
   const memRaw = typeof navigator !== "undefined" ? (navigator as Navigator & { deviceMemory?: number }).deviceMemory : undefined;
   const mem = typeof memRaw === "number" ? memRaw : 4;
   const isLowEnd = cores <= 4 || mem <= 2;
 
   // qrbox must be a fixed object for html5-qrcode to honour it reliably.
+  // A larger scan window means partial / off-center / further-away QR codes
+  // still land inside the decode region — big sensitivity win.
   const vw = typeof window !== "undefined" ? window.innerWidth : 360;
   const vh = typeof window !== "undefined" ? window.innerHeight : 640;
   const base = Math.min(vw, vh);
-  const edge = Math.min(360, Math.floor(base * (isLowEnd ? 0.62 : 0.74)));
+  const edge = Math.min(440, Math.floor(base * (isLowEnd ? 0.78 : 0.90)));
 
   return {
-    fps: isLowEnd ? 12 : 24,
+    // Higher FPS = more decode attempts per second. html5-qrcode caps internally
+    // but asking for 30/60 makes it run as fast as the device allows.
+    fps: isLowEnd ? 20 : 60,
     qrbox: { width: edge, height: edge },
     profile: isLowEnd ? "low-end" : "high-end",
     cores,
@@ -670,11 +674,24 @@ function ScannerView({ onBack, onDecoded }: { onBack: () => void; onDecoded: (p:
             fps: tuning.fps,
             qrbox: tuning.qrbox,
             aspectRatio: 1,
+            // Request a high-resolution stream so small/far QR modules still
+            // resolve sharply enough for the decoder. Browsers clamp these to
+            // the closest supported track size.
             videoConstraints: {
               facingMode: { ideal: "environment" },
-              advanced: [{ focusMode: "continuous" } as unknown as MediaTrackConstraintSet],
+              width: { ideal: 1920 },
+              height: { ideal: 1080 },
+              frameRate: { ideal: 60, min: 30 },
+              advanced: [
+                { focusMode: "continuous" } as unknown as MediaTrackConstraintSet,
+                { exposureMode: "continuous" } as unknown as MediaTrackConstraintSet,
+                { whiteBalanceMode: "continuous" } as unknown as MediaTrackConstraintSet,
+              ],
             } as MediaTrackConstraints,
+            // Native BarcodeDetector (Chrome/Android/Capacitor) is dramatically
+            // faster than the WASM fallback — keep it on.
             useBarCodeDetectorIfSupported: true,
+            experimentalFeatures: { useBarCodeDetectorIfSupported: true },
           } as Parameters<Html5Qrcode["start"]>[1],
           (decoded) => {
             // Hard lock: act exactly once per scanner lifecycle.
