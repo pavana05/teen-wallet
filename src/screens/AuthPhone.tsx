@@ -67,6 +67,9 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
   const otpRowRef = useRef<HTMLDivElement | null>(null);
   const [hintAvailable, setHintAvailable] = useState(false);
   const [hintBusy, setHintBusy] = useState(false);
+  // Google-gate state — populated when get_login_requirements says this phone
+  // belongs to an account that has Google linked.
+  const [googleEmailHint, setGoogleEmailHint] = useState<string | null>(null);
   const { setPendingPhone, hydrateFromProfile } = useApp();
 
   // Restore mid-celebration session, OR a persisted in-progress OTP attempt.
