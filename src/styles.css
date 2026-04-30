@@ -129,9 +129,11 @@
     background: #050505;
     /* Kill any stray horizontal scrollbar / right-side gutter caused by
        child elements that overflow the viewport width. */
-    overflow-x: hidden;
+    overflow: hidden;
   }
-  body { margin-right: 0 !important; }
+  html { scrollbar-width: none; }
+  html::-webkit-scrollbar, body::-webkit-scrollbar { display: none; }
+  body { margin-right: 0 !important; overscroll-behavior: none; }
   body {
     color: var(--color-foreground);
     font-family: var(--font-display);
