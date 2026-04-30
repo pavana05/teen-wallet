@@ -10,6 +10,7 @@ import {
 import { useApp, type Stage } from "@/lib/store";
 import { toast } from "sonner";
 import { PhoneVerified } from "./PhoneVerified";
+import { VerifyGoogleOnNewDevice } from "./VerifyGoogleOnNewDevice";
 import { isJustVerified } from "@/lib/justVerified";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -24,8 +25,12 @@ import { CopyableErrorId } from "@/components/CopyableErrorId";
 import { ResendCountdown } from "@/components/ResendCountdown";
 import { recordCheckpoint } from "@/lib/navState";
 import { maybeInsertWelcome } from "@/lib/notify";
+import {
+  getLoginRequirements,
+  registerCurrentDeviceTrusted,
+} from "@/lib/googleLink";
 
-type Step = "phone" | "otp" | "verified";
+type Step = "phone" | "google-gate" | "otp" | "verified";
 
 // Escalating cooldown ladder. Each successive resend within the same OTP attempt
 // extends the wait so a user (or script) can't hammer the SMS provider. The last
