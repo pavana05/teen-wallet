@@ -109,6 +109,17 @@ function Index() {
   const [referralPending, setReferralPending] = useState<boolean>(() => shouldShowReferralPrompt());
   const markReferralDone = () => setReferralPending(false);
 
+  // Mandatory Google-link step for fresh signups. Set by lib/auth.ts on
+  // signUp() success; cleared once the user completes linking.
+  const [needsGoogleLink, setNeedsGoogleLink] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    try { return localStorage.getItem(SIGNUP_NEEDS_GOOGLE_KEY) === "1"; } catch { return false; }
+  });
+  const markGoogleLinked = () => {
+    try { localStorage.removeItem(SIGNUP_NEEDS_GOOGLE_KEY); } catch { /* ignore */ }
+    setNeedsGoogleLink(false);
+  };
+
   useEffect(() => {
     let mounted = true;
     (async () => {
