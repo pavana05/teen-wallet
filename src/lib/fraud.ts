@@ -84,15 +84,7 @@ export async function scanTransaction({ userId, amount, upiId, geoSuspicious }: 
     });
   }
 
-  // Rule 5 — Night-time (11 PM – 6 AM)
-  const hr = now.getHours();
-  if (hr >= 23 || hr < 6) {
-    flags.push({
-      rule: "NIGHT_TIME",
-      severity: "warn",
-      message: "You're making a late-night payment. Confirm this is intentional.",
-    });
-  }
+  // Rule 5 — Night-time check removed; late-night payments proceed without warning.
 
   // Rule 6 — Geo anomaly (from caller; placeholder signal)
   if (geoSuspicious) {
