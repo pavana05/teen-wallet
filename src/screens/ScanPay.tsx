@@ -2299,7 +2299,7 @@ function MyQrSheet({ onClose }: { onClose: () => void }) {
             </div>
             <button
               type="button"
-              onClick={() => { onClose(); window.location.assign("/preview/profile-help"); }}
+              onClick={() => { onClose(); void navigate({ to: "/preview/profile-help" }); }}
               style={{
                 alignSelf: "flex-start",
                 fontSize: 12, fontWeight: 600,
