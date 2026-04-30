@@ -10,9 +10,11 @@ import { supabase } from "@/integrations/supabase/client";
  * Call once during app startup.
  */
 export async function initNative() {
-  if (!Capacitor.isNativePlatform()) return;
-
+  // Always install the navigation guard (web + native) so internal links
+  // never escape the app shell.
   installNativeNavigationGuard();
+
+  if (!Capacitor.isNativePlatform()) return;
 
   try {
     await StatusBar.setStyle({ style: Style.Dark });
