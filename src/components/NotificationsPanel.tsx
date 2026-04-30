@@ -19,10 +19,32 @@ const FILTERS = [
   { key: "all", label: "All" },
   { key: "transaction", label: "Payments" },
   { key: "fraud", label: "Security" },
-  { key: "offer", label: "Offers" },
 ] as const;
 
 type FilterKey = typeof FILTERS[number]["key"];
+
+// Only "important" notifications surface in this panel. Daily greetings,
+// welcome messages, generic info pings and promotional offers are filtered
+// out so the feed stays signal-heavy (money movement + security + alerts).
+const IMPORTANT_TYPES = new Set<string>([
+  "transaction",
+  "payment_sent",
+  "payment_received",
+  "payment_pending",
+  "payment_failed",
+  "low_balance",
+  "fraud",
+  "issue",
+  "alert",
+]);
+
+const NOISE_TITLE_RE = /^\s*(good\s+(morning|afternoon|evening|night)|hi[, ]|hello[, ]|hey[, ]|welcome\b)/i;
+
+function isImportant(n: Pick<Notif, "type" | "title">): boolean {
+  if (!IMPORTANT_TYPES.has(n.type)) return false;
+  if (n.title && NOISE_TITLE_RE.test(n.title)) return false;
+  return true;
+}
 
 export function NotificationsPanel({ onClose }: Props) {
   const { userId } = useApp();
