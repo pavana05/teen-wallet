@@ -712,7 +712,7 @@ export function ProfilePanel({ onClose }: Props) {
                 <Row
                   icon={FileText}
                   label="Privacy policy"
-                  onClick={() => { onClose(); window.location.assign("/preview/privacy"); }}
+                  onClick={() => goTo("/preview/privacy")}
                 />
                 <Row icon={Settings} label="App version" hint="v1.0.6" />
               </CollapsibleSection>
