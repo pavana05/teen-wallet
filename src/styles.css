@@ -9160,3 +9160,27 @@ html.motion-off    .otp-resend-ring svg circle { transition: none !important; }
   from { opacity: 0; transform: translateY(6px); }
   to   { opacity: 1; transform: none; }
 }
+
+/* ============================================================
+   Reduced-motion safety net for newly tuned premium surfaces.
+   Honors prefers-reduced-motion across all micro-animations.
+   ============================================================ */
+@media (prefers-reduced-motion: reduce) {
+  .pp-quick-action,
+  .pp-quick-action:active,
+  .pp-quick-action:hover,
+  .qa-icon-btn,
+  .qa-icon-btn:active,
+  .pp-quick-icon,
+  .hp-nav button,
+  .hp-scan-fab,
+  .hp-tile {
+    transition: none !important;
+    animation: none !important;
+  }
+  .pp-quick-action:active,
+  .qa-icon-btn:active,
+  .hp-nav button:active,
+  .hp-scan-fab:active,
+  .hp-tile:active { transform: none !important; }
+}
