@@ -2608,6 +2608,32 @@ function ProcessingView({ amount }: { amount: number }) {
    5. SUCCESS
    ============================================================ */
 
+function CountUpAmount({ value, delayMs = 0, durationMs = 900 }: { value: number; delayMs?: number; durationMs?: number }) {
+  const [display, setDisplay] = useState(0);
+  const [focused, setFocused] = useState(false);
+  useEffect(() => {
+    const reduce = typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    if (reduce) { setDisplay(value); setFocused(true); return; }
+    let raf = 0;
+    const start = performance.now() + delayMs;
+    const tick = (now: number) => {
+      if (now < start) { raf = requestAnimationFrame(tick); return; }
+      const t = Math.min(1, (now - start) / durationMs);
+      const eased = 1 - Math.pow(1 - t, 3);
+      setDisplay(value * eased);
+      if (t < 1) raf = requestAnimationFrame(tick);
+      else setFocused(true);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [value, delayMs, durationMs]);
+  return (
+    <span className={`num-mono text-[28px] font-bold text-white sp-amount-countup ${focused ? "is-focused" : ""}`}>
+      ₹{display.toFixed(2)}
+    </span>
+  );
+}
+
 function SuccessView({
   txn, payerName, payerPhone, onDone, onScanAgain,
 }: {
