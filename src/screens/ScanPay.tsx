@@ -449,7 +449,7 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
 /* ============================================================
    Persistence helpers
    ============================================================ */
-function readPersisted(): PersistedFlow | null {
+async function readPersisted(): Promise<PersistedFlow | null> {
   if (typeof window === "undefined") return null;
   try {
     // Prefer localStorage (survives app restart). Fall back to sessionStorage
@@ -458,32 +458,54 @@ function readPersisted(): PersistedFlow | null {
       window.localStorage.getItem(SCANPAY_PERSIST_KEY) ??
       window.sessionStorage.getItem(SCANPAY_PERSIST_KEY);
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as PersistedFlow;
+    const parsed = await decryptJson<PersistedFlow>(raw);
+    if (!parsed) {
+      try { window.localStorage.removeItem(SCANPAY_PERSIST_KEY); } catch { /* ignore */ }
+      return null;
+    }
     // Only resume into safe phases — never resume into processing/success/failed.
     if (parsed.phase !== "scanning" && parsed.phase !== "confirm") return null;
     const ts = typeof parsed.ts === "number" ? parsed.ts : 0;
     if (!ts || Date.now() - ts > SCANPAY_RESUME_MAX_AGE_MS) {
       try { window.localStorage.removeItem(SCANPAY_PERSIST_KEY); } catch { /* ignore */ }
       try { window.sessionStorage.removeItem(SCANPAY_PERSIST_KEY); } catch { /* ignore */ }
+      try { window.localStorage.removeItem(SCANPAY_LAST_QR_KEY); } catch { /* ignore */ }
       return null;
     }
+    // TTL-clear the last-decoded QR cache independently if it has expired.
+    try {
+      const lastRaw = window.localStorage.getItem(SCANPAY_LAST_QR_KEY);
+      if (lastRaw) {
+        const last = await decryptJson<{ ts?: number }>(lastRaw);
+        if (!last || !last.ts || Date.now() - last.ts > SCANPAY_LAST_QR_TTL_MS) {
+          window.localStorage.removeItem(SCANPAY_LAST_QR_KEY);
+        }
+      }
+    } catch { /* ignore */ }
     return parsed;
   } catch {
     return null;
   }
 }
-function writePersisted(p: PersistedFlow) {
+async function writePersisted(p: PersistedFlow) {
   if (typeof window === "undefined") return;
-  try { window.localStorage.setItem(SCANPAY_PERSIST_KEY, JSON.stringify({ ...p, ts: Date.now() })); } catch { /* quota — ignore */ }
-  // Also cache the last decoded QR payload separately for quick reference.
+  try {
+    const enc = await encryptJson({ ...p, ts: Date.now() });
+    window.localStorage.setItem(SCANPAY_PERSIST_KEY, enc);
+  } catch { /* quota — ignore */ }
+  // Also cache the last decoded QR payload separately (encrypted) for quick reference.
   if (p.payload) {
-    try { window.localStorage.setItem(SCANPAY_LAST_QR_KEY, JSON.stringify({ payload: p.payload, ts: Date.now() })); } catch { /* ignore */ }
+    try {
+      const enc = await encryptJson({ payload: p.payload, ts: Date.now() });
+      window.localStorage.setItem(SCANPAY_LAST_QR_KEY, enc);
+    } catch { /* ignore */ }
   }
 }
 function clearPersisted() {
   if (typeof window === "undefined") return;
   try { window.localStorage.removeItem(SCANPAY_PERSIST_KEY); } catch { /* ignore */ }
   try { window.sessionStorage.removeItem(SCANPAY_PERSIST_KEY); } catch { /* ignore */ }
+  try { window.localStorage.removeItem(SCANPAY_LAST_QR_KEY); } catch { /* ignore */ }
 }
 
 // ── Attempt-id cache (localStorage so it survives a full restart) ──
