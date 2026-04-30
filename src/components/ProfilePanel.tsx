@@ -702,7 +702,7 @@ export function ProfilePanel({ onClose }: Props) {
                   icon={HelpCircle}
                   label="Help center"
                   hint="My reports & shake settings"
-                  onClick={() => { onClose(); window.location.assign("/preview/profile-help"); }}
+                  onClick={() => goTo("/preview/profile-help")}
                 />
                 <Row
                   icon={FileText}
