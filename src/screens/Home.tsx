@@ -1,12 +1,18 @@
 import { Bell, Home as HomeIcon, ScanLine, ShoppingBag, CreditCard, ArrowUpRight, Building2, Wallet, History, Smartphone, Zap, MoreHorizontal, Gift, ArrowDownLeft, RefreshCw, User, Sparkles, Inbox, Send } from "lucide-react";
 import { useApp } from "@/lib/store";
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useRef, Suspense } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { ScanPay } from "@/screens/ScanPay";
-import { Transactions } from "@/screens/Transactions";
-import { QuickActionsPanel, type QuickActionKind } from "@/components/QuickActionsPanel";
-import { NotificationsPanel } from "@/components/NotificationsPanel";
-import { ProfilePanel } from "@/components/ProfilePanel";
+// Heavy panels are lazy-loaded — they only mount when the user opens them
+// (Scan, Transactions, Notifications, Profile, or a Quick Action). Eagerly
+// importing them was forcing ~6500 LOC into the Home chunk and slowing
+// first paint significantly on cold loads.
+import { lazyWithRetry } from "@/lib/lazyWithRetry";
+import type { QuickActionKind } from "@/components/QuickActionsPanel";
+const ScanPay = lazyWithRetry(() => import("@/screens/ScanPay").then(m => ({ default: m.ScanPay })));
+const Transactions = lazyWithRetry(() => import("@/screens/Transactions").then(m => ({ default: m.Transactions })));
+const QuickActionsPanel = lazyWithRetry(() => import("@/components/QuickActionsPanel").then(m => ({ default: m.QuickActionsPanel })));
+const NotificationsPanel = lazyWithRetry(() => import("@/components/NotificationsPanel").then(m => ({ default: m.NotificationsPanel })));
+const ProfilePanel = lazyWithRetry(() => import("@/components/ProfilePanel").then(m => ({ default: m.ProfilePanel })));
 import heroScan from "@/assets/home-hero-scan.jpg";
 import heroScanDiwali from "@/assets/home-hero-scan-diwali.png";
 import heroScanHoli from "@/assets/home-hero-scan-holi.png";
