@@ -14,6 +14,30 @@ export type Database = {
   }
   public: {
     Tables: {
+      account_phone_index: {
+        Row: {
+          google_email: string | null
+          google_sub: string | null
+          phone: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          google_email?: string | null
+          google_sub?: string | null
+          phone: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          google_email?: string | null
+          google_sub?: string | null
+          phone?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       admin_audit_log: {
         Row: {
           action_type: string
@@ -819,6 +843,10 @@ export type Database = {
           email: string | null
           full_name: string | null
           gender: string | null
+          google_email: string | null
+          google_link_required: boolean
+          google_linked_at: string | null
+          google_sub: string | null
           id: string
           kyc_status: Database["public"]["Enums"]["kyc_status"]
           notif_prefs: Json
@@ -841,6 +869,10 @@ export type Database = {
           email?: string | null
           full_name?: string | null
           gender?: string | null
+          google_email?: string | null
+          google_link_required?: boolean
+          google_linked_at?: string | null
+          google_sub?: string | null
           id: string
           kyc_status?: Database["public"]["Enums"]["kyc_status"]
           notif_prefs?: Json
@@ -863,6 +895,10 @@ export type Database = {
           email?: string | null
           full_name?: string | null
           gender?: string | null
+          google_email?: string | null
+          google_link_required?: boolean
+          google_linked_at?: string | null
+          google_sub?: string | null
           id?: string
           kyc_status?: Database["public"]["Enums"]["kyc_status"]
           notif_prefs?: Json
@@ -966,6 +1002,33 @@ export type Database = {
         }
         Relationships: []
       }
+      trusted_devices: {
+        Row: {
+          fingerprint_hash: string
+          first_seen_at: string
+          id: string
+          label: string | null
+          last_seen_at: string
+          user_id: string
+        }
+        Insert: {
+          fingerprint_hash: string
+          first_seen_at?: string
+          id?: string
+          label?: string | null
+          last_seen_at?: string
+          user_id: string
+        }
+        Update: {
+          fingerprint_hash?: string
+          first_seen_at?: string
+          id?: string
+          label?: string | null
+          last_seen_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_security: {
         Row: {
           app_lock_enabled: boolean
@@ -1055,7 +1118,24 @@ export type Database = {
           transaction_id: string
         }[]
       }
+      get_login_requirements: {
+        Args: { _phone: string }
+        Returns: {
+          account_exists: boolean
+          google_email_hint: string
+          requires_google: boolean
+        }[]
+      }
       get_or_create_my_referral_code: { Args: never; Returns: string }
+      is_trusted_device: {
+        Args: { _fingerprint_hash: string }
+        Returns: boolean
+      }
+      link_google_to_phone: {
+        Args: { _google_email: string; _google_sub: string }
+        Returns: undefined
+      }
+      mask_email: { Args: { _email: string }; Returns: string }
       redeem_referral_code: {
         Args: { _code: string }
         Returns: {
@@ -1064,8 +1144,19 @@ export type Database = {
           referred_reward: number
         }[]
       }
+      register_trusted_device: {
+        Args: { _fingerprint_hash: string; _label?: string }
+        Returns: undefined
+      }
       send_birthday_saving_reminders: { Args: never; Returns: undefined }
       send_daily_morning_greetings: { Args: never; Returns: undefined }
+      verify_google_for_phone: {
+        Args: { _google_sub: string; _phone: string }
+        Returns: {
+          ok: boolean
+          reason: string
+        }[]
+      }
     }
     Enums: {
       admin_status: "active" | "locked" | "disabled" | "pending"
