@@ -456,8 +456,16 @@ export function Home() {
     }, 420);
   }, []);
 
-  if (view === "scan") return <ScanPay onBack={() => { setView("home"); void fetchTxns(); }} />;
-  if (view === "transactions") return <Transactions onBack={() => { setView("home"); void fetchTxns(); }} />;
+  if (view === "scan") return (
+    <Suspense fallback={null}>
+      <ScanPay onBack={() => { setView("home"); void fetchTxns(); }} />
+    </Suspense>
+  );
+  if (view === "transactions") return (
+    <Suspense fallback={null}>
+      <Transactions onBack={() => { setView("home"); void fetchTxns(); }} />
+    </Suspense>
+  );
 
   return (
     <div
