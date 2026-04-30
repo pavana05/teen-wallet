@@ -1,6 +1,6 @@
 # Build Teen Wallet as an Android APK
 
-This project is **TanStack Start (SSR + server functions)** — it cannot be exported as static `dist/` files. Instead, the Capacitor wrapper loads the published Lovable site (`https://teen-wallet.lovable.app`) inside a native WebView. This is the same approach used by many production fintech apps and keeps backend/auth/payments working with zero changes.
+This project is **TanStack Start (SSR + server functions)** — it cannot be exported as static `dist/` files. Instead, the Capacitor wrapper loads the published Teen Wallet domain (`https://teenwallet.app`) inside a native WebView. This keeps backend/auth/payments working with zero changes.
 
 > ⚠️ The APK itself **cannot be built inside Lovable** — Android SDK + JDK + Gradle are required. Run the steps below on your local machine.
 
@@ -64,7 +64,7 @@ For a **release / Play Store** build:
 
 ## Iterating
 
-Because the app loads live from `https://teen-wallet.lovable.app`, **every web change you publish in Lovable instantly reaches users** with no rebuild. Re-run `npx cap sync android` only when:
+Because the app loads live from `https://teenwallet.app`, **every web change you publish in Lovable instantly reaches users** with no rebuild. Re-run `npx cap sync android` only when:
 
 - You change `capacitor.config.ts`
 - You add/update Capacitor plugins
@@ -78,7 +78,7 @@ Because the app loads live from `https://teen-wallet.lovable.app`, **every web c
 | --- | --- |
 | App ID (package) | `com.teenwallet.app` |
 | Display name | Teen Wallet |
-| Live URL | `https://teen-wallet.lovable.app` |
+| Live URL | `https://teenwallet.app` |
 | Min Android | 6.0 (API 23) |
 | Target Android | API 34+ |
 
@@ -91,4 +91,4 @@ Because the app loads live from `https://teen-wallet.lovable.app`, **every web c
 - [ ] Bump `versionCode` and `versionName` in `android/app/build.gradle` for every release.
 - [ ] Generate signed `.aab` for upload.
 - [ ] Fill Play Console listing: screenshots, privacy policy, content rating, data safety.
-- [ ] Confirm `https://teen-wallet.lovable.app` is reachable and HTTPS-only (it is by default).
+- [ ] Confirm `https://teenwallet.app` is reachable and HTTPS-only (it is by default).
