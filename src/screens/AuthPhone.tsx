@@ -365,7 +365,21 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
                 id="tw-phone"
                 inputMode="numeric"
                 value={phone}
-                onChange={(e) => { setError(""); setPhone(e.target.value.replace(/\D/g, "").slice(0, 10)); }}
+                onChange={(e) => {
+                  setError("");
+                  // Live normalization: strips +91, leading 0, spaces, dashes, parens
+                  // so pasting "+91 98765 43210" or "098765 43210" Just Works.
+                  setPhone(liveNormalizePhoneInput(e.target.value));
+                }}
+                onPaste={(e) => {
+                  // Force-normalize pasted strings even when they include "+" / spaces
+                  // that the inputMode=numeric keyboard wouldn't allow.
+                  const text = e.clipboardData?.getData("text") ?? "";
+                  if (!text) return;
+                  e.preventDefault();
+                  setError("");
+                  setPhone(liveNormalizePhoneInput(text));
+                }}
                 className="tw-phone-input-hidden"
                 aria-invalid={!!error}
                 aria-describedby={error ? "tw-phone-error" : undefined}
