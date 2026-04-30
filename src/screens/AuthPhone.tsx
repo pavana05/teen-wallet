@@ -309,6 +309,13 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
       if (!p || p.onboarding_stage !== resumedStage) {
         await persistStage(resumedStage);
       }
+      // For returning users that already have Google linked, this device just
+      // proved itself (Google match was verified pre-OTP, OR the device was
+      // already trusted). Mark it trusted so we don't re-prompt next time.
+      // Best-effort: failures shouldn't block sign-in.
+      void registerCurrentDeviceTrusted().catch((err) => {
+        console.warn("[auth] register_trusted_device failed", err);
+      });
       clearOtpState();
       // Greet the user once per calendar day with an in-app entry notification.
       if (p?.id) {
