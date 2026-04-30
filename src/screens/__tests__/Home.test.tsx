@@ -29,14 +29,14 @@ describe("Home screen smoke test", () => {
     // Greeting from `fullName`
     expect(await screen.findByText(/Hey, Alex/i)).toBeInTheDocument();
 
-    // Section headings prove QuickAction/RechargeTile/TxnRow scaffolding loaded.
+    // Section headings prove QuickAction/RechargeTile scaffolding loaded.
     expect(screen.getByText(/Everything UPI/i)).toBeInTheDocument();
     expect(screen.getByText(/Recharges & utilities/i)).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /Payment history/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Transaction history/i })).toBeInTheDocument();
 
     // NavItem labels — guards against the "NavItem is not defined" regression.
     expect(screen.getByText("Home")).toBeInTheDocument();
-    expect(screen.getByText("Shop")).toBeInTheDocument();
+    expect(screen.getByText("Transactions")).toBeInTheDocument();
     expect(screen.getByText("Profile")).toBeInTheDocument();
   });
 
@@ -55,35 +55,22 @@ describe("Home screen smoke test", () => {
   });
 
   it("opens the Profile panel when tapped from the expanded nav", async () => {
-    vi.useFakeTimers();
-    try {
-      render(<Home />);
-      const profileBtn = screen.getByRole("button", { name: /^profile$/i });
-      fireEvent.click(profileBtn);
-      // openProfile defers the panel mount by 360ms for the morph
-      await act(async () => { vi.advanceTimersByTime(400); });
-      expect(screen.getByTestId("profile-panel-mock")).toBeInTheDocument();
-    } finally {
-      vi.useRealTimers();
-    }
+    render(<Home />);
+    const profileBtn = screen.getByRole("button", { name: /^profile$/i });
+    fireEvent.click(profileBtn);
+    expect(await screen.findByTestId("profile-panel-mock")).toBeInTheDocument();
   });
 
   it("keeps the Profile tab reachable and openable when the nav is collapsed", async () => {
-    vi.useFakeTimers();
-    try {
-      render(<Home />);
+    render(<Home />);
 
-      // Profile wrapper must never be hidden — even in the collapsed scroll state.
-      const wrap = screen.getByTestId("hp-nav-profile-wrap");
-      expect(wrap.getAttribute("data-hidden")).toBe("false");
+    // Profile wrapper must never be hidden — even in the collapsed scroll state.
+    const wrap = screen.getByTestId("hp-nav-profile-wrap");
+    expect(wrap.getAttribute("data-hidden")).toBe("false");
 
-      // Tap should still mount the panel.
-      const profileBtn = screen.getByRole("button", { name: /^profile$/i });
-      fireEvent.click(profileBtn);
-      await act(async () => { vi.advanceTimersByTime(400); });
-      expect(screen.getByTestId("profile-panel-mock")).toBeInTheDocument();
-    } finally {
-      vi.useRealTimers();
-    }
+    // Tap should still mount the panel.
+    const profileBtn = screen.getByRole("button", { name: /^profile$/i });
+    fireEvent.click(profileBtn);
+    expect(await screen.findByTestId("profile-panel-mock")).toBeInTheDocument();
   });
 });
