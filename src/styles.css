@@ -1618,6 +1618,19 @@ button:focus-visible .hp-tile{
   transition: width 480ms var(--hp-ease), max-width 480ms var(--hp-ease);
   will-change: width, max-width;
 }
+
+/* Pin nav to the device viewport bottom (escapes any transformed ancestor
+   like the pull-to-refresh wrapper). Centered, constrained to mobile width,
+   respects iOS safe area. */
+.hp-nav-fixed{
+  position: fixed;
+  left: 50%;
+  bottom: calc(1.25rem + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%);
+}
+.hp-nav-fixed.translate-y-4{
+  transform: translateX(-50%) translateY(1rem);
+}
 .hp-nav-shell[data-collapsed="true"][data-mode="full"]{
   width: calc(100% - 2rem);
   max-width: 240px;
