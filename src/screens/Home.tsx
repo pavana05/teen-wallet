@@ -1,6 +1,7 @@
 import { Bell, Home as HomeIcon, ScanLine, ShoppingBag, CreditCard, ArrowUpRight, Building2, Wallet, History, Smartphone, Zap, MoreHorizontal, Gift, ArrowDownLeft, RefreshCw, User, Sparkles, Inbox, Send } from "lucide-react";
 import { useApp } from "@/lib/store";
 import { useEffect, useState, useCallback, useRef, Suspense } from "react";
+import { createPortal } from "react-dom";
 import { supabase } from "@/integrations/supabase/client";
 // Heavy panels are lazy-loaded — they only mount when the user opens them
 // (Scan, Transactions, Notifications, Profile, or a Quick Action). Eagerly
