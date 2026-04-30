@@ -123,12 +123,15 @@
   html, body, #root {
     height: 100%;
     width: 100%;
-    max-width: 100vw;
+    /* Use 100% (not 100vw) — 100vw includes the scrollbar on some browsers
+       which produces a tiny right-side gutter. */
+    max-width: 100%;
     background: #050505;
     /* Kill any stray horizontal scrollbar / right-side gutter caused by
        child elements that overflow the viewport width. */
     overflow-x: hidden;
   }
+  body { margin-right: 0 !important; }
   body {
     color: var(--color-foreground);
     font-family: var(--font-display);
