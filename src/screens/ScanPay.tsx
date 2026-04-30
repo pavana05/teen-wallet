@@ -83,6 +83,7 @@ interface SavedTxn {
 
 export function ScanPay({ onBack }: { onBack: () => void }) {
   const { userId, balance } = useApp();
+  const navigate = useNavigate();
 
   // Hydrate persisted flow (scan phase + parsed payload + amount) so a
   // refresh / accidental nav doesn't drop the user back into a broken loop.
