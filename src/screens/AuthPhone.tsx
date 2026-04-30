@@ -419,6 +419,8 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
       />
     );
   }
+
+  return (
     <div className="flex-1 flex flex-col p-6 tw-slide-up">
       <div className="flex items-center justify-between mb-12">
         <button onClick={() => step === "otp" ? setStep("phone") : null} className="w-10 h-10 rounded-full glass flex items-center justify-center">
