@@ -876,7 +876,7 @@ export function Home() {
                   data-hidden={navCollapsed || navMode === "profile-morph" ? "true" : "false"}
                   aria-hidden={navCollapsed || navMode === "profile-morph" ? "true" : "false"}
                 >
-                  <NavItem icon={Gift} label="Shop" />
+                  <NavItem icon={History} label="Transactions" onClick={() => setView("transactions")} />
                 </span>
                 <span
                   className="hp-nav-tab"
