@@ -1024,6 +1024,18 @@ function ScannerView({ onBack, onDecoded }: { onBack: () => void; onDecoded: (p:
             </div>
           )}
         </div>
+        {scanState === "locked" && (
+          <div className="sp2-detected-overlay" role="status" aria-live="polite">
+            <div className="sp2-detected-pulse" aria-hidden="true" />
+            <div className="sp2-detected-card">
+              <div className="sp2-detected-check">
+                <Check className="w-6 h-6" strokeWidth={3} />
+              </div>
+              <p className="sp2-detected-title">QR detected</p>
+              <p className="sp2-detected-sub">Opening payment…</p>
+            </div>
+          </div>
+        )}
         <p className="sp2-frame-hint">
           {scanState === "locked"
             ? "Got it! Hold steady…"
