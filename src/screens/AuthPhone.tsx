@@ -86,9 +86,18 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
       setResendCount(rc);
       const totalMs = persisted.cooldownTotalMs ?? cooldownForCount(rc) * 1000;
       setCooldownTotalMs(totalMs);
+      setVerifyAttempts(persisted.verifyAttempts ?? 0);
+      setVerifyLockedUntil(persisted.verifyLockedUntil ?? null);
       setStep("otp");
     }
   }, []);
+
+  // 1s ticker to refresh the verify-lock countdown copy.
+  useEffect(() => {
+    if (!verifyLockedUntil || verifyLockedUntil <= Date.now()) return;
+    const t = setInterval(() => setVerifyLockTick((n) => n + 1), 1000);
+    return () => clearInterval(t);
+  }, [verifyLockedUntil]);
 
   // Detect Android Contact-Picker support so we can offer one-tap pre-fill.
   useEffect(() => {
