@@ -35,6 +35,11 @@ const MAX_RESENDS_BEFORE_LOCK = RESEND_LADDER_S.length;
 const cooldownForCount = (count: number) =>
   RESEND_LADDER_S[Math.min(count, RESEND_LADDER_S.length - 1)];
 
+// Wrong-code attempt limiter. Independent from resend cooldown — protects
+// the verify endpoint from brute-force guessing of the 6-digit code.
+const MAX_VERIFY_ATTEMPTS = 5;
+const VERIFY_LOCK_MS = 5 * 60 * 1000; // 5-minute hard lock
+
 export function AuthPhone({ onDone }: { onDone: () => void }) {
   const [step, setStep] = useState<Step>("phone");
   const [phone, setPhone] = useState("");
