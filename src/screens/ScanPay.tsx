@@ -2166,6 +2166,7 @@ function PayContactSheet({
  */
 function MyQrSheet({ onClose }: { onClose: () => void }) {
   const { userId, fullName } = useApp();
+  const navigate = useNavigate();
   const [profile, setProfile] = useState<{ phone: string | null; full_name: string | null } | null>(null);
   const [loading, setLoading] = useState(true);
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
