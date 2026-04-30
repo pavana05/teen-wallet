@@ -30,12 +30,32 @@ export async function initNative() {
     /* Splash already hidden */
   }
 
+  // Robust hardware/gesture back-button handling on Android.
+  // - If there's an in-app history entry, step back through the SPA.
+  // - If we're not at "/", route to "/" inside the WebView (no reload).
+  // - Only exit the app when the user is already on "/" with no history.
+  // This guarantees Privacy/Terms and other internal routes never trigger
+  // a browser redirect and always return to the previous in-app screen.
   try {
-    App.addListener("backButton", ({ canGoBack }) => {
-      if (canGoBack) {
-        window.history.back();
-      } else {
+    App.addListener("backButton", () => {
+      try {
+        const onHome = window.location.pathname === "/" || window.location.pathname === "";
+        const hasHistory = window.history.length > 1;
+
+        if (hasHistory && !onHome) {
+          window.history.back();
+          return;
+        }
+        if (!onHome) {
+          // Soft-redirect within SPA to home. Use replaceState so a subsequent
+          // back press exits cleanly instead of bouncing between routes.
+          window.history.replaceState(null, "", "/");
+          window.dispatchEvent(new PopStateEvent("popstate"));
+          return;
+        }
         App.exitApp();
+      } catch {
+        try { App.exitApp(); } catch { /* ignore */ }
       }
     });
   } catch {
