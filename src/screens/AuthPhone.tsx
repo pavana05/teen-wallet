@@ -310,6 +310,23 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
         setResendBlockedUntil(Date.now() + seconds * 1000);
       }
 
+      // Count "invalid" (wrong code) attempts and lock after MAX_VERIFY_ATTEMPTS.
+      // Network errors don't count — the user never actually got an answer.
+      if (kind === "invalid" || kind === "expired" || kind === "unknown") {
+        const next = verifyAttempts + 1;
+        setVerifyAttempts(next);
+        if (next >= MAX_VERIFY_ATTEMPTS) {
+          const lockUntil = Date.now() + VERIFY_LOCK_MS;
+          setVerifyLockedUntil(lockUntil);
+          setErrorKind("rate_limited");
+          setError(`Too many wrong codes. Try again in ${Math.ceil(VERIFY_LOCK_MS / 60_000)} min, or resend a new OTP.`);
+        } else if (kind === "invalid") {
+          // Make the remaining-attempts count visible without overwriting the toast.
+          const left = MAX_VERIFY_ATTEMPTS - next;
+          setError(`Re-enter the 6-digit code — ${left} attempt${left === 1 ? "" : "s"} left.`);
+        }
+      }
+
       // Keep entered digits on network errors so the user can just tap Try again.
       // For invalid/expired/unknown, clear and re-focus first slot.
       if (kind !== "network") {
