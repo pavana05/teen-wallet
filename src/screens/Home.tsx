@@ -497,7 +497,14 @@ export function Home() {
   // conditions by requiring the chunk to be loaded AND that the panel isn't
   // already open before flipping state.
   const openProfile = useCallback(() => {
-    if (showProfile || !profileReady) return;
+    if (showProfile) return;
+    // Kick the import in case the prefetch failed — Suspense will show
+    // the skeleton fallback while the chunk arrives.
+    if (!profileReady) {
+      import("@/components/ProfilePanel")
+        .then(() => setProfileReady(true))
+        .catch(() => { /* Suspense fallback covers this */ });
+    }
     void haptics.bloom();
     setNavCollapsed(false);
     setNavMode("profile-morph");
@@ -883,7 +890,7 @@ export function Home() {
                     icon={User}
                     label="Profile"
                     onClick={openProfile}
-                    disabled={!profileReady || showProfile}
+                    disabled={showProfile}
                     loading={!profileReady}
                   />
                 </span>
