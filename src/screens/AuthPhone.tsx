@@ -396,9 +396,20 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
                 </span>
               )}
             </label>
-            <p className="mt-2 text-[11px] text-white/45 tracking-wide">
-              We'll never share your number. SMS rates may apply.
-            </p>
+            {phoneHint ? (
+              <p
+                className={`mt-2 text-[11px] tracking-wide ${
+                  phoneState === "bad_prefix" ? "text-destructive" : "text-white/55"
+                }`}
+                aria-live="polite"
+              >
+                {phoneHint}
+              </p>
+            ) : (
+              <p className="mt-2 text-[11px] text-white/45 tracking-wide">
+                We'll never share your number. SMS rates may apply.
+              </p>
+            )}
 
             {hintAvailable && (
               <button
