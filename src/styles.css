@@ -3045,6 +3045,38 @@ button:focus-visible .hp-tile{
   background: rgba(255,255,255,.18);
   margin: 0 auto 14px;
 }
+
+/* Centered floating QR popup — sits above everything, no scroll required */
+.pp-qr-backdrop {
+  background: rgba(0,0,0,.62);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  animation: pp-fade .18s ease both;
+}
+.pp-qr-card {
+  width: 100%;
+  max-width: 360px;
+  border-radius: 24px;
+  background: linear-gradient(180deg, #18181b, #0a0a0a);
+  border: 1px solid rgba(255,255,255,.10);
+  box-shadow:
+    0 30px 80px -20px rgba(0,0,0,.7),
+    0 0 0 1px rgba(255,255,255,.04) inset,
+    0 1px 0 rgba(255,255,255,.06) inset;
+  padding: 18px 18px 22px;
+  animation: pp-qr-pop .26s cubic-bezier(.2,.8,.2,1) both;
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+@keyframes pp-qr-pop {
+  from { transform: translateY(8px) scale(.96); opacity: 0; }
+  to   { transform: translateY(0) scale(1); opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pp-qr-card { animation: none; }
+  .pp-qr-backdrop { animation: none; }
+}
 .pp-field { display: block; margin-top: 12px; }
 .pp-field > span { display: block; font-size: 11px; color: rgba(255,255,255,.55); margin-bottom: 6px; padding-left: 2px; }
 .pp-field input {
