@@ -226,6 +226,8 @@ function Index() {
             // Resume to whichever is more advanced (persisted/profile vs STAGE_3).
             setStage(rank[s] > rank["STAGE_3"] ? s : "STAGE_3");
           }} />
+        ) : needsGoogleLink && (stage === "STAGE_3" || stage === "STAGE_4" || stage === "STAGE_5") ? (
+          <LinkGoogle onLinked={markGoogleLinked} />
         ) : referralPending && (stage === "STAGE_3" || stage === "STAGE_4" || stage === "STAGE_5") ? (
           <OnboardingReferral onDone={markReferralDone} />
         ) : !permsSeen && (stage === "STAGE_3" || stage === "STAGE_4") ? (
