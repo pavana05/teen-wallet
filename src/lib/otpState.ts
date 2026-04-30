@@ -25,6 +25,8 @@ export interface PersistedOtp {
   resendBlockedUntil: number | null; // epoch ms
   resendCount?: number;              // # of resends in this attempt window
   cooldownTotalMs?: number | null;   // total duration of the *current* cooldown
+  verifyAttempts?: number;           // # of failed verify attempts this OTP
+  verifyLockedUntil?: number | null; // epoch ms — block verify until this time
   savedAt: number;
 }
 

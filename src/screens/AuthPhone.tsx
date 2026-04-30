@@ -1,7 +1,12 @@
 import { useState, useRef, useEffect } from "react";
 import { ArrowLeft, Sparkles } from "lucide-react";
 import { sendOtp, verifyOtp, setStage as persistStage, fetchProfile } from "@/lib/auth";
-import { isPhoneHintAvailable, requestPhoneHint } from "@/lib/phoneHint";
+import {
+  isPhoneHintAvailable,
+  requestPhoneHint,
+  liveNormalizePhoneInput,
+  classifyPhoneField,
+} from "@/lib/phoneHint";
 import { useApp, type Stage } from "@/lib/store";
 import { toast } from "sonner";
 import { PhoneVerified } from "./PhoneVerified";
@@ -30,6 +35,11 @@ const MAX_RESENDS_BEFORE_LOCK = RESEND_LADDER_S.length;
 const cooldownForCount = (count: number) =>
   RESEND_LADDER_S[Math.min(count, RESEND_LADDER_S.length - 1)];
 
+// Wrong-code attempt limiter. Independent from resend cooldown — protects
+// the verify endpoint from brute-force guessing of the 6-digit code.
+const MAX_VERIFY_ATTEMPTS = 5;
+const VERIFY_LOCK_MS = 5 * 60 * 1000; // 5-minute hard lock
+
 export function AuthPhone({ onDone }: { onDone: () => void }) {
   const [step, setStep] = useState<Step>("phone");
   const [phone, setPhone] = useState("");
@@ -44,6 +54,10 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
   const [cooldownTotalMs, setCooldownTotalMs] = useState<number>(RESEND_LADDER_S[0] * 1000);
   // Number of successful resends this attempt — drives the escalating ladder.
   const [resendCount, setResendCount] = useState<number>(0);
+  // Wrong-code attempts within the current OTP — locks verify after MAX_VERIFY_ATTEMPTS.
+  const [verifyAttempts, setVerifyAttempts] = useState<number>(0);
+  const [verifyLockedUntil, setVerifyLockedUntil] = useState<number | null>(null);
+  const [verifyLockTick, setVerifyLockTick] = useState(0);
   const inputs = useRef<(HTMLInputElement | null)[]>([]);
   const otpRowRef = useRef<HTMLDivElement | null>(null);
   const [hintAvailable, setHintAvailable] = useState(false);
@@ -72,9 +86,18 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
       setResendCount(rc);
       const totalMs = persisted.cooldownTotalMs ?? cooldownForCount(rc) * 1000;
       setCooldownTotalMs(totalMs);
+      setVerifyAttempts(persisted.verifyAttempts ?? 0);
+      setVerifyLockedUntil(persisted.verifyLockedUntil ?? null);
       setStep("otp");
     }
   }, []);
+
+  // 1s ticker to refresh the verify-lock countdown copy.
+  useEffect(() => {
+    if (!verifyLockedUntil || verifyLockedUntil <= Date.now()) return;
+    const t = setInterval(() => setVerifyLockTick((n) => n + 1), 1000);
+    return () => clearInterval(t);
+  }, [verifyLockedUntil]);
 
   // Detect Android Contact-Picker support so we can offer one-tap pre-fill.
   useEffect(() => {
@@ -87,12 +110,39 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
     if (hintBusy) return;
     setHintBusy(true);
     try {
-      const num = await requestPhoneHint();
-      if (num) {
-        setPhone(num);
-        setError("");
-      } else {
-        toast("No number selected", { description: "Pick a contact with your number, or type it in." });
+      const r = await requestPhoneHint();
+      switch (r.kind) {
+        case "ok":
+          setPhone(r.phone);
+          setError("");
+          toast.success("Number filled — review and tap Send OTP");
+          break;
+        case "cancelled":
+          // Silent — user backed out, no toast needed.
+          break;
+        case "permission":
+          toast.error("Permission needed", {
+            description: "Enable contacts permission in browser settings, or type your number manually.",
+          });
+          break;
+        case "no_match":
+          toast("That contact has no Indian mobile", {
+            description: "Pick a contact with a 10-digit number starting 6–9, or type yours below.",
+            action: { label: "Try again", onClick: () => void handleUseMyNumber() },
+          });
+          break;
+        case "unsupported":
+          toast("One-tap not supported here", {
+            description: "Type your 10-digit mobile below — we'll send the OTP.",
+          });
+          setHintAvailable(false);
+          break;
+        case "error":
+          toast.error("Couldn't open the picker", {
+            description: r.detail || "Try again, or type your number manually.",
+            action: { label: "Retry", onClick: () => void handleUseMyNumber() },
+          });
+          break;
       }
     } finally {
       setHintBusy(false);
@@ -120,8 +170,9 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
     saveOtpState({
       phone, digits: otp, error, errorKind, correlationId: errorId, busy,
       resendBlockedUntil, resendCount, cooldownTotalMs,
+      verifyAttempts, verifyLockedUntil,
     });
-  }, [step, phone, otp, error, errorKind, errorId, busy, resendBlockedUntil, resendCount, cooldownTotalMs]);
+  }, [step, phone, otp, error, errorKind, errorId, busy, resendBlockedUntil, resendCount, cooldownTotalMs, verifyAttempts, verifyLockedUntil]);
 
   // Auto-focus first empty OTP slot when entering the OTP step.
   useEffect(() => {
@@ -131,10 +182,25 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step]);
 
-  const valid = /^[6-9]\d{9}$/.test(phone);
+  const phoneState = classifyPhoneField(phone);
+  const valid = phoneState === "valid";
+  // Live, friendly hint message for the field — only shown when there's something to say.
+  const phoneHint =
+    phoneState === "bad_prefix"
+      ? "Indian mobiles start with 6, 7, 8 or 9."
+      : phoneState === "incomplete" && phone.length > 0
+        ? `${10 - phone.length} more digit${10 - phone.length === 1 ? "" : "s"} to go`
+        : "";
   const formatted = phone.replace(/(\d{5})(\d{0,5})/, (_, a, b) => (b ? `${a} ${b}` : a));
   const resendBlocked = resendIn > 0 || (resendBlockedUntil !== null && resendBlockedUntil > Date.now());
   const lockedOut = resendCount >= MAX_RESENDS_BEFORE_LOCK && resendBlocked;
+  // Verify-side lockout: derived live so the UI auto-unlocks when the timer expires.
+  // `verifyLockTick` participates in the dep so the derived value re-evaluates each second.
+  void verifyLockTick;
+  const verifyLocked = verifyLockedUntil !== null && verifyLockedUntil > Date.now();
+  const verifyLockSeconds = verifyLocked ? Math.ceil((verifyLockedUntil! - Date.now()) / 1000) : 0;
+  const verifyAttemptsLeft = Math.max(0, MAX_VERIFY_ATTEMPTS - verifyAttempts);
+
 
   /**
    * Start a fresh cooldown window. `escalate=true` advances the ladder (used
@@ -167,6 +233,9 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
       toast.success(`OTP sent — dev code: ${r.devOtp}`);
       // First send keeps the base cooldown; subsequent sends escalate.
       startCooldown(step === "otp");
+      // A fresh OTP resets the verify-attempt counter (new code, new chances).
+      setVerifyAttempts(0);
+      setVerifyLockedUntil(null);
       recordCheckpoint({
         screen: "auth",
         action: "auth_otp_sent",
@@ -190,6 +259,13 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
   }
 
   async function handleVerify(code: string) {
+    // Hard client-side block when the user has burned through their attempts.
+    if (verifyLockedUntil !== null && verifyLockedUntil > Date.now()) {
+      const secs = Math.ceil((verifyLockedUntil - Date.now()) / 1000);
+      setError(`Too many wrong codes. Try again in ${Math.ceil(secs / 60)} min.`);
+      setErrorKind("rate_limited");
+      return;
+    }
     setBusy(true); setError(""); setErrorKind(null); setErrorId(null);
     try {
       await verifyOtp(phone, code);
@@ -234,6 +310,23 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
         setResendBlockedUntil(Date.now() + seconds * 1000);
       }
 
+      // Count "invalid" (wrong code) attempts and lock after MAX_VERIFY_ATTEMPTS.
+      // Network errors don't count — the user never actually got an answer.
+      if (kind === "invalid" || kind === "expired" || kind === "unknown") {
+        const next = verifyAttempts + 1;
+        setVerifyAttempts(next);
+        if (next >= MAX_VERIFY_ATTEMPTS) {
+          const lockUntil = Date.now() + VERIFY_LOCK_MS;
+          setVerifyLockedUntil(lockUntil);
+          setErrorKind("rate_limited");
+          setError(`Too many wrong codes. Try again in ${Math.ceil(VERIFY_LOCK_MS / 60_000)} min, or resend a new OTP.`);
+        } else if (kind === "invalid") {
+          // Make the remaining-attempts count visible without overwriting the toast.
+          const left = MAX_VERIFY_ATTEMPTS - next;
+          setError(`Re-enter the 6-digit code — ${left} attempt${left === 1 ? "" : "s"} left.`);
+        }
+      }
+
       // Keep entered digits on network errors so the user can just tap Try again.
       // For invalid/expired/unknown, clear and re-focus first slot.
       if (kind !== "network") {
@@ -254,6 +347,8 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
   }
 
   function onOtpChange(i: number, v: string) {
+    // Don't even let typing happen while locked — keeps the row stable.
+    if (verifyLocked) return;
     const d = v.replace(/\D/g, "").slice(-1);
     const next = [...otp]; next[i] = d; setOtp(next);
     // Editing any digit clears the prior error so the user gets immediate feedback.
@@ -324,7 +419,21 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
                 id="tw-phone"
                 inputMode="numeric"
                 value={phone}
-                onChange={(e) => { setError(""); setPhone(e.target.value.replace(/\D/g, "").slice(0, 10)); }}
+                onChange={(e) => {
+                  setError("");
+                  // Live normalization: strips +91, leading 0, spaces, dashes, parens
+                  // so pasting "+91 98765 43210" or "098765 43210" Just Works.
+                  setPhone(liveNormalizePhoneInput(e.target.value));
+                }}
+                onPaste={(e) => {
+                  // Force-normalize pasted strings even when they include "+" / spaces
+                  // that the inputMode=numeric keyboard wouldn't allow.
+                  const text = e.clipboardData?.getData("text") ?? "";
+                  if (!text) return;
+                  e.preventDefault();
+                  setError("");
+                  setPhone(liveNormalizePhoneInput(text));
+                }}
                 className="tw-phone-input-hidden"
                 aria-invalid={!!error}
                 aria-describedby={error ? "tw-phone-error" : undefined}
@@ -341,9 +450,20 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
                 </span>
               )}
             </label>
-            <p className="mt-2 text-[11px] text-white/45 tracking-wide">
-              We'll never share your number. SMS rates may apply.
-            </p>
+            {phoneHint ? (
+              <p
+                className={`mt-2 text-[11px] tracking-wide ${
+                  phoneState === "bad_prefix" ? "text-destructive" : "text-white/55"
+                }`}
+                aria-live="polite"
+              >
+                {phoneHint}
+              </p>
+            ) : (
+              <p className="mt-2 text-[11px] text-white/45 tracking-wide">
+                We'll never share your number. SMS rates may apply.
+              </p>
+            )}
 
             {hintAvailable && (
               <button
@@ -376,12 +496,33 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
             Sent to +91 {formatted} — <button onClick={() => setStep("phone")} className="text-primary underline">Edit number</button>
           </p>
 
+          {verifyLocked && (
+            <div
+              className="mt-5 rounded-xl border border-destructive/40 bg-destructive/10 px-4 py-3"
+              role="alert"
+            >
+              <p className="text-[12.5px] font-semibold text-destructive">
+                Verification paused for {Math.floor(verifyLockSeconds / 60)}:{String(verifyLockSeconds % 60).padStart(2, "0")}
+              </p>
+              <p className="text-[11.5px] text-destructive/85 mt-1 leading-relaxed">
+                Too many wrong codes on this OTP. Wait it out, or tap <span className="font-semibold">Resend</span> below to get a fresh code (resets your attempts).
+              </p>
+            </div>
+          )}
+
+          {!verifyLocked && verifyAttempts > 0 && verifyAttemptsLeft > 0 && (
+            <p className="mt-4 text-[11.5px] text-amber-300/85" aria-live="polite">
+              {verifyAttemptsLeft} attempt{verifyAttemptsLeft === 1 ? "" : "s"} left before this OTP locks.
+            </p>
+          )}
+
           <div
             ref={otpRowRef}
             onClick={focusOtp}
             role="group"
             aria-label="6-digit OTP"
-            className={`mt-12 flex gap-3 ${error ? "tw-shake" : ""}`}
+            className={`mt-8 flex gap-3 ${error ? "tw-shake" : ""} ${verifyLocked ? "opacity-60 pointer-events-none" : ""}`}
+            aria-disabled={verifyLocked}
           >
             {otp.map((v, i) => (
               <input
@@ -390,7 +531,7 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
                 inputMode="numeric"
                 maxLength={1}
                 value={v}
-                disabled={busy}
+                disabled={busy || verifyLocked}
                 aria-invalid={!!error}
                 aria-describedby={error ? "tw-otp-error" : undefined}
                 onChange={(e) => onOtpChange(i, e.target.value)}
