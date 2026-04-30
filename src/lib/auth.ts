@@ -53,6 +53,9 @@ export async function verifyOtp(phone10: string, otp: string) {
       }
       throw signUp.error;
     }
+    // Mark this device as a fresh signup so the post-OTP flow knows to show
+    // the mandatory Google-link step. Cleared once the user completes it.
+    try { localStorage.setItem("tw.signup.needsGoogleLink", "1"); } catch { /* ignore */ }
     // Auto-confirm: session may be returned directly from signUp.
     if (signUp.data.session) {
       if (signUp.data.user) {

@@ -10,6 +10,7 @@ import {
 import { useApp, type Stage } from "@/lib/store";
 import { toast } from "sonner";
 import { PhoneVerified } from "./PhoneVerified";
+import { VerifyGoogleOnNewDevice } from "./VerifyGoogleOnNewDevice";
 import { isJustVerified } from "@/lib/justVerified";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -24,8 +25,12 @@ import { CopyableErrorId } from "@/components/CopyableErrorId";
 import { ResendCountdown } from "@/components/ResendCountdown";
 import { recordCheckpoint } from "@/lib/navState";
 import { maybeInsertWelcome } from "@/lib/notify";
+import {
+  getLoginRequirements,
+  registerCurrentDeviceTrusted,
+} from "@/lib/googleLink";
 
-type Step = "phone" | "otp" | "verified";
+type Step = "phone" | "google-gate" | "otp" | "verified";
 
 // Escalating cooldown ladder. Each successive resend within the same OTP attempt
 // extends the wait so a user (or script) can't hammer the SMS provider. The last
@@ -62,6 +67,9 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
   const otpRowRef = useRef<HTMLDivElement | null>(null);
   const [hintAvailable, setHintAvailable] = useState(false);
   const [hintBusy, setHintBusy] = useState(false);
+  // Google-gate state — populated when get_login_requirements says this phone
+  // belongs to an account that has Google linked.
+  const [googleEmailHint, setGoogleEmailHint] = useState<string | null>(null);
   const { setPendingPhone, hydrateFromProfile } = useApp();
 
   // Restore mid-celebration session, OR a persisted in-progress OTP attempt.
@@ -228,6 +236,23 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
       stage: "STAGE_2",
     });
     try {
+      // New-device gate: BEFORE sending OTP, check whether this phone is
+      // bound to a Google account. If so, the user must complete Google
+      // verification on this device first. Skipped on resend (we already
+      // passed the gate when we entered the OTP step).
+      if (step === "phone") {
+        try {
+          const req = await getLoginRequirements(phone);
+          if (req.requires_google) {
+            setGoogleEmailHint(req.google_email_hint);
+            setStep("google-gate");
+            return;
+          }
+        } catch (gateErr) {
+          // Don't block signup if the lookup itself fails — just log it.
+          console.warn("[auth] login requirements lookup failed", gateErr);
+        }
+      }
       const r = await sendOtp(phone);
       setPendingPhone("+91" + phone);
       toast.success(`OTP sent — dev code: ${r.devOtp}`);
@@ -284,6 +309,13 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
       if (!p || p.onboarding_stage !== resumedStage) {
         await persistStage(resumedStage);
       }
+      // For returning users that already have Google linked, this device just
+      // proved itself (Google match was verified pre-OTP, OR the device was
+      // already trusted). Mark it trusted so we don't re-prompt next time.
+      // Best-effort: failures shouldn't block sign-in.
+      void registerCurrentDeviceTrusted().catch((err) => {
+        console.warn("[auth] register_trusted_device failed", err);
+      });
       clearOtpState();
       // Greet the user once per calendar day with an in-app entry notification.
       if (p?.id) {
@@ -365,6 +397,27 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
 
   if (step === "verified") {
     return <PhoneVerified onContinue={onDone} />;
+  }
+
+  if (step === "google-gate") {
+    return (
+      <VerifyGoogleOnNewDevice
+        phone10={phone}
+        emailHint={googleEmailHint}
+        onBack={() => {
+          setStep("phone");
+          setGoogleEmailHint(null);
+        }}
+        onVerified={() => {
+          // Google identity matched the linked account — now actually send
+          // the OTP. Reset to phone step internally and re-trigger.
+          setStep("phone");
+          setGoogleEmailHint(null);
+          // Defer one tick so React re-renders the phone step before we send.
+          setTimeout(() => { void handleSendOtp(); }, 0);
+        }}
+      />
+    );
   }
 
   return (

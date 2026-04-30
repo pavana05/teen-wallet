@@ -9,6 +9,7 @@ import { lazyWithRetry } from "@/lib/lazyWithRetry";
 
 const Onboarding = lazyWithRetry(() => import("@/screens/Onboarding").then(m => ({ default: m.Onboarding })));
 const AuthPhone = lazyWithRetry(() => import("@/screens/AuthPhone").then(m => ({ default: m.AuthPhone })));
+const LinkGoogle = lazyWithRetry(() => import("@/screens/LinkGoogle").then(m => ({ default: m.LinkGoogle })));
 const KycFlow = lazyWithRetry(() => import("@/screens/KycFlow").then(m => ({ default: m.KycFlow })));
 const KycPending = lazyWithRetry(() => import("@/screens/KycPending").then(m => ({ default: m.KycPending })));
 const Permissions = lazyWithRetry(() => import("@/screens/Permissions").then(m => ({ default: m.Permissions })));
@@ -16,6 +17,7 @@ const Home = lazyWithRetry(() => import("@/screens/Home").then(m => ({ default: 
 const OnboardingReferral = lazyWithRetry(() => import("@/screens/OnboardingReferral").then(m => ({ default: m.OnboardingReferral })));
 
 const PERMISSIONS_DONE_KEY = "tw_permissions_seen_v1";
+const SIGNUP_NEEDS_GOOGLE_KEY = "tw.signup.needsGoogleLink";
 
 import { shouldShowReferralPrompt } from "@/lib/referral";
 
@@ -106,6 +108,17 @@ function Index() {
   // screen never reappears on subsequent launches.
   const [referralPending, setReferralPending] = useState<boolean>(() => shouldShowReferralPrompt());
   const markReferralDone = () => setReferralPending(false);
+
+  // Mandatory Google-link step for fresh signups. Set by lib/auth.ts on
+  // signUp() success; cleared once the user completes linking.
+  const [needsGoogleLink, setNeedsGoogleLink] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    try { return localStorage.getItem(SIGNUP_NEEDS_GOOGLE_KEY) === "1"; } catch { return false; }
+  });
+  const markGoogleLinked = () => {
+    try { localStorage.removeItem(SIGNUP_NEEDS_GOOGLE_KEY); } catch { /* ignore */ }
+    setNeedsGoogleLink(false);
+  };
 
   useEffect(() => {
     let mounted = true;
@@ -213,6 +226,8 @@ function Index() {
             // Resume to whichever is more advanced (persisted/profile vs STAGE_3).
             setStage(rank[s] > rank["STAGE_3"] ? s : "STAGE_3");
           }} />
+        ) : needsGoogleLink && (stage === "STAGE_3" || stage === "STAGE_4" || stage === "STAGE_5") ? (
+          <LinkGoogle onLinked={markGoogleLinked} />
         ) : referralPending && (stage === "STAGE_3" || stage === "STAGE_4" || stage === "STAGE_5") ? (
           <OnboardingReferral onDone={markReferralDone} />
         ) : !permsSeen && (stage === "STAGE_3" || stage === "STAGE_4") ? (
