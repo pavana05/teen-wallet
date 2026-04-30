@@ -9,6 +9,7 @@ import { lazyWithRetry } from "@/lib/lazyWithRetry";
 
 const Onboarding = lazyWithRetry(() => import("@/screens/Onboarding").then(m => ({ default: m.Onboarding })));
 const AuthPhone = lazyWithRetry(() => import("@/screens/AuthPhone").then(m => ({ default: m.AuthPhone })));
+const LinkGoogle = lazyWithRetry(() => import("@/screens/LinkGoogle").then(m => ({ default: m.LinkGoogle })));
 const KycFlow = lazyWithRetry(() => import("@/screens/KycFlow").then(m => ({ default: m.KycFlow })));
 const KycPending = lazyWithRetry(() => import("@/screens/KycPending").then(m => ({ default: m.KycPending })));
 const Permissions = lazyWithRetry(() => import("@/screens/Permissions").then(m => ({ default: m.Permissions })));
@@ -16,6 +17,7 @@ const Home = lazyWithRetry(() => import("@/screens/Home").then(m => ({ default: 
 const OnboardingReferral = lazyWithRetry(() => import("@/screens/OnboardingReferral").then(m => ({ default: m.OnboardingReferral })));
 
 const PERMISSIONS_DONE_KEY = "tw_permissions_seen_v1";
+const SIGNUP_NEEDS_GOOGLE_KEY = "tw.signup.needsGoogleLink";
 
 import { shouldShowReferralPrompt } from "@/lib/referral";
 
