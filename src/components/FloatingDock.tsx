@@ -16,6 +16,7 @@
 //   • Tap feedback: haptics (already platform-aware) + on-press scale dip,
 //     icon pulse, and a soft ripple bloom on every nav tap.
 import { forwardRef, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Home as HomeIcon, ScanLine, User } from "lucide-react";
 import { ScanPay } from "@/screens/ScanPay";
 import { haptics } from "@/lib/haptics";
@@ -173,7 +174,7 @@ export function FloatingDock({ active, onHome, onProfile, hidden }: DockProps) {
     };
   }, [active, collapsed, hidden]);
 
-  return (
+  const dockUi = (
     <>
       <nav
         ref={navRef}
@@ -181,7 +182,7 @@ export function FloatingDock({ active, onHome, onProfile, hidden }: DockProps) {
         aria-hidden={hidden ? "true" : "false"}
         data-collapsed={collapsed ? "true" : "false"}
         data-reduced={reduced ? "true" : "false"}
-        className={`fd-shell fd-shell-fixed z-[55] ${hidden ? "opacity-0 pointer-events-none translate-y-3" : "opacity-100"}`}
+        className={`fd-shell fd-shell-fixed z-[60] ${hidden ? "opacity-0 pointer-events-none translate-y-3" : "opacity-100"}`}
       >
         <div className="flex items-center gap-3">
           <div ref={pillRef} className="fd-pill flex items-center relative" role="tablist" aria-label="Sections">
@@ -234,6 +235,18 @@ export function FloatingDock({ active, onHome, onProfile, hidden }: DockProps) {
           <span className="fd-launch-bubble" />
         </div>
       )}
+    </>
+  );
+
+  return (
+    <>
+      {/* Portal the dock + launch overlay to <body> so position: fixed is
+          never trapped by a transformed/scrolling ancestor (e.g. the
+          ProfilePanel's absolute container or pull-to-refresh wrapper).
+          This makes the dock truly viewport-pinned on every screen. */}
+      {typeof document !== "undefined"
+        ? createPortal(dockUi, document.body)
+        : dockUi}
 
       {scanOpen && (
         <div

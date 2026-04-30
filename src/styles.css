@@ -123,12 +123,15 @@
   html, body, #root {
     height: 100%;
     width: 100%;
-    max-width: 100vw;
+    /* Use 100% (not 100vw) — 100vw includes the scrollbar on some browsers
+       which produces a tiny right-side gutter. */
+    max-width: 100%;
     background: #050505;
     /* Kill any stray horizontal scrollbar / right-side gutter caused by
        child elements that overflow the viewport width. */
     overflow-x: hidden;
   }
+  body { margin-right: 0 !important; }
   body {
     color: var(--color-foreground);
     font-family: var(--font-display);
@@ -6870,12 +6873,12 @@ html.motion-off    .otp-resend-ring svg circle { transition: none !important; }
 .fd-shell {
   width: calc(100% - 2rem);
   max-width: 320px;
-  /* Spring contraction */
+  /* Smooth premium spring — coordinates transform/opacity/width together */
   transition:
-    transform 460ms cubic-bezier(.22,1,.36,1),
-    opacity 320ms ease-out,
+    transform 520ms cubic-bezier(.22,1,.36,1),
+    opacity 360ms cubic-bezier(.22,1,.36,1),
     max-width 520ms cubic-bezier(.22,1,.36,1);
-  will-change: max-width, transform;
+  will-change: max-width, transform, opacity;
 }
 
 /* Pinned-to-viewport variant: stays at the bottom of the device on every
@@ -6889,7 +6892,7 @@ html.motion-off    .otp-resend-ring svg circle { transition: none !important; }
   bottom: calc(20px + env(safe-area-inset-bottom, 0px));
   transform: translateX(-50%);
   /* Keep transform composition stable through the centering shift. */
-  will-change: transform, max-width;
+  will-change: transform, max-width, opacity;
 }
 /* When hidden, slide down slightly without losing the centering transform. */
 .fd-shell-fixed.translate-y-3 {
