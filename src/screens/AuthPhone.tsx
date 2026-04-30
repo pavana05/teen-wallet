@@ -46,6 +46,8 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
   const [resendCount, setResendCount] = useState<number>(0);
   const inputs = useRef<(HTMLInputElement | null)[]>([]);
   const otpRowRef = useRef<HTMLDivElement | null>(null);
+  const [hintAvailable, setHintAvailable] = useState(false);
+  const [hintBusy, setHintBusy] = useState(false);
   const { setPendingPhone, hydrateFromProfile } = useApp();
 
   // Restore mid-celebration session, OR a persisted in-progress OTP attempt.
