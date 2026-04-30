@@ -92,12 +92,39 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
     if (hintBusy) return;
     setHintBusy(true);
     try {
-      const num = await requestPhoneHint();
-      if (num) {
-        setPhone(num);
-        setError("");
-      } else {
-        toast("No number selected", { description: "Pick a contact with your number, or type it in." });
+      const r = await requestPhoneHint();
+      switch (r.kind) {
+        case "ok":
+          setPhone(r.phone);
+          setError("");
+          toast.success("Number filled — review and tap Send OTP");
+          break;
+        case "cancelled":
+          // Silent — user backed out, no toast needed.
+          break;
+        case "permission":
+          toast.error("Permission needed", {
+            description: "Enable contacts permission in browser settings, or type your number manually.",
+          });
+          break;
+        case "no_match":
+          toast("That contact has no Indian mobile", {
+            description: "Pick a contact with a 10-digit number starting 6–9, or type yours below.",
+            action: { label: "Try again", onClick: () => void handleUseMyNumber() },
+          });
+          break;
+        case "unsupported":
+          toast("One-tap not supported here", {
+            description: "Type your 10-digit mobile below — we'll send the OTP.",
+          });
+          setHintAvailable(false);
+          break;
+        case "error":
+          toast.error("Couldn't open the picker", {
+            description: r.detail || "Try again, or type your number manually.",
+            action: { label: "Retry", onClick: () => void handleUseMyNumber() },
+          });
+          break;
       }
     } finally {
       setHintBusy(false);
