@@ -233,6 +233,9 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
       toast.success(`OTP sent — dev code: ${r.devOtp}`);
       // First send keeps the base cooldown; subsequent sends escalate.
       startCooldown(step === "otp");
+      // A fresh OTP resets the verify-attempt counter (new code, new chances).
+      setVerifyAttempts(0);
+      setVerifyLockedUntil(null);
       recordCheckpoint({
         screen: "auth",
         action: "auth_otp_sent",
