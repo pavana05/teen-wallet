@@ -185,7 +185,7 @@ export function FloatingDock({ active, onHome, onProfile, hidden }: DockProps) {
         className={`fd-shell fd-shell-fixed z-[60] ${hidden ? "opacity-0 pointer-events-none translate-y-3" : "opacity-100"}`}
       >
         <div className="flex items-center gap-3">
-          <div ref={pillRef} className="fd-pill flex items-center relative mx-[116px] px-[8px]" role="tablist" aria-label="Sections">
+          <div ref={pillRef} className="fd-pill flex items-center relative px-[8px]" role="tablist" aria-label="Sections">
             {/* Sliding active-tab indicator — absolutely positioned, animates left/width */}
             <span
               className="fd-tab-indicator"
