@@ -29,6 +29,7 @@ import {
 } from "@/lib/paymentAttempts.functions";
 import { sampleFrames } from "@/lib/fpsGuard";
 import { haptics } from "@/lib/haptics";
+import { encryptJson, decryptJson } from "@/lib/persistCrypto";
 import {
   notifyPaymentSent,
   notifyPaymentFailed,
