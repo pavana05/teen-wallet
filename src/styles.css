@@ -6966,7 +6966,7 @@ html.motion-off    .otp-resend-ring svg circle { transition: none !important; }
    --fd-shimmer : pill shimmer sweep               (2.6s loop)
    ============================================================ */
 .fd-shell {
-  width: calc(100% - 2rem);
+  width: min(calc(100dvw - 2rem), 320px);
   max-width: 320px;
   /* Smooth premium spring — coordinates transform/opacity/width together */
   transition:
@@ -6994,7 +6994,7 @@ html.motion-off    .otp-resend-ring svg circle { transition: none !important; }
   transform: translateX(-50%) translateY(0.75rem);
 }
 /* Collapsed — hugs the active tab + FAB */
-.fd-shell[data-collapsed="true"] { max-width: 200px; }
+.fd-shell[data-collapsed="true"] { width: min(calc(100dvw - 2rem), 200px); max-width: 200px; }
 
 /* JS-driven reduced-motion gate (live matchMedia) — instant, no transitions */
 .fd-shell[data-reduced="true"],
