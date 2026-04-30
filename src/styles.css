@@ -120,12 +120,21 @@
 
 @layer base {
   * { border-color: var(--color-border); }
-  html, body, #root { height: 100%; background: #050505; }
+  html, body, #root {
+    height: 100%;
+    width: 100%;
+    max-width: 100vw;
+    background: #050505;
+    /* Kill any stray horizontal scrollbar / right-side gutter caused by
+       child elements that overflow the viewport width. */
+    overflow-x: hidden;
+  }
   body {
     color: var(--color-foreground);
     font-family: var(--font-display);
     -webkit-font-smoothing: antialiased;
     letter-spacing: -0.01em;
+    margin: 0;
   }
   h1, h2, h3 { letter-spacing: -0.025em; }
 }
