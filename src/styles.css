@@ -150,12 +150,15 @@ body {
   overscroll-behavior: none;
 }
 
-body > div:first-child {
+body > div:first-child,
+.tw-page-shell {
   width: 100%;
   max-width: 100%;
   height: 100svh;
   overflow: hidden;
 }
+
+.tw-page-shell { min-height: 100svh !important; }
 
 @layer components {
   /* The phone frame on desktop */
