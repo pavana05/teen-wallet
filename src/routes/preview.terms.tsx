@@ -17,7 +17,7 @@ function TermsPage() {
     <div className="flex-1 flex flex-col bg-background text-foreground overflow-hidden">
       <header className="flex items-center gap-3 px-4 py-3 border-b border-border/40">
         <button
-          onClick={() => nav({ to: "/" })}
+          onClick={() => goBackInApp(nav)}
           aria-label="Back"
           className="w-9 h-9 grid place-items-center rounded-full hover:bg-muted/40 transition"
         >
