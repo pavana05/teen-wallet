@@ -801,7 +801,7 @@ export function Home() {
         data-mode={navMode}
         data-collapsed={navCollapsed ? "true" : "false"}
         aria-hidden={showProfile ? "true" : "false"}
-        className={`hp-nav-shell fixed bottom-5 left-1/2 -translate-x-1/2 z-50 transition-opacity duration-300 ease-out ${showProfile ? "opacity-0 pointer-events-none translate-y-4" : "opacity-100"}`}
+        className={`hp-nav-shell hp-nav-fixed z-50 transition-opacity duration-300 ease-out ${showProfile ? "opacity-0 pointer-events-none translate-y-4" : "opacity-100"}`}
       >
         <div className="flex items-center gap-3">
           <div className="hp-nav hp-nav-pill flex-1" role="tablist" aria-label="Sections">
