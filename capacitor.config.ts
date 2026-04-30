@@ -4,14 +4,22 @@ const config: CapacitorConfig = {
   appId: "com.teenwallet.app",
   appName: "Teen Wallet",
   // This app uses TanStack Start (SSR + server functions), so it cannot be
-  // bundled as static assets. Capacitor wraps the published Lovable URL.
+  // bundled as static assets. Capacitor wraps the canonical published domain.
+  // Use the final domain directly so native launch does not follow a web
+  // redirect from the old lovable.app host into the external browser.
   // `webDir` still has to point at SOMETHING that exists, so we use a tiny
-  // bootstrap folder that just redirects — the real app loads from `server.url`.
+  // bootstrap folder for Capacitor's sanity check.
   webDir: "capacitor-shell",
   server: {
-    url: "https://teen-wallet.lovable.app",
+    url: "https://teenwallet.app",
+    appStartPath: "/",
     cleartext: false,
     androidScheme: "https",
+    allowNavigation: [
+      "teenwallet.app",
+      "www.teenwallet.app",
+      "teen-wallet.lovable.app",
+    ],
   },
   android: {
     allowMixedContent: false,

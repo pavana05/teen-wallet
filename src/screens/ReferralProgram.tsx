@@ -38,7 +38,7 @@ export function ReferralProgram({ onBack }: Props) {
   }, [userId]);
 
   const code = stats?.code ?? "";
-  const shareUrl = code ? `https://teen-wallet.lovable.app/?ref=${code}` : "";
+  const shareUrl = code ? `https://teenwallet.app/?ref=${code}` : "";
   const shareText = code
     ? `Join me on TeenWallet — use my code ${code} and we both get a bonus 🎉 ${shareUrl}`
     : "";

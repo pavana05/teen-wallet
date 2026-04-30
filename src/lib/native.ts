@@ -12,6 +12,8 @@ import { supabase } from "@/integrations/supabase/client";
 export async function initNative() {
   if (!Capacitor.isNativePlatform()) return;
 
+  installNativeNavigationGuard();
+
   try {
     await StatusBar.setStyle({ style: Style.Dark });
     await StatusBar.setBackgroundColor({ color: "#050505" });
@@ -52,3 +54,45 @@ export async function initNative() {
 
 export const isNative = () => Capacitor.isNativePlatform();
 export const nativePlatform = () => Capacitor.getPlatform();
+
+const APP_HOSTS = new Set(["teenwallet.app", "www.teenwallet.app", "teen-wallet.lovable.app"]);
+
+function installNativeNavigationGuard() {
+  const w = window as typeof window & { __teenWalletNativeNavGuard?: boolean; __teenWalletOpen?: typeof window.open };
+  if (w.__teenWalletNativeNavGuard) return;
+  w.__teenWalletNativeNavGuard = true;
+
+  const toUrl = (raw: string | URL) => {
+    try { return new URL(String(raw), window.location.href); }
+    catch { return null; }
+  };
+
+  window.addEventListener("click", (event) => {
+    if (!(event.target instanceof Element)) return;
+    const anchor = event.target.closest("a[href]") as HTMLAnchorElement | null;
+    const rawHref = anchor?.getAttribute("href");
+    if (!rawHref || rawHref.startsWith("#")) return;
+
+    const url = toUrl(rawHref);
+    if (!url || (url.protocol !== "http:" && url.protocol !== "https:")) return;
+
+    event.preventDefault();
+    if (APP_HOSTS.has(url.hostname)) {
+      window.location.assign(`${url.pathname}${url.search}${url.hash}`);
+    }
+  }, true);
+
+  w.__teenWalletOpen = window.open;
+  window.open = ((url?: string | URL, target?: string, features?: string) => {
+    if (!url) return null;
+    const parsed = toUrl(url);
+    if (parsed && (parsed.protocol === "http:" || parsed.protocol === "https:")) {
+      if (APP_HOSTS.has(parsed.hostname)) {
+        window.location.assign(`${parsed.pathname}${parsed.search}${parsed.hash}`);
+        return window;
+      }
+      return null;
+    }
+    return w.__teenWalletOpen?.call(window, String(url), target, features) ?? null;
+  }) as typeof window.open;
+}
