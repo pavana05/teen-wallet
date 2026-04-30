@@ -226,14 +226,10 @@ export function Home() {
       .eq("user_id", userId)
       .order("created_at", { ascending: false })
       .limit(20);
-    // Anti-flicker: keep skeleton on screen for at least 480ms total so it
-    // never flashes briefly on instant network responses, then crossfades into
-    // the loaded content via the .hp-fade-in 400ms ease-out animation.
-    const elapsed = performance.now() - loadStartRef.current;
-    const minSkeletonMs = 480;
-    if (elapsed < minSkeletonMs) {
-      await new Promise((r) => setTimeout(r, minSkeletonMs - elapsed));
-    }
+    // Show data as soon as it arrives. The previous 480ms artificial
+    // skeleton hold was making Home feel sluggish on every cold mount —
+    // the .hp-fade-in CSS animation already provides a smooth crossfade,
+    // so a tiny natural delay is enough.
     if (err) {
       setError(err.message);
       setShakeKey((k) => k + 1);
