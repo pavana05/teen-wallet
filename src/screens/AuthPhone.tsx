@@ -1,7 +1,12 @@
 import { useState, useRef, useEffect } from "react";
 import { ArrowLeft, Sparkles } from "lucide-react";
 import { sendOtp, verifyOtp, setStage as persistStage, fetchProfile } from "@/lib/auth";
-import { isPhoneHintAvailable, requestPhoneHint } from "@/lib/phoneHint";
+import {
+  isPhoneHintAvailable,
+  requestPhoneHint,
+  liveNormalizePhoneInput,
+  classifyPhoneField,
+} from "@/lib/phoneHint";
 import { useApp, type Stage } from "@/lib/store";
 import { toast } from "sonner";
 import { PhoneVerified } from "./PhoneVerified";
