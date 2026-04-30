@@ -85,10 +85,10 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
 
   // Hydrate persisted flow (scan phase + parsed payload + amount) so a
   // refresh / accidental nav doesn't drop the user back into a broken loop.
-  const persisted = readPersisted();
-  const [phase, setPhase] = useState<Phase>(persisted?.phase ?? "scanning");
-  const [payload, setPayload] = useState<UpiPayload | null>(persisted?.payload ?? null);
-  const [amount, setAmount] = useState<number>(persisted?.amount ?? 0);
+  // Hydration is async because the persisted blob is AES-GCM encrypted.
+  const [phase, setPhase] = useState<Phase>("scanning");
+  const [payload, setPayload] = useState<UpiPayload | null>(null);
+  const [amount, setAmount] = useState<number>(0);
   const [resultMsg, setResultMsg] = useState("");
   const [failKind, setFailKind] = useState<FailKind>("generic");
   // Inline error shown directly within the Confirm screen (does not eject the
@@ -98,23 +98,43 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
   // The actual transaction returned from the API after a successful insert.
   // Drives the success screen's reference ID + receipt PDF.
   const [savedTxn, setSavedTxn] = useState<SavedTxn | null>(null);
-  const [note, setNote] = useState<string>(persisted?.note ?? "");
+  const [note, setNote] = useState<string>("");
   // Bump this to force-remount the ScannerView and dispose its camera + Html5Qrcode instance.
   const [scannerKey, setScannerKey] = useState(0);
+  const [hydrated, setHydrated] = useState(false);
 
   // Persisted server-side payment attempt id. When present, we are mid-flow
   // and polling the backend for status updates rather than running a timer.
   const [attemptId, setAttemptId] = useState<string | null>(() => readAttemptId());
 
+  // One-shot async hydration from encrypted localStorage.
+  useEffect(() => {
+    let cancelled = false;
+    void readPersisted().then((p) => {
+      if (cancelled) return;
+      if (p) {
+        setPhase(p.phase);
+        setPayload(p.payload);
+        setAmount(p.amount ?? 0);
+        setNote(p.note ?? "");
+      }
+      setHydrated(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   // Keep persistence in sync; clear on terminal states. Including `note` so a
   // user-typed memo survives accidental nav-away mid-flow.
   useEffect(() => {
+    if (!hydrated) return;
     if (phase === "scanning" || phase === "confirm") {
-      writePersisted({ phase, payload, amount, note });
+      void writePersisted({ phase, payload, amount, note });
     } else {
       clearPersisted();
     }
-  }, [phase, payload, amount, note]);
+  }, [hydrated, phase, payload, amount, note]);
 
   // Mirror attemptId into localStorage so a refresh during processing
   // resumes against the same backend record.
