@@ -9080,3 +9080,48 @@ html.motion-off    .otp-resend-ring svg circle { transition: none !important; }
 @media (prefers-reduced-motion: reduce) {
   .sp2-confirm-pill, .sp2-confirm-glow { animation: none !important; }
 }
+
+/* ============================================================
+   Premium skeleton shimmer — used by lazy-loaded panels.
+   Soft champagne-tinted sweep across a subtle glass surface.
+   ============================================================ */
+.tw-skel {
+  position: relative;
+  overflow: hidden;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.025));
+  border: 1px solid rgba(255,255,255,.04);
+  isolation: isolate;
+}
+.tw-skel::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    100deg,
+    transparent 30%,
+    rgba(255,255,255,.07) 48%,
+    rgba(212,197,160,.10) 50%,
+    rgba(255,255,255,.07) 52%,
+    transparent 70%
+  );
+  transform: translateX(-100%);
+  animation: tw-skel-sweep 1.6s cubic-bezier(.45,.05,.55,.95) infinite;
+  pointer-events: none;
+}
+@keyframes tw-skel-sweep {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(120%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tw-skel::after { animation: none; }
+}
+
+/* Premium fade-in container for the skeleton itself so it doesn't pop. */
+.tw-skel-root {
+  animation: tw-skel-root-in 320ms cubic-bezier(.16,1,.3,1) both;
+}
+@keyframes tw-skel-root-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: none; }
+}
