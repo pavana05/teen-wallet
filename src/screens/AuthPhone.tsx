@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Sparkles } from "lucide-react";
 import { sendOtp, verifyOtp, setStage as persistStage, fetchProfile } from "@/lib/auth";
+import { isPhoneHintAvailable, requestPhoneHint } from "@/lib/phoneHint";
 import { useApp, type Stage } from "@/lib/store";
 import { toast } from "sonner";
 import { PhoneVerified } from "./PhoneVerified";
@@ -45,6 +46,8 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
   const [resendCount, setResendCount] = useState<number>(0);
   const inputs = useRef<(HTMLInputElement | null)[]>([]);
   const otpRowRef = useRef<HTMLDivElement | null>(null);
+  const [hintAvailable, setHintAvailable] = useState(false);
+  const [hintBusy, setHintBusy] = useState(false);
   const { setPendingPhone, hydrateFromProfile } = useApp();
 
   // Restore mid-celebration session, OR a persisted in-progress OTP attempt.
@@ -72,6 +75,29 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
       setStep("otp");
     }
   }, []);
+
+  // Detect Android Contact-Picker support so we can offer one-tap pre-fill.
+  useEffect(() => {
+    let cancelled = false;
+    void isPhoneHintAvailable().then((ok) => { if (!cancelled) setHintAvailable(ok); });
+    return () => { cancelled = true; };
+  }, []);
+
+  async function handleUseMyNumber() {
+    if (hintBusy) return;
+    setHintBusy(true);
+    try {
+      const num = await requestPhoneHint();
+      if (num) {
+        setPhone(num);
+        setError("");
+      } else {
+        toast("No number selected", { description: "Pick a contact with your number, or type it in." });
+      }
+    } finally {
+      setHintBusy(false);
+    }
+  }
 
   // Resend cooldown ticker — also honors a server-side rate-limit window.
   useEffect(() => {
@@ -318,6 +344,19 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
             <p className="mt-2 text-[11px] text-white/45 tracking-wide">
               We'll never share your number. SMS rates may apply.
             </p>
+
+            {hintAvailable && (
+              <button
+                type="button"
+                onClick={handleUseMyNumber}
+                disabled={hintBusy}
+                className="mt-4 w-full flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-[13px] font-medium text-white/85 transition hover:bg-white/[0.07] hover:border-white/20 disabled:opacity-60"
+                aria-label="Pre-fill my phone number from contacts"
+              >
+                <Sparkles className="w-4 h-4 text-[#E8D9B5]" />
+                {hintBusy ? "Opening picker…" : "Use my number"}
+              </button>
+            )}
           </div>
           {error && <p id="tw-phone-error" className={`text-destructive text-xs mt-3 ${error ? "tw-shake" : ""}`}>{error}</p>}
 
