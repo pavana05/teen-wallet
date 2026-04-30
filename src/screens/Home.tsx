@@ -1,12 +1,18 @@
 import { Bell, Home as HomeIcon, ScanLine, ShoppingBag, CreditCard, ArrowUpRight, Building2, Wallet, History, Smartphone, Zap, MoreHorizontal, Gift, ArrowDownLeft, RefreshCw, User, Sparkles, Inbox, Send } from "lucide-react";
 import { useApp } from "@/lib/store";
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useRef, Suspense } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { ScanPay } from "@/screens/ScanPay";
-import { Transactions } from "@/screens/Transactions";
-import { QuickActionsPanel, type QuickActionKind } from "@/components/QuickActionsPanel";
-import { NotificationsPanel } from "@/components/NotificationsPanel";
-import { ProfilePanel } from "@/components/ProfilePanel";
+// Heavy panels are lazy-loaded — they only mount when the user opens them
+// (Scan, Transactions, Notifications, Profile, or a Quick Action). Eagerly
+// importing them was forcing ~6500 LOC into the Home chunk and slowing
+// first paint significantly on cold loads.
+import { lazyWithRetry } from "@/lib/lazyWithRetry";
+import type { QuickActionKind } from "@/components/QuickActionsPanel";
+const ScanPay = lazyWithRetry(() => import("@/screens/ScanPay").then(m => ({ default: m.ScanPay })));
+const Transactions = lazyWithRetry(() => import("@/screens/Transactions").then(m => ({ default: m.Transactions })));
+const QuickActionsPanel = lazyWithRetry(() => import("@/components/QuickActionsPanel").then(m => ({ default: m.QuickActionsPanel })));
+const NotificationsPanel = lazyWithRetry(() => import("@/components/NotificationsPanel").then(m => ({ default: m.NotificationsPanel })));
+const ProfilePanel = lazyWithRetry(() => import("@/components/ProfilePanel").then(m => ({ default: m.ProfilePanel })));
 import heroScan from "@/assets/home-hero-scan.jpg";
 import heroScanDiwali from "@/assets/home-hero-scan-diwali.png";
 import heroScanHoli from "@/assets/home-hero-scan-holi.png";
@@ -220,14 +226,10 @@ export function Home() {
       .eq("user_id", userId)
       .order("created_at", { ascending: false })
       .limit(20);
-    // Anti-flicker: keep skeleton on screen for at least 480ms total so it
-    // never flashes briefly on instant network responses, then crossfades into
-    // the loaded content via the .hp-fade-in 400ms ease-out animation.
-    const elapsed = performance.now() - loadStartRef.current;
-    const minSkeletonMs = 480;
-    if (elapsed < minSkeletonMs) {
-      await new Promise((r) => setTimeout(r, minSkeletonMs - elapsed));
-    }
+    // Show data as soon as it arrives. The previous 480ms artificial
+    // skeleton hold was making Home feel sluggish on every cold mount —
+    // the .hp-fade-in CSS animation already provides a smooth crossfade,
+    // so a tiny natural delay is enough.
     if (err) {
       setError(err.message);
       setShakeKey((k) => k + 1);
@@ -416,6 +418,25 @@ export function Home() {
     return () => el.removeEventListener("scroll", onScroll);
   }, []);
 
+  // Idle-time prefetch — warm the heavy panels after Home has painted so
+  // the first tap on Scan / Notifications / Profile / Quick actions feels
+  // instant without bloating the initial Home chunk.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const idle = (cb: () => void) => {
+      const w = window as unknown as { requestIdleCallback?: (cb: () => void) => number };
+      if (typeof w.requestIdleCallback === "function") w.requestIdleCallback(cb);
+      else window.setTimeout(cb, 800);
+    };
+    idle(() => {
+      void import("@/screens/ScanPay");
+      void import("@/components/ProfilePanel");
+      void import("@/components/NotificationsPanel");
+      void import("@/components/QuickActionsPanel");
+      void import("@/screens/Transactions");
+    });
+  }, []);
+
   // Profile tap → fluid morph: nav contracts to a single Profile pill,
   // then we open the Profile panel after the morph settles. Works in both
   // expanded and collapsed scroll states because the Profile tab is always
@@ -450,8 +471,16 @@ export function Home() {
     }, 420);
   }, []);
 
-  if (view === "scan") return <ScanPay onBack={() => { setView("home"); void fetchTxns(); }} />;
-  if (view === "transactions") return <Transactions onBack={() => { setView("home"); void fetchTxns(); }} />;
+  if (view === "scan") return (
+    <Suspense fallback={null}>
+      <ScanPay onBack={() => { setView("home"); void fetchTxns(); }} />
+    </Suspense>
+  );
+  if (view === "transactions") return (
+    <Suspense fallback={null}>
+      <Transactions onBack={() => { setView("home"); void fetchTxns(); }} />
+    </Suspense>
+  );
 
   return (
     <div
@@ -810,9 +839,21 @@ export function Home() {
         </div>
       )}
 
-      {quickAction && <QuickActionsPanel kind={quickAction} onClose={() => setQuickAction(null)} />}
-      {showNotifs && <NotificationsPanel onClose={() => setShowNotifs(false)} />}
-      {showProfile && <ProfilePanel onClose={closeProfile} />}
+      {quickAction && (
+        <Suspense fallback={null}>
+          <QuickActionsPanel kind={quickAction} onClose={() => setQuickAction(null)} />
+        </Suspense>
+      )}
+      {showNotifs && (
+        <Suspense fallback={null}>
+          <NotificationsPanel onClose={() => setShowNotifs(false)} />
+        </Suspense>
+      )}
+      {showProfile && (
+        <Suspense fallback={null}>
+          <ProfilePanel onClose={closeProfile} />
+        </Suspense>
+      )}
     </div>
   );
 }
