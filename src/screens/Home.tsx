@@ -779,78 +779,8 @@ export function Home() {
         </div>
       </div>
 
-      <div className="hp-divider mt-14" aria-hidden="true" />
-
-      {/* ===== PAYMENT HISTORY ===== */}
-      <section
-        id="hp-payment-history"
-        aria-label="Payment history"
-        aria-busy={loading}
-        aria-live="polite"
-        tabIndex={-1}
-        className="px-5 mt-10 scroll-mt-4"
-      >
-        <div className="hp-section-head">
-          <div>
-            <span className="hp-section-eyebrow">Activity</span>
-            <h3 className="hp-section-title">Payment history</h3>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => { void haptics.tap(); setView("transactions"); }}
-              aria-label="See all transactions"
-              className="hp-section-link inline-flex items-center gap-1"
-            >
-              See all <ArrowUpRight className="w-3 h-3" aria-hidden="true" />
-            </button>
-            <button
-              type="button"
-              onClick={handleRefresh}
-              aria-label={refreshing ? "Refreshing payment history" : "Refresh payment history"}
-              className="hp-section-link inline-flex items-center gap-1.5"
-            >
-              <RefreshCw className={`w-3 h-3 ${refreshing ? "animate-spin" : ""}`} aria-hidden="true" /> Refresh
-            </button>
-          </div>
-        </div>
-        {loading ? (
-          <div className="space-y-2" aria-hidden="true">
-            {[0, 1, 2].map((i) => (
-              <div key={i} className="hp-skeleton-row" />
-            ))}
-          </div>
-        ) : error ? (
-          <div key={`hist-err-${shakeKey}`} role="alert" className="hp-empty hp-shake-error hp-fade-in">
-            <div className="hp-empty-illu" aria-hidden="true">
-              <RefreshCw className="w-7 h-7 text-white/85" strokeWidth={1.6} />
-            </div>
-            <p className="hp-empty-title">Couldn't load payments</p>
-            <p className="hp-empty-sub">We hit a snag fetching your history. Tap retry — we'll fix it on the next try.</p>
-            <button
-              type="button"
-              onClick={() => { setLoading(true); void fetchTxns(); }}
-              className="hp-cta-pill"
-              aria-label="Retry loading payment history"
-            >
-              <RefreshCw className="w-3.5 h-3.5" strokeWidth={2.2} aria-hidden="true" />
-              <span>Retry</span>
-            </button>
-          </div>
-        ) : txns.length === 0 ? (
-          <div className="hp-empty hp-fade-in">
-            <div className="hp-empty-illu" aria-hidden="true">
-              <Inbox className="w-7 h-7 text-white/85" strokeWidth={1.6} />
-            </div>
-            <p className="hp-empty-title">No transactions yet</p>
-            <p className="hp-empty-sub">Tap the scan button below to make your first payment — it'll show up here instantly.</p>
-          </div>
-        ) : (
-          <div className="space-y-2 hp-fade-in" role="list" aria-label="Recent transactions">
-            {txns.map((t) => <TxnRow key={t.id} txn={t} />)}
-          </div>
-        )}
-      </section>
+      {/* Payment history moved to dedicated Transactions screen — accessible
+          via the bottom nav and the "Transaction history" quick action. */}
 
       {/* trailing breathing room above floating nav */}
       <div className="h-6" />
