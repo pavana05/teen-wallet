@@ -907,7 +907,20 @@ function ScannerView({ onBack, onDecoded }: { onBack: () => void; onDecoded: (p:
     setRestartTick((t) => t + 1);
   };
 
-  // Trigger gallery picker programmatically — used by the recovery panel so
+  // Cycle to the next available camera (front ↔ back, or through multiple
+  // back lenses on phones that expose them). Triggers a soft reset so the
+  // new camera is picked up by the scanner-init effect.
+  const switchCamera = () => {
+    if (cameras.length < 2) {
+      toast.message("Only one camera available");
+      return;
+    }
+    setCameraIndex((i) => (i + 1) % cameras.length);
+    setStarting(true);
+    setRestartTick((t) => t + 1);
+  };
+
+
   // a struggling user can fall back from camera scanning to file upload in
   // Wraps `openGalleryPicker` to clear any prior #FF4444 banner first so the
   // user gets a clean retry state when they tap "Retry".
