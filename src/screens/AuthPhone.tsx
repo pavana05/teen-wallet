@@ -77,6 +77,11 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
       // Force reflow so the animation can replay
       void el.offsetWidth;
       el.classList.add("tw-phone-clean-bounce");
+      // Featherlight tactile tick on each digit added.
+      void haptics.tap();
+    } else if (phone.length < prevPhoneLenRef.current) {
+      // Crisp selection click on backspace / digit removed.
+      void haptics.select();
     }
     prevPhoneLenRef.current = phone.length;
   }, [phone]);
