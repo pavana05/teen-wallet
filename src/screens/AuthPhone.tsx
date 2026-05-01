@@ -457,6 +457,7 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
             <div className={`tw-phone-clean ${error ? "tw-phone-clean-error" : ""}`}>
               <span className="tw-phone-clean-cc" aria-hidden="true">+91</span>
               <input
+                ref={phoneInputRef}
                 id="tw-phone"
                 type="tel"
                 inputMode="numeric"
