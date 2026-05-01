@@ -567,7 +567,20 @@ export function Home() {
             className="hp-greeting-tap text-left"
           >
             <p key={greetingPulse} className="hp-greeting hp-greeting-pulse">
-              Hey, {first}{waveEnabled ? ` ${persona.emoji}` : ""}
+              Hey, {first}
+              {waveEnabled && (
+                <>
+                  {" "}
+                  <span
+                    key={persona.persona}
+                    className="hp-greeting-emoji"
+                    role="img"
+                    aria-label={persona.persona === "boy" ? "cool face" : persona.persona === "girl" ? "cherry blossom" : "waving hand"}
+                  >
+                    {persona.emoji}
+                  </span>
+                </>
+              )}
             </p>
             <p className="hp-greeting-sub">{persona.subtitle}</p>
             <span

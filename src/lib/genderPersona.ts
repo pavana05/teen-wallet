@@ -35,7 +35,9 @@ export function personaTheme(persona: Persona): PersonaTheme {
   if (persona === "boy") {
     return {
       persona,
-      emoji: "🎮",
+      // 😎 renders consistently across iOS / Android / Windows as a color emoji,
+      // unlike 🎮 which can fall back to a monochrome glyph on some devices.
+      emoji: "😎",
       subtitle: "Level up, champ",
       accentClass: "persona-boy",
       offerFilter: ["boy", "all"],
@@ -44,7 +46,7 @@ export function personaTheme(persona: Persona): PersonaTheme {
   if (persona === "girl") {
     return {
       persona,
-      emoji: "✨",
+      emoji: "🌸",
       subtitle: "Shine on, star",
       accentClass: "persona-girl",
       offerFilter: ["girl", "all"],
