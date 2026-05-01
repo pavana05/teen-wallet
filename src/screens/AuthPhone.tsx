@@ -29,6 +29,7 @@ import {
   getLoginRequirements,
   registerCurrentDeviceTrusted,
 } from "@/lib/googleLink";
+import { haptics } from "@/lib/haptics";
 
 type Step = "phone" | "google-gate" | "otp" | "verified";
 
@@ -76,6 +77,11 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
       // Force reflow so the animation can replay
       void el.offsetWidth;
       el.classList.add("tw-phone-clean-bounce");
+      // Featherlight tactile tick on each digit added.
+      void haptics.tap();
+    } else if (phone.length < prevPhoneLenRef.current) {
+      // Crisp selection click on backspace / digit removed.
+      void haptics.select();
     }
     prevPhoneLenRef.current = phone.length;
   }, [phone]);
@@ -223,6 +229,7 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
   const verifyLocked = verifyLockedUntil !== null && verifyLockedUntil > Date.now();
   const verifyLockSeconds = verifyLocked ? Math.ceil((verifyLockedUntil! - Date.now()) / 1000) : 0;
   const verifyAttemptsLeft = Math.max(0, MAX_VERIFY_ATTEMPTS - verifyAttempts);
+
 
 
   /**
@@ -397,7 +404,11 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
     // Don't even let typing happen while locked — keeps the row stable.
     if (verifyLocked) return;
     const d = v.replace(/\D/g, "").slice(-1);
+    const prev = otp[i];
     const next = [...otp]; next[i] = d; setOtp(next);
+    // Subtle haptic on each digit landed; selection click on clear.
+    if (d && d !== prev) void haptics.tap();
+    else if (!d && prev) void haptics.select();
     // Editing any digit clears the prior error so the user gets immediate feedback.
     if (error) { setError(""); setErrorKind(null); setErrorId(null); }
     if (d && i < 5) inputs.current[i + 1]?.focus();
@@ -574,7 +585,7 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
                 aria-invalid={!!error}
                 aria-describedby={error ? "tw-otp-error" : undefined}
                 onChange={(e) => onOtpChange(i, e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Backspace" && !v && i > 0) inputs.current[i - 1]?.focus(); }}
+                onKeyDown={(e) => { if (e.key === "Backspace" && !v && i > 0) { void haptics.select(); inputs.current[i - 1]?.focus(); } }}
                 className="w-12 h-14 text-center text-2xl font-bold rounded-2xl glass focus:outline-none focus:ring-2 focus:ring-primary num-mono disabled:opacity-60"
               />
             ))}
