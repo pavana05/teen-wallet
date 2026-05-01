@@ -833,9 +833,10 @@ export function ProfilePanel({ onClose, onTransactions }: Props) {
         <ConfirmSheet
           title="Log out?"
           desc="You'll need to sign in again to use TeenWallet."
-          confirmLabel="Log out"
+          confirmLabel={loggingOut ? "Signing out…" : "Log out"}
           danger
-          onCancel={() => setConfirmLogout(false)}
+          busy={loggingOut}
+          onCancel={() => { if (!loggingOut) setConfirmLogout(false); }}
           onConfirm={onLogout}
         />
       )}
