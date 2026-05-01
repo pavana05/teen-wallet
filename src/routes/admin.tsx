@@ -69,7 +69,7 @@ function AdminLayout() {
   }
   if (!admin) return <div className="admin-shell" {...shellAttrs} />;
 
-  const navSectionsAll: Array<{ label?: string; items: Array<{ to: string; label: string; icon: any; end?: boolean; kbd?: string; perm?: keyof typeof PERMS }> }> = [
+  const navSectionsAll: Array<{ label?: string; tile?: boolean; items: Array<{ to: string; label: string; icon: any; end?: boolean; kbd?: string; perm?: keyof typeof PERMS }> }> = [
     {
       items: [
         { to: "/admin", label: "Command Center", icon: LayoutDashboard, end: true, kbd: "g d", perm: "viewDashboard" },
@@ -87,6 +87,7 @@ function AdminLayout() {
     },
     {
       label: "Growth",
+      tile: true,
       items: [
         { to: "/admin/campaigns", label: "Gender Campaigns", icon: Sparkles, kbd: "g c", perm: "viewCampaigns" },
         { to: "/admin/app-images", label: "App Images", icon: ImageIcon, kbd: "g i", perm: "viewAppImages" },
@@ -94,6 +95,7 @@ function AdminLayout() {
     },
     {
       label: "System",
+      tile: true,
       items: [
         { to: "/admin/diagnostics", label: "Diagnostics", icon: Activity, perm: "viewDiagnostics" },
         { to: "/admin/settings", label: "Settings", icon: Settings, perm: "manageSettings" },
