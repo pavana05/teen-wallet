@@ -64,6 +64,21 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
   const [verifyLockedUntil, setVerifyLockedUntil] = useState<number | null>(null);
   const [verifyLockTick, setVerifyLockTick] = useState(0);
   const inputs = useRef<(HTMLInputElement | null)[]>([]);
+  const phoneInputRef = useRef<HTMLInputElement | null>(null);
+  const prevPhoneLenRef = useRef<number>(0);
+
+  // Trigger a luxe bounce on the input each time a new digit lands.
+  useEffect(() => {
+    const el = phoneInputRef.current;
+    if (!el) return;
+    if (phone.length > prevPhoneLenRef.current) {
+      el.classList.remove("tw-phone-clean-bounce");
+      // Force reflow so the animation can replay
+      void el.offsetWidth;
+      el.classList.add("tw-phone-clean-bounce");
+    }
+    prevPhoneLenRef.current = phone.length;
+  }, [phone]);
   const otpRowRef = useRef<HTMLDivElement | null>(null);
   const [hintAvailable, setHintAvailable] = useState(false);
   const [hintBusy, setHintBusy] = useState(false);
@@ -442,6 +457,7 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
             <div className={`tw-phone-clean ${error ? "tw-phone-clean-error" : ""}`}>
               <span className="tw-phone-clean-cc" aria-hidden="true">+91</span>
               <input
+                ref={phoneInputRef}
                 id="tw-phone"
                 type="tel"
                 inputMode="numeric"
