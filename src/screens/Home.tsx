@@ -252,7 +252,10 @@ export function Home() {
     return () => window.removeEventListener("tw:deeplink", onDeepLink);
   }, []);
 
-  // Persona-targeted offers feed (admin-managed via gender_offers)
+  // Persona-targeted offers feed (admin-managed via gender_offers).
+  // Depend on the primitive `persona.persona` — `offerFilter` is a fresh
+  // array literal on every render, which previously caused a duplicate
+  // fetch every time the persona resolved (neutral → boy/girl).
   useEffect(() => {
     let cancelled = false;
     void (async () => {
@@ -266,7 +269,8 @@ export function Home() {
       if (!cancelled) setPersonaOffers((data ?? []) as PersonaOffer[]);
     })();
     return () => { cancelled = true; };
-  }, [persona.offerFilter]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [persona.persona]);
 
   useEffect(() => {
     if (!userId) return;

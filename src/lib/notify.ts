@@ -123,6 +123,12 @@ export async function maybeInsertGreeting(userId: string, fullName: string | nul
   const prev = readJSON<GreetingRecord>(GREETING_KEY);
   if (prev && prev.userId === userId && prev.day === day && prev.slot === slot) return;
 
+  // Write the throttle key BEFORE awaiting the insert. Otherwise React
+  // StrictMode (and any other parallel mount) can race past the guard
+  // and insert the greeting twice. Worst case if the insert fails we
+  // skip one greeting — far better than spamming the feed.
+  writeJSON(GREETING_KEY, { userId, day, slot } satisfies GreetingRecord);
+
   const firstName = (fullName ?? "").trim().split(/\s+/)[0];
   const copy = GREETING_COPY[slot];
   await insertNotification({
@@ -131,7 +137,6 @@ export async function maybeInsertGreeting(userId: string, fullName: string | nul
     title: copy.title(firstName),
     body: copy.body,
   });
-  writeJSON(GREETING_KEY, { userId, day, slot } satisfies GreetingRecord);
 }
 
 /* ------------------------------------------------------------------ */
