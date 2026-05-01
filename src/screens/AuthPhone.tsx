@@ -436,21 +436,31 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
           <p className="text-[#888] mt-3 text-sm">We'll send a 6-digit OTP to verify it's really you.</p>
 
           <div className="mt-12">
-            <label htmlFor="tw-phone" className="text-[10.5px] tracking-[0.18em] uppercase text-white/55 font-medium">
-              Mobile number
-            </label>
+            <div className="flex items-center justify-between mb-2">
+              <label htmlFor="tw-phone" className="text-[10.5px] tracking-[0.22em] uppercase text-white/55 font-medium">
+                Mobile number
+              </label>
+              <span
+                aria-hidden="true"
+                className={`text-[10px] tracking-[0.18em] uppercase font-medium transition-colors ${
+                  valid ? "text-[#E8D9B5]" : "text-white/30"
+                }`}
+              >
+                {phone.length}/10
+              </span>
+            </div>
             <label
               htmlFor="tw-phone"
-              className={`tw-phone-field tw-phone-field-v2 mt-2 ${error ? "tw-phone-field-error" : ""} ${valid ? "tw-phone-field-valid" : ""}`}
+              className={`tw-phone-field tw-phone-field-v2 ${error ? "tw-phone-field-error" : ""} ${valid ? "tw-phone-field-valid" : ""}`}
             >
               <span className="tw-phone-aurora" aria-hidden="true" />
               <span className="tw-phone-cc">
                 <span className="tw-phone-flag" aria-hidden="true">🇮🇳</span>
-                <span className="text-[13px] font-semibold tracking-tight">+91</span>
+                <span className="text-[13.5px] font-semibold tracking-[0.02em] num-mono">+91</span>
               </span>
               <span className="tw-phone-divider" aria-hidden="true" />
 
-              {/* Animated digit slots */}
+              {/* Animated digit slots — 5+5 grouping for premium readability */}
               <span className="tw-phone-slots" aria-hidden="true">
                 {Array.from({ length: 10 }).map((_, i) => {
                   const ch = phone[i];
@@ -505,15 +515,22 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
             </label>
             {phoneHint ? (
               <p
-                className={`mt-2 text-[11px] tracking-wide ${
+                className={`mt-2.5 text-[11px] tracking-wide flex items-center gap-1.5 ${
                   phoneState === "bad_prefix" ? "text-destructive" : "text-white/55"
                 }`}
                 aria-live="polite"
               >
+                <span
+                  aria-hidden="true"
+                  className={`inline-block w-1 h-1 rounded-full ${
+                    phoneState === "bad_prefix" ? "bg-destructive" : "bg-[#D4C5A0]"
+                  }`}
+                />
                 {phoneHint}
               </p>
             ) : (
-              <p className="mt-2 text-[11px] text-white/45 tracking-wide">
+              <p className="mt-2.5 text-[11px] text-white/45 tracking-wide flex items-center gap-1.5">
+                <span aria-hidden="true" className="inline-block w-1 h-1 rounded-full bg-white/30" />
                 We'll never share your number. SMS rates may apply.
               </p>
             )}
@@ -523,7 +540,7 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
                 type="button"
                 onClick={handleUseMyNumber}
                 disabled={hintBusy}
-                className="mt-4 w-full flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-[13px] font-medium text-white/85 transition hover:bg-white/[0.07] hover:border-white/20 disabled:opacity-60"
+                className="mt-4 w-full flex items-center justify-center gap-2 rounded-2xl border border-white/[0.08] bg-white/[0.035] px-4 py-3 text-[13px] font-medium text-white/85 tracking-tight shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-all duration-200 hover:bg-white/[0.06] hover:border-[#D4C5A0]/30 hover:text-white active:scale-[0.99] disabled:opacity-60"
                 aria-label="Pre-fill my phone number from contacts"
               >
                 <Sparkles className="w-4 h-4 text-[#E8D9B5]" />
