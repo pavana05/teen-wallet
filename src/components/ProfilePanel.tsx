@@ -198,15 +198,34 @@ export function ProfilePanel({ onClose, onTransactions }: Props) {
     } catch { /* ignore quota / privacy mode */ }
   };
 
+  const [loggingOut, setLoggingOut] = useState(false);
   const onLogout = async () => {
+    if (loggingOut) return;
+    setLoggingOut(true);
+    // Close the confirm sheet immediately so the UI feels responsive even
+    // if the network call to Supabase is slow.
+    setConfirmLogout(false);
+    const t = toast.loading("Signing you out…");
+    // Kick off remote sign-out but don't block local cleanup on it. If the
+    // network is flaky, the user still gets logged out on this device.
+    const remote = logout().catch((e) => {
+      console.warn("[logout] remote signOut failed", e);
+    });
+    // Race remote sign-out against a 2.5s timeout — whichever wins, we
+    // proceed to clear local state and bounce back to onboarding.
+    await Promise.race([
+      remote,
+      new Promise((res) => setTimeout(res, 2500)),
+    ]);
     try {
-      await logout();
       clearLocalState();
       reset();
-      toast.success("Signed out");
+      toast.success("Signed out", { id: t });
       onClose();
     } catch (e) {
-      toast.error("Couldn't sign out", { description: (e as Error).message });
+      toast.error("Couldn't sign out", { id: t, description: (e as Error).message });
+    } finally {
+      setLoggingOut(false);
     }
   };
 
