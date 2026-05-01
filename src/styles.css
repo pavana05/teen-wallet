@@ -4669,51 +4669,126 @@ button:focus-visible .hp-tile{
 .pp-inline-cancel { color: rgba(255,255,255,.7); }
 
 /* ============================================================
-   Premium Phone Input (AuthPhone)
+   Premium Phone Input — v3 (ultra-premium dark, champagne accents)
+
+   Anatomy:
+     [ CC pill: 🇮🇳 +91 ] [ hairline divider ] [ slots: ●●●●● · ●●●●● ] [ ✓ ]
+   Goals: clean minimal surface, soft champagne aurora on focus, beveled
+   segmented slots with crisp tabular digits, refined caret, premium
+   error/success states. No neon — only platinum/champagne gold.
    ============================================================ */
+
+/* Base field — kept for backwards compat with screens that still target
+   .tw-phone-field directly. v2/v3 styles below progressively enhance it. */
 .tw-phone-field {
-  display: flex; align-items: center; gap: 0;
-  border-radius: 16px;
-  background:
-    linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.012)),
-    rgba(20,20,23,.55);
-  border: 1px solid rgba(255,255,255,.08);
-  padding: 6px 6px 6px 14px;
+  display: flex;
+  align-items: stretch;
+  gap: 0;
   position: relative;
-  overflow: hidden;
-  transition: border-color .25s ease, box-shadow .25s ease, background .25s ease;
+  isolation: isolate;
+  border-radius: 18px;
+  padding: 6px 8px 6px 14px;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.045), rgba(255,255,255,.008)),
+    rgba(14,14,17,.78);
+  border: 1px solid rgba(255,255,255,.07);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.05),
+    0 1px 0 rgba(0,0,0,.35),
+    0 18px 40px -28px rgba(0,0,0,.7);
+  transition:
+    border-color .28s cubic-bezier(.2,.8,.2,1),
+    box-shadow   .28s cubic-bezier(.2,.8,.2,1),
+    background   .28s ease,
+    transform    .28s cubic-bezier(.2,.8,.2,1);
 }
+
+/* Subtle top sheen — a single hairline highlight on the inner edge. */
+.tw-phone-field::before {
+  content: "";
+  position: absolute;
+  left: 14px; right: 14px; top: 0;
+  height: 1px;
+  background: linear-gradient(90deg,
+    transparent,
+    rgba(255,255,255,.18) 30%,
+    rgba(255,255,255,.18) 70%,
+    transparent
+  );
+  border-radius: 1px;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Soft inner glow pinned to the top-left corner. */
 .tw-phone-field::after {
-  content: ""; position: absolute; inset: 0; pointer-events: none;
-  background: radial-gradient(120% 100% at 0% 0%, rgba(255,255,255,.06), transparent 55%);
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(120% 100% at 0% 0%, rgba(255,255,255,.05), transparent 55%);
   border-radius: inherit;
+  z-index: 0;
 }
+
 .tw-phone-field:focus-within {
   border-color: rgba(212,197,160,.55);
-  box-shadow:
-    0 0 0 3px rgba(212,197,160,.12),
-    0 14px 30px -18px rgba(212,197,160,.45);
   background:
-    linear-gradient(180deg, rgba(255,255,255,.07), rgba(255,255,255,.02)),
-    rgba(22,22,26,.7);
+    linear-gradient(180deg, rgba(255,255,255,.065), rgba(255,255,255,.018)),
+    rgba(18,18,22,.82);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.07),
+    0 0 0 3px rgba(212,197,160,.14),
+    0 22px 50px -28px rgba(212,197,160,.42),
+    0 0 0 1px rgba(212,197,160,.18);
+  transform: translateY(-1px);
 }
+
 .tw-phone-field-error {
   border-color: rgba(248,113,113,.55) !important;
-  box-shadow: 0 0 0 3px rgba(248,113,113,.10);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.04),
+    0 0 0 3px rgba(248,113,113,.12),
+    0 18px 40px -28px rgba(248,113,113,.35) !important;
 }
 .tw-phone-field-valid:not(:focus-within) {
-  border-color: rgba(110,231,183,.30);
+  border-color: rgba(212,197,160,.34);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.05),
+    0 0 0 1px rgba(212,197,160,.10),
+    0 18px 40px -28px rgba(212,197,160,.28);
 }
+
+/* Country-code "pill" — stays compact and aligned with slots. */
 .tw-phone-cc {
-  display: inline-flex; align-items: center; gap: 8px;
-  color: #fff;
-  padding-right: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: rgba(255,255,255,.92);
+  padding: 0 12px 0 0;
+  z-index: 1;
+  letter-spacing: 0.01em;
 }
+.tw-phone-cc .num-mono,
+.tw-phone-cc span:not(.tw-phone-flag) {
+  font-feature-settings: "tnum" 1, "lnum" 1;
+}
+
+/* Hairline divider with a faint gold mid-tone. */
 .tw-phone-divider {
-  width: 1px; align-self: stretch;
-  background: linear-gradient(180deg, transparent, rgba(255,255,255,.16) 35%, rgba(255,255,255,.16) 65%, transparent);
-  margin: 4px 12px 4px 0;
+  width: 1px;
+  align-self: stretch;
+  margin: 8px 14px 8px 0;
+  background: linear-gradient(180deg,
+    transparent,
+    rgba(212,197,160,.28) 30%,
+    rgba(212,197,160,.32) 70%,
+    transparent
+  );
+  z-index: 1;
 }
+
+/* Legacy raw input (unused by v3 but kept harmless). */
 .tw-phone-input {
   flex: 1; min-width: 0;
   background: transparent; border: 0; outline: 0;
@@ -4721,57 +4796,77 @@ button:focus-visible .hp-tile{
   font-size: 22px; line-height: 1.2;
   letter-spacing: 0.01em;
   padding: 14px 4px;
+  font-feature-settings: "tnum" 1, "lnum" 1;
 }
 .tw-phone-input::placeholder { color: rgba(255,255,255,.28); }
+
+/* Success check — premium champagne badge instead of green. */
 .tw-phone-check {
   display: inline-flex; align-items: center; justify-content: center;
+  align-self: center;
   width: 28px; height: 28px;
   border-radius: 999px;
-  background: linear-gradient(135deg, #34d399, #10b981);
-  color: #052e1c;
   margin-left: 8px;
-  box-shadow: 0 6px 14px -6px rgba(16,185,129,.6);
-  animation: tw-phone-check-in .35s cubic-bezier(.2,.9,.25,1.2) both;
+  color: #1a1407;
+  background: linear-gradient(135deg, #F2E2BC 0%, #D4C5A0 55%, #B8A578 100%);
+  border: 1px solid rgba(255,255,255,.35);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.55),
+    0 8px 18px -8px rgba(212,197,160,.55);
+  animation: tw-phone-check-in .42s cubic-bezier(.2,.9,.25,1.25) both;
 }
 @keyframes tw-phone-check-in {
-  0% { transform: scale(.4); opacity: 0; }
-  100% { transform: scale(1); opacity: 1; }
+  0%   { transform: scale(.4) rotate(-12deg); opacity: 0; }
+  60%  { transform: scale(1.08) rotate(2deg);  opacity: 1; }
+  100% { transform: scale(1)    rotate(0);    opacity: 1; }
 }
 
-/* ===== Premium v2: aurora glow + segmented digit slots + per-digit pop ===== */
+/* ===== v2/v3 enhancements: aurora glow + segmented digit slots ===== */
 .tw-phone-field-v2 {
   cursor: text;
-  padding: 8px 10px 8px 14px;
-  border-radius: 18px;
+  padding: 10px 12px 10px 14px;
+  border-radius: 20px;
   background:
-    linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.015)),
-    rgba(16,16,19,.7);
+    linear-gradient(180deg, rgba(255,255,255,.055), rgba(255,255,255,.012)),
+    rgba(12,12,15,.82);
+  animation: tw-phone-field-in .55s cubic-bezier(.2,.8,.2,1) both;
 }
+@keyframes tw-phone-field-in {
+  0%   { opacity: 0; transform: translateY(8px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
 .tw-phone-aurora {
   position: absolute; inset: -1px;
   border-radius: inherit;
   pointer-events: none; opacity: 0;
   background:
-    radial-gradient(60% 120% at 0% 0%, rgba(212,197,160,.22), transparent 60%),
-    radial-gradient(60% 120% at 100% 100%, rgba(212,197,160,.18), transparent 60%);
-  transition: opacity .35s ease;
+    radial-gradient(55% 110% at 0% 0%,   rgba(242,226,188,.22), transparent 60%),
+    radial-gradient(55% 110% at 100% 100%, rgba(184,165,120,.18), transparent 60%),
+    radial-gradient(80% 140% at 50% 50%, rgba(212,197,160,.08), transparent 70%);
+  transition: opacity .45s ease;
   z-index: 0;
 }
 .tw-phone-field-v2:focus-within .tw-phone-aurora { opacity: 1; }
 
+/* Country flag chip — a tiny beveled card. */
 .tw-phone-flag {
   display: inline-flex; align-items: center; justify-content: center;
-  width: 26px; height: 26px;
-  border-radius: 8px;
-  background: rgba(255,255,255,.06);
-  border: 1px solid rgba(255,255,255,.10);
-  font-size: 14px; line-height: 1;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.08);
+  width: 28px; height: 28px;
+  border-radius: 9px;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.02));
+  border: 1px solid rgba(255,255,255,.12);
+  font-size: 15px; line-height: 1;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.14),
+    0 4px 10px -6px rgba(0,0,0,.6);
 }
+
 .tw-phone-field-v2 .tw-phone-cc { z-index: 1; }
 .tw-phone-field-v2 .tw-phone-divider { z-index: 1; }
 
-/* Hidden but keyboard-active input */
+/* Hidden but keyboard-active input — covers the whole field for tap. */
 .tw-phone-input-hidden {
   position: absolute; inset: 0;
   width: 100%; height: 100%;
@@ -4783,74 +4878,116 @@ button:focus-visible .hp-tile{
   padding: 0 14px;
   z-index: 3;
   letter-spacing: 0;
+  -webkit-tap-highlight-color: transparent;
 }
 .tw-phone-input-hidden::selection { background: transparent; }
 
-/* Segmented digit slot row */
+/* Segmented digit slot row — 5 + gap + 5 visual grouping. */
 .tw-phone-slots {
   position: relative; z-index: 1;
   flex: 1; min-width: 0;
   display: flex; align-items: center;
-  gap: 6px;
-  padding: 12px 4px;
+  gap: 7px;
+  padding: 14px 6px;
   pointer-events: none;
 }
+
 .tw-slot {
   position: relative;
   flex: 1;
-  height: 30px;
+  height: 34px;
   display: flex; align-items: center; justify-content: center;
   border-bottom: 1.5px solid rgba(255,255,255,.10);
-  transition: border-color .25s ease, transform .25s ease;
+  transition:
+    border-color .28s cubic-bezier(.2,.8,.2,1),
+    transform    .28s cubic-bezier(.2,.8,.2,1),
+    box-shadow   .28s ease;
 }
-.tw-slot-gap { margin-left: 6px; }
+/* Beveled bottom edge — a tiny gold sheen below filled slots. */
+.tw-slot::after {
+  content: "";
+  position: absolute; left: 8%; right: 8%; bottom: -2px;
+  height: 6px;
+  background: radial-gradient(60% 100% at 50% 0%, rgba(212,197,160,.22), transparent 70%);
+  opacity: 0;
+  transition: opacity .3s ease;
+  pointer-events: none;
+}
+.tw-slot-filled::after { opacity: 1; }
+
+/* Visual gap between groups of 5. */
+.tw-slot-gap { margin-left: 10px; }
 .tw-slot-gap::before {
   content: "";
-  position: absolute; left: -8px; top: 50%;
-  width: 4px; height: 4px; margin-top: -2px;
+  position: absolute;
+  left: -10px; top: 50%;
+  width: 3px; height: 3px;
+  margin-top: -1.5px;
   border-radius: 50%;
-  background: rgba(255,255,255,.18);
+  background: rgba(212,197,160,.40);
+  box-shadow: 0 0 8px rgba(212,197,160,.35);
 }
+
 .tw-slot-dot {
   width: 4px; height: 4px;
   border-radius: 50%;
-  background: rgba(255,255,255,.16);
-  transition: background .2s ease;
+  background: rgba(255,255,255,.18);
+  transition: background .2s ease, transform .2s ease;
 }
 .tw-slot-filled {
-  border-bottom-color: rgba(212,197,160,.55);
+  border-bottom-color: rgba(212,197,160,.65);
 }
 .tw-phone-field-v2:focus-within .tw-slot:not(.tw-slot-filled) {
-  border-bottom-color: rgba(255,255,255,.18);
+  border-bottom-color: rgba(255,255,255,.20);
 }
+
 .tw-slot-digit {
   display: inline-block;
   font-size: 22px;
   font-weight: 600;
   color: #fff;
   line-height: 1;
-  letter-spacing: 0.01em;
-  text-shadow: 0 0 18px rgba(212,197,160,.18);
-  animation: tw-digit-pop .32s cubic-bezier(.2,.9,.25,1.4) both;
+  letter-spacing: 0.015em;
+  font-feature-settings: "tnum" 1, "lnum" 1;
+  font-variant-numeric: tabular-nums;
+  text-shadow:
+    0 1px 0 rgba(0,0,0,.45),
+    0 0 22px rgba(212,197,160,.22);
+  animation: tw-digit-pop .36s cubic-bezier(.2,.9,.25,1.4) both;
 }
 @keyframes tw-digit-pop {
-  0%   { opacity: 0; transform: translateY(8px) scale(.6); filter: blur(2px); }
-  60%  { opacity: 1; transform: translateY(-2px) scale(1.12); filter: blur(0); }
+  0%   { opacity: 0; transform: translateY(10px) scale(.55); filter: blur(2px); }
+  55%  { opacity: 1; transform: translateY(-2px) scale(1.14); filter: blur(0); }
   100% { opacity: 1; transform: translateY(0) scale(1); }
 }
 
-/* Caret indicator on the active (next-empty) slot */
+/* Caret on the next-empty slot — slim champagne bar that gently pulses. */
 .tw-phone-field-v2:focus-within .tw-slot:not(.tw-slot-filled):first-of-type .tw-slot-dot,
 .tw-phone-field-v2:focus-within .tw-slot-filled + .tw-slot:not(.tw-slot-filled) .tw-slot-dot {
-  width: 2px; height: 18px; border-radius: 2px;
-  background: rgba(212,197,160,.85);
-  animation: tw-caret-blink 1.05s steps(2, end) infinite;
+  width: 2px;
+  height: 22px;
+  border-radius: 2px;
+  background: linear-gradient(180deg, #F2E2BC, #B8A578);
+  box-shadow: 0 0 10px rgba(242,226,188,.55);
+  animation: tw-caret-pulse 1.1s ease-in-out infinite;
 }
-@keyframes tw-caret-blink {
-  50% { opacity: 0; }
+@keyframes tw-caret-pulse {
+  0%, 100% { opacity: 1;   transform: scaleY(1); }
+  50%      { opacity: .35; transform: scaleY(.92); }
 }
 
 .tw-phone-field-v2 .tw-phone-check { z-index: 2; margin-right: 2px; }
+
+/* Reduced-motion: drop entrance + caret animations. */
+@media (prefers-reduced-motion: reduce) {
+  .tw-phone-field-v2,
+  .tw-slot-digit,
+  .tw-phone-field-v2:focus-within .tw-slot-dot,
+  .tw-phone-check {
+    animation: none !important;
+  }
+  .tw-phone-field { transition: none !important; }
+}
 
 /* ============================================================
    Permissions Screen
