@@ -852,30 +852,137 @@ body > div:first-child,
   to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 
-/* Sidebar item — fixes the previous left-border jitter and adds smooth active pill */
+/* ============================================================
+   Admin sidebar — premium animated pill nav (champagne/platinum)
+   Inspired by the "Dialin"-style premium dashboards: rounded
+   active pill with a subtle radial sheen, animated sparkle, and
+   gradient squircle icon tiles for grouped entries.
+   ============================================================ */
 .admin-shell .a-side-item {
   position: relative;
-  display: flex; align-items: center; gap: 10px;
-  padding: 10px 14px; margin-bottom: 2px;
-  font-size: 13px; color: var(--a-text);
-  border-radius: 10px;
-  transition: background 140ms ease, color 140ms ease;
+  display: flex; align-items: center; gap: 12px;
+  padding: 11px 14px; margin: 2px 6px;
+  font-size: 13px; font-weight: 500; color: var(--a-text);
+  border-radius: 12px;
+  letter-spacing: -0.005em;
+  transition:
+    background 220ms cubic-bezier(.2,.8,.25,1),
+    color 200ms ease,
+    transform 220ms cubic-bezier(.2,.8,.25,1),
+    box-shadow 260ms ease;
+  isolation: isolate;
 }
+/* Left accent ribbon (idle hover affordance) */
 .admin-shell .a-side-item::before {
-  content: ""; position: absolute; left: 4px; top: 50%; transform: translateY(-50%);
+  content: ""; position: absolute; left: 2px; top: 50%; transform: translateY(-50%);
   width: 3px; height: 0; border-radius: 2px;
-  background: var(--a-accent); opacity: 0;
-  transition: height 200ms cubic-bezier(.2,.8,.25,1), opacity 200ms ease;
+  background: var(--a-grad-accent);
+  opacity: 0;
+  transition: height 260ms cubic-bezier(.2,.8,.25,1), opacity 200ms ease;
+  z-index: 1;
 }
-.admin-shell .a-side-item:hover { background: var(--a-surface-2); }
+/* Animated radial sheen layer on the active pill */
+.admin-shell .a-side-item::after {
+  content: ""; position: absolute; inset: 0; border-radius: inherit;
+  background:
+    radial-gradient(120% 100% at 0% 0%, color-mix(in oklab, var(--a-accent) 22%, transparent) 0%, transparent 55%),
+    radial-gradient(120% 100% at 100% 100%, color-mix(in oklab, var(--a-accent-strong) 16%, transparent) 0%, transparent 60%);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 280ms ease;
+  z-index: -1;
+}
+.admin-shell .a-side-item:hover {
+  background: color-mix(in oklab, var(--a-surface-2) 92%, var(--a-accent) 8%);
+  transform: translateX(2px);
+}
+.admin-shell .a-side-item:hover::before { height: 36%; opacity: 0.6; }
+
 .admin-shell .a-side-item[data-active="true"] {
-  background: var(--a-accent-soft);
-  color: var(--a-accent);
+  background:
+    linear-gradient(180deg, color-mix(in oklab, var(--a-accent) 14%, transparent), color-mix(in oklab, var(--a-accent) 6%, transparent)),
+    var(--a-surface-2);
+  color: var(--a-accent-strong);
+  box-shadow:
+    inset 0 1px 0 color-mix(in oklab, var(--a-accent) 24%, transparent),
+    0 8px 22px -14px var(--a-accent-ring);
+  transform: translateX(0);
+  animation: a-side-active-in 360ms cubic-bezier(.2,.8,.25,1);
 }
 .admin-shell .a-side-item[data-active="true"]::before { height: 60%; opacity: 1; }
+.admin-shell .a-side-item[data-active="true"]::after { opacity: 1; }
+
+/* Sparkle that rides across the active pill once on activation, then idles soft */
+.admin-shell .a-side-item[data-active="true"] .a-side-sparkle {
+  opacity: 1;
+  animation: a-side-sparkle 2.6s cubic-bezier(.2,.8,.25,1) 200ms infinite;
+}
+.admin-shell .a-side-sparkle {
+  position: absolute; inset: 0; border-radius: inherit;
+  pointer-events: none; opacity: 0;
+  background: linear-gradient(115deg, transparent 30%, color-mix(in oklab, var(--a-accent-strong) 30%, transparent) 50%, transparent 70%);
+  background-size: 220% 100%;
+  background-position: 100% 0;
+  mix-blend-mode: screen;
+  z-index: -1;
+}
+@keyframes a-side-sparkle {
+  0%   { background-position: 130% 0; opacity: 0.0; }
+  35%  { opacity: 0.55; }
+  100% { background-position: -30% 0; opacity: 0.0; }
+}
+@keyframes a-side-active-in {
+  0%   { transform: translateX(-2px) scale(.985); }
+  100% { transform: translateX(0)    scale(1); }
+}
+
+/* Section label — lighter, tracked, premium */
 .admin-shell .a-side-section {
-  padding: 14px 14px 6px; font-size: 10px; letter-spacing: 0.12em;
+  padding: 16px 18px 8px; font-size: 10px; letter-spacing: 0.16em;
   text-transform: uppercase; color: var(--a-muted); font-weight: 600;
+  opacity: 0.78;
+}
+
+/* Gradient squircle icon tile (used for "tile" rows, e.g. Inboxes-style) */
+.admin-shell .a-side-tile {
+  width: 30px; height: 30px; border-radius: 10px;
+  display: grid; place-items: center; flex-shrink: 0;
+  color: var(--a-accent-fg);
+  background: var(--a-grad-accent);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.22),
+    0 6px 14px -8px var(--a-accent-ring);
+  transition: transform 240ms cubic-bezier(.2,.8,.25,1), box-shadow 260ms ease, filter 240ms ease;
+}
+.admin-shell .a-side-item:hover .a-side-tile {
+  transform: scale(1.04) rotate(-2deg);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.28),
+    0 10px 20px -10px var(--a-accent-ring);
+}
+.admin-shell .a-side-item[data-active="true"] .a-side-tile {
+  filter: brightness(1.06) saturate(1.05);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.32),
+    0 12px 26px -10px var(--a-accent-ring);
+}
+
+/* Tile color variants — kept inside the champagne/platinum/warm-gold family */
+.admin-shell .a-side-tile-1 { background: linear-gradient(135deg, #f0d9a8 0%, #c89e6a 100%); }
+.admin-shell .a-side-tile-2 { background: linear-gradient(135deg, #e6c89a 0%, #a87d4c 100%); }
+.admin-shell .a-side-tile-3 { background: linear-gradient(135deg, #f4e3bf 0%, #b89568 100%); }
+.admin-shell .a-side-tile-4 { background: linear-gradient(135deg, #ddc69a 0%, #8a6a3a 100%); }
+.admin-shell .a-side-tile-5 { background: linear-gradient(135deg, #f0d9a8 0%, #b08c54 100%); }
+
+/* Icon-only collapsed mode keeps the tile visible but shrinks the pill */
+.admin-shell .a-side-item[data-collapsed="true"] {
+  margin: 4px 8px; padding: 8px 0; justify-content: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-shell .a-side-item,
+  .admin-shell .a-side-tile { transition: none !important; animation: none !important; }
+  .admin-shell .a-side-item[data-active="true"] .a-side-sparkle { animation: none !important; opacity: 0.25; }
 }
 
 /* KPI card — premium polish + subtle hover lift + shimmering value entrance */
