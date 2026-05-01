@@ -208,6 +208,24 @@ export function Home() {
     void haptics.heartbeat();
     window.setTimeout(() => setShowGreetingTip(false), 2200);
   }, []);
+
+  // Animated emoji swap — when the persona changes (after profile load or
+  // gender update) we briefly render BOTH the previous glyph (animating out)
+  // and the new glyph (animating in) so the transition feels intentional
+  // instead of a hard replace. Cleared after the longest animation finishes.
+  const [prevEmoji, setPrevEmoji] = useState<string | null>(null);
+  const lastEmojiRef = useRef<string | null>(null);
+  useEffect(() => {
+    const next = persona.emoji;
+    const last = lastEmojiRef.current;
+    if (last && last !== next) {
+      setPrevEmoji(last);
+      const t = window.setTimeout(() => setPrevEmoji(null), 520);
+      lastEmojiRef.current = next;
+      return () => window.clearTimeout(t);
+    }
+    lastEmojiRef.current = next;
+  }, [persona.emoji]);
   const touchStartY = useRef<number | null>(null);
   const scrollerRef = useRef<HTMLDivElement | null>(null);
   const loadStartRef = useRef<number>(performance.now());
