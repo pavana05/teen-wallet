@@ -1211,15 +1211,39 @@ function MyQrSheet({ upiId, payeeName, onClose }: { upiId: string; payeeName: st
 
 /* ───────── Confirm + Delete sheets ───────── */
 function ConfirmSheet({ title, desc, confirmLabel, danger, busy, onCancel, onConfirm }: { title: string; desc: string; confirmLabel: string; danger?: boolean; busy?: boolean; onCancel: () => void; onConfirm: () => void }) {
+  // Confirm sheets sit at z-[100] — strictly above every other in-panel
+  // sheet (z-[80]) so siblings rendered later in the DOM can never overlap
+  // the alert dialog's backdrop and steal taps from the confirm button.
   return (
-    <div className="absolute inset-0 z-[80] flex items-end pp-sheet-backdrop" onClick={busy ? undefined : onCancel} role="alertdialog" aria-modal="true" aria-labelledby="pp-confirm-title" aria-describedby="pp-confirm-desc">
+    <div
+      data-testid="confirm-sheet"
+      className="absolute inset-0 z-[100] flex items-end pp-sheet-backdrop"
+      onClick={busy ? (e) => e.stopPropagation() : onCancel}
+      role="alertdialog"
+      aria-modal="true"
+      aria-busy={busy ? "true" : undefined}
+      aria-labelledby="pp-confirm-title"
+      aria-describedby="pp-confirm-desc"
+    >
       <div className="pp-sheet" onClick={(e) => e.stopPropagation()}>
         <div className="pp-sheet-grab" />
         <p id="pp-confirm-title" className="text-[16px] font-semibold text-white">{title}</p>
         <p id="pp-confirm-desc" className="text-[12.5px] text-white/60 mt-1">{desc}</p>
         <div className="flex gap-2 mt-5">
-          <button onClick={onCancel} disabled={busy} className="pp-btn-ghost flex-1 disabled:opacity-50">Cancel</button>
-          <button onClick={onConfirm} disabled={busy} className={`flex-1 disabled:opacity-60 ${danger ? "pp-btn-danger" : "pp-btn-primary"}`}>{confirmLabel}</button>
+          <button onClick={onCancel} disabled={busy} aria-disabled={busy ? "true" : undefined} className="pp-btn-ghost flex-1 disabled:opacity-50 disabled:cursor-not-allowed">Cancel</button>
+          <button
+            data-testid="confirm-sheet-confirm"
+            onClick={onConfirm}
+            disabled={busy}
+            aria-disabled={busy ? "true" : undefined}
+            aria-busy={busy ? "true" : undefined}
+            className={`flex-1 inline-flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed ${danger ? "pp-btn-danger" : "pp-btn-primary"}`}
+          >
+            {busy && (
+              <span className="inline-block w-3.5 h-3.5 rounded-full border-2 border-current border-t-transparent animate-spin" aria-hidden="true" />
+            )}
+            <span>{confirmLabel}</span>
+          </button>
         </div>
       </div>
     </div>
