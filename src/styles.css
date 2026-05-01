@@ -1559,6 +1559,201 @@ body > div:first-child,
 .hp-section-link:hover{ color:rgba(255,255,255,.85); }
 .hp-section-link:active{ transform: scale(.96); }
 .hp-section-link:active svg{ animation: hp-icon-pulse 420ms ease-out; }
+
+/* ============================================================
+   Recharges & utilities — premium horizontal pill cards.
+   Wide rounded graphite pill with a soft inner sheen, an
+   animated champagne-glow icon orb on the left, label centered,
+   and a subtle chevron affordance. No neon.
+   ============================================================ */
+.hp-recharge-rail{
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.hp-recharge-pill{
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  height: 68px;
+  padding: 0 18px 0 14px;
+  border-radius: 22px;
+  text-align: left;
+  isolation: isolate;
+  color: rgba(245,245,247,.92);
+  background:
+    radial-gradient(120% 220% at 0% 0%, rgba(255,255,255,.045) 0%, transparent 55%),
+    linear-gradient(180deg, rgba(28,28,32,.92) 0%, rgba(14,14,16,.96) 100%);
+  border: 1px solid rgba(255,255,255,.06);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.05),
+    0 1px 0 rgba(0,0,0,.45),
+    0 14px 30px -22px rgba(0,0,0,.85);
+  transition:
+    transform .35s cubic-bezier(.2,.8,.25,1),
+    border-color .35s ease,
+    box-shadow .45s cubic-bezier(.2,.8,.25,1),
+    background .35s ease;
+  -webkit-tap-highlight-color: transparent;
+  cursor: pointer;
+}
+.hp-recharge-pill::before{
+  content: "";
+  position: absolute;
+  left: 18px; right: 18px; top: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.18), transparent);
+  opacity: .55;
+  pointer-events: none;
+  z-index: 1;
+}
+.hp-recharge-pill:hover{
+  transform: translateY(-1px);
+  border-color: rgba(212,197,160,.22);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.07),
+    0 18px 38px -22px rgba(212,197,160,.28),
+    0 1px 0 rgba(0,0,0,.5);
+}
+.hp-recharge-pill:active{ transform: translateY(0) scale(.992); transition-duration: .12s; }
+
+.hp-recharge-pill-shine{
+  position: absolute; inset: 0; border-radius: inherit;
+  pointer-events: none; opacity: 0; z-index: 0;
+  background: linear-gradient(115deg,
+    transparent 30%,
+    color-mix(in oklab, #E8D9B5 22%, transparent) 50%,
+    transparent 70%);
+  background-size: 220% 100%;
+  background-position: 130% 0;
+  mix-blend-mode: screen;
+  transition: opacity .45s ease;
+}
+.hp-recharge-pill:hover .hp-recharge-pill-shine{
+  opacity: 1;
+  animation: hp-recharge-pill-sweep 1.8s cubic-bezier(.2,.8,.25,1) infinite;
+}
+@keyframes hp-recharge-pill-sweep{
+  0%   { background-position: 130% 0; }
+  100% { background-position: -30% 0; }
+}
+
+.hp-recharge-pill-orb{
+  position: relative;
+  display: grid; place-items: center;
+  width: 44px; height: 44px;
+  border-radius: 14px;
+  flex-shrink: 0;
+  color: #1a1408;
+  background: linear-gradient(140deg, #f1dcae 0%, #d4b483 55%, #b89568 100%);
+  border: 1px solid rgba(255,255,255,.18);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.42),
+    inset 0 -6px 10px -6px rgba(0,0,0,.35),
+    0 10px 22px -10px rgba(212,180,131,.55);
+  transition: transform .45s cubic-bezier(.2,.8,.25,1), box-shadow .45s ease, filter .35s ease;
+  z-index: 1;
+}
+.hp-recharge-pill-orb-glow{
+  position: absolute; inset: -8px; border-radius: 22px;
+  background: radial-gradient(closest-side, rgba(232,217,181,.45), transparent 70%);
+  opacity: .35;
+  filter: blur(8px);
+  z-index: 0;
+  pointer-events: none;
+  transition: opacity .45s ease, filter .45s ease;
+}
+.hp-recharge-pill:hover .hp-recharge-pill-orb{
+  transform: scale(1.04) rotate(-2deg);
+  filter: brightness(1.05) saturate(1.05);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.5),
+    inset 0 -6px 10px -6px rgba(0,0,0,.4),
+    0 14px 30px -10px rgba(212,180,131,.7);
+}
+.hp-recharge-pill:hover .hp-recharge-pill-orb-glow{ opacity: .65; }
+
+.hp-recharge-pill[data-variant="platinum"] .hp-recharge-pill-orb{
+  background: linear-gradient(140deg, #efe7d6 0%, #c9bfa8 55%, #9c937e 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.5),
+    inset 0 -6px 10px -6px rgba(0,0,0,.3),
+    0 10px 22px -10px rgba(201,191,168,.55);
+}
+.hp-recharge-pill[data-variant="warm"] .hp-recharge-pill-orb{
+  background: linear-gradient(140deg, #e8c89a 0%, #b08c54 55%, #7d5e34 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.38),
+    inset 0 -6px 10px -6px rgba(0,0,0,.4),
+    0 10px 22px -10px rgba(176,140,84,.6);
+}
+.hp-recharge-pill[data-variant="muted"] .hp-recharge-pill-orb{
+  color: rgba(245,245,247,.9);
+  background: linear-gradient(140deg, rgba(255,255,255,.10) 0%, rgba(255,255,255,.04) 100%);
+  border: 1px solid rgba(255,255,255,.10);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.10),
+    0 6px 16px -10px rgba(0,0,0,.6);
+}
+.hp-recharge-pill[data-variant="muted"] .hp-recharge-pill-orb-glow{
+  background: radial-gradient(closest-side, rgba(255,255,255,.18), transparent 70%);
+}
+
+.hp-recharge-pill-label{
+  flex: 1;
+  font-size: 14.5px;
+  font-weight: 500;
+  letter-spacing: -0.005em;
+  color: rgba(245,245,247,.92);
+  text-align: center;
+  margin-right: 18px;
+  position: relative;
+  z-index: 1;
+  transition: color .25s ease;
+}
+.hp-recharge-pill:hover .hp-recharge-pill-label{ color: #fff; }
+
+.hp-recharge-pill-chev{
+  width: 16px; height: 16px;
+  color: rgba(255,255,255,.32);
+  flex-shrink: 0;
+  position: relative; z-index: 1;
+  transition: color .25s ease, transform .35s cubic-bezier(.2,.8,.25,1);
+}
+.hp-recharge-pill:hover .hp-recharge-pill-chev{
+  color: rgba(232,217,181,.85);
+  transform: translateX(2px);
+}
+
+[data-theme="light"] .hp-recharge-pill{
+  color: rgba(20,20,24,.9);
+  background:
+    radial-gradient(120% 220% at 0% 0%, rgba(0,0,0,.025) 0%, transparent 55%),
+    linear-gradient(180deg, #ffffff 0%, #faf8f3 100%);
+  border-color: rgba(0,0,0,.06);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.7),
+    0 1px 0 rgba(0,0,0,.04),
+    0 12px 28px -22px rgba(0,0,0,.18);
+}
+[data-theme="light"] .hp-recharge-pill::before{
+  background: linear-gradient(90deg, transparent, rgba(0,0,0,.06), transparent);
+}
+[data-theme="light"] .hp-recharge-pill-label{ color: rgba(20,20,24,.9); }
+[data-theme="light"] .hp-recharge-pill-chev{ color: rgba(20,20,24,.4); }
+
+@media (prefers-reduced-motion: reduce){
+  .hp-recharge-pill,
+  .hp-recharge-pill-orb,
+  .hp-recharge-pill-orb-glow,
+  .hp-recharge-pill-shine,
+  .hp-recharge-pill-chev,
+  .hp-recharge-pill-label{
+    transition: none !important;
+    animation: none !important;
+  }
+}
 .hp-divider{
   position: relative;
   height: 1px;
