@@ -184,7 +184,22 @@ function Index() {
       } catch {
         return;
       }
+      // Best-effort local cleanup so any component that signed out (Profile,
+      // AppLockGate, VerifyGoogleOnNewDevice, etc.) reliably bounces back to
+      // onboarding even if its own reset path failed mid-flight. Idempotent.
+      try {
+        const keysToClear: string[] = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          if (k && (k.startsWith("tw-") || k === "teenwallet-app")) keysToClear.push(k);
+        }
+        keysToClear.forEach((k) => localStorage.removeItem(k));
+        sessionStorage.clear();
+      } catch { /* ignore */ }
       useApp.getState().reset();
+      // Force the Index gate to re-evaluate immediately even if the Suspense
+      // boundary above us is still resolving the previous screen.
+      if (mounted) setBooting(false);
     });
     return () => { mounted = false; sub.subscription.unsubscribe(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
