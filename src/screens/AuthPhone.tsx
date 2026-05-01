@@ -404,7 +404,11 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
     // Don't even let typing happen while locked — keeps the row stable.
     if (verifyLocked) return;
     const d = v.replace(/\D/g, "").slice(-1);
+    const prev = otp[i];
     const next = [...otp]; next[i] = d; setOtp(next);
+    // Subtle haptic on each digit landed; selection click on clear.
+    if (d && d !== prev) void haptics.tap();
+    else if (!d && prev) void haptics.select();
     // Editing any digit clears the prior error so the user gets immediate feedback.
     if (error) { setError(""); setErrorKind(null); setErrorId(null); }
     if (d && i < 5) inputs.current[i + 1]?.focus();
