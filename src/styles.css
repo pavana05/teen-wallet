@@ -1196,7 +1196,15 @@ body > div:first-child,
   --hp-error: #FF4444;
 }
 
-.hp-root { background:#08090B; }
+.hp-root {
+  background:#08090B;
+  /* Belt-and-braces: prevent any descendant (carousel peek, oversized
+     hero glow, badge halos) from creating a horizontal scrollbar /
+     right-edge gutter on the home page. Vertical scrolling is preserved
+     by the `overflow-y-auto` toggle applied in the component. */
+  overflow-x: clip;
+  max-width: 100%;
+}
 
 .hp-hero { position:relative; padding-bottom: 8px; }
 .hp-hero-bg{
