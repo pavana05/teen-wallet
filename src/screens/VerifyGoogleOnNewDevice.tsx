@@ -5,10 +5,11 @@
  * phone OTP. On mismatch we hard-block and surface a support contact.
  */
 import { useEffect, useState } from "react";
-import { ArrowLeft, Mail, ShieldAlert, ShieldCheck } from "lucide-react";
+import { ArrowLeft, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { lovable } from "@/integrations/lovable";
 import { supabase } from "@/integrations/supabase/client";
+import { AccountMismatchBlock } from "@/components/AccountMismatchBlock";
 import {
   readCurrentGoogleIdentity,
   verifyGoogleForPhone,
