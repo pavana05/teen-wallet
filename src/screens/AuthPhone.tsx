@@ -29,6 +29,7 @@ import {
   getLoginRequirements,
   registerCurrentDeviceTrusted,
 } from "@/lib/googleLink";
+import { haptics } from "@/lib/haptics";
 
 type Step = "phone" | "google-gate" | "otp" | "verified";
 
