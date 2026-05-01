@@ -578,8 +578,18 @@ export function ProfilePanel({ onClose, onTransactions }: Props) {
               {/* Recharges & Bills */}
               <p className="pp-group-label">Recharges & Bills</p>
               <div className="pp-card divide-y divide-white/5">
-                <Row icon={Receipt} label="Pay bills" />
-                <Row icon={Gift} label="Rewards" hint={<span className="text-emerald-300">New</span>} />
+                <Row
+                  icon={Receipt}
+                  label="Pay bills"
+                  hint="Electricity · DTH · Gas"
+                  onClick={() => toast("Pay bills", { description: "Bill payments for utilities are launching soon." })}
+                />
+                <Row
+                  icon={Gift}
+                  label="Rewards"
+                  hint={<span className="text-emerald-300">New</span>}
+                  onClick={() => toast.success("Your rewards", { description: `You've earned ₹${Math.round(stats.totalSpent * 0.01).toLocaleString("en-IN")} in cashback so far.` })}
+                />
               </div>
 
               {/* Settings shortcuts */}
