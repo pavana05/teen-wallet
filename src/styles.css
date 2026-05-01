@@ -1293,31 +1293,103 @@ body > div:first-child,
   100% { transform: scale(1);    text-shadow: 0 0 0 rgba(255,255,255,0); }
 }
 
-/* Greeting emoji — force color-emoji font stack so glyphs like 😎 / 🌸 render
-   as full-color across platforms (some devices fall back to monochrome text
-   when the surrounding font lacks emoji glyphs). Smooth swap when persona
-   changes via remount key. */
-.hp-greeting-emoji{
-  display: inline-block;
-  font-family: "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",
-               "Twemoji Mozilla","EmojiOne Color","Android Emoji",sans-serif;
-  font-style: normal;
-  line-height: 1;
-  vertical-align: -0.05em;
-  animation: hp-emoji-pop 480ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
-  transition: transform 220ms ease;
-  will-change: transform;
+/* ====================================================================
+   Greeting line — premium staged entrance + persona emoji crossfade
+   ==================================================================== */
+
+/* The whole greeting block (text + emoji + subtitle) lifts in once on mount,
+   so the Home page feels intentionally composed rather than popping. */
+.hp-greeting-enter{
+  animation: hp-greeting-enter 720ms cubic-bezier(0.22, 0.8, 0.28, 1) both;
 }
-.hp-greeting-tap:hover .hp-greeting-emoji{
+.hp-greeting-enter .hp-greeting-text{
+  display: inline-block;
+  animation: hp-greeting-text-rise 640ms cubic-bezier(0.22, 0.8, 0.28, 1) both;
+  animation-delay: 60ms;
+}
+.hp-greeting-enter .hp-greeting-sub{
+  animation: hp-greeting-sub-rise 600ms cubic-bezier(0.22, 0.8, 0.28, 1) both;
+  animation-delay: 180ms;
+}
+@keyframes hp-greeting-enter{
+  from { opacity: 0; filter: blur(2px); }
+  to   { opacity: 1; filter: blur(0); }
+}
+@keyframes hp-greeting-text-rise{
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes hp-greeting-sub-rise{
+  from { opacity: 0; transform: translateY(4px); letter-spacing: 0.06em; }
+  to   { opacity: 1; transform: translateY(0); letter-spacing: 0.02em; }
+}
+
+/* Emoji stage — fixed-width slot so the previous and next glyph can occupy
+   the same coordinates and crossfade without nudging surrounding text. */
+.hp-greeting-emoji-stage{
+  position: relative;
+  display: inline-block;
+  width: 1.25em;
+  height: 1.05em;
+  margin-left: 0.35em;
+  vertical-align: -0.1em;
+  /* Avoid tail clipping during scale/rotate */
+  overflow: visible;
+}
+
+/* Greeting emoji — force color-emoji font stack so glyphs render as full
+   color across iOS / Android / Windows / Linux. The U+FE0F variation
+   selector appended to each glyph in genderPersona.ts is the safe Unicode
+   fallback for devices whose body font lacks emoji glyphs. */
+.hp-greeting-emoji{
+  position: absolute;
+  inset: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: "Apple Color Emoji","Segoe UI Emoji","Segoe UI Symbol",
+               "Noto Color Emoji","Twemoji Mozilla","EmojiOne Color",
+               "Android Emoji",sans-serif;
+  font-style: normal;
+  font-variant-emoji: emoji; /* hint to renderers that support it */
+  line-height: 1;
+  transition: transform 220ms ease;
+  will-change: transform, opacity;
+}
+.hp-greeting-tap:hover .hp-greeting-emoji-in{
   transform: rotate(-8deg) scale(1.08);
 }
-@keyframes hp-emoji-pop{
-  0%   { opacity: 0; transform: scale(0.5) rotate(-18deg); }
-  60%  { opacity: 1; transform: scale(1.18) rotate(6deg); }
-  100% { opacity: 1; transform: scale(1) rotate(0deg); }
+
+/* New glyph: pop + tilt in */
+.hp-greeting-emoji-in{
+  animation: hp-emoji-in 560ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }
+@keyframes hp-emoji-in{
+  0%   { opacity: 0; transform: scale(0.4) rotate(-22deg); }
+  55%  { opacity: 1; transform: scale(1.2)  rotate(8deg); }
+  100% { opacity: 1; transform: scale(1)    rotate(0deg); }
+}
+
+/* Old glyph: fade + drift up so it visibly hands off to the new one */
+.hp-greeting-emoji-out{
+  animation: hp-emoji-out 480ms cubic-bezier(0.4, 0, 0.2, 1) both;
+  pointer-events: none;
+}
+@keyframes hp-emoji-out{
+  0%   { opacity: 1; transform: scale(1)   rotate(0deg)   translateY(0); }
+  100% { opacity: 0; transform: scale(0.6) rotate(14deg)  translateY(-6px); }
+}
+
 @media (prefers-reduced-motion: reduce){
-  .hp-greeting-emoji{ animation: none; transition: none; }
+  .hp-greeting-enter,
+  .hp-greeting-enter .hp-greeting-text,
+  .hp-greeting-enter .hp-greeting-sub,
+  .hp-greeting-emoji,
+  .hp-greeting-emoji-in,
+  .hp-greeting-emoji-out{
+    animation: none;
+    transition: none;
+  }
 }
 
 /* Helper tooltip below greeting — minimal, reserves no layout space when hidden */
@@ -8763,9 +8835,22 @@ html.motion-off    .otp-resend-ring svg circle { transition: none !important; }
   font-size: 20px;
   font-weight: 600;
   letter-spacing: -0.022em;
+}
+/* Apply the white→silver gradient ONLY to the text span, not to the whole
+   line — otherwise child spans (emoji stage) would also inherit
+   color:transparent and disappear on devices that render emoji as text. */
+.hp-root .hp-greeting .hp-greeting-text {
   background: linear-gradient(180deg, #FFFFFF 0%, #D8DADF 100%);
   -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent;
   color: transparent;
+}
+/* Emoji span must keep its own opaque color so text-presentation glyph
+   fallbacks (mono outlines on Windows/Linux without color emoji fonts)
+   stay visible. */
+.hp-root .hp-greeting .hp-greeting-emoji {
+  -webkit-text-fill-color: initial;
+  color: #f5f5f7;
 }
 .hp-root .hp-greeting-sub {
   font-size: 10px;

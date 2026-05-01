@@ -31,13 +31,21 @@ function normalize(g: string | null | undefined): Persona {
   return "neutral";
 }
 
+// U+FE0F (VARIATION SELECTOR-16) requests color-emoji presentation. Chained
+// after each glyph so devices that would otherwise render a monochrome
+// "text-style" fallback (older Windows/Linux, some Android WebViews) reliably
+// render the colored pictograph. Combined with the emoji-font stack on the
+// `.hp-greeting-emoji` span, this is the most portable safe fallback we can
+// ship without bundling Twemoji.
+const VS16 = "\uFE0F";
+
 export function personaTheme(persona: Persona): PersonaTheme {
   if (persona === "boy") {
     return {
       persona,
       // 😎 renders consistently across iOS / Android / Windows as a color emoji,
       // unlike 🎮 which can fall back to a monochrome glyph on some devices.
-      emoji: "😎",
+      emoji: "\u{1F60E}" + VS16, // 😎
       subtitle: "Level up, champ",
       accentClass: "persona-boy",
       offerFilter: ["boy", "all"],
@@ -46,7 +54,7 @@ export function personaTheme(persona: Persona): PersonaTheme {
   if (persona === "girl") {
     return {
       persona,
-      emoji: "🌸",
+      emoji: "\u{1F338}" + VS16, // 🌸
       subtitle: "Shine on, star",
       accentClass: "persona-girl",
       offerFilter: ["girl", "all"],
@@ -54,7 +62,7 @@ export function personaTheme(persona: Persona): PersonaTheme {
   }
   return {
     persona,
-    emoji: "👋",
+    emoji: "\u{1F44B}" + VS16, // 👋
     subtitle: "Welcome back",
     accentClass: "persona-neutral",
     offerFilter: ["boy", "girl", "all"],

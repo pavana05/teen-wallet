@@ -208,6 +208,24 @@ export function Home() {
     void haptics.heartbeat();
     window.setTimeout(() => setShowGreetingTip(false), 2200);
   }, []);
+
+  // Animated emoji swap — when the persona changes (after profile load or
+  // gender update) we briefly render BOTH the previous glyph (animating out)
+  // and the new glyph (animating in) so the transition feels intentional
+  // instead of a hard replace. Cleared after the longest animation finishes.
+  const [prevEmoji, setPrevEmoji] = useState<string | null>(null);
+  const lastEmojiRef = useRef<string | null>(null);
+  useEffect(() => {
+    const next = persona.emoji;
+    const last = lastEmojiRef.current;
+    if (last && last !== next) {
+      setPrevEmoji(last);
+      const t = window.setTimeout(() => setPrevEmoji(null), 520);
+      lastEmojiRef.current = next;
+      return () => window.clearTimeout(t);
+    }
+    lastEmojiRef.current = next;
+  }, [persona.emoji]);
   const touchStartY = useRef<number | null>(null);
   const scrollerRef = useRef<HTMLDivElement | null>(null);
   const loadStartRef = useRef<number>(performance.now());
@@ -564,22 +582,32 @@ export function Home() {
             onClick={handleGreetingTap}
             onDoubleClick={toggleWave}
             aria-label={`Greeting for ${first}. Double-tap to ${waveEnabled ? "hide" : "show"} the wave emoji.`}
-            className="hp-greeting-tap text-left"
+            className="hp-greeting-tap text-left hp-greeting-enter"
           >
             <p key={greetingPulse} className="hp-greeting hp-greeting-pulse">
-              Hey, {first}
+              <span className="hp-greeting-text">Hey, {first}</span>
               {waveEnabled && (
-                <>
-                  {" "}
+                <span className="hp-greeting-emoji-stage" aria-hidden={false}>
+                  {/* Previous glyph animating out */}
+                  {prevEmoji && (
+                    <span
+                      key={`out-${prevEmoji}`}
+                      className="hp-greeting-emoji hp-greeting-emoji-out"
+                      aria-hidden="true"
+                    >
+                      {prevEmoji}
+                    </span>
+                  )}
+                  {/* Current glyph animating in */}
                   <span
-                    key={persona.persona}
-                    className="hp-greeting-emoji"
+                    key={`in-${persona.persona}`}
+                    className="hp-greeting-emoji hp-greeting-emoji-in"
                     role="img"
                     aria-label={persona.persona === "boy" ? "cool face" : persona.persona === "girl" ? "cherry blossom" : "waving hand"}
                   >
                     {persona.emoji}
                   </span>
-                </>
+                </span>
               )}
             </p>
             <p className="hp-greeting-sub">{persona.subtitle}</p>
