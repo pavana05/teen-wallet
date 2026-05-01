@@ -888,11 +888,12 @@ export function Home() {
           </div>
           <button className="hp-section-link">View all</button>
         </div>
-        <div className="grid grid-cols-4 gap-3">
-          <RechargeTile icon={Smartphone} label="Recharge" tint="from-indigo-500/40 to-fuchsia-500/30" />
-          <RechargeTile icon={CreditCard} label="Credit card bill" tint="from-emerald-500/40 to-teal-500/20" />
-          <RechargeTile icon={Zap} label="Utilities" tint="from-violet-500/40 to-purple-600/30" />
-          <RechargeTile icon={MoreHorizontal} label="More" tint="from-white/10 to-white/5" />
+        <div className="hp-recharge-rail">
+          <RechargePill icon={Smartphone} label="Mobile recharge" variant="champagne" />
+          <RechargePill icon={Satellite} label="DTH recharge" variant="warm" />
+          <RechargePill icon={CreditCard} label="Credit card bill" variant="platinum" />
+          <RechargePill icon={Zap} label="Utilities" variant="champagne" />
+          <RechargePill icon={Grid2x2} label="View all" variant="muted" />
         </div>
       </div>
 
