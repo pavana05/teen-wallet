@@ -1,4 +1,4 @@
-import { Bell, Home as HomeIcon, ScanLine, CreditCard, ArrowUpRight, Building2, Wallet, History, Smartphone, Zap, MoreHorizontal, RefreshCw, User, Sparkles, Send } from "lucide-react";
+import { Bell, ChevronRight, Home as HomeIcon, ScanLine, CreditCard, ArrowUpRight, Building2, Wallet, History, Smartphone, Zap, MoreHorizontal, RefreshCw, User, Sparkles, Send, Satellite, Grid2x2 } from "lucide-react";
 import { useApp } from "@/lib/store";
 import { useEffect, useState, useCallback, useRef, memo, Suspense } from "react";
 import { createPortal } from "react-dom";
