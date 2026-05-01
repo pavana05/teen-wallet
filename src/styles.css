@@ -1285,6 +1285,33 @@ body > div:first-child,
   100% { transform: scale(1);    text-shadow: 0 0 0 rgba(255,255,255,0); }
 }
 
+/* Greeting emoji — force color-emoji font stack so glyphs like 😎 / 🌸 render
+   as full-color across platforms (some devices fall back to monochrome text
+   when the surrounding font lacks emoji glyphs). Smooth swap when persona
+   changes via remount key. */
+.hp-greeting-emoji{
+  display: inline-block;
+  font-family: "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",
+               "Twemoji Mozilla","EmojiOne Color","Android Emoji",sans-serif;
+  font-style: normal;
+  line-height: 1;
+  vertical-align: -0.05em;
+  animation: hp-emoji-pop 480ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  transition: transform 220ms ease;
+  will-change: transform;
+}
+.hp-greeting-tap:hover .hp-greeting-emoji{
+  transform: rotate(-8deg) scale(1.08);
+}
+@keyframes hp-emoji-pop{
+  0%   { opacity: 0; transform: scale(0.5) rotate(-18deg); }
+  60%  { opacity: 1; transform: scale(1.18) rotate(6deg); }
+  100% { opacity: 1; transform: scale(1) rotate(0deg); }
+}
+@media (prefers-reduced-motion: reduce){
+  .hp-greeting-emoji{ animation: none; transition: none; }
+}
+
 /* Helper tooltip below greeting — minimal, reserves no layout space when hidden */
 .hp-greeting-tip{
   position: absolute;
