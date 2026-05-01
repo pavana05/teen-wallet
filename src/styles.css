@@ -5202,27 +5202,28 @@ button:focus-visible .hp-tile{
   padding: 0;
   caret-color: #E8D9B5;
   -webkit-tap-highlight-color: transparent;
-  transition: transform .18s cubic-bezier(.2,.9,.25,1.4);
+  transition: none;
 }
 .tw-phone-clean-input::placeholder {
   color: rgba(255,255,255,0.24);
   font-weight: 400;
   letter-spacing: 0.06em;
 }
-/* Bounce on each new digit */
-.tw-phone-clean-bounce {
-  animation: tw-phone-clean-bounce .34s cubic-bezier(.2,.9,.25,1.5) both;
+
+/* Premium down-to-up slide on each new digit.
+   Uses translate + opacity only — GPU-friendly, no layout thrash. */
+.tw-phone-clean-rise {
+  animation: tw-phone-clean-rise .42s cubic-bezier(.22,.61,.36,1) both;
 }
-@keyframes tw-phone-clean-bounce {
-  0%   { transform: scale(1); }
-  35%  { transform: scale(1.045); letter-spacing: 0.04em; }
-  70%  { transform: scale(0.995); }
-  100% { transform: scale(1); letter-spacing: 0.02em; }
+@keyframes tw-phone-clean-rise {
+  0%   { transform: translateY(8px);  opacity: 0.55; filter: blur(.4px); }
+  60%  { transform: translateY(0);    opacity: 1;    filter: blur(0); }
+  100% { transform: translateY(0);    opacity: 1;    filter: blur(0); }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .tw-phone-clean,
-  .tw-phone-clean-bounce,
+  .tw-phone-clean-rise,
   .tw-phone-clean-input { animation: none !important; transition: none !important; }
 }
 
