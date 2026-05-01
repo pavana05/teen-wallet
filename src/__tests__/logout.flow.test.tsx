@@ -128,47 +128,50 @@ describe("Logout end-to-end", () => {
     expect(useApp.getState().userId).toBeNull();
   });
 
-  it("still lands on onboarding when signOut is slow (2.5s timeout wins)", async () => {
-    vi.useFakeTimers();
-    let resolveSignOut: (v: { error: null }) => void = () => {};
-    signOutImpl.mockImplementation(
-      () =>
-        new Promise<{ error: null }>((resolve) => {
-          resolveSignOut = resolve;
-        })
-    );
+  it(
+    "still lands on onboarding when signOut is slow (timeout wins)",
+    async () => {
+      // Don't use fake timers here — @testing-library's `waitFor` polls on
+      // real timers, and mixing the two deadlocks. Instead, configure the
+      // mock to take longer than the race window and assert the harness
+      // still bounces to onboarding via the 2.5s timeout branch.
+      let resolveSignOut: (v: { error: null }) => void = () => {};
+      signOutImpl.mockImplementation(
+        () =>
+          new Promise<{ error: null }>((resolve) => {
+            resolveSignOut = resolve;
+          })
+      );
 
-    render(<LogoutHarness />);
-    expect(useApp.getState().stage).toBe("STAGE_5");
+      render(<LogoutHarness />);
+      expect(useApp.getState().stage).toBe("STAGE_5");
 
-    fireEvent.click(screen.getByTestId("confirm-sheet-confirm"));
+      fireEvent.click(screen.getByTestId("confirm-sheet-confirm"));
 
-    // While signOut is pending, the confirm button stays disabled and the
-    // store has NOT yet been reset.
-    await waitFor(() => {
-      expect(screen.getByTestId("confirm-sheet-confirm")).toBeDisabled();
-    });
-    expect(useApp.getState().stage).toBe("STAGE_5");
+      // Mid-flight: the confirm button is disabled and the store hasn't
+      // been reset yet — the timeout hasn't fired.
+      await waitFor(() => {
+        expect(screen.getByTestId("confirm-sheet-confirm")).toBeDisabled();
+      });
+      expect(useApp.getState().stage).toBe("STAGE_5");
 
-    // Advance past the 2.5s timeout — the race should fire reset() even
-    // though signOut is still pending.
-    await act(async () => {
-      vi.advanceTimersByTime(2600);
-    });
+      // After the 2.5s timeout, reset() must run regardless of signOut.
+      await waitFor(
+        () => {
+          expect(screen.queryByTestId("onboarding-screen")).toBeInTheDocument();
+        },
+        { timeout: 4000 }
+      );
+      expect(useApp.getState().stage).toBe("STAGE_0");
+      expect(useApp.getState().userId).toBeNull();
 
-    await waitFor(() => {
-      expect(screen.queryByTestId("onboarding-screen")).toBeInTheDocument();
-    });
-    expect(useApp.getState().stage).toBe("STAGE_0");
-    expect(useApp.getState().userId).toBeNull();
-
-    // Late signOut resolution should be a no-op (no crash).
-    resolveSignOut({ error: null });
-    await act(async () => {
-      vi.advanceTimersByTime(0);
-    });
-    expect(useApp.getState().stage).toBe("STAGE_0");
-  });
+      // Late signOut resolution must be a safe no-op.
+      resolveSignOut({ error: null });
+      await new Promise((r) => setTimeout(r, 0));
+      expect(useApp.getState().stage).toBe("STAGE_0");
+    },
+    10000
+  );
 
   it("guards against double-clicks (only one signOut call in flight)", async () => {
     signOutImpl.mockImplementation(
