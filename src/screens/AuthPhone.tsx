@@ -419,10 +419,16 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
     if (verifyLocked) return;
     const d = v.replace(/\D/g, "").slice(-1);
     const prev = otp[i];
+    // No-op keypress (same digit re-typed, or non-digit ignored): skip haptic + state churn.
+    if (d === prev) return;
     const next = [...otp]; next[i] = d; setOtp(next);
-    // Subtle haptic on each digit landed; selection click on clear.
-    if (d && d !== prev) void haptics.tap();
-    else if (!d && prev) void haptics.select();
+    // Haptic only on real digit change, with the shared cooldown.
+    const now = typeof performance !== "undefined" ? performance.now() : Date.now();
+    if (now - lastHapticAtRef.current >= HAPTIC_MIN_GAP_MS) {
+      lastHapticAtRef.current = now;
+      if (d) void haptics.tap();
+      else void haptics.select();
+    }
     // Editing any digit clears the prior error so the user gets immediate feedback.
     if (error) { setError(""); setErrorKind(null); setErrorId(null); }
     if (d && i < 5) inputs.current[i + 1]?.focus();
