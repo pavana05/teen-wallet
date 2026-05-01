@@ -1195,16 +1195,16 @@ function MyQrSheet({ upiId, payeeName, onClose }: { upiId: string; payeeName: st
 }
 
 /* ───────── Confirm + Delete sheets ───────── */
-function ConfirmSheet({ title, desc, confirmLabel, danger, onCancel, onConfirm }: { title: string; desc: string; confirmLabel: string; danger?: boolean; onCancel: () => void; onConfirm: () => void }) {
+function ConfirmSheet({ title, desc, confirmLabel, danger, busy, onCancel, onConfirm }: { title: string; desc: string; confirmLabel: string; danger?: boolean; busy?: boolean; onCancel: () => void; onConfirm: () => void }) {
   return (
-    <div className="absolute inset-0 z-[80] flex items-end pp-sheet-backdrop" onClick={onCancel} role="alertdialog" aria-modal="true" aria-labelledby="pp-confirm-title" aria-describedby="pp-confirm-desc">
+    <div className="absolute inset-0 z-[80] flex items-end pp-sheet-backdrop" onClick={busy ? undefined : onCancel} role="alertdialog" aria-modal="true" aria-labelledby="pp-confirm-title" aria-describedby="pp-confirm-desc">
       <div className="pp-sheet" onClick={(e) => e.stopPropagation()}>
         <div className="pp-sheet-grab" />
         <p id="pp-confirm-title" className="text-[16px] font-semibold text-white">{title}</p>
         <p id="pp-confirm-desc" className="text-[12.5px] text-white/60 mt-1">{desc}</p>
         <div className="flex gap-2 mt-5">
-          <button onClick={onCancel} className="pp-btn-ghost flex-1">Cancel</button>
-          <button onClick={onConfirm} className={`flex-1 ${danger ? "pp-btn-danger" : "pp-btn-primary"}`}>{confirmLabel}</button>
+          <button onClick={onCancel} disabled={busy} className="pp-btn-ghost flex-1 disabled:opacity-50">Cancel</button>
+          <button onClick={onConfirm} disabled={busy} className={`flex-1 disabled:opacity-60 ${danger ? "pp-btn-danger" : "pp-btn-primary"}`}>{confirmLabel}</button>
         </div>
       </div>
     </div>
