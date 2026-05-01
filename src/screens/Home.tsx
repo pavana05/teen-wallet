@@ -1,4 +1,4 @@
-import { Bell, Home as HomeIcon, ScanLine, CreditCard, ArrowUpRight, Building2, Wallet, History, Smartphone, Zap, MoreHorizontal, RefreshCw, User, Sparkles, Send } from "lucide-react";
+import { Bell, ChevronRight, Home as HomeIcon, ScanLine, CreditCard, ArrowUpRight, Building2, Wallet, History, Smartphone, Zap, MoreHorizontal, RefreshCw, User, Sparkles, Send, Satellite, Grid2x2 } from "lucide-react";
 import { useApp } from "@/lib/store";
 import { useEffect, useState, useCallback, useRef, memo, Suspense } from "react";
 import { createPortal } from "react-dom";
@@ -208,6 +208,41 @@ function RechargeTile({ icon: Icon, label, tint }: { icon: React.ComponentType<{
         <Icon className="w-6 h-6 text-white" strokeWidth={1.7} />
       </div>
       <span className="text-[11px] text-white/70 leading-tight text-center">{label}</span>
+    </button>
+  );
+}
+
+/**
+ * Premium horizontal pill card for the "Recharges & utilities" rail.
+ * Deep graphite surface, soft inner sheen, animated champagne-glow icon
+ * orb on the left, label centered, subtle chevron affordance on hover.
+ */
+function RechargePill({
+  icon: Icon,
+  label,
+  variant = "champagne",
+  onClick,
+}: {
+  icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
+  label: string;
+  variant?: "champagne" | "platinum" | "warm" | "muted";
+  onClick?: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => { void haptics.tap(); onClick?.(); }}
+      aria-label={label}
+      className="hp-recharge-pill"
+      data-variant={variant}
+    >
+      <span className="hp-recharge-pill-shine" aria-hidden="true" />
+      <span className="hp-recharge-pill-orb" aria-hidden="true">
+        <span className="hp-recharge-pill-orb-glow" aria-hidden="true" />
+        <Icon className="w-[22px] h-[22px] relative z-[1]" strokeWidth={1.85} />
+      </span>
+      <span className="hp-recharge-pill-label">{label}</span>
+      <ChevronRight className="hp-recharge-pill-chev" strokeWidth={2} aria-hidden="true" />
     </button>
   );
 }
@@ -853,11 +888,12 @@ export function Home() {
           </div>
           <button className="hp-section-link">View all</button>
         </div>
-        <div className="grid grid-cols-4 gap-3">
-          <RechargeTile icon={Smartphone} label="Recharge" tint="from-indigo-500/40 to-fuchsia-500/30" />
-          <RechargeTile icon={CreditCard} label="Credit card bill" tint="from-emerald-500/40 to-teal-500/20" />
-          <RechargeTile icon={Zap} label="Utilities" tint="from-violet-500/40 to-purple-600/30" />
-          <RechargeTile icon={MoreHorizontal} label="More" tint="from-white/10 to-white/5" />
+        <div className="hp-recharge-rail">
+          <RechargePill icon={Smartphone} label="Mobile recharge" variant="champagne" />
+          <RechargePill icon={Satellite} label="DTH recharge" variant="warm" />
+          <RechargePill icon={CreditCard} label="Credit card bill" variant="platinum" />
+          <RechargePill icon={Zap} label="Utilities" variant="champagne" />
+          <RechargePill icon={Grid2x2} label="View all" variant="muted" />
         </div>
       </div>
 
