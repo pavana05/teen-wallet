@@ -9837,3 +9837,14 @@ html.motion-off    .otp-resend-ring svg circle { transition: none !important; }
   }
   .sp-success-shimmer { display: none; }
 }
+
+/* Inline error shake — used by referral code validation and other inline alerts */
+@keyframes hp-error-shake {
+  0%, 100% { transform: translateX(0); }
+  15% { transform: translateX(-6px); }
+  30% { transform: translateX(5px); }
+  45% { transform: translateX(-4px); }
+  60% { transform: translateX(3px); }
+  75% { transform: translateX(-2px); }
+  90% { transform: translateX(1px); }
+}
