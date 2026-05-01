@@ -436,83 +436,36 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
           <p className="text-[#888] mt-3 text-sm">We'll send a 6-digit OTP to verify it's really you.</p>
 
           <div className="mt-12">
-            <div className="flex items-center justify-between mb-2">
-              <label htmlFor="tw-phone" className="text-[10.5px] tracking-[0.22em] uppercase text-white/55 font-medium">
-                Mobile number
-              </label>
-              <span
-                aria-hidden="true"
-                className={`text-[10px] tracking-[0.18em] uppercase font-medium transition-colors ${
-                  valid ? "text-[#E8D9B5]" : "text-white/30"
-                }`}
-              >
-                {phone.length}/10
-              </span>
-            </div>
-            <label
-              htmlFor="tw-phone"
-              className={`tw-phone-field tw-phone-field-v2 ${error ? "tw-phone-field-error" : ""} ${valid ? "tw-phone-field-valid" : ""}`}
-            >
-              <span className="tw-phone-aurora" aria-hidden="true" />
-              <span className="tw-phone-cc">
-                <span className="tw-phone-flag" aria-hidden="true">🇮🇳</span>
-                <span className="text-[13.5px] font-semibold tracking-[0.02em] num-mono">+91</span>
-              </span>
-              <span className="tw-phone-divider" aria-hidden="true" />
-
-              {/* Animated digit slots — 5+5 grouping for premium readability */}
-              <span className="tw-phone-slots" aria-hidden="true">
-                {Array.from({ length: 10 }).map((_, i) => {
-                  const ch = phone[i];
-                  const isGap = i === 5;
-                  return (
-                    <span key={i} className={`tw-slot ${isGap ? "tw-slot-gap" : ""} ${ch ? "tw-slot-filled" : ""}`}>
-                      {ch ? (
-                        <span key={`${i}-${ch}`} className="tw-slot-digit num-mono">{ch}</span>
-                      ) : (
-                        <span className="tw-slot-dot" />
-                      )}
-                    </span>
-                  );
-                })}
-              </span>
-
-              {/* Hidden native input drives state + keyboard */}
+            <label htmlFor="tw-phone" className="block text-[11px] tracking-[0.18em] uppercase text-white/50 font-medium mb-2.5">
+              Mobile number
+            </label>
+            <div className={`tw-phone-clean ${error ? "tw-phone-clean-error" : ""}`}>
+              <span className="tw-phone-clean-cc" aria-hidden="true">+91</span>
               <input
                 id="tw-phone"
+                type="tel"
                 inputMode="numeric"
-                value={phone}
+                value={formatted}
                 onChange={(e) => {
                   setError("");
-                  // Live normalization: strips +91, leading 0, spaces, dashes, parens
-                  // so pasting "+91 98765 43210" or "098765 43210" Just Works.
                   setPhone(liveNormalizePhoneInput(e.target.value));
                 }}
                 onPaste={(e) => {
-                  // Force-normalize pasted strings even when they include "+" / spaces
-                  // that the inputMode=numeric keyboard wouldn't allow.
                   const text = e.clipboardData?.getData("text") ?? "";
                   if (!text) return;
                   e.preventDefault();
                   setError("");
                   setPhone(liveNormalizePhoneInput(text));
                 }}
-                className="tw-phone-input-hidden"
+                className="tw-phone-clean-input"
+                placeholder="00000 00000"
                 aria-invalid={!!error}
                 aria-describedby={error ? "tw-phone-error" : undefined}
                 aria-label="10-digit mobile number"
                 autoFocus
-                maxLength={10}
+                maxLength={11}
               />
-
-              {valid && (
-                <span className="tw-phone-check" aria-hidden="true">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>
-                </span>
-              )}
-            </label>
+            </div>
             {phoneHint ? (
               <p
                 className={`mt-2.5 text-[11px] tracking-wide flex items-center gap-1.5 ${
