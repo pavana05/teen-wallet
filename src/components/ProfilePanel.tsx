@@ -202,17 +202,16 @@ export function ProfilePanel({ onClose, onTransactions }: Props) {
   const onLogout = async () => {
     if (loggingOut) return;
     setLoggingOut(true);
-    // Close the confirm sheet immediately so the UI feels responsive even
-    // if the network call to Supabase is slow.
-    setConfirmLogout(false);
     const t = toast.loading("Signing you out…");
-    // Kick off remote sign-out but don't block local cleanup on it. If the
+    // Kick off remote sign-out but never block local cleanup on it. If the
     // network is flaky, the user still gets logged out on this device.
     const remote = logout().catch((e) => {
       console.warn("[logout] remote signOut failed", e);
     });
     // Race remote sign-out against a 2.5s timeout — whichever wins, we
-    // proceed to clear local state and bounce back to onboarding.
+    // proceed to clear local state and bounce back to onboarding. Keep the
+    // confirm sheet visible during the race so the user always sees a busy
+    // state and can't double-tap into another screen.
     await Promise.race([
       remote,
       new Promise((res) => setTimeout(res, 2500)),
@@ -221,9 +220,13 @@ export function ProfilePanel({ onClose, onTransactions }: Props) {
       clearLocalState();
       reset();
       toast.success("Signed out", { id: t });
+      // Dismiss confirm sheet + panel only AFTER local state is cleared so
+      // the parent never re-renders Home with a stale session.
+      setConfirmLogout(false);
       onClose();
     } catch (e) {
       toast.error("Couldn't sign out", { id: t, description: (e as Error).message });
+      setConfirmLogout(false);
     } finally {
       setLoggingOut(false);
     }
