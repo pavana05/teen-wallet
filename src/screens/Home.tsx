@@ -212,6 +212,41 @@ function RechargeTile({ icon: Icon, label, tint }: { icon: React.ComponentType<{
   );
 }
 
+/**
+ * Premium horizontal pill card for the "Recharges & utilities" rail.
+ * Deep graphite surface, soft inner sheen, animated champagne-glow icon
+ * orb on the left, label centered, subtle chevron affordance on hover.
+ */
+function RechargePill({
+  icon: Icon,
+  label,
+  variant = "champagne",
+  onClick,
+}: {
+  icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
+  label: string;
+  variant?: "champagne" | "platinum" | "warm" | "muted";
+  onClick?: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => { void haptics.tap(); onClick?.(); }}
+      aria-label={label}
+      className="hp-recharge-pill"
+      data-variant={variant}
+    >
+      <span className="hp-recharge-pill-shine" aria-hidden="true" />
+      <span className="hp-recharge-pill-orb" aria-hidden="true">
+        <span className="hp-recharge-pill-orb-glow" aria-hidden="true" />
+        <Icon className="w-[22px] h-[22px] relative z-[1]" strokeWidth={1.85} />
+      </span>
+      <span className="hp-recharge-pill-label">{label}</span>
+      <ChevronRight className="hp-recharge-pill-chev" strokeWidth={2} aria-hidden="true" />
+    </button>
+  );
+}
+
 function NavItem({
   icon: Icon,
   label,
