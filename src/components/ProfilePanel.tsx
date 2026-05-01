@@ -198,15 +198,34 @@ export function ProfilePanel({ onClose, onTransactions }: Props) {
     } catch { /* ignore quota / privacy mode */ }
   };
 
+  const [loggingOut, setLoggingOut] = useState(false);
   const onLogout = async () => {
+    if (loggingOut) return;
+    setLoggingOut(true);
+    // Close the confirm sheet immediately so the UI feels responsive even
+    // if the network call to Supabase is slow.
+    setConfirmLogout(false);
+    const t = toast.loading("Signing you out…");
+    // Kick off remote sign-out but don't block local cleanup on it. If the
+    // network is flaky, the user still gets logged out on this device.
+    const remote = logout().catch((e) => {
+      console.warn("[logout] remote signOut failed", e);
+    });
+    // Race remote sign-out against a 2.5s timeout — whichever wins, we
+    // proceed to clear local state and bounce back to onboarding.
+    await Promise.race([
+      remote,
+      new Promise((res) => setTimeout(res, 2500)),
+    ]);
     try {
-      await logout();
       clearLocalState();
       reset();
-      toast.success("Signed out");
+      toast.success("Signed out", { id: t });
       onClose();
     } catch (e) {
-      toast.error("Couldn't sign out", { description: (e as Error).message });
+      toast.error("Couldn't sign out", { id: t, description: (e as Error).message });
+    } finally {
+      setLoggingOut(false);
     }
   };
 
@@ -814,9 +833,10 @@ export function ProfilePanel({ onClose, onTransactions }: Props) {
         <ConfirmSheet
           title="Log out?"
           desc="You'll need to sign in again to use TeenWallet."
-          confirmLabel="Log out"
+          confirmLabel={loggingOut ? "Signing out…" : "Log out"}
           danger
-          onCancel={() => setConfirmLogout(false)}
+          busy={loggingOut}
+          onCancel={() => { if (!loggingOut) setConfirmLogout(false); }}
           onConfirm={onLogout}
         />
       )}
@@ -1175,16 +1195,16 @@ function MyQrSheet({ upiId, payeeName, onClose }: { upiId: string; payeeName: st
 }
 
 /* ───────── Confirm + Delete sheets ───────── */
-function ConfirmSheet({ title, desc, confirmLabel, danger, onCancel, onConfirm }: { title: string; desc: string; confirmLabel: string; danger?: boolean; onCancel: () => void; onConfirm: () => void }) {
+function ConfirmSheet({ title, desc, confirmLabel, danger, busy, onCancel, onConfirm }: { title: string; desc: string; confirmLabel: string; danger?: boolean; busy?: boolean; onCancel: () => void; onConfirm: () => void }) {
   return (
-    <div className="absolute inset-0 z-[80] flex items-end pp-sheet-backdrop" onClick={onCancel} role="alertdialog" aria-modal="true" aria-labelledby="pp-confirm-title" aria-describedby="pp-confirm-desc">
+    <div className="absolute inset-0 z-[80] flex items-end pp-sheet-backdrop" onClick={busy ? undefined : onCancel} role="alertdialog" aria-modal="true" aria-labelledby="pp-confirm-title" aria-describedby="pp-confirm-desc">
       <div className="pp-sheet" onClick={(e) => e.stopPropagation()}>
         <div className="pp-sheet-grab" />
         <p id="pp-confirm-title" className="text-[16px] font-semibold text-white">{title}</p>
         <p id="pp-confirm-desc" className="text-[12.5px] text-white/60 mt-1">{desc}</p>
         <div className="flex gap-2 mt-5">
-          <button onClick={onCancel} className="pp-btn-ghost flex-1">Cancel</button>
-          <button onClick={onConfirm} className={`flex-1 ${danger ? "pp-btn-danger" : "pp-btn-primary"}`}>{confirmLabel}</button>
+          <button onClick={onCancel} disabled={busy} className="pp-btn-ghost flex-1 disabled:opacity-50">Cancel</button>
+          <button onClick={onConfirm} disabled={busy} className={`flex-1 disabled:opacity-60 ${danger ? "pp-btn-danger" : "pp-btn-primary"}`}>{confirmLabel}</button>
         </div>
       </div>
     </div>
