@@ -139,29 +139,33 @@ function AdminLayout() {
           )}
         </div>
 
-        <nav style={{ flex: 1, padding: 8, overflowY: "auto" }}>
+        <nav style={{ flex: 1, padding: "8px 2px", overflowY: "auto" }}>
           {navSections.map((sec, si) => (
             <div key={si}>
               {!collapsed && sec.label && <div className="a-side-section">{sec.label}</div>}
-              {collapsed && sec.label && <div style={{ height: 10 }} />}
-              {sec.items.map((it) => (
+              {collapsed && sec.label && <div style={{ height: 12 }} />}
+              {sec.items.map((it, idx) => (
                 <Link
                   key={it.to}
                   to={it.to as never}
                   activeOptions={{ exact: !!it.end }}
                   activeProps={{ "data-active": "true" } as any}
+                  data-collapsed={collapsed ? "true" : undefined}
                   title={collapsed ? `${it.label}${it.kbd ? ` (${it.kbd})` : ""}` : undefined}
                   className="a-side-item"
-                  style={{
-                    justifyContent: collapsed ? "center" : "flex-start",
-                    padding: collapsed ? "10px 0" : undefined,
-                    gap: collapsed ? 0 : 10,
-                  }}
                 >
-                  <it.icon size={16} />
-                  {!collapsed && <span style={{ flex: 1 }}>{it.label}</span>}
+                  {/* Animated sparkle layer for the active pill */}
+                  <span className="a-side-sparkle" aria-hidden="true" />
+                  {sec.tile ? (
+                    <span className={`a-side-tile a-side-tile-${(idx % 5) + 1}`} aria-hidden="true">
+                      <it.icon size={15} strokeWidth={2.2} />
+                    </span>
+                  ) : (
+                    <it.icon size={16} style={{ flexShrink: 0 }} />
+                  )}
+                  {!collapsed && <span style={{ flex: 1, position: "relative", zIndex: 1 }}>{it.label}</span>}
                   {!collapsed && it.kbd && (
-                    <span className="a-mono" style={{ fontSize: 9, color: "var(--a-muted)", letterSpacing: "0.05em" }}>{it.kbd}</span>
+                    <span className="a-mono" style={{ fontSize: 9, color: "var(--a-muted)", letterSpacing: "0.05em", position: "relative", zIndex: 1 }}>{it.kbd}</span>
                   )}
                 </Link>
               ))}
