@@ -871,7 +871,7 @@ export function Home() {
           Portaled to <body> so no transformed/scrolling ancestor (e.g. the
           pull-to-refresh wrapper) can trap position: fixed. This guarantees
           the dock stays pinned to the device viewport on every device. */}
-      {typeof document !== "undefined" && createPortal(
+      {mounted && typeof document !== "undefined" && createPortal(
         <>
           <nav
             aria-label="Primary"
