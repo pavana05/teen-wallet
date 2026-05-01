@@ -67,21 +67,35 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
   const inputs = useRef<(HTMLInputElement | null)[]>([]);
   const phoneInputRef = useRef<HTMLInputElement | null>(null);
   const prevPhoneLenRef = useRef<number>(0);
+  // Cooldown so rapid input (autofill, holding key) doesn't buzz on every event.
+  const lastHapticAtRef = useRef<number>(0);
+  const HAPTIC_MIN_GAP_MS = 60;
 
   // Premium down-to-up slide on each new digit added.
+  // Haptics: fire ONLY when the digit count actually changed (not on every
+  // keypress), at most once per HAPTIC_MIN_GAP_MS, and once total per paste
+  // regardless of how many digits arrived.
   useEffect(() => {
     const el = phoneInputRef.current;
     if (!el) return;
-    if (phone.length > prevPhoneLenRef.current) {
+    const now = typeof performance !== "undefined" ? performance.now() : Date.now();
+    const delta = phone.length - prevPhoneLenRef.current;
+    if (delta > 0) {
       el.classList.remove("tw-phone-clean-rise");
       // Force reflow so the animation can replay
       void el.offsetWidth;
       el.classList.add("tw-phone-clean-rise");
-      // Featherlight tactile tick on each digit added.
-      void haptics.tap();
-    } else if (phone.length < prevPhoneLenRef.current) {
-      // Crisp selection click on backspace / digit removed.
-      void haptics.select();
+      // Featherlight tick on a real digit add (single fire, even on paste).
+      if (now - lastHapticAtRef.current >= HAPTIC_MIN_GAP_MS) {
+        lastHapticAtRef.current = now;
+        void haptics.tap();
+      }
+    } else if (delta < 0) {
+      // Crisp selection click on actual backspace / digit removed.
+      if (now - lastHapticAtRef.current >= HAPTIC_MIN_GAP_MS) {
+        lastHapticAtRef.current = now;
+        void haptics.select();
+      }
     }
     prevPhoneLenRef.current = phone.length;
   }, [phone]);
