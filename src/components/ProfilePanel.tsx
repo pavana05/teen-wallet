@@ -483,9 +483,19 @@ export function ProfilePanel({ onClose, onTransactions }: Props) {
               {/* UPI group */}
               <p className="pp-group-label">UPI</p>
               <div className="pp-card divide-y divide-white/5">
-                <Row icon={Settings} label="Account management" />
+                <Row
+                  icon={Settings}
+                  label="Account management"
+                  hint="Profile · KYC"
+                  onClick={() => setTab("account")}
+                />
                 <Row icon={Receipt} label="Transaction history" onClick={() => { onTransactions?.(); }} />
-                <Row icon={Wallet} label="Everything UPI" />
+                <Row
+                  icon={Wallet}
+                  label="Everything UPI"
+                  hint="Manage"
+                  onClick={() => toast("Everything UPI", { description: "Manage UPI handles, autopay & limits — launching soon." })}
+                />
               </div>
 
               {/* Education & Social */}
@@ -528,15 +538,34 @@ export function ProfilePanel({ onClose, onTransactions }: Props) {
               {/* Shop group */}
               <p className="pp-group-label">Shop</p>
               <div className="pp-card divide-y divide-white/5">
-                <Row icon={Gift} label="Orders" />
-                <Row icon={Star} label="Wishlist" />
-                <Row icon={Building2} label="Saved address" />
+                <Row
+                  icon={Gift}
+                  label="Orders"
+                  hint="0 active"
+                  onClick={() => toast("Orders", { description: "Your TeenWallet shop orders will appear here." })}
+                />
+                <Row
+                  icon={Star}
+                  label="Wishlist"
+                  hint="Empty"
+                  onClick={() => toast("Wishlist", { description: "Save items you love — coming with the shop launch." })}
+                />
+                <Row
+                  icon={Building2}
+                  label="Saved address"
+                  hint="Add"
+                  onClick={() => toast("Saved address", { description: "Add delivery & billing addresses — launching soon." })}
+                />
               </div>
 
               {/* Promo card */}
               <p className="pp-group-label">YES Bank POP RuPay credit card</p>
               <div className="pp-card">
-                <button className="w-full px-3.5 py-3.5 flex items-center gap-3 hover:bg-white/[.02] transition-colors text-left">
+                <button
+                  type="button"
+                  onClick={() => toast.success("You're on the waitlist!", { description: "We'll notify you when the YES Bank POP RuPay credit card opens up." })}
+                  className="w-full px-3.5 py-3.5 flex items-center gap-3 hover:bg-white/[.02] transition-colors text-left"
+                >
                   <div className="pp-row-icon"><CreditCard className="w-4 h-4 text-amber-300" strokeWidth={2} /></div>
                   <div className="flex-1 min-w-0">
                     <p className="text-[13px] text-white font-medium">Apply now</p>
@@ -549,8 +578,18 @@ export function ProfilePanel({ onClose, onTransactions }: Props) {
               {/* Recharges & Bills */}
               <p className="pp-group-label">Recharges & Bills</p>
               <div className="pp-card divide-y divide-white/5">
-                <Row icon={Receipt} label="Pay bills" />
-                <Row icon={Gift} label="Rewards" hint={<span className="text-emerald-300">New</span>} />
+                <Row
+                  icon={Receipt}
+                  label="Pay bills"
+                  hint="Electricity · DTH · Gas"
+                  onClick={() => toast("Pay bills", { description: "Bill payments for utilities are launching soon." })}
+                />
+                <Row
+                  icon={Gift}
+                  label="Rewards"
+                  hint={<span className="text-emerald-300">New</span>}
+                  onClick={() => toast.success("Your rewards", { description: `You've earned ₹${Math.round(stats.totalSpent * 0.01).toLocaleString("en-IN")} in cashback so far.` })}
+                />
               </div>
 
               {/* Settings shortcuts */}
