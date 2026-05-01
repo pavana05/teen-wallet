@@ -223,6 +223,7 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
   const verifyLocked = verifyLockedUntil !== null && verifyLockedUntil > Date.now();
   const verifyLockSeconds = verifyLocked ? Math.ceil((verifyLockedUntil! - Date.now()) / 1000) : 0;
   const verifyAttemptsLeft = Math.max(0, MAX_VERIFY_ATTEMPTS - verifyAttempts);
+import { haptics } from "@/lib/haptics";
 
 
   /**
