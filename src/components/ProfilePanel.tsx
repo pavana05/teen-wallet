@@ -843,6 +843,18 @@ export function ProfilePanel({ onClose, onTransactions }: Props) {
           onConfirm={onLogout}
         />
       )}
+      {/* Global logout blocker — sits ABOVE every sheet/dock and swallows
+          all pointer + keyboard input while sign-out is in flight, so the
+          background UI can never receive a stray tap. */}
+      {loggingOut && (
+        <div
+          data-testid="logout-blocker"
+          className="absolute inset-0 z-[200] bg-black/40 backdrop-blur-sm flex items-end pointer-events-auto"
+          aria-hidden="true"
+          onClick={(e) => e.stopPropagation()}
+          onTouchStart={(e) => e.stopPropagation()}
+        />
+      )}
       {confirmDelete && (
         <DeleteAccountSheet
           onCancel={() => setConfirmDelete(false)}
