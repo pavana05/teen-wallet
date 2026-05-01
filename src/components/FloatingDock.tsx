@@ -248,9 +248,9 @@ export function FloatingDock({ active, onHome, onProfile, hidden }: DockProps) {
           never trapped by a transformed/scrolling ancestor (e.g. the
           ProfilePanel's absolute container or pull-to-refresh wrapper).
           This makes the dock truly viewport-pinned on every screen. */}
-      {typeof document !== "undefined"
+      {mounted && typeof document !== "undefined"
         ? createPortal(dockUi, document.body)
-        : dockUi}
+        : null}
 
       {scanOpen && (
         <div
