@@ -810,6 +810,7 @@ export function ProfilePanel({ onClose, onTransactions }: Props) {
       )}
 
       {appLockOpen && <AppLockSettings onBack={() => setAppLockOpen(false)} />}
+      {trustedDevicesOpen && <TrustedDevices onBack={() => setTrustedDevicesOpen(false)} />}
 
       {/* Pinned floating dock — Home & Profile share the same dock so the
           QR scan FAB is always one tap away. Hidden when any modal is open. */}
