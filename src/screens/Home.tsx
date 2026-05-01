@@ -1,6 +1,6 @@
 import { Bell, Home as HomeIcon, ScanLine, CreditCard, ArrowUpRight, Building2, Wallet, History, Smartphone, Zap, MoreHorizontal, RefreshCw, User, Sparkles, Send } from "lucide-react";
 import { useApp } from "@/lib/store";
-import { useEffect, useState, useCallback, useRef, Suspense } from "react";
+import { useEffect, useState, useCallback, useRef, memo, Suspense } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "@/integrations/supabase/client";
 // Heavy panels are lazy-loaded — they only mount when the user opens them
@@ -95,6 +95,89 @@ interface Txn {
   status: "success" | "pending" | "failed";
   created_at: string;
 }
+
+/**
+ * Memoized greeting header — isolated from the rest of Home so re-renders
+ * caused by transient state (pull-to-refresh translation, scroll-driven
+ * navCollapsed flips, txn list updates, etc.) don't repaint the entire
+ * gradient-text + emoji animation block. Only re-renders when one of its
+ * primitive props actually changes, which is the bottleneck on low-end
+ * devices because the gradient `background-clip:text` paint is expensive.
+ */
+interface GreetingHeaderProps {
+  first: string;
+  personaKey: "boy" | "girl" | "neutral";
+  emoji: string;
+  subtitle: string;
+  waveEnabled: boolean;
+  prevEmoji: string | null;
+  showGreetingTip: boolean;
+  greetingPulse: number;
+  onTap: () => void;
+  onDoubleTap: () => void;
+}
+
+const EMOJI_LABELS: Record<GreetingHeaderProps["personaKey"], string> = {
+  boy: "cool face",
+  girl: "cherry blossom",
+  neutral: "waving hand",
+};
+
+const GreetingHeader = memo(function GreetingHeader({
+  first,
+  personaKey,
+  emoji,
+  subtitle,
+  waveEnabled,
+  prevEmoji,
+  showGreetingTip,
+  greetingPulse,
+  onTap,
+  onDoubleTap,
+}: GreetingHeaderProps) {
+  return (
+    <button
+      type="button"
+      onClick={onTap}
+      onDoubleClick={onDoubleTap}
+      aria-label={`Greeting for ${first}. Double-tap to ${waveEnabled ? "hide" : "show"} the wave emoji.`}
+      className="hp-greeting-tap text-left hp-greeting-enter"
+    >
+      <p key={greetingPulse} className="hp-greeting hp-greeting-pulse">
+        <span className="hp-greeting-text">Hey, {first}</span>
+        {waveEnabled && (
+          <span className="hp-greeting-emoji-stage">
+            {prevEmoji && (
+              <span
+                key={`out-${prevEmoji}`}
+                className="hp-greeting-emoji hp-greeting-emoji-out"
+                aria-hidden="true"
+              >
+                {prevEmoji}
+              </span>
+            )}
+            <span
+              key={`in-${personaKey}`}
+              className="hp-greeting-emoji hp-greeting-emoji-in"
+              role="img"
+              aria-label={EMOJI_LABELS[personaKey]}
+            >
+              {emoji}
+            </span>
+          </span>
+        )}
+      </p>
+      <p className="hp-greeting-sub">{subtitle}</p>
+      <span
+        role="status"
+        aria-live="polite"
+        className={`hp-greeting-tip ${showGreetingTip ? "is-visible" : ""}`}
+      >
+        {waveEnabled ? "Double-tap to hide 👋" : "Double-tap to bring back 👋"}
+      </span>
+    </button>
+  );
+});
 
 function QuickAction({ icon: Icon, label, onClick }: { icon: React.ComponentType<{ className?: string; strokeWidth?: number }>; label: string; onClick?: () => void }) {
   const accessibleLabel = label.replace(/\n/g, " ");
@@ -577,48 +660,18 @@ export function Home() {
 
         {/* Header */}
         <div className="relative z-10 flex items-center justify-between px-6 pt-8">
-          <button
-            type="button"
-            onClick={handleGreetingTap}
-            onDoubleClick={toggleWave}
-            aria-label={`Greeting for ${first}. Double-tap to ${waveEnabled ? "hide" : "show"} the wave emoji.`}
-            className="hp-greeting-tap text-left hp-greeting-enter"
-          >
-            <p key={greetingPulse} className="hp-greeting hp-greeting-pulse">
-              <span className="hp-greeting-text">Hey, {first}</span>
-              {waveEnabled && (
-                <span className="hp-greeting-emoji-stage" aria-hidden={false}>
-                  {/* Previous glyph animating out */}
-                  {prevEmoji && (
-                    <span
-                      key={`out-${prevEmoji}`}
-                      className="hp-greeting-emoji hp-greeting-emoji-out"
-                      aria-hidden="true"
-                    >
-                      {prevEmoji}
-                    </span>
-                  )}
-                  {/* Current glyph animating in */}
-                  <span
-                    key={`in-${persona.persona}`}
-                    className="hp-greeting-emoji hp-greeting-emoji-in"
-                    role="img"
-                    aria-label={persona.persona === "boy" ? "cool face" : persona.persona === "girl" ? "cherry blossom" : "waving hand"}
-                  >
-                    {persona.emoji}
-                  </span>
-                </span>
-              )}
-            </p>
-            <p className="hp-greeting-sub">{persona.subtitle}</p>
-            <span
-              role="status"
-              aria-live="polite"
-              className={`hp-greeting-tip ${showGreetingTip ? "is-visible" : ""}`}
-            >
-              {waveEnabled ? "Double-tap to hide 👋" : "Double-tap to bring back 👋"}
-            </span>
-          </button>
+          <GreetingHeader
+            first={first}
+            personaKey={persona.persona}
+            emoji={persona.emoji}
+            subtitle={persona.subtitle}
+            waveEnabled={waveEnabled}
+            prevEmoji={prevEmoji}
+            showGreetingTip={showGreetingTip}
+            greetingPulse={greetingPulse}
+            onTap={handleGreetingTap}
+            onDoubleTap={toggleWave}
+          />
           <button
             type="button"
             onClick={() => { void haptics.tap(); setShowNotifs(true); }}
