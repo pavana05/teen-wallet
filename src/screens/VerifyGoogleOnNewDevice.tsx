@@ -5,10 +5,11 @@
  * phone OTP. On mismatch we hard-block and surface a support contact.
  */
 import { useEffect, useState } from "react";
-import { ArrowLeft, Mail, ShieldAlert, ShieldCheck } from "lucide-react";
+import { ArrowLeft, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { lovable } from "@/integrations/lovable";
 import { supabase } from "@/integrations/supabase/client";
+import { AccountMismatchBlock } from "@/components/AccountMismatchBlock";
 import {
   readCurrentGoogleIdentity,
   verifyGoogleForPhone,
@@ -80,59 +81,17 @@ export function VerifyGoogleOnNewDevice({ phone10, emailHint, onBack, onVerified
 
   if (status === "mismatch") {
     return (
-      <div className="flex-1 flex flex-col p-6 tw-slide-up">
-        <div className="flex items-center justify-between mb-12">
-          <button onClick={onBack} className="w-10 h-10 rounded-full glass flex items-center justify-center">
-            <ArrowLeft className="w-5 h-5" />
-          </button>
-          <span className="text-sm tracking-[0.3em] text-white/80 font-light">TEEN WALLET</span>
-          <div className="w-10" />
-        </div>
-
-        <div className="w-14 h-14 rounded-2xl bg-red-500/15 border border-red-500/30 flex items-center justify-center mb-6">
-          <ShieldAlert className="w-7 h-7 text-red-400" />
-        </div>
-        <h1 className="text-[28px] font-bold leading-tight">
-          That Google account<br />doesn't match
-        </h1>
-        <p className="text-white/60 mt-3 text-[14px] leading-relaxed max-w-[320px]">
-          For your safety, this wallet can only be unlocked from a new device
-          using the Google account that was originally linked
-          {emailHint ? ` (${emailHint})` : ""}.
-        </p>
-        <p className="text-white/50 mt-4 text-[13px] leading-relaxed">
-          If you've lost access to that Google account, our support team can
-          help you recover the wallet after an extra identity check.
-        </p>
-
-        {error ? (
-          <p className="text-[12px] text-red-400 mt-4" role="alert">
-            {error}
-          </p>
-        ) : null}
-
-        <div className="mt-auto pt-8 flex flex-col gap-3">
-          <a
-            href="mailto:support@teenwallet.in?subject=Locked%20out%20-%20Google%20mismatch"
-            className="h-14 rounded-2xl bg-white text-black font-semibold flex items-center justify-center gap-2 active:scale-[0.99] transition-transform"
-          >
-            <Mail className="w-4 h-4" />
-            Contact support
-          </a>
-          <button
-            onClick={() => {
-              setStatus("idle");
-              setError(null);
-            }}
-            className="h-12 rounded-2xl glass text-white/80 font-medium"
-          >
-            Try a different Google account
-          </button>
-          <button onClick={onBack} className="h-12 rounded-2xl text-white/50 font-medium">
-            Use a different number
-          </button>
-        </div>
-      </div>
+      <AccountMismatchBlock
+        reason="google_mismatch"
+        emailHint={emailHint}
+        phone10={phone10}
+        detail={error}
+        onBack={onBack}
+        onRetry={() => {
+          setStatus("idle");
+          setError(null);
+        }}
+      />
     );
   }
 

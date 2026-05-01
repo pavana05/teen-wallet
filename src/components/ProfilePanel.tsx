@@ -15,6 +15,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { logout } from "@/lib/auth";
 import { useAppLock } from "@/lib/appLock";
 import { AppLockSettings } from "@/components/app-lock/AppLockSettings";
+import { TrustedDevices } from "@/screens/TrustedDevices";
 import { usePersistentState } from "./profile/usePersistentState";
 import { NotificationPrefs, DEFAULT_NOTIF_PREFS, type NotifPrefs } from "./profile/NotificationPrefs";
 import { KycTimeline } from "./profile/KycTimeline";
@@ -82,6 +83,18 @@ export function ProfilePanel({ onClose, onTransactions }: Props) {
   // opens a friendly "Under Construction" modal instead of dead-end clicks.
   const [vcardOpen, setVcardOpen] = useState(false);
   const [appLockOpen, setAppLockOpen] = useState(false);
+  const [trustedDevicesOpen, setTrustedDevicesOpen] = useState(false);
+  const [trustedDeviceCount, setTrustedDeviceCount] = useState<number | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const { count } = await supabase
+        .from("trusted_devices")
+        .select("id", { count: "exact", head: true });
+      if (!cancelled) setTrustedDeviceCount(count ?? 0);
+    })();
+    return () => { cancelled = true; };
+  }, [trustedDevicesOpen]);
   const appLockStatus = useAppLock((s) => s.status);
 
   // app-level preferences (toggles unrelated to notification channels)
@@ -634,7 +647,12 @@ export function ProfilePanel({ onClose, onTransactions }: Props) {
                   onClick={() => setAppLockOpen(true)}
                 />
                 <ToggleRow icon={Sparkles} label="Biometric login" desc="Face / Fingerprint" value={prefs.biometric} onChange={(v) => setPrefs({ ...prefs, biometric: v })} />
-                <Row icon={Smartphone} label="Trusted devices" hint="2 active" />
+                <Row
+                  icon={Smartphone}
+                  label="Trusted devices"
+                  hint={trustedDeviceCount === null ? "—" : `${trustedDeviceCount} active`}
+                  onClick={() => setTrustedDevicesOpen(true)}
+                />
                 <Row icon={Activity} label="Login activity" hint="Last 30 days" />
               </CollapsibleSection>
               <CollapsibleSection
@@ -792,6 +810,7 @@ export function ProfilePanel({ onClose, onTransactions }: Props) {
       )}
 
       {appLockOpen && <AppLockSettings onBack={() => setAppLockOpen(false)} />}
+      {trustedDevicesOpen && <TrustedDevices onBack={() => setTrustedDevicesOpen(false)} />}
 
       {/* Pinned floating dock — Home & Profile share the same dock so the
           QR scan FAB is always one tap away. Hidden when any modal is open. */}
