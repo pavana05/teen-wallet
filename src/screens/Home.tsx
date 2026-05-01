@@ -271,6 +271,10 @@ export function Home() {
   const [navCollapsed, setNavCollapsed] = useState(false);
   const [navMode, setNavMode] = useState<"full" | "profile-morph">("full");
   const [scanLaunching, setScanLaunching] = useState(false);
+  // `mounted` ensures the bottom-nav portal only renders after client hydration,
+  // matching the empty SSR output and avoiding a hydration mismatch.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
   const [greetingPulse, setGreetingPulse] = useState(0);
   const [showGreetingTip, setShowGreetingTip] = useState(false);
   const [waveEnabled, setWaveEnabled] = useState<boolean>(() => {
@@ -867,7 +871,7 @@ export function Home() {
           Portaled to <body> so no transformed/scrolling ancestor (e.g. the
           pull-to-refresh wrapper) can trap position: fixed. This guarantees
           the dock stays pinned to the device viewport on every device. */}
-      {typeof document !== "undefined" && createPortal(
+      {mounted && typeof document !== "undefined" && createPortal(
         <>
           <nav
             aria-label="Primary"

@@ -54,6 +54,10 @@ export function FloatingDock({ active, onHome, onProfile, hidden }: DockProps) {
   // last state immediately without a frame of "wrong" layout.
   const [collapsed, setCollapsed] = useState<boolean>(readPersistedCollapsed);
   const [reduced, setReduced] = useState<boolean>(prefersReducedMotion);
+  // Defer portal mount until after hydration so SSR (which renders nothing for
+  // the portal) matches the initial client render. Avoids hydration mismatches.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
 
   const navRef = useRef<HTMLElement | null>(null);
   const pillRef = useRef<HTMLDivElement | null>(null);
@@ -244,9 +248,9 @@ export function FloatingDock({ active, onHome, onProfile, hidden }: DockProps) {
           never trapped by a transformed/scrolling ancestor (e.g. the
           ProfilePanel's absolute container or pull-to-refresh wrapper).
           This makes the dock truly viewport-pinned on every screen. */}
-      {typeof document !== "undefined"
+      {mounted && typeof document !== "undefined"
         ? createPortal(dockUi, document.body)
-        : dockUi}
+        : null}
 
       {scanOpen && (
         <div
