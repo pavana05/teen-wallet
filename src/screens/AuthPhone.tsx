@@ -67,21 +67,35 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
   const inputs = useRef<(HTMLInputElement | null)[]>([]);
   const phoneInputRef = useRef<HTMLInputElement | null>(null);
   const prevPhoneLenRef = useRef<number>(0);
+  // Cooldown so rapid input (autofill, holding key) doesn't buzz on every event.
+  const lastHapticAtRef = useRef<number>(0);
+  const HAPTIC_MIN_GAP_MS = 60;
 
   // Premium down-to-up slide on each new digit added.
+  // Haptics: fire ONLY when the digit count actually changed (not on every
+  // keypress), at most once per HAPTIC_MIN_GAP_MS, and once total per paste
+  // regardless of how many digits arrived.
   useEffect(() => {
     const el = phoneInputRef.current;
     if (!el) return;
-    if (phone.length > prevPhoneLenRef.current) {
+    const now = typeof performance !== "undefined" ? performance.now() : Date.now();
+    const delta = phone.length - prevPhoneLenRef.current;
+    if (delta > 0) {
       el.classList.remove("tw-phone-clean-rise");
       // Force reflow so the animation can replay
       void el.offsetWidth;
       el.classList.add("tw-phone-clean-rise");
-      // Featherlight tactile tick on each digit added.
-      void haptics.tap();
-    } else if (phone.length < prevPhoneLenRef.current) {
-      // Crisp selection click on backspace / digit removed.
-      void haptics.select();
+      // Featherlight tick on a real digit add (single fire, even on paste).
+      if (now - lastHapticAtRef.current >= HAPTIC_MIN_GAP_MS) {
+        lastHapticAtRef.current = now;
+        void haptics.tap();
+      }
+    } else if (delta < 0) {
+      // Crisp selection click on actual backspace / digit removed.
+      if (now - lastHapticAtRef.current >= HAPTIC_MIN_GAP_MS) {
+        lastHapticAtRef.current = now;
+        void haptics.select();
+      }
     }
     prevPhoneLenRef.current = phone.length;
   }, [phone]);
@@ -405,10 +419,16 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
     if (verifyLocked) return;
     const d = v.replace(/\D/g, "").slice(-1);
     const prev = otp[i];
+    // No-op keypress (same digit re-typed, or non-digit ignored): skip haptic + state churn.
+    if (d === prev) return;
     const next = [...otp]; next[i] = d; setOtp(next);
-    // Subtle haptic on each digit landed; selection click on clear.
-    if (d && d !== prev) void haptics.tap();
-    else if (!d && prev) void haptics.select();
+    // Haptic only on real digit change, with the shared cooldown.
+    const now = typeof performance !== "undefined" ? performance.now() : Date.now();
+    if (now - lastHapticAtRef.current >= HAPTIC_MIN_GAP_MS) {
+      lastHapticAtRef.current = now;
+      if (d) void haptics.tap();
+      else void haptics.select();
+    }
     // Editing any digit clears the prior error so the user gets immediate feedback.
     if (error) { setError(""); setErrorKind(null); setErrorId(null); }
     if (d && i < 5) inputs.current[i + 1]?.focus();
@@ -585,7 +605,19 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
                 aria-invalid={!!error}
                 aria-describedby={error ? "tw-otp-error" : undefined}
                 onChange={(e) => onOtpChange(i, e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Backspace" && !v && i > 0) { void haptics.select(); inputs.current[i - 1]?.focus(); } }}
+                onKeyDown={(e) => {
+                  if (e.key === "Backspace" && !v && i > 0) {
+                    // Focus-jump backspace: fire haptic only if the previous slot
+                    // actually has a digit AND we're past the cooldown — avoids
+                    // buzzing on held-key autorepeat.
+                    const now = typeof performance !== "undefined" ? performance.now() : Date.now();
+                    if (otp[i - 1] && now - lastHapticAtRef.current >= HAPTIC_MIN_GAP_MS) {
+                      lastHapticAtRef.current = now;
+                      void haptics.select();
+                    }
+                    inputs.current[i - 1]?.focus();
+                  }
+                }}
                 className="w-12 h-14 text-center text-2xl font-bold rounded-2xl glass focus:outline-none focus:ring-2 focus:ring-primary num-mono disabled:opacity-60"
               />
             ))}
