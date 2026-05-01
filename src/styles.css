@@ -8835,9 +8835,22 @@ html.motion-off    .otp-resend-ring svg circle { transition: none !important; }
   font-size: 20px;
   font-weight: 600;
   letter-spacing: -0.022em;
+}
+/* Apply the white→silver gradient ONLY to the text span, not to the whole
+   line — otherwise child spans (emoji stage) would also inherit
+   color:transparent and disappear on devices that render emoji as text. */
+.hp-root .hp-greeting .hp-greeting-text {
   background: linear-gradient(180deg, #FFFFFF 0%, #D8DADF 100%);
   -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent;
   color: transparent;
+}
+/* Emoji span must keep its own opaque color so text-presentation glyph
+   fallbacks (mono outlines on Windows/Linux without color emoji fonts)
+   stay visible. */
+.hp-root .hp-greeting .hp-greeting-emoji {
+  -webkit-text-fill-color: initial;
+  color: #f5f5f7;
 }
 .hp-root .hp-greeting-sub {
   font-size: 10px;
