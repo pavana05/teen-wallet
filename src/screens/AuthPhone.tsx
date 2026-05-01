@@ -68,15 +68,15 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
   const phoneInputRef = useRef<HTMLInputElement | null>(null);
   const prevPhoneLenRef = useRef<number>(0);
 
-  // Trigger a luxe bounce on the input each time a new digit lands.
+  // Premium down-to-up slide on each new digit added.
   useEffect(() => {
     const el = phoneInputRef.current;
     if (!el) return;
     if (phone.length > prevPhoneLenRef.current) {
-      el.classList.remove("tw-phone-clean-bounce");
+      el.classList.remove("tw-phone-clean-rise");
       // Force reflow so the animation can replay
       void el.offsetWidth;
-      el.classList.add("tw-phone-clean-bounce");
+      el.classList.add("tw-phone-clean-rise");
       // Featherlight tactile tick on each digit added.
       void haptics.tap();
     } else if (phone.length < prevPhoneLenRef.current) {
