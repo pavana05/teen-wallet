@@ -4990,6 +4990,65 @@ button:focus-visible .hp-tile{
 }
 
 /* ============================================================
+   Apple-clean phone input — minimal, single-line, no checkmark.
+   Used by AuthPhone v4. Replaces segmented slots with a refined
+   text field that feels at home in iOS Settings.
+   ============================================================ */
+.tw-phone-clean {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 16px;
+  height: 56px;
+  border-radius: 14px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  transition:
+    border-color .2s ease,
+    background .2s ease,
+    box-shadow .2s ease;
+}
+.tw-phone-clean:focus-within {
+  background: rgba(255,255,255,0.055);
+  border-color: rgba(212,197,160,0.45);
+  box-shadow: 0 0 0 4px rgba(212,197,160,0.10);
+}
+.tw-phone-clean-error {
+  border-color: rgba(248,113,113,0.55) !important;
+  box-shadow: 0 0 0 4px rgba(248,113,113,0.10) !important;
+}
+.tw-phone-clean-cc {
+  color: rgba(255,255,255,0.92);
+  font-size: 17px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  font-feature-settings: "tnum" 1, "lnum" 1;
+  padding-right: 10px;
+  border-right: 1px solid rgba(255,255,255,0.08);
+}
+.tw-phone-clean-input {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: 0;
+  outline: 0;
+  color: #fff;
+  font-size: 17px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  line-height: 1.2;
+  font-feature-settings: "tnum" 1, "lnum" 1;
+  padding: 0;
+  caret-color: #D4C5A0;
+  -webkit-tap-highlight-color: transparent;
+}
+.tw-phone-clean-input::placeholder {
+  color: rgba(255,255,255,0.25);
+  font-weight: 400;
+  letter-spacing: 0.04em;
+}
+
+/* ============================================================
    Permissions Screen
    ============================================================ */
 .perm-root { position: relative; overflow: hidden; }
