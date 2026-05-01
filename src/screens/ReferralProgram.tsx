@@ -183,37 +183,6 @@ export function ReferralProgram({ onBack }: Props) {
         />
       </div>
 
-      {/* Redeem someone else's code (only if not yet redeemed) */}
-      {!loading && !stats?.redeemedCode && (
-        <div className="px-5 mt-5">
-          <p className="text-[11px] uppercase tracking-wider text-white/45 font-medium mb-2">
-            Have a friend's code?
-          </p>
-          <div className="rounded-2xl bg-white/[.04] border border-white/10 p-4">
-            <input
-              value={redeemCode}
-              onChange={(e) => { setRedeemCode(e.target.value.toUpperCase()); setRedeemError(null); }}
-              placeholder="Enter referral code"
-              maxLength={16}
-              spellCheck={false}
-              autoComplete="off"
-              className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-3 text-[15px] tracking-[0.16em] font-mono text-center placeholder:text-white/25 focus:outline-none focus:border-amber-300/60 transition"
-            />
-            {redeemError && (
-              <p className="mt-2 text-[12px] text-rose-300" role="alert">{redeemError}</p>
-            )}
-            <button
-              type="button"
-              onClick={apply}
-              disabled={redeemBusy || redeemCode.trim().length < 4}
-              className="mt-3 w-full h-11 rounded-xl bg-white/10 border border-white/10 text-white font-medium disabled:opacity-50 hover:bg-white/[.13] transition flex items-center justify-center gap-2"
-            >
-              {redeemBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <>Apply code</>}
-            </button>
-          </div>
-        </div>
-      )}
-
       {!loading && stats?.redeemedCode && (
         <div className="px-5 mt-5">
           <div className="flex items-center gap-2 text-[12px] text-emerald-300 bg-emerald-300/10 border border-emerald-300/20 rounded-xl px-3 py-2.5">
