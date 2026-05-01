@@ -605,7 +605,19 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
                 aria-invalid={!!error}
                 aria-describedby={error ? "tw-otp-error" : undefined}
                 onChange={(e) => onOtpChange(i, e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Backspace" && !v && i > 0) { void haptics.select(); inputs.current[i - 1]?.focus(); } }}
+                onKeyDown={(e) => {
+                  if (e.key === "Backspace" && !v && i > 0) {
+                    // Focus-jump backspace: fire haptic only if the previous slot
+                    // actually has a digit AND we're past the cooldown — avoids
+                    // buzzing on held-key autorepeat.
+                    const now = typeof performance !== "undefined" ? performance.now() : Date.now();
+                    if (otp[i - 1] && now - lastHapticAtRef.current >= HAPTIC_MIN_GAP_MS) {
+                      lastHapticAtRef.current = now;
+                      void haptics.select();
+                    }
+                    inputs.current[i - 1]?.focus();
+                  }
+                }}
                 className="w-12 h-14 text-center text-2xl font-bold rounded-2xl glass focus:outline-none focus:ring-2 focus:ring-primary num-mono disabled:opacity-60"
               />
             ))}
