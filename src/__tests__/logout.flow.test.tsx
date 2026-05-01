@@ -11,7 +11,7 @@
  * without booting the entire screen graph.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import React, { useState } from "react";
 
 // Hoist-safe spy that each test reassigns to control the signOut latency.
