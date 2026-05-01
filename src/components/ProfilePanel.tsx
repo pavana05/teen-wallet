@@ -483,9 +483,19 @@ export function ProfilePanel({ onClose, onTransactions }: Props) {
               {/* UPI group */}
               <p className="pp-group-label">UPI</p>
               <div className="pp-card divide-y divide-white/5">
-                <Row icon={Settings} label="Account management" />
+                <Row
+                  icon={Settings}
+                  label="Account management"
+                  hint="Profile · KYC"
+                  onClick={() => setTab("account")}
+                />
                 <Row icon={Receipt} label="Transaction history" onClick={() => { onTransactions?.(); }} />
-                <Row icon={Wallet} label="Everything UPI" />
+                <Row
+                  icon={Wallet}
+                  label="Everything UPI"
+                  hint="Manage"
+                  onClick={() => toast("Everything UPI", { description: "Manage UPI handles, autopay & limits — launching soon." })}
+                />
               </div>
 
               {/* Education & Social */}
