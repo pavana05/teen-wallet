@@ -117,6 +117,7 @@ function RootShell({ children }: { children: React.ReactNode }) {
 function RootComponent() {
   useEffect(() => {
     installConsoleCapture();
+    installNativeCrashGuard();
     initNative();
     // Only the native app needs App Lock visibility/idle listeners.
     if (isNative()) installAppLockListeners();
