@@ -264,7 +264,7 @@ export function ProfilePanel({ onClose, onTransactions }: Props) {
 
   return (
     <div
-      className="qa-root absolute inset-0 z-[60] flex flex-col bg-background overflow-hidden"
+      className="qa-root fixed inset-0 z-[60] flex flex-col bg-background overflow-hidden"
       role="dialog"
       aria-modal="true"
       aria-labelledby="profile-panel-title"

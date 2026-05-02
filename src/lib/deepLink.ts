@@ -5,7 +5,12 @@
  */
 export type PendingDeepLink =
   | { kind: "transaction"; transactionId: string }
-  | { kind: "notifications" };
+  | { kind: "notifications" }
+  | { kind: "kyc"; status?: "approved" | "rejected" | "pending" }
+  | { kind: "profile" }
+  | { kind: "home" }
+  | { kind: "scan" }
+  | { kind: "referral" };
 
 const KEY = "tw-pending-deeplink-v1";
 

@@ -24,6 +24,7 @@ import { haptics } from "@/lib/haptics";
 import { useGenderPersona } from "@/lib/genderPersona";
 import { notifyPaymentReceived, maybeInsertGreeting, maybeNotifyLowBalance, notifyAppIssue } from "@/lib/notify";
 import { toast } from "sonner";
+import { consumePendingDeepLink } from "@/lib/deepLink";
 
 interface PersonaOffer {
   id: string;
@@ -638,7 +639,45 @@ export function Home() {
     setView("transactions");
   }, []);
 
-  // Scan FAB → liquid expansion into ScanPay. The FAB grows into a circular
+  // ── Deep-link consumption ──────────────────────────────────────────────
+  // On mount (or when the user taps a push notification), check if there's a
+  // pending deep link and route to the correct screen.
+  useEffect(() => {
+    const handle = () => {
+      const link = consumePendingDeepLink();
+      if (!link) return;
+      switch (link.kind) {
+        case "notifications":
+          setShowNotifs(true);
+          break;
+        case "profile":
+          openProfile();
+          break;
+        case "transaction":
+          setView("transactions");
+          break;
+        case "kyc":
+          // Open profile which shows KYC status
+          openProfile();
+          break;
+        case "scan":
+          setView("scan");
+          break;
+        case "referral":
+          openProfile();
+          break;
+        default:
+          break;
+      }
+    };
+    // Check on mount for cold-start deep links
+    handle();
+    // Listen for runtime deep links (push tap while app is open)
+    window.addEventListener("tw:deeplink", handle);
+    return () => window.removeEventListener("tw:deeplink", handle);
+  }, [openProfile]);
+
+
   // overlay that fills the shell, then we mount ScanPay underneath.
   const launchScan = useCallback(() => {
     void haptics.bloom();
@@ -967,8 +1006,8 @@ export function Home() {
       {showProfile && (
         <Suspense
           fallback={
-            <div
-              className="absolute inset-0 z-[60] flex flex-col bg-background overflow-hidden tw-skel-root"
+             <div
+               className="fixed inset-0 z-[60] flex flex-col bg-background overflow-hidden tw-skel-root"
               aria-busy="true"
               aria-label="Loading profile"
             >
