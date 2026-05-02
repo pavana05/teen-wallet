@@ -1521,10 +1521,12 @@ function ConfirmView({
         </div>
 
         {/* Amount with blinking caret */}
-        <div className="sp3-amount-block" role="group" aria-label={`Amount ${amount} rupees`}>
+        <div className="sp3-amount-block" role="group" aria-label={`Amount ${amount} rupees`} key={`amt-${digitAnim}`}>
           <span className="sp3-amount-symbol" aria-hidden>₹</span>
-          <span className="sp3-amount-value num-mono" aria-live="polite">
-            {amountStr || ""}
+          <span className="sp3-amount-value num-mono sp3-digit-pop" aria-live="polite">
+            {amountStr.split("").map((ch, i) => (
+              <span key={`${i}-${ch}`} className="sp3-digit-char" style={{ animationDelay: `${i * 20}ms` }}>{ch}</span>
+            ))}
           </span>
           <span className="sp3-caret" aria-hidden />
         </div>
