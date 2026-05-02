@@ -868,6 +868,9 @@ export function Home() {
         )}
       </section>
 
+      {/* ===== CURATIONS FOR YOU ===== */}
+      <CurationsSection />
+
       {/* ===== EVERYTHING UPI ===== */}
       <div className="px-5 mt-10">
         <div className="hp-section-head">
