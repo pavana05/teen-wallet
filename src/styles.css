@@ -8683,7 +8683,26 @@ html.motion-off    .otp-resend-ring svg circle { transition: none !important; }
   letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
   min-width: 4px;
-  transition: transform 160ms cubic-bezier(.22,1,.36,1);
+  display: inline-flex; align-items: baseline;
+}
+/* Individual digit pop-in */
+.sp3-digit-char {
+  display: inline-block;
+  animation: sp3-digit-in 280ms cubic-bezier(.22,1,.36,1) both;
+}
+@keyframes sp3-digit-in {
+  0% { opacity: 0; transform: scale(0.5) translateY(8px); }
+  50% { opacity: 1; transform: scale(1.12) translateY(-2px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+/* Amount block pop on change */
+.sp3-digit-pop {
+  animation: sp3-amount-pop 200ms cubic-bezier(.22,1,.36,1) both;
+}
+@keyframes sp3-amount-pop {
+  0% { transform: scale(0.97); }
+  50% { transform: scale(1.03); }
+  100% { transform: scale(1); }
 }
 .sp3-caret {
   display: inline-block;
@@ -8805,9 +8824,25 @@ html.motion-off    .otp-resend-ring svg circle { transition: none !important; }
   cursor: pointer;
   transition: transform 120ms cubic-bezier(.22,1,.36,1), background 160ms ease;
   -webkit-tap-highlight-color: transparent;
+  position: relative;
+  overflow: hidden;
 }
 .sp3-key:hover { background: rgba(255,255,255,.07); }
 .sp3-key:active { transform: scale(.94); background: rgba(255,255,255,.10); }
+/* Ripple effect */
+.sp3-key-ripple {
+  position: absolute;
+  width: 120px; height: 120px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255,138,60,.25) 0%, transparent 70%);
+  transform: translate(-50%, -50%) scale(0);
+  animation: sp3-ripple 500ms cubic-bezier(.22,1,.36,1) forwards;
+  pointer-events: none;
+}
+@keyframes sp3-ripple {
+  0% { transform: translate(-50%, -50%) scale(0); opacity: 1; }
+  100% { transform: translate(-50%, -50%) scale(1); opacity: 0; }
+}
 
 /* Pay wrap (Stage B) */
 .sp3-pay-wrap {
@@ -8867,7 +8902,8 @@ html.motion-off    .otp-resend-ring svg circle { transition: none !important; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .sp3-aura, .sp3-avatar, .sp3-keypad-wrap, .sp3-pay-wrap, .sp3-caret, .sp3-key, .sp3-next-fab {
+  .sp3-aura, .sp3-avatar, .sp3-keypad-wrap, .sp3-pay-wrap, .sp3-caret, .sp3-key, .sp3-next-fab,
+  .sp3-digit-char, .sp3-digit-pop, .sp3-key-ripple {
     animation: none !important; transition: none !important;
   }
 }

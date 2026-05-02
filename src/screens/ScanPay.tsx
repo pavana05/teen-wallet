@@ -46,8 +46,8 @@ const reducedMotion = () => {
 const SCANPAY_PERSIST_KEY = "tw-scanpay-flow-v1";
 const SCANPAY_ATTEMPT_KEY = "tw-scanpay-attempt-id-v1";
 const SCANPAY_LAST_QR_KEY = "tw-scanpay-last-qr-v1";
-const POLL_INTERVAL_MS = 1500;
-const POLL_MAX_MS = 60_000;
+const POLL_INTERVAL_MS = 800;
+const POLL_MAX_MS = 45_000;
 
 interface PersistedFlow {
   phase: Phase;
@@ -291,8 +291,8 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
       }
     };
 
-    // Slight delay so the premium animation has a beat to settle in.
-    const initial = setTimeout(tick, 800);
+    // Start polling immediately for faster response.
+    const initial = setTimeout(tick, 300);
     return () => {
       cancelled = true;
       clearTimeout(initial);
@@ -1408,12 +1408,15 @@ function ConfirmView({
 
   // Format amount for display: hide leading "0", show typed digits.
   const amountStr = amount === 0 ? "" : String(amount);
+  // Track the last typed digit for the pop-in animation on each character.
+  const [digitAnim, setDigitAnim] = useState(0);
 
   const onKey = (k: string) => {
     void haptics.tap();
     if (k === "del") {
       const next = amountStr.slice(0, -1);
       onAmountChange(next === "" ? 0 : Number(next));
+      setDigitAnim((d) => d + 1);
       return;
     }
     if (k === ".") {
@@ -1443,6 +1446,7 @@ function ConfirmView({
       }
       return;
     }
+    setDigitAnim((d) => d + 1);
     onAmountChange(nextNum);
   };
 
@@ -1517,10 +1521,12 @@ function ConfirmView({
         </div>
 
         {/* Amount with blinking caret */}
-        <div className="sp3-amount-block" role="group" aria-label={`Amount ${amount} rupees`}>
+        <div className="sp3-amount-block" role="group" aria-label={`Amount ${amount} rupees`} key={`amt-${digitAnim}`}>
           <span className="sp3-amount-symbol" aria-hidden>₹</span>
-          <span className="sp3-amount-value num-mono" aria-live="polite">
-            {amountStr || ""}
+          <span className="sp3-amount-value num-mono sp3-digit-pop" aria-live="polite">
+            {amountStr.split("").map((ch, i) => (
+              <span key={`${i}-${ch}`} className="sp3-digit-char" style={{ animationDelay: `${i * 20}ms` }}>{ch}</span>
+            ))}
           </span>
           <span className="sp3-caret" aria-hidden />
         </div>
@@ -1605,7 +1611,18 @@ function ConfirmView({
                 key={k}
                 type="button"
                 className="sp3-key"
-                onClick={() => onKey(k)}
+                onClick={(e) => {
+                  // Ripple effect
+                  const btn = e.currentTarget;
+                  const ripple = document.createElement("span");
+                  ripple.className = "sp3-key-ripple";
+                  const rect = btn.getBoundingClientRect();
+                  ripple.style.left = `${e.clientX - rect.left}px`;
+                  ripple.style.top = `${e.clientY - rect.top}px`;
+                  btn.appendChild(ripple);
+                  setTimeout(() => ripple.remove(), 500);
+                  onKey(k);
+                }}
                 aria-label={k === "del" ? "Delete" : k === "." ? "Decimal point" : `Digit ${k}`}
               >
                 {k === "del" ? <Delete className="w-5 h-5" strokeWidth={2} /> : <span>{k}</span>}
