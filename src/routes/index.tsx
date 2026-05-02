@@ -16,6 +16,8 @@ const Permissions = lazyWithRetry(() => import("@/screens/Permissions").then(m =
 const Home = lazyWithRetry(() => import("@/screens/Home").then(m => ({ default: m.Home })));
 const OnboardingReferral = lazyWithRetry(() => import("@/screens/OnboardingReferral").then(m => ({ default: m.OnboardingReferral })));
 const AccountTypeSelection = lazyWithRetry(() => import("@/screens/AccountTypeSelection").then(m => ({ default: m.AccountTypeSelection })));
+const TeenDashboard = lazyWithRetry(() => import("@/screens/TeenDashboard").then(m => ({ default: m.TeenDashboard })));
+const ParentDashboard = lazyWithRetry(() => import("@/screens/ParentDashboard").then(m => ({ default: m.ParentDashboard })));
 
 const PERMISSIONS_DONE_KEY = "tw_permissions_seen_v1";
 const SIGNUP_NEEDS_GOOGLE_KEY = "tw.signup.needsGoogleLink";
