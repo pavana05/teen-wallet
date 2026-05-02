@@ -341,6 +341,57 @@ export type Database = {
         }
         Relationships: []
       }
+      curations: {
+        Row: {
+          accent_color: string | null
+          active: boolean
+          created_at: string
+          detail_body: string | null
+          detail_cta_label: string | null
+          detail_cta_url: string | null
+          detail_title: string | null
+          id: string
+          image_key: string | null
+          image_url: string | null
+          sort_order: number
+          subtitle: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          accent_color?: string | null
+          active?: boolean
+          created_at?: string
+          detail_body?: string | null
+          detail_cta_label?: string | null
+          detail_cta_url?: string | null
+          detail_title?: string | null
+          id?: string
+          image_key?: string | null
+          image_url?: string | null
+          sort_order?: number
+          subtitle?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          accent_color?: string | null
+          active?: boolean
+          created_at?: string
+          detail_body?: string | null
+          detail_cta_label?: string | null
+          detail_cta_url?: string | null
+          detail_title?: string | null
+          id?: string
+          image_key?: string | null
+          image_url?: string | null
+          sort_order?: number
+          subtitle?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       device_tokens: {
         Row: {
           created_at: string
