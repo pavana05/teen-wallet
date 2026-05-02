@@ -8902,7 +8902,8 @@ html.motion-off    .otp-resend-ring svg circle { transition: none !important; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .sp3-aura, .sp3-avatar, .sp3-keypad-wrap, .sp3-pay-wrap, .sp3-caret, .sp3-key, .sp3-next-fab {
+  .sp3-aura, .sp3-avatar, .sp3-keypad-wrap, .sp3-pay-wrap, .sp3-caret, .sp3-key, .sp3-next-fab,
+  .sp3-digit-char, .sp3-digit-pop, .sp3-key-ripple {
     animation: none !important; transition: none !important;
   }
 }
