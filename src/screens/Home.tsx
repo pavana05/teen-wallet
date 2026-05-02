@@ -24,6 +24,7 @@ import { haptics } from "@/lib/haptics";
 import { useGenderPersona } from "@/lib/genderPersona";
 import { notifyPaymentReceived, maybeInsertGreeting, maybeNotifyLowBalance, notifyAppIssue } from "@/lib/notify";
 import { toast } from "sonner";
+import { consumePendingDeepLink } from "@/lib/deepLink";
 
 interface PersonaOffer {
   id: string;
