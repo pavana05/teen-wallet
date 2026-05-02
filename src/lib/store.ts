@@ -4,6 +4,7 @@ import { setStage as persistStageRemote } from "./auth";
 import { breadcrumb, captureError, setBreadcrumbUser } from "./breadcrumbs";
 
 export type Stage = "STAGE_0" | "STAGE_1" | "STAGE_2" | "STAGE_3" | "STAGE_4" | "STAGE_5";
+export type AccountType = "teen" | "parent" | null;
 
 interface AppState {
   stage: Stage;
@@ -12,13 +13,15 @@ interface AppState {
   userId: string | null;
   fullName: string | null;
   balance: number;
+  accountType: AccountType;
   /** Set stage locally AND fire-and-forget persist to backend so cross-device resume works. */
   setStage: (s: Stage) => void;
   /** Set stage locally only (no remote write). Use during boot/hydration. */
   setStageLocal: (s: Stage) => void;
   setSplashSeen: (v: boolean) => void;
   setPendingPhone: (p: string | null) => void;
-  hydrateFromProfile: (p: { id: string; full_name: string | null; balance: number; onboarding_stage: Stage }) => void;
+  setAccountType: (t: AccountType) => void;
+  hydrateFromProfile: (p: { id: string; full_name: string | null; balance: number; onboarding_stage: Stage; account_type?: string | null }) => void;
   reset: () => void;
 }
 
