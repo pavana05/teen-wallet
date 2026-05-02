@@ -12,13 +12,13 @@ export function AccountTypeSelection({ onDone }: Props) {
   const [saving, setSaving] = useState(false);
 
   const handleSelect = async (type: "teen" | "parent") => {
-    haptics.light();
+    haptics.tap();
     setSelected(type);
   };
 
   const handleContinue = async () => {
     if (!selected || saving) return;
-    haptics.medium();
+    haptics.press();
     setSaving(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
