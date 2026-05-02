@@ -67,7 +67,7 @@ function AdminLayout() {
       </div>
     );
   }
-  if (!admin) return <div className="admin-shell" {...shellAttrs} />;
+  if (!admin) return <div className="admin-shell" {...shellAttrs}><AdminSessionFallback onLogout={logout} /></div>;
 
   const navSectionsAll: Array<{ label?: string; tile?: boolean; items: Array<{ to: string; label: string; icon: any; end?: boolean; kbd?: string; perm?: keyof typeof PERMS }> }> = [
     {
