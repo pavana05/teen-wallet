@@ -81,8 +81,20 @@ export async function verifyOtp(phone10: string, otp: string) {
 export async function fetchProfile() {
   const { data: u } = await supabase.auth.getUser();
   if (!u.user) return null;
-  const { data } = await supabase.from("profiles").select("*").eq("id", u.user.id).maybeSingle();
-  return data;
+  perfLog.markStart("fetchProfile");
+  const { data, error } = await supabase.from("profiles").select("*").eq("id", u.user.id).maybeSingle();
+  const ms = perfLog.markEnd("fetchProfile");
+  if (ms !== null) perfLog.trackQuery("profiles", ms);
+  if (data) {
+    offlineCache.set("profile", data);
+    return data;
+  }
+  // Network error — try offline cache
+  if (error) {
+    const cached = offlineCache.get("profile");
+    if (cached) return cached;
+  }
+  return null;
 }
 
 export async function setStage(stage: Stage) {
