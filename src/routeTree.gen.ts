@@ -36,6 +36,7 @@ import { Route as AdminLoginRouteImport } from './routes/admin.login'
 import { Route as AdminKycRouteImport } from './routes/admin.kyc'
 import { Route as AdminFraudRouteImport } from './routes/admin.fraud'
 import { Route as AdminDiagnosticsRouteImport } from './routes/admin.diagnostics'
+import { Route as AdminCurationsRouteImport } from './routes/admin.curations'
 import { Route as AdminCampaignsRouteImport } from './routes/admin.campaigns'
 import { Route as AdminAppImagesRouteImport } from './routes/admin.app-images'
 import { Route as ApiPublicPushFanoutRouteImport } from './routes/api/public/push-fanout'
@@ -177,6 +178,11 @@ const AdminDiagnosticsRoute = AdminDiagnosticsRouteImport.update({
   path: '/diagnostics',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminCurationsRoute = AdminCurationsRouteImport.update({
+  id: '/curations',
+  path: '/curations',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminCampaignsRoute = AdminCampaignsRouteImport.update({
   id: '/campaigns',
   path: '/campaigns',
@@ -208,6 +214,7 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AdminRouteWithChildren
   '/admin/app-images': typeof AdminAppImagesRoute
   '/admin/campaigns': typeof AdminCampaignsRoute
+  '/admin/curations': typeof AdminCurationsRoute
   '/admin/diagnostics': typeof AdminDiagnosticsRoute
   '/admin/fraud': typeof AdminFraudRoute
   '/admin/kyc': typeof AdminKycRoute
@@ -241,6 +248,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin/app-images': typeof AdminAppImagesRoute
   '/admin/campaigns': typeof AdminCampaignsRoute
+  '/admin/curations': typeof AdminCurationsRoute
   '/admin/diagnostics': typeof AdminDiagnosticsRoute
   '/admin/fraud': typeof AdminFraudRoute
   '/admin/kyc': typeof AdminKycRoute
@@ -276,6 +284,7 @@ export interface FileRoutesById {
   '/admin': typeof AdminRouteWithChildren
   '/admin/app-images': typeof AdminAppImagesRoute
   '/admin/campaigns': typeof AdminCampaignsRoute
+  '/admin/curations': typeof AdminCurationsRoute
   '/admin/diagnostics': typeof AdminDiagnosticsRoute
   '/admin/fraud': typeof AdminFraudRoute
   '/admin/kyc': typeof AdminKycRoute
@@ -312,6 +321,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/admin/app-images'
     | '/admin/campaigns'
+    | '/admin/curations'
     | '/admin/diagnostics'
     | '/admin/fraud'
     | '/admin/kyc'
@@ -345,6 +355,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin/app-images'
     | '/admin/campaigns'
+    | '/admin/curations'
     | '/admin/diagnostics'
     | '/admin/fraud'
     | '/admin/kyc'
@@ -379,6 +390,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/admin/app-images'
     | '/admin/campaigns'
+    | '/admin/curations'
     | '/admin/diagnostics'
     | '/admin/fraud'
     | '/admin/kyc'
@@ -623,6 +635,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminDiagnosticsRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/curations': {
+      id: '/admin/curations'
+      path: '/curations'
+      fullPath: '/admin/curations'
+      preLoaderRoute: typeof AdminCurationsRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/campaigns': {
       id: '/admin/campaigns'
       path: '/campaigns'
@@ -676,6 +695,7 @@ const AdminUsersRouteWithChildren = AdminUsersRoute._addFileChildren(
 interface AdminRouteChildren {
   AdminAppImagesRoute: typeof AdminAppImagesRoute
   AdminCampaignsRoute: typeof AdminCampaignsRoute
+  AdminCurationsRoute: typeof AdminCurationsRoute
   AdminDiagnosticsRoute: typeof AdminDiagnosticsRoute
   AdminFraudRoute: typeof AdminFraudRoute
   AdminKycRoute: typeof AdminKycRoute
@@ -690,6 +710,7 @@ interface AdminRouteChildren {
 const AdminRouteChildren: AdminRouteChildren = {
   AdminAppImagesRoute: AdminAppImagesRoute,
   AdminCampaignsRoute: AdminCampaignsRoute,
+  AdminCurationsRoute: AdminCurationsRoute,
   AdminDiagnosticsRoute: AdminDiagnosticsRoute,
   AdminFraudRoute: AdminFraudRoute,
   AdminKycRoute: AdminKycRoute,
