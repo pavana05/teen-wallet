@@ -67,14 +67,14 @@ export const perfLog = {
     const durationMs = Math.round((now() - start) * 100) / 100;
     const entry: PerfEntry = { label, durationMs, timestamp: Date.now() };
     state.entries.push(entry);
-    emit("timing", entry);
+    emit("timing", { ...entry });
     return durationMs;
   },
 
   trackQuery(table: string, durationMs: number) {
     const entry: QueryEntry = { table, durationMs: Math.round(durationMs * 100) / 100, timestamp: Date.now() };
     state.queries.push(entry);
-    emit("query", entry);
+    emit("query", { ...entry });
   },
 
   /** Print a summary of all collected metrics to the console. */
