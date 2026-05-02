@@ -8,6 +8,7 @@ import {
   TrendingUp, Trash2, Share2, Download, AlertTriangle, Receipt, GraduationCap,
   Instagram, Ticket, Loader2,
 } from "lucide-react";
+import { PermissionsManager } from "./profile/PermissionsManager";
 import QRCode from "qrcode";
 import { toast } from "sonner";
 import { useApp } from "@/lib/store";
