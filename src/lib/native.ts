@@ -12,30 +12,31 @@ import { supabase } from "@/integrations/supabase/client";
 export async function initNative() {
   // Always install the navigation guard (web + native) so internal links
   // never escape the app shell.
-  installNativeNavigationGuard();
+  try {
+    installNativeNavigationGuard();
+  } catch (e) {
+    console.warn("[native] nav guard install failed", e);
+  }
 
   if (!Capacitor.isNativePlatform()) return;
 
+  // Wrap every native init step in its own try/catch so one failure
+  // doesn't block the rest or crash the WebView.
   try {
     await StatusBar.setStyle({ style: Style.Dark });
     await StatusBar.setBackgroundColor({ color: "#050505" });
     await StatusBar.setOverlaysWebView({ overlay: false });
-  } catch {
-    /* StatusBar not available */
+  } catch (e) {
+    console.warn("[native] StatusBar init failed", e);
   }
 
   try {
     await SplashScreen.hide({ fadeOutDuration: 300 });
-  } catch {
-    /* Splash already hidden */
+  } catch (e) {
+    console.warn("[native] SplashScreen hide failed", e);
   }
 
   // Robust hardware/gesture back-button handling on Android.
-  // - If there's an in-app history entry, step back through the SPA.
-  // - If we're not at "/", route to "/" inside the WebView (no reload).
-  // - Only exit the app when the user is already on "/" with no history.
-  // This guarantees Privacy/Terms and other internal routes never trigger
-  // a browser redirect and always return to the previous in-app screen.
   try {
     App.addListener("backButton", () => {
       try {
@@ -47,8 +48,6 @@ export async function initNative() {
           return;
         }
         if (!onHome) {
-          // Soft-redirect within SPA to home. Use replaceState so a subsequent
-          // back press exits cleanly instead of bouncing between routes.
           window.history.replaceState(null, "", "/");
           window.dispatchEvent(new PopStateEvent("popstate"));
           return;
@@ -58,20 +57,36 @@ export async function initNative() {
         try { App.exitApp(); } catch { /* ignore */ }
       }
     });
-  } catch {
-    /* App plugin not available */
+  } catch (e) {
+    console.warn("[native] backButton listener failed", e);
   }
 
   // Register for push when authenticated, and on auth changes
   try {
     const { data: { user } } = await supabase.auth.getUser();
-    if (user) void registerPushNotifications();
+    if (user) void registerPushNotifications().catch(() => {});
     supabase.auth.onAuthStateChange((_e, session) => {
-      if (session?.user) void registerPushNotifications();
+      if (session?.user) void registerPushNotifications().catch(() => {});
     });
-  } catch {
-    /* push registration failed silently */
+  } catch (e) {
+    console.warn("[native] push registration init failed", e);
   }
+}
+
+// Global unhandled error/rejection safety net for native WebView.
+// Prevents the WebView from showing a white screen on uncaught errors.
+export function installNativeCrashGuard() {
+  if (typeof window === "undefined") return;
+
+  window.addEventListener("error", (e) => {
+    console.error("[crash-guard] Uncaught error:", e.error?.message || e.message);
+    // Don't let the error propagate to the WebView's default handler
+    // which could trigger a crash dialog or white screen.
+  });
+
+  window.addEventListener("unhandledrejection", (e) => {
+    console.error("[crash-guard] Unhandled rejection:", e.reason?.message || e.reason);
+  });
 }
 
 export const isNative = () => Capacitor.isNativePlatform();

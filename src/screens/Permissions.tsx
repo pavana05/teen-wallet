@@ -4,10 +4,6 @@ import {
   Check, ChevronRight, Loader2, ShieldCheck, AlertCircle,
 } from "lucide-react";
 import { Capacitor } from "@capacitor/core";
-import { Geolocation } from "@capacitor/geolocation";
-import { Camera as CapCamera } from "@capacitor/camera";
-import { PushNotifications } from "@capacitor/push-notifications";
-import { Contacts } from "@capacitor-community/contacts";
 import { toast } from "sonner";
 import { recordCheckpoint } from "@/lib/navState";
 
@@ -32,16 +28,19 @@ const PERMS: PermDef[] = [
 
 const isNative = () => Capacitor.isNativePlatform();
 
+// Dynamic imports prevent crashes when Capacitor plugins aren't available
 async function requestPermission(key: PermKey): Promise<PermStatus> {
   try {
     switch (key) {
       case "contacts": {
         if (!isNative()) return "unsupported";
+        const { Contacts } = await import("@capacitor-community/contacts");
         const r = await Contacts.requestPermissions();
         return r.contacts === "granted" ? "granted" : "denied";
       }
       case "location": {
         if (isNative()) {
+          const { Geolocation } = await import("@capacitor/geolocation");
           const r = await Geolocation.requestPermissions({ permissions: ["location"] });
           return r.location === "granted" ? "granted" : "denied";
         }
@@ -56,6 +55,7 @@ async function requestPermission(key: PermKey): Promise<PermStatus> {
       }
       case "camera": {
         if (isNative()) {
+          const { Camera: CapCamera } = await import("@capacitor/camera");
           const r = await CapCamera.requestPermissions({ permissions: ["camera"] });
           return r.camera === "granted" ? "granted" : "denied";
         }
@@ -68,6 +68,7 @@ async function requestPermission(key: PermKey): Promise<PermStatus> {
       }
       case "notifications": {
         if (isNative()) {
+          const { PushNotifications } = await import("@capacitor/push-notifications");
           const r = await PushNotifications.requestPermissions();
           if (r.receive === "granted") {
             try { await PushNotifications.register(); } catch { /* ignore */ }
@@ -103,8 +104,6 @@ export function Permissions({ onDone }: Props) {
     contacts: "idle", location: "idle", camera: "idle", notifications: "idle", microphone: "idle",
   });
   const [busyAll, setBusyAll] = useState(false);
-  // Brief neon-lime exit animation when continuing — only shown if any permissions
-  // are still missing (granted-everything → instant route, no transition delay).
   const [continuing, setContinuing] = useState(false);
 
   const ask = useCallback(async (key: PermKey) => {
@@ -157,9 +156,7 @@ export function Permissions({ onDone }: Props) {
 
   const handleContinue = () => {
     if (continuing) return;
-    // If everything is already granted, route immediately — no animation needed.
     if (allGranted) { finish(); return; }
-    // Otherwise play the short neon-lime transition before advancing.
     setContinuing(true);
     setTimeout(() => finish(), 480);
   };
@@ -168,7 +165,6 @@ export function Permissions({ onDone }: Props) {
     <div className={`perm-root flex-1 flex flex-col p-6 tw-slide-up ${continuing ? "perm-exit" : ""}`}>
       <div className="perm-aurora" aria-hidden="true" />
 
-      {/* Neon-lime transition overlay shown only when continuing with missing perms */}
       {continuing && (
         <div className="perm-continue-overlay" aria-hidden="true">
           <div className="perm-continue-bar" />
@@ -248,7 +244,7 @@ export function Permissions({ onDone }: Props) {
           className="w-full text-center text-[12px] text-white/55 hover:text-white/80 py-2 tracking-wide disabled:opacity-60 inline-flex items-center justify-center gap-2"
         >
           {continuing ? (
-            <><Loader2 className="w-3.5 h-3.5 animate-spin text-lime-300" /> <span className="text-lime-200">Continuing…</span></>
+            <><Loader2 className="w-3.5 h-3.5 animate-spin text-[var(--primary)]" /> <span className="text-[var(--primary)]">Continuing…</span></>
           ) : (
             grantedCount > 0 ? "Continue" : "Skip for now"
           )}

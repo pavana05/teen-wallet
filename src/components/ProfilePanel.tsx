@@ -8,6 +8,7 @@ import {
   TrendingUp, Trash2, Share2, Download, AlertTriangle, Receipt, GraduationCap,
   Instagram, Ticket, Loader2,
 } from "lucide-react";
+import { PermissionsManager } from "./profile/PermissionsManager";
 import QRCode from "qrcode";
 import { toast } from "sonner";
 import { useApp } from "@/lib/store";
@@ -725,6 +726,15 @@ export function ProfilePanel({ onClose, onTransactions }: Props) {
               >
                 <DetailRow icon={IndianRupee} label="Daily limit" value="₹10,000" onEdit={() => {}} />
                 <DetailRow icon={IndianRupee} label="Per transaction" value="₹5,000" onEdit={() => {}} />
+              </CollapsibleSection>
+              <CollapsibleSection
+                id="se-permissions"
+                title="App permissions"
+                defaultOpen={false}
+                isOpen={isOpen("se-permissions", false)}
+                onToggle={() => toggleSection("se-permissions", false)}
+              >
+                <PermissionsManager />
               </CollapsibleSection>
             </>
           )}
