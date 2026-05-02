@@ -1408,12 +1408,15 @@ function ConfirmView({
 
   // Format amount for display: hide leading "0", show typed digits.
   const amountStr = amount === 0 ? "" : String(amount);
+  // Track the last typed digit for the pop-in animation on each character.
+  const [digitAnim, setDigitAnim] = useState(0);
 
   const onKey = (k: string) => {
     void haptics.tap();
     if (k === "del") {
       const next = amountStr.slice(0, -1);
       onAmountChange(next === "" ? 0 : Number(next));
+      setDigitAnim((d) => d + 1);
       return;
     }
     if (k === ".") {
@@ -1443,6 +1446,7 @@ function ConfirmView({
       }
       return;
     }
+    setDigitAnim((d) => d + 1);
     onAmountChange(nextNum);
   };
 
