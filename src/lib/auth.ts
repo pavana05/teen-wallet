@@ -89,9 +89,9 @@ export async function fetchProfile() {
     offlineCache.set("profile", data);
     return data;
   }
-  // Network error — try offline cache
+  // Network error — try offline cache (typed to match Supabase row shape)
   if (error) {
-    const cached = offlineCache.get("profile");
+    const cached = offlineCache.get<typeof data>("profile");
     if (cached) return cached;
   }
   return null;
