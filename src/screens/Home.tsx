@@ -3,6 +3,8 @@ import { useApp } from "@/lib/store";
 import { useEffect, useState, useCallback, useRef, memo, Suspense } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { perfLog } from "@/lib/perfLog";
+import { offlineCache } from "@/lib/offlineCache";
 // Heavy panels are lazy-loaded — they only mount when the user opens them
 // (Scan, Transactions, Notifications, Profile, or a Quick Action). Eagerly
 // importing them was forcing ~6500 LOC into the Home chunk and slowing
@@ -319,6 +321,7 @@ export function Home() {
 
   const fetchTxns = useCallback(async () => {
     if (!userId) { setLoading(false); return; }
+    perfLog.markStart("home.txns");
     loadStartRef.current = performance.now();
     const { data, error: err } = await supabase
       .from("transactions")
@@ -326,19 +329,31 @@ export function Home() {
       .eq("user_id", userId)
       .order("created_at", { ascending: false })
       .limit(20);
-    // Show data as soon as it arrives. The previous 480ms artificial
-    // skeleton hold was making Home feel sluggish on every cold mount —
-    // the .hp-fade-in CSS animation already provides a smooth crossfade,
-    // so a tiny natural delay is enough.
+    const queryMs = perfLog.markEnd("home.txns");
+    if (queryMs !== null) perfLog.trackQuery("transactions", queryMs);
     if (err) {
       setError(err.message);
       setShakeKey((k) => k + 1);
+      // Fall back to offline cache on network error
+      const cached = offlineCache.get<Txn[]>("transactions");
+      if (cached) { setTxns(cached); setError(null); }
     } else {
       setError(null);
-      setTxns((data ?? []) as Txn[]);
+      const txnData = (data ?? []) as Txn[];
+      setTxns(txnData);
+      offlineCache.set("transactions", txnData);
     }
     setLoading(false);
   }, [userId]);
+
+  // Hydrate from offline cache immediately on mount for instant rendering
+  useEffect(() => {
+    if (!loading) return;
+    const cached = offlineCache.get<Txn[]>("transactions");
+    if (cached && cached.length > 0) {
+      setTxns(cached);
+    }
+  }, [loading]);
 
   useEffect(() => { void fetchTxns(); }, [fetchTxns]);
 
@@ -364,14 +379,25 @@ export function Home() {
   useEffect(() => {
     let cancelled = false;
     void (async () => {
-      const { data } = await supabase
+      perfLog.markStart("home.offers");
+      const { data, error: offerErr } = await supabase
         .from("gender_offers")
         .select("id,eyebrow,headline,emphasis,subtitle,cta_label,accent,sort_order,gender_target")
         .eq("active", true)
         .in("gender_target", persona.offerFilter)
         .order("sort_order", { ascending: true })
         .limit(8);
-      if (!cancelled) setPersonaOffers((data ?? []) as PersonaOffer[]);
+      const qMs = perfLog.markEnd("home.offers");
+      if (qMs !== null) perfLog.trackQuery("gender_offers", qMs);
+      if (!cancelled) {
+        const offers = (data ?? []) as PersonaOffer[];
+        setPersonaOffers(offers);
+        if (offers.length) offlineCache.set("gender_offers", offers);
+        else if (offerErr) {
+          const cached = offlineCache.get<PersonaOffer[]>("gender_offers");
+          if (cached) setPersonaOffers(cached);
+        }
+      }
     })();
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps

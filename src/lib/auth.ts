@@ -1,4 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
+import { offlineCache } from "@/lib/offlineCache";
+import { perfLog } from "@/lib/perfLog";
 import type { Stage } from "./store";
 
 /**
@@ -79,8 +81,20 @@ export async function verifyOtp(phone10: string, otp: string) {
 export async function fetchProfile() {
   const { data: u } = await supabase.auth.getUser();
   if (!u.user) return null;
-  const { data } = await supabase.from("profiles").select("*").eq("id", u.user.id).maybeSingle();
-  return data;
+  perfLog.markStart("fetchProfile");
+  const { data, error } = await supabase.from("profiles").select("*").eq("id", u.user.id).maybeSingle();
+  const ms = perfLog.markEnd("fetchProfile");
+  if (ms !== null) perfLog.trackQuery("profiles", ms);
+  if (data) {
+    offlineCache.set("profile", data);
+    return data;
+  }
+  // Network error — try offline cache (typed to match Supabase row shape)
+  if (error) {
+    const cached = offlineCache.get<typeof data>("profile");
+    if (cached) return cached;
+  }
+  return null;
 }
 
 export async function setStage(stage: Stage) {
