@@ -884,6 +884,7 @@ export type Database = {
           aadhaar_last4: string | null
           account_locked: boolean
           account_tag: string
+          account_type: string | null
           address_city: string | null
           address_line1: string | null
           address_pincode: string | null
@@ -910,6 +911,7 @@ export type Database = {
           aadhaar_last4?: string | null
           account_locked?: boolean
           account_tag?: string
+          account_type?: string | null
           address_city?: string | null
           address_line1?: string | null
           address_pincode?: string | null
@@ -936,6 +938,7 @@ export type Database = {
           aadhaar_last4?: string | null
           account_locked?: boolean
           account_tag?: string
+          account_type?: string | null
           address_city?: string | null
           address_line1?: string | null
           address_pincode?: string | null
