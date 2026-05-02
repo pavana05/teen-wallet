@@ -1,4 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
+import { offlineCache } from "@/lib/offlineCache";
+import { perfLog } from "@/lib/perfLog";
 import type { Stage } from "./store";
 
 /**
