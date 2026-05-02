@@ -179,6 +179,7 @@ function Index() {
           full_name: p.full_name,
           balance: Number(p.balance),
           onboarding_stage: resolvedStage,
+          account_type: (p as Record<string, unknown>).account_type as string | null,
         });
 
         if (resolvedStage !== profileStage) setStage(resolvedStage);
