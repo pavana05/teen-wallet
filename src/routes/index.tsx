@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Suspense, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useApp, type Stage } from "@/lib/store";
+import { useApp, type Stage, type AccountType } from "@/lib/store";
 import { fetchProfile } from "@/lib/auth";
 import { PhoneShell } from "@/components/PhoneShell";
 import { lazyWithRetry } from "@/lib/lazyWithRetry";
@@ -15,6 +15,7 @@ const KycPending = lazyWithRetry(() => import("@/screens/KycPending").then(m => 
 const Permissions = lazyWithRetry(() => import("@/screens/Permissions").then(m => ({ default: m.Permissions })));
 const Home = lazyWithRetry(() => import("@/screens/Home").then(m => ({ default: m.Home })));
 const OnboardingReferral = lazyWithRetry(() => import("@/screens/OnboardingReferral").then(m => ({ default: m.OnboardingReferral })));
+const AccountTypeSelection = lazyWithRetry(() => import("@/screens/AccountTypeSelection").then(m => ({ default: m.AccountTypeSelection })));
 
 const PERMISSIONS_DONE_KEY = "tw_permissions_seen_v1";
 const SIGNUP_NEEDS_GOOGLE_KEY = "tw.signup.needsGoogleLink";
