@@ -5227,6 +5227,38 @@ button:focus-visible .hp-tile{
   .tw-phone-clean-input { animation: none !important; transition: none !important; }
 }
 
+/* ── OTP slot premium animations ────────────────────────────── */
+.tw-otp-slot {
+  position: relative;
+  transition: border-color .2s, box-shadow .2s, transform .15s;
+}
+.tw-otp-slot:focus-within {
+  border-color: color-mix(in oklab, var(--primary) 50%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--primary) 12%, transparent),
+              0 4px 16px -6px color-mix(in oklab, var(--primary) 18%, transparent);
+  transform: scale(1.04);
+}
+.tw-otp-digit-rise {
+  animation: tw-otp-digit-rise .36s cubic-bezier(.22,.61,.36,1) both;
+}
+@keyframes tw-otp-digit-rise {
+  0%   { transform: translateY(10px); opacity: 0; filter: blur(.6px); }
+  60%  { transform: translateY(-1px); opacity: 1; filter: blur(0); }
+  100% { transform: translateY(0);    opacity: 1; filter: blur(0); }
+}
+.tw-otp-digit-pop {
+  animation: tw-otp-digit-pop .28s cubic-bezier(.34,1.56,.64,1) both;
+}
+@keyframes tw-otp-digit-pop {
+  0%   { transform: scale(0.6); opacity: 0; }
+  100% { transform: scale(1);   opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tw-otp-slot,
+  .tw-otp-digit-rise,
+  .tw-otp-digit-pop { animation: none !important; transition: none !important; transform: none !important; }
+}
+
 /* ============================================================
    Permissions Screen
    ============================================================ */
