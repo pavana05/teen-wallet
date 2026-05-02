@@ -94,6 +94,18 @@ function Index() {
     (!!userId || stageRank[stage] >= stageRank["STAGE_3"]);
   const [booting, setBooting] = useState(!hasPersistedSession);
 
+  // Safety net: if the auth session check hangs (common in native WebViews
+  // on slow networks), force-unblock after a timeout so the user isn't stuck
+  // on skeleton forever. They'll land on onboarding/STAGE_0 and can retry.
+  useEffect(() => {
+    if (!booting) return;
+    const t = setTimeout(() => {
+      console.warn("[boot] session check timed out — unblocking UI");
+      setBooting(false);
+    }, 6000);
+    return () => clearTimeout(t);
+  }, [booting]);
+
   const [permsSeen, setPermsSeen] = useState<boolean>(() => {
     if (typeof window === "undefined") return true;
     try { return localStorage.getItem(PERMISSIONS_DONE_KEY) === "1"; } catch { return true; }
