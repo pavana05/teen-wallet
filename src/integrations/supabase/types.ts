@@ -1260,6 +1260,17 @@ export type Database = {
         }[]
       }
       generate_family_invite_code: { Args: never; Returns: string }
+      get_linked_children: {
+        Args: never
+        Returns: {
+          link_id: string
+          link_status: string
+          linked_at: string
+          teen_balance: number
+          teen_name: string
+          teen_user_id: string
+        }[]
+      }
       get_login_requirements: {
         Args: { _phone: string }
         Returns: {
