@@ -8,9 +8,11 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  *   3. Backspace on an empty slot DOES fire haptics when previous slot has a digit.
  */
 
-// Mock haptics before importing component
-const tapMock = vi.fn();
-const selectMock = vi.fn();
+// Mock haptics before importing component — vi.hoisted so factory can reference them
+const { tapMock, selectMock } = vi.hoisted(() => ({
+  tapMock: vi.fn(),
+  selectMock: vi.fn(),
+}));
 vi.mock("@/lib/haptics", () => ({
   haptics: {
     tap: tapMock,
