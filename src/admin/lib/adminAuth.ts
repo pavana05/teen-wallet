@@ -82,7 +82,7 @@ export async function callAdminFn<T = unknown>(payload: Record<string, unknown>)
     // and bounce to the admin login (unless we're already there).
     const isSessionDead =
       res.status === 401 &&
-      (errCode === "expired" || errCode === "invalid_session" || errCode === "session_not_found");
+      (errCode === "expired" || errCode === "invalid_session" || errCode === "session_not_found" || errCode === "unauthorized" || errCode === "no_session" || errCode === "no_account");
     if (isSessionDead) {
       clearAdminSession();
       if (typeof window !== "undefined" && !window.location.pathname.startsWith("/admin/login")) {
