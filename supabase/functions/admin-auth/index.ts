@@ -1729,6 +1729,75 @@ Deno.serve(async (req) => {
     return json({ ok: true });
   }
 
+  // ===============================================================
+  // Curations CRUD (home screen promotional cards)
+  // ===============================================================
+  if (action === "curations_list") {
+    const { data, error } = await sb
+      .from("curations")
+      .select("*")
+      .order("sort_order", { ascending: true });
+    if (error) return json({ error: error.message }, 500);
+    return json({ rows: data ?? [] });
+  }
+
+  if (action === "curations_upsert") {
+    const {
+      id, title, subtitle, image_url, detail_title, detail_body,
+      detail_cta_label, detail_cta_url, accent_color, sort_order, active,
+    } = body as Record<string, unknown>;
+    if (!title || typeof title !== "string") return json({ error: "title required" }, 400);
+    const row: Record<string, unknown> = {
+      title, subtitle: subtitle ?? "",
+      image_url: image_url ?? null,
+      detail_title: detail_title ?? null,
+      detail_body: detail_body ?? null,
+      detail_cta_label: detail_cta_label ?? null,
+      detail_cta_url: detail_cta_url ?? null,
+      accent_color: accent_color ?? "#d4c5a0",
+      sort_order: sort_order ?? 0,
+      active: active !== false,
+    };
+    if (id) {
+      const { error } = await sb.from("curations").update(row).eq("id", id);
+      if (error) return json({ error: error.message }, 500);
+      await audit(me.id, me.email, me.role, "curations_update", { id, title });
+    } else {
+      const { error } = await sb.from("curations").insert(row);
+      if (error) return json({ error: error.message }, 500);
+      await audit(me.id, me.email, me.role, "curations_create", { title });
+    }
+    return json({ ok: true });
+  }
+
+  if (action === "curations_delete") {
+    const cid = body.id as string | undefined;
+    if (!cid) return json({ error: "id required" }, 400);
+    const { error } = await sb.from("curations").delete().eq("id", cid);
+    if (error) return json({ error: error.message }, 500);
+    await audit(me.id, me.email, me.role, "curations_delete", { id: cid });
+    return json({ ok: true });
+  }
+
+  if (action === "curations_upload_image") {
+    const cid = body.id as string | undefined;
+    const contentType = body.contentType as string | undefined;
+    const fileBase64 = body.fileBase64 as string | undefined;
+    if (!cid || !contentType || !fileBase64) return json({ error: "id, contentType, fileBase64 required" }, 400);
+    const bytes = Uint8Array.from(atob(fileBase64), (c) => c.charCodeAt(0));
+    const path = `curations/${cid}-${Date.now()}.${contentType.split("/")[1] || "jpg"}`;
+    const { error: upErr } = await sb.storage.from("app-images").upload(path, bytes, {
+      contentType, upsert: true,
+    });
+    if (upErr) return json({ error: upErr.message }, 500);
+    const { data: urlData } = sb.storage.from("app-images").getPublicUrl(path);
+    const publicUrl = urlData.publicUrl;
+    const { error: updErr } = await sb.from("curations").update({ image_url: publicUrl }).eq("id", cid);
+    if (updErr) return json({ error: updErr.message }, 500);
+    await audit(me.id, me.email, me.role, "curations_upload_image", { id: cid });
+    return json({ ok: true, url: publicUrl });
+  }
+
   return json({ error: "unknown_action" }, 400);
 });
 

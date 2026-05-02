@@ -4,7 +4,7 @@ import { useAdminSession, ROLE_LABELS, ROLE_BADGE, callAdminFn, readAdminSession
 import {
   LayoutDashboard, Users, ShieldAlert, FileCheck2, Wallet, Settings, LogOut,
   Bell, Activity, Search, ChevronLeft, ChevronRight, Command, MessageSquareWarning, ImageIcon,
-  Sun, Moon, Rows3, Rows2, Sparkles, ShieldOff, RefreshCw,
+  Sun, Moon, Rows3, Rows2, Sparkles, ShieldOff, RefreshCw, LayoutGrid,
 } from "lucide-react";
 import { PerfOverlay } from "@/admin/components/PerfOverlay";
 import { CommandPalette } from "@/admin/components/CommandPalette";
@@ -90,6 +90,7 @@ function AdminLayout() {
       tile: true,
       items: [
         { to: "/admin/campaigns", label: "Gender Campaigns", icon: Sparkles, kbd: "g c", perm: "viewCampaigns" },
+        { to: "/admin/curations", label: "Curations", icon: LayoutGrid, kbd: "g n", perm: "viewAppImages" },
         { to: "/admin/app-images", label: "App Images", icon: ImageIcon, kbd: "g i", perm: "viewAppImages" },
       ],
     },

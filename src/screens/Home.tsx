@@ -10,6 +10,7 @@ import { offlineCache } from "@/lib/offlineCache";
 // importing them was forcing ~6500 LOC into the Home chunk and slowing
 // first paint significantly on cold loads.
 import { lazyWithRetry } from "@/lib/lazyWithRetry";
+import { CurationsSection } from "@/components/CurationsSection";
 import type { QuickActionKind } from "@/components/QuickActionsPanel";
 const ScanPay = lazyWithRetry(() => import("@/screens/ScanPay").then(m => ({ default: m.ScanPay })));
 const Transactions = lazyWithRetry(() => import("@/screens/Transactions").then(m => ({ default: m.Transactions })));
@@ -866,6 +867,9 @@ export function Home() {
           </div>
         )}
       </section>
+
+      {/* ===== CURATIONS FOR YOU ===== */}
+      <CurationsSection />
 
       {/* ===== EVERYTHING UPI ===== */}
       <div className="px-5 mt-10">
