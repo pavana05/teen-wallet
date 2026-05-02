@@ -291,8 +291,8 @@ export function ScanPay({ onBack }: { onBack: () => void }) {
       }
     };
 
-    // Slight delay so the premium animation has a beat to settle in.
-    const initial = setTimeout(tick, 800);
+    // Start polling immediately for faster response.
+    const initial = setTimeout(tick, 300);
     return () => {
       cancelled = true;
       clearTimeout(initial);
