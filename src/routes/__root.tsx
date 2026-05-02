@@ -5,7 +5,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { ShakeToReport } from "@/components/ShakeToReport";
 import { AppLockGate } from "@/components/app-lock/AppLockGate";
 import { AppLockSetupPrompt } from "@/components/app-lock/AppLockSetupPrompt";
-import { initNative } from "@/lib/native";
+import { initNative, installNativeCrashGuard } from "@/lib/native";
 import { breadcrumb, captureError } from "@/lib/breadcrumbs";
 import { installConsoleCapture } from "@/lib/consoleCapture";
 import { installAppLockListeners } from "@/lib/appLock";
