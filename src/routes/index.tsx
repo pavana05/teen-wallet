@@ -263,12 +263,16 @@ function Index() {
           <OnboardingReferral onDone={markReferralDone} />
         ) : !accountType && (stage === "STAGE_3" || stage === "STAGE_4" || stage === "STAGE_5") ? (
           <AccountTypeSelection onDone={(type) => setAccountType(type)} />
+        ) : accountType === "parent" && (stage === "STAGE_3" || stage === "STAGE_4" || stage === "STAGE_5") ? (
+          <ParentDashboard />
         ) : !permsSeen && (stage === "STAGE_3" || stage === "STAGE_4") ? (
           <Permissions onDone={() => { markPermsSeen(); }} />
         ) : stage === "STAGE_3" ? (
           <KycFlow onDone={() => setStage("STAGE_4")} />
         ) : stage === "STAGE_4" ? (
           <KycPending onApproved={() => setStage("STAGE_5")} />
+        ) : accountType === "teen" ? (
+          <TeenDashboard />
         ) : (
           <Home />
         )}
