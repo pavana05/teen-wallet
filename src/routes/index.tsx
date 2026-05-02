@@ -259,6 +259,8 @@ function Index() {
           <LinkGoogle onLinked={markGoogleLinked} />
         ) : referralPending && (stage === "STAGE_3" || stage === "STAGE_4" || stage === "STAGE_5") ? (
           <OnboardingReferral onDone={markReferralDone} />
+        ) : !accountType && (stage === "STAGE_3" || stage === "STAGE_4" || stage === "STAGE_5") ? (
+          <AccountTypeSelection onDone={(type) => setAccountType(type)} />
         ) : !permsSeen && (stage === "STAGE_3" || stage === "STAGE_4") ? (
           <Permissions onDone={() => { markPermsSeen(); }} />
         ) : stage === "STAGE_3" ? (
