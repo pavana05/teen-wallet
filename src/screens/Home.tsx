@@ -967,8 +967,8 @@ export function Home() {
       {showProfile && (
         <Suspense
           fallback={
-            <div
-              className="absolute inset-0 z-[60] flex flex-col bg-background overflow-hidden tw-skel-root"
+             <div
+               className="fixed inset-0 z-[60] flex flex-col bg-background overflow-hidden tw-skel-root"
               aria-busy="true"
               aria-label="Loading profile"
             >
