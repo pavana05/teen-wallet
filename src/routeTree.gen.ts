@@ -28,6 +28,7 @@ import { Route as PreviewKycFlowRouteImport } from './routes/preview.kyc-flow'
 import { Route as PreviewKycApprovedRouteImport } from './routes/preview.kyc-approved'
 import { Route as PreviewHomeRouteImport } from './routes/preview.home'
 import { Route as PreviewAuthPhoneRouteImport } from './routes/preview.auth-phone'
+import { Route as PreviewAccountTypeRouteImport } from './routes/preview.account-type'
 import { Route as AdminUsersRouteImport } from './routes/admin.users'
 import { Route as AdminTransactionsRouteImport } from './routes/admin.transactions'
 import { Route as AdminSettingsRouteImport } from './routes/admin.settings'
@@ -138,6 +139,11 @@ const PreviewAuthPhoneRoute = PreviewAuthPhoneRouteImport.update({
   path: '/preview/auth-phone',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PreviewAccountTypeRoute = PreviewAccountTypeRouteImport.update({
+  id: '/preview/account-type',
+  path: '/preview/account-type',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminUsersRoute = AdminUsersRouteImport.update({
   id: '/users',
   path: '/users',
@@ -223,6 +229,7 @@ export interface FileRoutesByFullPath {
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/transactions': typeof AdminTransactionsRoute
   '/admin/users': typeof AdminUsersRouteWithChildren
+  '/preview/account-type': typeof PreviewAccountTypeRoute
   '/preview/auth-phone': typeof PreviewAuthPhoneRoute
   '/preview/home': typeof PreviewHomeRoute
   '/preview/kyc-approved': typeof PreviewKycApprovedRoute
@@ -257,6 +264,7 @@ export interface FileRoutesByTo {
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/transactions': typeof AdminTransactionsRoute
   '/admin/users': typeof AdminUsersRouteWithChildren
+  '/preview/account-type': typeof PreviewAccountTypeRoute
   '/preview/auth-phone': typeof PreviewAuthPhoneRoute
   '/preview/home': typeof PreviewHomeRoute
   '/preview/kyc-approved': typeof PreviewKycApprovedRoute
@@ -293,6 +301,7 @@ export interface FileRoutesById {
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/transactions': typeof AdminTransactionsRoute
   '/admin/users': typeof AdminUsersRouteWithChildren
+  '/preview/account-type': typeof PreviewAccountTypeRoute
   '/preview/auth-phone': typeof PreviewAuthPhoneRoute
   '/preview/home': typeof PreviewHomeRoute
   '/preview/kyc-approved': typeof PreviewKycApprovedRoute
@@ -330,6 +339,7 @@ export interface FileRouteTypes {
     | '/admin/settings'
     | '/admin/transactions'
     | '/admin/users'
+    | '/preview/account-type'
     | '/preview/auth-phone'
     | '/preview/home'
     | '/preview/kyc-approved'
@@ -364,6 +374,7 @@ export interface FileRouteTypes {
     | '/admin/settings'
     | '/admin/transactions'
     | '/admin/users'
+    | '/preview/account-type'
     | '/preview/auth-phone'
     | '/preview/home'
     | '/preview/kyc-approved'
@@ -399,6 +410,7 @@ export interface FileRouteTypes {
     | '/admin/settings'
     | '/admin/transactions'
     | '/admin/users'
+    | '/preview/account-type'
     | '/preview/auth-phone'
     | '/preview/home'
     | '/preview/kyc-approved'
@@ -424,6 +436,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRouteWithChildren
+  PreviewAccountTypeRoute: typeof PreviewAccountTypeRoute
   PreviewAuthPhoneRoute: typeof PreviewAuthPhoneRoute
   PreviewHomeRoute: typeof PreviewHomeRoute
   PreviewKycApprovedRoute: typeof PreviewKycApprovedRoute
@@ -579,6 +592,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PreviewAuthPhoneRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/preview/account-type': {
+      id: '/preview/account-type'
+      path: '/preview/account-type'
+      fullPath: '/preview/account-type'
+      preLoaderRoute: typeof PreviewAccountTypeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/users': {
       id: '/admin/users'
       path: '/users'
@@ -727,6 +747,7 @@ const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRouteWithChildren,
+  PreviewAccountTypeRoute: PreviewAccountTypeRoute,
   PreviewAuthPhoneRoute: PreviewAuthPhoneRoute,
   PreviewHomeRoute: PreviewHomeRoute,
   PreviewKycApprovedRoute: PreviewKycApprovedRoute,
