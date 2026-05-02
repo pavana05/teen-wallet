@@ -1611,7 +1611,18 @@ function ConfirmView({
                 key={k}
                 type="button"
                 className="sp3-key"
-                onClick={() => onKey(k)}
+                onClick={(e) => {
+                  // Ripple effect
+                  const btn = e.currentTarget;
+                  const ripple = document.createElement("span");
+                  ripple.className = "sp3-key-ripple";
+                  const rect = btn.getBoundingClientRect();
+                  ripple.style.left = `${e.clientX - rect.left}px`;
+                  ripple.style.top = `${e.clientY - rect.top}px`;
+                  btn.appendChild(ripple);
+                  setTimeout(() => ripple.remove(), 500);
+                  onKey(k);
+                }}
                 aria-label={k === "del" ? "Delete" : k === "." ? "Decimal point" : `Digit ${k}`}
               >
                 {k === "del" ? <Delete className="w-5 h-5" strokeWidth={2} /> : <span>{k}</span>}
