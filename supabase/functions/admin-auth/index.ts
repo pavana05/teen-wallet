@@ -505,8 +505,10 @@ Deno.serve(async (req) => {
     if (!s || s.invalidated_at || new Date(s.expires_at) < new Date()) return json({ error: "expired" }, 401);
     const { data: admin } = await sb.from("admin_users").select("id,email,name,role,status").eq("id", s.admin_id).maybeSingle();
     if (!admin || admin.status !== "active") return json({ error: "no_account" }, 401);
-    await sb.from("admin_sessions").update({ last_seen_at: new Date().toISOString() }).eq("id", s.id);
-    return json({ admin, expiresAt: s.expires_at });
+    // Slide rolling expiry on each session check
+    const newExpiry = new Date(Date.now() + 4 * 3600 * 1000).toISOString();
+    await sb.from("admin_sessions").update({ last_seen_at: new Date().toISOString(), expires_at: newExpiry }).eq("id", s.id);
+    return json({ admin, expiresAt: newExpiry });
   }
 
   // ---------------------------------------------------------------
