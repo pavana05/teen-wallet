@@ -616,31 +616,40 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
             aria-disabled={verifyLocked}
           >
             {otp.map((v, i) => (
-              <input
-                key={i}
-                ref={(el) => { inputs.current[i] = el; }}
-                inputMode="numeric"
-                maxLength={1}
-                value={v}
-                disabled={busy || verifyLocked}
-                aria-invalid={!!error}
-                aria-describedby={error ? "tw-otp-error" : undefined}
-                onChange={(e) => onOtpChange(i, e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Backspace" && !v && i > 0) {
-                    // Focus-jump backspace: fire haptic only if the previous slot
-                    // actually has a digit AND we're past the cooldown — avoids
-                    // buzzing on held-key autorepeat.
-                    const now = typeof performance !== "undefined" ? performance.now() : Date.now();
-                    if (otp[i - 1] && now - lastHapticAtRef.current >= HAPTIC_MIN_GAP_MS) {
-                      lastHapticAtRef.current = now;
-                      void haptics.select();
+              <div key={i} className="tw-otp-slot w-12 h-14 rounded-2xl glass relative">
+                <input
+                  ref={(el) => { inputs.current[i] = el; }}
+                  inputMode="numeric"
+                  maxLength={1}
+                  value={v}
+                  disabled={busy || verifyLocked}
+                  aria-invalid={!!error}
+                  aria-describedby={error ? "tw-otp-error" : undefined}
+                  autoComplete={i === 0 ? "one-time-code" : "off"}
+                  onChange={(e) => onOtpChange(i, e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Backspace" && !v && i > 0) {
+                      const now = typeof performance !== "undefined" ? performance.now() : Date.now();
+                      if (otp[i - 1] && now - lastHapticAtRef.current >= HAPTIC_MIN_GAP_MS) {
+                        lastHapticAtRef.current = now;
+                        void haptics.select();
+                      }
+                      inputs.current[i - 1]?.focus();
                     }
-                    inputs.current[i - 1]?.focus();
-                  }
-                }}
-                className="w-12 h-14 text-center text-2xl font-bold rounded-2xl glass focus:outline-none focus:ring-2 focus:ring-primary num-mono disabled:opacity-60"
-              />
+                  }}
+                  className="absolute inset-0 w-full h-full bg-transparent text-center text-2xl font-bold focus:outline-none focus:ring-0 num-mono disabled:opacity-60 text-transparent caret-transparent"
+                />
+                {v && (
+                  <span className="tw-otp-digit-rise pointer-events-none absolute inset-0 flex items-center justify-center text-2xl font-bold num-mono text-foreground">
+                    {v}
+                  </span>
+                )}
+                {!v && (
+                  <span className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                    <span className="w-2 h-2 rounded-full bg-white/20" />
+                  </span>
+                )}
+              </div>
             ))}
           </div>
           {error && (
