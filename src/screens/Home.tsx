@@ -3,6 +3,8 @@ import { useApp } from "@/lib/store";
 import { useEffect, useState, useCallback, useRef, memo, Suspense } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { perfLog } from "@/lib/perfLog";
+import { offlineCache } from "@/lib/offlineCache";
 // Heavy panels are lazy-loaded — they only mount when the user opens them
 // (Scan, Transactions, Notifications, Profile, or a Quick Action). Eagerly
 // importing them was forcing ~6500 LOC into the Home chunk and slowing
