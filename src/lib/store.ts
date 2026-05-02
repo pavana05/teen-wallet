@@ -33,6 +33,7 @@ export const useApp = create<AppState>()(
       pendingPhone: null,
       userId: null,
       fullName: null,
+      balance: 2450,
       accountType: null,
       setStage: (stage) => {
         const prev = get().stage;
