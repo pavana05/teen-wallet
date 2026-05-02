@@ -379,14 +379,25 @@ export function Home() {
   useEffect(() => {
     let cancelled = false;
     void (async () => {
-      const { data } = await supabase
+      perfLog.markStart("home.offers");
+      const { data, error: offerErr } = await supabase
         .from("gender_offers")
         .select("id,eyebrow,headline,emphasis,subtitle,cta_label,accent,sort_order,gender_target")
         .eq("active", true)
         .in("gender_target", persona.offerFilter)
         .order("sort_order", { ascending: true })
         .limit(8);
-      if (!cancelled) setPersonaOffers((data ?? []) as PersonaOffer[]);
+      const qMs = perfLog.markEnd("home.offers");
+      if (qMs !== null) perfLog.trackQuery("gender_offers", qMs);
+      if (!cancelled) {
+        const offers = (data ?? []) as PersonaOffer[];
+        setPersonaOffers(offers);
+        if (offers.length) offlineCache.set("gender_offers", offers);
+        else if (offerErr) {
+          const cached = offlineCache.get<PersonaOffer[]>("gender_offers");
+          if (cached) setPersonaOffers(cached);
+        }
+      }
     })();
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
