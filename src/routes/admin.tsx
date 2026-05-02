@@ -90,6 +90,7 @@ function AdminLayout() {
       tile: true,
       items: [
         { to: "/admin/campaigns", label: "Gender Campaigns", icon: Sparkles, kbd: "g c", perm: "viewCampaigns" },
+        { to: "/admin/curations", label: "Curations", icon: LayoutGrid, kbd: "g n", perm: "viewAppImages" },
         { to: "/admin/app-images", label: "App Images", icon: ImageIcon, kbd: "g i", perm: "viewAppImages" },
       ],
     },
