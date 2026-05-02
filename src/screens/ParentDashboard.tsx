@@ -29,30 +29,17 @@ export function ParentDashboard() {
   const firstName = fullName?.split(" ")[0] || "there";
 
   const loadData = useCallback(async () => {
-    // Load linked children
-    const { data: links } = await supabase
-      .from("family_links")
-      .select("*")
-      .eq("status", "active");
+    // Use RPC to safely read linked children (bypasses profile RLS)
+    const { data: links } = await supabase.rpc("get_linked_children");
 
-    if (links && links.length > 0) {
-      // Fetch teen profiles
-      const teenIds = links.map((l) => l.teen_user_id);
-      const { data: profiles } = await supabase
-        .from("profiles")
-        .select("id, full_name, balance")
-        .in("id", teenIds);
-
-      const mapped: LinkedChild[] = links.map((l) => {
-        const p = profiles?.find((pr) => pr.id === l.teen_user_id);
-        return {
-          id: l.id,
-          teen_user_id: l.teen_user_id,
-          teen_name: p?.full_name ?? null,
-          teen_balance: Number(p?.balance ?? 0),
-          status: l.status,
-        };
-      });
+    if (links && Array.isArray(links) && links.length > 0) {
+      const mapped: LinkedChild[] = links.map((l: Record<string, unknown>) => ({
+        id: l.link_id as string,
+        teen_user_id: l.teen_user_id as string,
+        teen_name: (l.teen_name as string) ?? null,
+        teen_balance: Number(l.teen_balance ?? 0),
+        status: l.link_status as string,
+      }));
       setChildren(mapped);
     }
 
