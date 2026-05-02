@@ -74,6 +74,7 @@ export const useApp = create<AppState>()(
         splashSeen: s.splashSeen,
         userId: s.userId,
         fullName: s.fullName,
+        accountType: s.accountType,
       }),
       version: 2,
     }
