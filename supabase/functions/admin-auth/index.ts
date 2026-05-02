@@ -533,10 +533,17 @@ Deno.serve(async (req) => {
     if (!sessionToken) return null;
     const sessionHash = await sha256Hex("session:" + sessionToken);
     const { data: s } = await sb.from("admin_sessions").select("*").eq("session_token_hash", sessionHash).maybeSingle();
-    if (!s || s.invalidated_at || new Date(s.expires_at) < new Date()) return null;
+    if (!s) return null;
+    if (s.invalidated_at) return null;
+    if (new Date(s.expires_at) < new Date()) return null;
     const { data: a } = await sb.from("admin_users").select("id,email,name,role,status").eq("id", s.admin_id).maybeSingle();
     if (!a || a.status !== "active") return null;
-    await sb.from("admin_sessions").update({ last_seen_at: new Date().toISOString() }).eq("id", s.id);
+    // Slide the expiry window on each successful auth check (rolling 4h session)
+    const newExpiry = new Date(Date.now() + 4 * 3600 * 1000).toISOString();
+    await sb.from("admin_sessions").update({
+      last_seen_at: new Date().toISOString(),
+      expires_at: newExpiry,
+    }).eq("id", s.id);
     return a as any;
   }
 
