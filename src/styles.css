@@ -8683,7 +8683,26 @@ html.motion-off    .otp-resend-ring svg circle { transition: none !important; }
   letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
   min-width: 4px;
-  transition: transform 160ms cubic-bezier(.22,1,.36,1);
+  display: inline-flex; align-items: baseline;
+}
+/* Individual digit pop-in */
+.sp3-digit-char {
+  display: inline-block;
+  animation: sp3-digit-in 280ms cubic-bezier(.22,1,.36,1) both;
+}
+@keyframes sp3-digit-in {
+  0% { opacity: 0; transform: scale(0.5) translateY(8px); }
+  50% { opacity: 1; transform: scale(1.12) translateY(-2px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+/* Amount block pop on change */
+.sp3-digit-pop {
+  animation: sp3-amount-pop 200ms cubic-bezier(.22,1,.36,1) both;
+}
+@keyframes sp3-amount-pop {
+  0% { transform: scale(0.97); }
+  50% { transform: scale(1.03); }
+  100% { transform: scale(1); }
 }
 .sp3-caret {
   display: inline-block;
