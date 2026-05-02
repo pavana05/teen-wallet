@@ -4,7 +4,7 @@ import { useAdminSession, ROLE_LABELS, ROLE_BADGE, callAdminFn, readAdminSession
 import {
   LayoutDashboard, Users, ShieldAlert, FileCheck2, Wallet, Settings, LogOut,
   Bell, Activity, Search, ChevronLeft, ChevronRight, Command, MessageSquareWarning, ImageIcon,
-  Sun, Moon, Rows3, Rows2, Sparkles,
+  Sun, Moon, Rows3, Rows2, Sparkles, ShieldOff, RefreshCw,
 } from "lucide-react";
 import { PerfOverlay } from "@/admin/components/PerfOverlay";
 import { CommandPalette } from "@/admin/components/CommandPalette";
@@ -555,4 +555,107 @@ function relTime(ts: string) {
   if (s < 3600) return Math.floor(s / 60) + "m ago";
   if (s < 86400) return Math.floor(s / 3600) + "h ago";
   return Math.floor(s / 86400) + "d ago";
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Full-screen session recovery fallback — replaces blank screen on 401 / no session
+// ─────────────────────────────────────────────────────────────────────────────
+function AdminSessionFallback({ onLogout }: { onLogout: () => Promise<void> }) {
+  const nav = useNavigate();
+  const [busy, setBusy] = useState(false);
+
+  const handleRetry = () => {
+    // Force a full page reload to re-verify the session from scratch
+    window.location.reload();
+  };
+
+  const handleLogout = async () => {
+    setBusy(true);
+    try { await onLogout(); } catch { /* noop */ }
+    nav({ to: "/admin/login" });
+  };
+
+  return (
+    <div
+      style={{
+        minHeight: "100vh",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 24,
+      }}
+    >
+      <div
+        className="a-surface"
+        style={{
+          maxWidth: 440,
+          width: "100%",
+          padding: 32,
+          textAlign: "center",
+          borderRadius: 16,
+          border: "1px solid var(--a-border)",
+        }}
+      >
+        <div
+          style={{
+            width: 56,
+            height: 56,
+            borderRadius: 14,
+            background: "rgba(239,68,68,0.08)",
+            border: "1px solid rgba(239,68,68,0.2)",
+            display: "grid",
+            placeItems: "center",
+            margin: "0 auto 16px",
+          }}
+        >
+          <ShieldOff size={24} style={{ color: "#fca5a5" }} />
+        </div>
+
+        <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 6 }}>Session Expired</h2>
+        <p style={{ fontSize: 13, color: "var(--a-muted)", lineHeight: 1.6, marginBottom: 24 }}>
+          Your admin session has ended or could not be verified. This can happen after inactivity,
+          a network interruption, or if the session was revoked.
+        </p>
+
+        <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
+          <button
+            onClick={handleRetry}
+            className="a-btn-ghost"
+            style={{
+              padding: "10px 20px",
+              fontSize: 13,
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              borderRadius: 10,
+            }}
+          >
+            <RefreshCw size={14} /> Retry
+          </button>
+          <button
+            onClick={handleLogout}
+            disabled={busy}
+            className="a-btn"
+            style={{
+              padding: "10px 20px",
+              fontSize: 13,
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              borderRadius: 10,
+            }}
+          >
+            <LogOut size={14} /> Sign in again
+          </button>
+        </div>
+
+        <p
+          className="a-mono"
+          style={{ fontSize: 10, color: "var(--a-muted)", marginTop: 20, letterSpacing: "0.05em" }}
+        >
+          All activity is logged. Contact your Super Admin if this persists.
+        </p>
+      </div>
+    </div>
+  );
 }
