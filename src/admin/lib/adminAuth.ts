@@ -78,12 +78,24 @@ export async function callAdminFn<T = unknown>(payload: Record<string, unknown>)
   if (!res.ok) {
     const errCode = (json?.error as string) || "";
     const msg = (json?.reason as string) || errCode || `HTTP ${res.status}`;
+
+    // Detailed client-side logging for traceability
+    console.error(
+      `[admin-auth] ${res.status} ${errCode || "UNKNOWN"}`,
+      `| action=${payload.action ?? "?"}`,
+      `| correlationId=${cid ?? "none"}`,
+      `| msg=${msg}`,
+      `| session=${readAdminSession() ? "present" : "absent"}`,
+      `| ts=${new Date().toISOString()}`,
+    );
+
     // Auto-recover from expired/invalid session tokens: clear local state
     // and bounce to the admin login (unless we're already there).
     const isSessionDead =
       res.status === 401 &&
       (errCode === "expired" || errCode === "invalid_session" || errCode === "session_not_found" || errCode === "unauthorized" || errCode === "no_session" || errCode === "no_account");
     if (isSessionDead) {
+      console.warn("[admin-auth] Session dead — clearing local state and redirecting to /admin/login");
       clearAdminSession();
       if (typeof window !== "undefined" && !window.location.pathname.startsWith("/admin/login")) {
         window.location.assign("/admin/login");
