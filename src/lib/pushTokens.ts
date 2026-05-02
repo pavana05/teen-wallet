@@ -76,6 +76,13 @@ export async function registerPushNotifications() {
         const txnId = data.transaction_id ?? "";
         if (txnId && /^payment_|^transaction$/.test(type)) {
           setPendingDeepLink({ kind: "transaction", transactionId: txnId });
+        } else if (/^kyc_/.test(type)) {
+          const kycStatus = data.kyc_status as "approved" | "rejected" | "pending" | undefined;
+          setPendingDeepLink({ kind: "kyc", status: kycStatus });
+        } else if (type === "referral") {
+          setPendingDeepLink({ kind: "referral" });
+        } else if (type === "profile") {
+          setPendingDeepLink({ kind: "profile" });
         } else {
           setPendingDeepLink({ kind: "notifications" });
         }
