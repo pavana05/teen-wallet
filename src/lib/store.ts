@@ -33,7 +33,7 @@ export const useApp = create<AppState>()(
       pendingPhone: null,
       userId: null,
       fullName: null,
-      balance: 2450,
+      accountType: null,
       setStage: (stage) => {
         const prev = get().stage;
         set({ stage });
@@ -50,17 +50,19 @@ export const useApp = create<AppState>()(
       setStageLocal: (stage) => set({ stage }),
       setSplashSeen: (splashSeen) => set({ splashSeen }),
       setPendingPhone: (pendingPhone) => set({ pendingPhone }),
+      setAccountType: (accountType) => set({ accountType }),
       hydrateFromProfile: (p) => {
         set({
           userId: p.id,
           fullName: p.full_name,
           balance: Number(p.balance ?? 2450),
           stage: p.onboarding_stage,
+          accountType: (p.account_type as AccountType) ?? null,
         });
         setBreadcrumbUser({ id: p.id });
         breadcrumb("auth.hydrated", { kycStage: p.onboarding_stage });
       },
-      reset: () => set({ stage: "STAGE_0", splashSeen: false, pendingPhone: null, userId: null, fullName: null, balance: 2450 }),
+      reset: () => set({ stage: "STAGE_0", splashSeen: false, pendingPhone: null, userId: null, fullName: null, balance: 2450, accountType: null }),
     }),
     {
       name: "teenwallet-app",
