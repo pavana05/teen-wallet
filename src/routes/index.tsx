@@ -81,7 +81,7 @@ function ScreenFallback() {
 }
 
 function Index() {
-  const { stage, setStage, hydrateFromProfile, userId } = useApp();
+  const { stage, setStage, hydrateFromProfile, userId, accountType, setAccountType } = useApp();
 
   const stageRank: Record<Stage, number> = {
     STAGE_0: 0, STAGE_1: 1, STAGE_2: 2, STAGE_3: 3, STAGE_4: 4, STAGE_5: 5,
