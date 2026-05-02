@@ -221,7 +221,7 @@ function CurationDetail({ item, onClose }: { item: Curation; onClose: () => void
             className="mt-5 text-[14px] leading-relaxed"
             style={{ color: "rgba(255,255,255,0.7)" }}
           >
-            {item.detail_body.split("\n").map((line, i) => (
+            {item.detail_body.split(/\\n|\n/).filter(Boolean).map((line, i) => (
               <p key={i} className={i > 0 ? "mt-3" : ""}>{line}</p>
             ))}
           </div>
