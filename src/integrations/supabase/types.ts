@@ -419,6 +419,86 @@ export type Database = {
         }
         Relationships: []
       }
+      family_invite_codes: {
+        Row: {
+          accepted_at: string | null
+          accepted_by: string | null
+          code: string
+          created_at: string
+          creator_role: string
+          creator_user_id: string
+          expires_at: string
+          id: string
+          status: string
+          target_role: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          accepted_by?: string | null
+          code: string
+          created_at?: string
+          creator_role: string
+          creator_user_id: string
+          expires_at?: string
+          id?: string
+          status?: string
+          target_role: string
+        }
+        Update: {
+          accepted_at?: string | null
+          accepted_by?: string | null
+          code?: string
+          created_at?: string
+          creator_role?: string
+          creator_user_id?: string
+          expires_at?: string
+          id?: string
+          status?: string
+          target_role?: string
+        }
+        Relationships: []
+      }
+      family_links: {
+        Row: {
+          created_at: string
+          id: string
+          invite_code_id: string | null
+          linked_via: string
+          parent_user_id: string
+          status: string
+          teen_user_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          invite_code_id?: string | null
+          linked_via?: string
+          parent_user_id: string
+          status?: string
+          teen_user_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          invite_code_id?: string | null
+          linked_via?: string
+          parent_user_id?: string
+          status?: string
+          teen_user_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "family_links_invite_code_id_fkey"
+            columns: ["invite_code_id"]
+            isOneToOne: false
+            referencedRelation: "family_invite_codes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       fraud_logs: {
         Row: {
           created_at: string
@@ -1160,6 +1240,13 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      accept_family_invite: {
+        Args: { _code: string }
+        Returns: {
+          message: string
+          ok: boolean
+        }[]
+      }
       admin_email_allowed: { Args: { _email: string }; Returns: boolean }
       dismiss_app_lock_prompt: { Args: never; Returns: undefined }
       finalize_due_payment_attempt: {
@@ -1172,6 +1259,7 @@ export type Database = {
           transaction_id: string
         }[]
       }
+      generate_family_invite_code: { Args: never; Returns: string }
       get_login_requirements: {
         Args: { _phone: string }
         Returns: {
