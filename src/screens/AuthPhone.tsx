@@ -225,6 +225,27 @@ export function AuthPhone({ onDone }: { onDone: () => void }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step]);
 
+  // Web OTP API — auto-read incoming SMS OTP on supported devices.
+  useEffect(() => {
+    if (step !== "otp") return;
+    if (typeof window === "undefined" || !("OTPCredential" in window)) return;
+    const ac = new AbortController();
+    navigator.credentials
+      .get({ otp: { transport: ["sms"] }, signal: ac.signal } as CredentialRequestOptions)
+      .then((cred: Credential | null) => {
+        const code = (cred as { code?: string } | null)?.code;
+        if (code && /^\d{6}$/.test(code)) {
+          const digits = code.split("");
+          setOtp(digits);
+          void haptics.success();
+          void handleVerify(code);
+        }
+      })
+      .catch(() => { /* user dismissed or unsupported — silent */ });
+    return () => ac.abort();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step]);
+
   const phoneState = classifyPhoneField(phone);
   const valid = phoneState === "valid";
   // Live, friendly hint message for the field — only shown when there's something to say.
