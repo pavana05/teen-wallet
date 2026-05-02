@@ -46,8 +46,8 @@ const reducedMotion = () => {
 const SCANPAY_PERSIST_KEY = "tw-scanpay-flow-v1";
 const SCANPAY_ATTEMPT_KEY = "tw-scanpay-attempt-id-v1";
 const SCANPAY_LAST_QR_KEY = "tw-scanpay-last-qr-v1";
-const POLL_INTERVAL_MS = 1500;
-const POLL_MAX_MS = 60_000;
+const POLL_INTERVAL_MS = 800;
+const POLL_MAX_MS = 45_000;
 
 interface PersistedFlow {
   phase: Phase;
