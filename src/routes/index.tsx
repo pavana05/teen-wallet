@@ -18,6 +18,7 @@ const OnboardingReferral = lazyWithRetry(() => import("@/screens/OnboardingRefer
 const AccountTypeSelection = lazyWithRetry(() => import("@/screens/AccountTypeSelection").then(m => ({ default: m.AccountTypeSelection })));
 const TeenDashboard = lazyWithRetry(() => import("@/screens/TeenDashboard").then(m => ({ default: m.TeenDashboard })));
 const ParentDashboard = lazyWithRetry(() => import("@/screens/ParentDashboard").then(m => ({ default: m.ParentDashboard })));
+const KycVerified = lazyWithRetry(() => import("@/screens/KycVerified").then(m => ({ default: m.KycVerified })));
 
 const PERMISSIONS_DONE_KEY = "tw_permissions_seen_v1";
 const SIGNUP_NEEDS_GOOGLE_KEY = "tw.signup.needsGoogleLink";
@@ -123,6 +124,9 @@ function Index() {
   // screen never reappears on subsequent launches.
   const [referralPending, setReferralPending] = useState<boolean>(() => shouldShowReferralPrompt());
   const markReferralDone = () => setReferralPending(false);
+
+  // KYC celebration screen shown once when teen transitions STAGE_4 → STAGE_5
+  const [showKycCelebration, setShowKycCelebration] = useState(false);
 
   // Mandatory Google-link step for fresh signups. Set by lib/auth.ts on
   // signUp() success; cleared once the user completes linking.
@@ -270,7 +274,12 @@ function Index() {
         ) : stage === "STAGE_3" ? (
           <KycFlow onDone={() => setStage("STAGE_4")} />
         ) : stage === "STAGE_4" ? (
-          <KycPending onApproved={() => setStage("STAGE_5")} />
+          <KycPending onApproved={() => {
+            setStage("STAGE_5");
+            if (accountType === "teen") setShowKycCelebration(true);
+          }} />
+        ) : showKycCelebration && accountType === "teen" ? (
+          <KycVerified onContinue={() => setShowKycCelebration(false)} />
         ) : accountType === "teen" ? (
           <TeenDashboard />
         ) : (

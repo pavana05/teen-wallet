@@ -142,10 +142,20 @@ export function TeenDashboard() {
 
   const isLinked = !!familyLink;
 
-  // KYC not approved — block dashboard
-  if (kycStatus && kycStatus !== "approved" && kycStatus !== "not_started") {
-    // Let the main router handle KYC flow — this is just a safety net
-  }
+  const kycApproved = kycStatus === "approved";
+
+  const handleKycGatedAction = (screen: SubScreen) => {
+    if (!kycApproved) {
+      haptics.tap();
+      toast.error("Complete Aadhaar KYC to unlock this feature", {
+        description: "Your identity must be verified before using Scan & Pay or viewing transactions.",
+        duration: 4000,
+      });
+      return;
+    }
+    haptics.tap();
+    setActiveScreen(screen);
+  };
 
   // Sub-screen overlays
   if (activeScreen === "notifications") {
@@ -246,11 +256,19 @@ export function TeenDashboard() {
           </div>
         </div>
         <div className="flex gap-2 mt-4">
-          <button onClick={() => { haptics.tap(); setActiveScreen("scanpay"); }} className="td-invite-btn flex-1">
+          <button
+            onClick={() => handleKycGatedAction("scanpay")}
+            className={`td-invite-btn flex-1 ${!kycApproved ? "td-btn-locked" : ""}`}
+          >
             <ScanLine className="w-4 h-4" /> Scan & Pay
+            {!kycApproved && <span className="td-lock-badge">KYC</span>}
           </button>
-          <button onClick={() => { haptics.tap(); setActiveScreen("txhistory"); }} className="td-invite-btn flex-1">
+          <button
+            onClick={() => handleKycGatedAction("txhistory")}
+            className={`td-invite-btn flex-1 ${!kycApproved ? "td-btn-locked" : ""}`}
+          >
             <History className="w-4 h-4" /> History
+            {!kycApproved && <span className="td-lock-badge">KYC</span>}
           </button>
         </div>
       </div>
@@ -293,8 +311,10 @@ export function TeenDashboard() {
       <div className="mx-5 mt-5">
         <p className="text-[11px] font-medium tracking-widest uppercase td-label mb-3">Quick Actions</p>
         <div className="flex flex-col gap-2">
-          {CONTROLS.map(({ icon: Icon, label, desc, color, screen }) => (
-            <button key={label} onClick={() => { haptics.tap(); setActiveScreen(screen); }} className="td-control-row">
+          {CONTROLS.map(({ icon: Icon, label, desc, color, screen }) => {
+            const isGated = (screen === "txhistory" || screen === "scanpay") && !kycApproved;
+            return (
+            <button key={label} onClick={() => { isGated ? handleKycGatedAction(screen) : (() => { haptics.tap(); setActiveScreen(screen); })(); }} className={`td-control-row ${isGated ? "td-row-locked" : ""}`}>
               <div className="td-control-icon" style={{ background: `${color}15`, color }}>
                 <Icon className="w-5 h-5" />
               </div>
@@ -304,7 +324,8 @@ export function TeenDashboard() {
               </div>
               <ChevronRight className="w-4 h-4 td-chevron" />
             </button>
-          ))}
+            );
+          })}
         </div>
       </div>
 
@@ -312,7 +333,7 @@ export function TeenDashboard() {
       <div className="mx-5 mt-5 mb-6">
         <div className="flex items-center justify-between mb-3">
           <p className="text-[11px] font-medium tracking-widest uppercase td-label">Recent Activity</p>
-          <button onClick={() => { haptics.tap(); setActiveScreen("txhistory"); }} className="text-[11px] td-accent-text font-medium">See All</button>
+          <button onClick={() => handleKycGatedAction("txhistory")} className="text-[11px] td-accent-text font-medium">See All</button>
         </div>
         {txns.length === 0 ? (
           <div className="td-empty-state">
@@ -421,6 +442,19 @@ export function TeenDashboard() {
         }
 
         .td-amt-debit { color: oklch(0.65 0.08 25); }
+
+        .td-btn-locked {
+          opacity: 0.5; position: relative;
+          border-color: oklch(0.3 0.01 250);
+          color: oklch(0.5 0.01 250);
+        }
+        .td-lock-badge {
+          font-size: 8px; font-weight: 800; padding: 2px 6px;
+          border-radius: 4px; background: oklch(0.65 0.08 25 / 0.2);
+          color: oklch(0.7 0.06 25); text-transform: uppercase;
+          letter-spacing: 0.1em;
+        }
+        .td-row-locked { opacity: 0.5; }
 
         @media (prefers-reduced-motion: reduce) {
           .td-family-card, .td-child-card, .td-control-row { transition: none; }
