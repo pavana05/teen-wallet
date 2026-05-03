@@ -342,7 +342,7 @@ export function TeenDashboard() {
         <p className="text-[11px] font-medium tracking-widest uppercase td-label mb-3">Quick Actions</p>
         <div className="flex flex-col gap-2">
           {CONTROLS.map(({ icon: Icon, label, desc, color, screen }) => {
-            const isGated = (screen === "txhistory" || screen === "scanpay") && !kycApproved;
+            const isGated = (screen === "txhistory" || screen === "scanpay") && (!kycApproved || (!isLinked && !linkLoading));
             return (
             <button key={label} onClick={() => { isGated ? handleGatedAction(screen) : (() => { haptics.tap(); setActiveScreen(screen); })(); }} className={`td-control-row ${isGated ? "td-row-locked" : ""}`}>
               <div className="td-control-icon" style={{ background: `${color}15`, color }}>
