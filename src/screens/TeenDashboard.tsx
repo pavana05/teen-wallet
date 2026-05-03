@@ -553,6 +553,19 @@ export function TeenDashboard() {
         </div>
       </div>
 
+      {/* ===== SETTINGS ===== */}
+      <div className="px-5 mt-10">
+        <div className="hp-section-head">
+          <div>
+            <span className="hp-section-eyebrow">Preferences</span>
+            <h3 className="hp-section-title">Settings</h3>
+          </div>
+        </div>
+        <div className="grid grid-cols-4 gap-3">
+          <QuickAction icon={Vibrate} label={"Haptics"} onClick={() => setActiveScreen("haptics")} />
+        </div>
+      </div>
+
       <div className="h-6" />
 
       {/* ===== FLOATING BOTTOM NAV ===== */}
