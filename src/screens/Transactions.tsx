@@ -134,10 +134,13 @@ export function Transactions({ onBack }: Props) {
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return enriched.filter(({ txn }) => {
+    return enriched.filter(({ txn, credit }) => {
       if (filter === "pending" && txn.status !== "pending") return false;
       if (filter === "complete" && txn.status !== "success") return false;
       if (filter === "failed" && txn.status !== "failed") return false;
+      // Payment type filter
+      if (paymentType === "upi" && credit) return false; // UPI payments = debits
+      if (paymentType === "refunds" && !credit) return false; // refunds/cashback = credits
       if (!q) return true;
       return (
         txn.merchant_name.toLowerCase().includes(q) ||
