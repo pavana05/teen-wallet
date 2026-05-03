@@ -60,12 +60,12 @@ export function TeenLinkStatus({ onBack, onLinked }: Props) {
     setPhase("celebrating");
     haptics.press();
 
-    // Update profile
-    supabase
-      .from("profiles")
-      .update({ family_link_status: "accepted" } as Record<string, unknown>)
-      .eq("id", (supabase as any).auth.getUser().then(() => {}))
-      .then(() => {});
+    // Update profile link status
+    supabase.auth.getUser().then(({ data }) => {
+      if (data?.user?.id) {
+        supabase.from("profiles").update({ family_link_status: "accepted" as any }).eq("id", data.user.id).then(() => {});
+      }
+    });
 
     // Auto-navigate after celebration
     setTimeout(() => {
