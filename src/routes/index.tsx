@@ -18,6 +18,7 @@ const OnboardingReferral = lazyWithRetry(() => import("@/screens/OnboardingRefer
 const AccountTypeSelection = lazyWithRetry(() => import("@/screens/AccountTypeSelection").then(m => ({ default: m.AccountTypeSelection })));
 const TeenDashboard = lazyWithRetry(() => import("@/screens/TeenDashboard").then(m => ({ default: m.TeenDashboard })));
 const ParentDashboard = lazyWithRetry(() => import("@/screens/ParentDashboard").then(m => ({ default: m.ParentDashboard })));
+const KycVerified = lazyWithRetry(() => import("@/screens/KycVerified").then(m => ({ default: m.KycVerified })));
 
 const PERMISSIONS_DONE_KEY = "tw_permissions_seen_v1";
 const SIGNUP_NEEDS_GOOGLE_KEY = "tw.signup.needsGoogleLink";
