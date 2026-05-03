@@ -283,24 +283,15 @@ export function TeenDashboard() {
       });
       return;
     }
-    if (!isLinked && !linkLoading) {
-      haptics.tap();
-      toast.error("Link a parent account first", {
-        description: "Your parent must be connected before you can use wallet features.",
-        duration: 4000,
-      });
-      return;
-    }
     action();
   };
 
   const getLockLabel = () => {
     if (!kycApproved) return "KYC";
-    if (!isLinked && !linkLoading) return "LINK";
     return undefined;
   };
 
-  const isGated = !kycApproved || (!isLinked && !linkLoading);
+  const isGated = !kycApproved;
 
   // Pull to refresh
   const onTouchStart = (e: React.TouchEvent) => {
@@ -328,7 +319,7 @@ export function TeenDashboard() {
         window.setTimeout(() => setScanLaunching(false), 50);
       }, 420);
     });
-  }, [kycApproved, isLinked, linkLoading]);
+  }, [kycApproved]);
 
   // Sub-screen overlays
   if (view === "scan") return (
@@ -468,18 +459,29 @@ export function TeenDashboard() {
         )}
       </section>
 
-      {/* ===== FAMILY LINK STATUS (teen-specific) ===== */}
+      {/* ===== PARENTAL CONTROL (optional) ===== */}
       {!isLinked && !linkLoading && (
         <div className="px-5 mt-6">
           <div className="td-link-banner">
             <Shield className="w-8 h-8" style={{ color: "oklch(0.82 0.06 85)" }} />
             <div className="flex-1 min-w-0">
-              <p className="text-[13px] font-semibold text-white">Link your parent</p>
-              <p className="text-[11px] text-white/50 mt-0.5">Connect to unlock wallet features</p>
+              <p className="text-[13px] font-semibold text-white">Parental Controls</p>
+              <p className="text-[11px] text-white/50 mt-0.5">Optionally link a parent for spending oversight</p>
             </div>
             <button onClick={() => { haptics.tap(); setActiveScreen("linking"); }} className="td-link-cta">
               <Link2 className="w-3.5 h-3.5" /> Link
             </button>
+          </div>
+        </div>
+      )}
+      {isLinked && (
+        <div className="px-5 mt-6">
+          <div className="td-link-banner">
+            <Shield className="w-8 h-8" style={{ color: "oklch(0.65 0.12 145)" }} />
+            <div className="flex-1 min-w-0">
+              <p className="text-[13px] font-semibold text-white">Parent Linked ✓</p>
+              <p className="text-[11px] text-white/50 mt-0.5">Parental controls are active</p>
+            </div>
           </div>
         </div>
       )}
