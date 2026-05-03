@@ -46,11 +46,25 @@ let enabled = (() => {
   catch { return true; }
 })();
 
+/** Check OS-level reduced haptics / reduced motion preference. */
+function osReducedHaptics(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    // iOS 17+ exposes prefers-reduced-haptics; for older systems fall back to
+    // prefers-reduced-motion as a proxy (users who reduce motion likely
+    // also prefer softer or no haptics).
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return true;
+  } catch { /* ignore */ }
+  return false;
+}
+
 let lastFired = 0;
 const THROTTLE_MS = 35; // prevents rapid-fire taps from melting into a buzz
 
 function canFire(): boolean {
   if (!enabled) return false;
+  // Respect OS accessibility preferences automatically
+  if (osReducedHaptics()) return false;
   try {
     const now = typeof performance !== "undefined" ? performance.now() : Date.now();
     if (now - lastFired < THROTTLE_MS) return false;
