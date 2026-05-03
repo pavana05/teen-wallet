@@ -319,7 +319,7 @@ export function TeenDashboard() {
         window.setTimeout(() => setScanLaunching(false), 50);
       }, 420);
     });
-  }, [kycApproved, isLinked, linkLoading]);
+  }, [kycApproved]);
 
   // Sub-screen overlays
   if (view === "scan") return (
