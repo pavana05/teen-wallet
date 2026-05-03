@@ -329,19 +329,26 @@ export function TeenDashboard() {
 
   // Sub-screen overlays
   if (view === "scan") return (
-    <Suspense fallback={null}>
+    <Suspense fallback={<TransitionFallback />}>
       <ScanPay onBack={() => { setView("home"); void loadData(); }} />
     </Suspense>
   );
   if (view === "transactions") return (
-    <Suspense fallback={null}>
+    <Suspense fallback={<TransitionFallback />}>
       <Transactions onBack={() => { setView("home"); void loadData(); }} />
     </Suspense>
   );
   if (activeScreen === "notifications" || showNotifs) {
     return (
-      <Suspense fallback={null}>
+      <Suspense fallback={<TransitionFallback />}>
         <NotificationsPanel onClose={() => { setActiveScreen(null); setShowNotifs(false); loadData(); }} />
+      </Suspense>
+    );
+  }
+  if (activeScreen === "profile") {
+    return (
+      <Suspense fallback={<TransitionFallback />}>
+        <ProfilePanel onClose={() => setActiveScreen(null)} onTransactions={() => { setActiveScreen(null); setView("transactions"); }} />
       </Suspense>
     );
   }
