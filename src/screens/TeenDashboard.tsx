@@ -21,6 +21,7 @@ import { lazyWithRetry } from "@/lib/lazyWithRetry";
 const ScanPay = lazyWithRetry(() => import("@/screens/ScanPay").then(m => ({ default: m.ScanPay })));
 const Transactions = lazyWithRetry(() => import("@/screens/Transactions").then(m => ({ default: m.Transactions })));
 const NotificationsPanel = lazyWithRetry(() => import("@/components/NotificationsPanel").then(m => ({ default: m.NotificationsPanel })));
+const ProfilePanel = lazyWithRetry(() => import("@/components/ProfilePanel").then(m => ({ default: m.ProfilePanel })));
 const HapticsSettingsLazy = lazyWithRetry(() => import("@/screens/HapticsSettings").then(m => ({ default: m.HapticsSettings })));
 
 function HapticsSettingsInline({ onBack }: { onBack: () => void }) {
