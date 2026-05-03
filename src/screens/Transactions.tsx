@@ -294,6 +294,13 @@ export function Transactions({ onBack }: Props) {
           <SegBtn active={filter === "failed"} onClick={() => { setFilter("failed"); void haptics.select(); }} count={totals.failed}>Failed</SegBtn>
         </div>
 
+        {/* === Payment type pills === */}
+        <div className="flex gap-2 mt-3 td-cascade" style={{ ["--td-i" as string]: 3.5 }} role="tablist" aria-label="Payment type">
+          <TypePill active={paymentType === "all"} onClick={() => { setPaymentType("all"); void haptics.select(); }}>All types</TypePill>
+          <TypePill active={paymentType === "upi"} onClick={() => { setPaymentType("upi"); void haptics.select(); }}>UPI Payments</TypePill>
+          <TypePill active={paymentType === "refunds"} onClick={() => { setPaymentType("refunds"); void haptics.select(); }}>Refunds</TypePill>
+        </div>
+
         {/* === List === */}
         <div className="mt-5 td-cascade" style={{ ["--td-i" as string]: 4 }}>
           {loading ? (
