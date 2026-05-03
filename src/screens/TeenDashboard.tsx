@@ -333,7 +333,7 @@ export function TeenDashboard() {
       <div className="mx-5 mt-5 mb-6">
         <div className="flex items-center justify-between mb-3">
           <p className="text-[11px] font-medium tracking-widest uppercase td-label">Recent Activity</p>
-          <button onClick={() => { haptics.tap(); setActiveScreen("txhistory"); }} className="text-[11px] td-accent-text font-medium">See All</button>
+          <button onClick={() => handleKycGatedAction("txhistory")} className="text-[11px] td-accent-text font-medium">See All</button>
         </div>
         {txns.length === 0 ? (
           <div className="td-empty-state">
