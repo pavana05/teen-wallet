@@ -42,7 +42,7 @@ interface FamilyLink {
   status: string;
 }
 
-type SubScreen = "savings" | "screentime" | "spending" | "rewards" | "txhistory" | "scanpay" | "notifications" | "linking" | "linkstatus" | "haptics" | null;
+type SubScreen = "savings" | "screentime" | "spending" | "rewards" | "txhistory" | "scanpay" | "notifications" | "linking" | "linkstatus" | "haptics" | "profile" | null;
 
 /* ── Reusable tile components (same as Home) ── */
 
