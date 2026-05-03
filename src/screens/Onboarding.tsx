@@ -268,7 +268,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
               alt=""
               width={520}
               height={520}
-              loading={i === 0 ? "eager" : "lazy"}
+              loading="eager"
               decoding="async"
               className="ob-hero-img"
               draggable={false}
