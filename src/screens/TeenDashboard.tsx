@@ -21,6 +21,7 @@ import { lazyWithRetry } from "@/lib/lazyWithRetry";
 const ScanPay = lazyWithRetry(() => import("@/screens/ScanPay").then(m => ({ default: m.ScanPay })));
 const Transactions = lazyWithRetry(() => import("@/screens/Transactions").then(m => ({ default: m.Transactions })));
 const NotificationsPanel = lazyWithRetry(() => import("@/components/NotificationsPanel").then(m => ({ default: m.NotificationsPanel })));
+const ProfilePanel = lazyWithRetry(() => import("@/components/ProfilePanel").then(m => ({ default: m.ProfilePanel })));
 const HapticsSettingsLazy = lazyWithRetry(() => import("@/screens/HapticsSettings").then(m => ({ default: m.HapticsSettings })));
 
 function HapticsSettingsInline({ onBack }: { onBack: () => void }) {
@@ -41,7 +42,28 @@ interface FamilyLink {
   status: string;
 }
 
-type SubScreen = "savings" | "screentime" | "spending" | "rewards" | "txhistory" | "scanpay" | "notifications" | "linking" | "linkstatus" | "haptics" | null;
+type SubScreen = "savings" | "screentime" | "spending" | "rewards" | "txhistory" | "scanpay" | "notifications" | "linking" | "linkstatus" | "haptics" | "profile" | null;
+
+/* ── Transition fallback — avoids blank screen while lazy chunks load ── */
+function TransitionFallback() {
+  return (
+    <div className="flex-1 flex flex-col gap-4 px-5 pt-8 pb-6" style={{ background: "var(--background)" }}>
+      <div className="flex items-center gap-3">
+        <div className="boot-skel" style={{ width: 40, height: 40, borderRadius: 999 }} />
+        <div className="flex flex-col gap-2">
+          <div className="boot-skel" style={{ width: 96, height: 10, borderRadius: 6 }} />
+          <div className="boot-skel" style={{ width: 64, height: 8, borderRadius: 6 }} />
+        </div>
+      </div>
+      <div className="boot-skel boot-skel-card" style={{ height: 120, borderRadius: 22, marginTop: 6 }} />
+      <div className="flex flex-col gap-3">
+        <div className="boot-skel boot-skel-row" />
+        <div className="boot-skel boot-skel-row" />
+        <div className="boot-skel boot-skel-row" />
+      </div>
+    </div>
+  );
+}
 
 /* ── Reusable tile components (same as Home) ── */
 
@@ -130,6 +152,22 @@ export function TeenDashboard() {
   const [loading, setLoading] = useState(true);
   const scrollerRef = useRef<HTMLDivElement | null>(null);
   const touchStartY = useRef<number | null>(null);
+
+  // Prefetch common sub-screens on idle so transitions are instant
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const idle = (cb: () => void) => {
+      const w = window as unknown as { requestIdleCallback?: (cb: () => void) => number };
+      if (typeof w.requestIdleCallback === "function") w.requestIdleCallback(cb);
+      else setTimeout(cb, 400);
+    };
+    idle(() => {
+      void import("@/screens/ScanPay");
+      void import("@/screens/Transactions");
+      void import("@/components/ProfilePanel");
+      void import("@/components/NotificationsPanel");
+    });
+  }, []);
 
   useEffect(() => { setMounted(true); }, []);
 
@@ -328,19 +366,26 @@ export function TeenDashboard() {
 
   // Sub-screen overlays
   if (view === "scan") return (
-    <Suspense fallback={null}>
+    <Suspense fallback={<TransitionFallback />}>
       <ScanPay onBack={() => { setView("home"); void loadData(); }} />
     </Suspense>
   );
   if (view === "transactions") return (
-    <Suspense fallback={null}>
+    <Suspense fallback={<TransitionFallback />}>
       <Transactions onBack={() => { setView("home"); void loadData(); }} />
     </Suspense>
   );
   if (activeScreen === "notifications" || showNotifs) {
     return (
-      <Suspense fallback={null}>
+      <Suspense fallback={<TransitionFallback />}>
         <NotificationsPanel onClose={() => { setActiveScreen(null); setShowNotifs(false); loadData(); }} />
+      </Suspense>
+    );
+  }
+  if (activeScreen === "profile") {
+    return (
+      <Suspense fallback={<TransitionFallback />}>
+        <ProfilePanel onClose={() => setActiveScreen(null)} onTransactions={() => { setActiveScreen(null); setView("transactions"); }} />
       </Suspense>
     );
   }
@@ -584,7 +629,7 @@ export function TeenDashboard() {
                   <NavItem icon={History} label="Transactions" onClick={() => handleGatedAction(() => setView("transactions"))} />
                 </span>
                 <span className="hp-nav-tab" data-hidden="false">
-                  <NavItem icon={User} label="Profile" onClick={handleLogout} />
+                  <NavItem icon={User} label="Profile" onClick={() => setActiveScreen("profile")} />
                 </span>
               </div>
               <button
