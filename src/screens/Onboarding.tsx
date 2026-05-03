@@ -97,6 +97,15 @@ const SLIDES: Slide[] = [
   },
 ];
 
+// Preload all onboarding images immediately on module load so they're
+// ready before the user swipes. Images are only ~30KB each.
+if (typeof window !== "undefined") {
+  SLIDES.forEach((s) => {
+    const img = new Image();
+    img.src = s.hero;
+  });
+}
+
 export function Onboarding({ onDone }: { onDone: () => void }) {
   // Resume on the last slide the user was viewing — but only if they hadn't completed.
   // We initialize from a sync read so the first paint is already on the right slide.
