@@ -86,62 +86,52 @@ export function TeenDashboard() {
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  // Realtime: transactions + notifications
+  // Poll for family link acceptance — stop immediately when found
   useEffect(() => {
-    const txnChannel = supabase
-      .channel("teen_txns_realtime")
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "transactions" }, (payload) => {
-        const newTx = payload.new as Transaction;
-        setTxns((prev) => [newTx, ...prev].slice(0, 10));
-        supabase.from("profiles").select("balance").single().then(({ data }) => {
-          if (data) {
-            const b = Number(data.balance);
-            setLiveBalance(b);
-            offlineCache.set("teen_balance", b);
+    if (familyLink) return; // already linked, no polling needed
+    const poll = setInterval(async () => {
+      const { data: fl } = await supabase
+        .from("family_links")
+        .select("id, parent_user_id, status")
+        .eq("status", "active")
+        .limit(1);
+      if (fl && fl.length > 0) {
+        setFamilyLink(fl[0] as FamilyLink);
+        setLinkLoading(false);
+        offlineCache.set("teen_family_linked", true);
+        // Persist to profile
+        supabase.auth.getUser().then(({ data }) => {
+          if (data?.user?.id) {
+            supabase.from("profiles").update({ family_link_status: "accepted" as any }).eq("id", data.user.id);
           }
         });
-      })
-      .subscribe();
+        haptics.press();
+        toast.success("Parent linked! 🎉", { description: "All wallet features are now unlocked." });
+      }
+    }, 4000);
+    return () => clearInterval(poll);
+  }, [familyLink]);
 
-    const notifChannel = supabase
-      .channel("teen_notifs_realtime")
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "notifications" }, () => {
-        setNotifications((prev) => prev + 1);
-      })
-      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "notifications" }, () => {
-        // Re-count unread on any update
-        supabase.from("notifications").select("*", { count: "exact", head: true }).eq("read", false)
-          .then(({ count }) => setNotifications(count ?? 0));
-      })
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(txnChannel);
-      supabase.removeChannel(notifChannel);
+  // Hydrate family_link_status from profile for instant gating on refresh
+  useEffect(() => {
+    const hydrate = async () => {
+      const { data } = await supabase.from("profiles").select("family_link_status").single();
+      if (data && (data as any).family_link_status === "accepted" && !familyLink) {
+        // Profile says accepted — load the actual link
+        const { data: fl } = await supabase
+          .from("family_links")
+          .select("id, parent_user_id, status")
+          .eq("status", "active")
+          .limit(1);
+        if (fl && fl.length > 0) {
+          setFamilyLink(fl[0] as FamilyLink);
+          offlineCache.set("teen_family_linked", true);
+        }
+        setLinkLoading(false);
+      }
     };
+    hydrate();
   }, []);
-
-  const handleLogout = async () => {
-    haptics.tap();
-    await logout();
-    useApp.getState().reset();
-  };
-
-  const formatAmt = (n: number) =>
-    "₹" + n.toLocaleString("en-IN", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
-
-  const timeAgo = (d: string) => {
-    const diff = Date.now() - new Date(d).getTime();
-    const mins = Math.floor(diff / 60000);
-    if (mins < 1) return "Just now";
-    if (mins < 60) return `${mins}m ago`;
-    const hrs = Math.floor(mins / 60);
-    if (hrs < 24) return `${hrs}h ago`;
-    return `${Math.floor(hrs / 24)}d ago`;
-  };
-
-  const kycApproved = kycStatus === "approved";
-  const isLinked = !!familyLink;
 
   // Cache linking state for instant resume after refresh
   useEffect(() => {
@@ -149,14 +139,6 @@ export function TeenDashboard() {
       offlineCache.set("teen_family_linked", true);
     }
   }, [familyLink]);
-
-  // Hydrate cached link status on mount for instant UI
-  useEffect(() => {
-    const cached = offlineCache.get<boolean>("teen_family_linked");
-    if (cached && !familyLink && linkLoading) {
-      // We have a cached positive — don't block UI while loading
-    }
-  }, [familyLink, linkLoading]);
 
   const handleGatedAction = (screen: SubScreen) => {
     if (!kycApproved) {
