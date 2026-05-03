@@ -1,76 +1,118 @@
-import { useState, useEffect, useRef } from "react";
-import { ArrowLeft, Shield, CheckCircle2, Loader2, Link2, Sparkles } from "lucide-react";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { ArrowLeft, Shield, CheckCircle2, Loader2, Link2, Sparkles, WifiOff, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { haptics } from "@/lib/haptics";
+import { useApp } from "@/lib/store";
 
 interface Props {
   onBack: () => void;
   onLinked: () => void;
 }
 
+type Phase = "polling" | "shimmer" | "celebrating" | "error";
+
+const BASE_INTERVAL = 3000;
+const MAX_INTERVAL = 30000;
+const BACKOFF_FACTOR = 1.4;
+
 export function TeenLinkStatus({ onBack, onLinked }: Props) {
-  const [status, setStatus] = useState<"waiting" | "accepted">("waiting");
-  const [phase, setPhase] = useState<"polling" | "celebrating">("polling");
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const userId = useApp((s) => s.userId);
+  const [phase, setPhase] = useState<Phase>("polling");
+  const [errorMsg, setErrorMsg] = useState("");
+  const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const intervalRef = useRef(BASE_INTERVAL);
+  const attemptRef = useRef(0);
+  const acceptedRef = useRef(false);
 
-  useEffect(() => {
-    // Check initial status
-    const checkStatus = async () => {
-      const { data } = await supabase
-        .from("family_links")
-        .select("id, status")
-        .eq("status", "active")
-        .limit(1);
-      if (data && data.length > 0) {
-        handleAccepted();
-        return true;
-      }
-      return false;
-    };
-
-    const startPolling = async () => {
-      const alreadyLinked = await checkStatus();
-      if (alreadyLinked) return;
-
-      pollRef.current = setInterval(async () => {
-        const { data } = await supabase
-          .from("family_links")
-          .select("id, status")
-          .eq("status", "active")
-          .limit(1);
-        if (data && data.length > 0) {
-          handleAccepted();
-        }
-      }, 3000);
-    };
-
-    startPolling();
-
-    return () => {
-      if (pollRef.current) clearInterval(pollRef.current);
-    };
-  }, []);
-
-  const handleAccepted = () => {
+  const clearPoll = useCallback(() => {
     if (pollRef.current) {
-      clearInterval(pollRef.current);
+      clearTimeout(pollRef.current);
       pollRef.current = null;
     }
-    setStatus("accepted");
-    setPhase("celebrating");
+  }, []);
+
+  const checkLink = useCallback(async (): Promise<boolean> => {
+    if (!userId) return false;
+    const { data, error } = await supabase
+      .from("family_links")
+      .select("id, status")
+      .eq("teen_user_id", userId)
+      .eq("status", "active")
+      .limit(1);
+
+    if (error) throw error;
+    return !!(data && data.length > 0);
+  }, [userId]);
+
+  const handleAccepted = useCallback(() => {
+    if (acceptedRef.current) return;
+    acceptedRef.current = true;
+    clearPoll();
     haptics.press();
 
-    // Update profile link status
-    supabase.auth.getUser().then(({ data }) => {
-      if (data?.user?.id) {
-        supabase.from("profiles").update({ family_link_status: "accepted" as any }).eq("id", data.user.id).then(() => {});
-      }
-    });
+    // Shimmer transition before celebration
+    setPhase("shimmer");
 
-    // Auto-navigate after celebration
+    // Update profile — use userId from store directly
+    if (userId) {
+      supabase
+        .from("profiles")
+        .update({ family_link_status: "accepted" as any })
+        .eq("id", userId)
+        .then(() => {});
+    }
+
+    setTimeout(() => {
+      setPhase("celebrating");
+    }, 800);
+
     setTimeout(() => {
       onLinked();
-    }, 3500);
+    }, 4300);
+  }, [clearPoll, userId, onLinked]);
+
+  const startPolling = useCallback(() => {
+    setPhase("polling");
+    setErrorMsg("");
+    intervalRef.current = BASE_INTERVAL;
+    attemptRef.current = 0;
+
+    const poll = async () => {
+      if (acceptedRef.current) return;
+      try {
+        const linked = await checkLink();
+        if (linked) {
+          handleAccepted();
+          return;
+        }
+        // Exponential backoff
+        attemptRef.current += 1;
+        if (attemptRef.current > 3) {
+          intervalRef.current = Math.min(
+            intervalRef.current * BACKOFF_FACTOR,
+            MAX_INTERVAL
+          );
+        }
+        setPhase("polling");
+        pollRef.current = setTimeout(poll, intervalRef.current);
+      } catch (err: any) {
+        clearPoll();
+        setErrorMsg(err?.message || "Network error — check your connection");
+        setPhase("error");
+      }
+    };
+
+    poll();
+  }, [checkLink, handleAccepted, clearPoll]);
+
+  useEffect(() => {
+    startPolling();
+    return clearPoll;
+  }, [startPolling, clearPoll]);
+
+  const handleRetry = () => {
+    haptics.tap();
+    startPolling();
   };
 
   return (
@@ -84,6 +126,7 @@ export function TeenLinkStatus({ onBack, onLinked }: Props) {
       </div>
 
       <div className="flex-1 flex flex-col items-center justify-center px-6">
+        {/* Polling / Waiting */}
         {phase === "polling" && (
           <div className="tls-waiting-container tls-fade-in">
             <div className="tls-ring-outer">
@@ -110,13 +153,50 @@ export function TeenLinkStatus({ onBack, onLinked }: Props) {
           </div>
         )}
 
+        {/* Error state */}
+        {phase === "error" && (
+          <div className="tls-waiting-container tls-fade-in">
+            <div className="tls-ring-outer tls-ring-error">
+              <div className="tls-ring-inner tls-ring-error-inner">
+                <WifiOff className="w-10 h-10" style={{ color: "oklch(0.65 0.08 30)" }} />
+              </div>
+            </div>
+
+            <h2 className="text-xl font-bold tls-heading mt-8">Connection Issue</h2>
+            <p className="text-sm tls-sub mt-2 text-center max-w-[280px]">
+              {errorMsg || "Unable to check link status. Please try again."}
+            </p>
+
+            <button onClick={handleRetry} className="tls-retry-btn mt-6">
+              <RefreshCw className="w-4 h-4" />
+              <span>Retry</span>
+              <div className="tls-retry-shimmer" />
+            </button>
+
+            <button onClick={() => { haptics.tap(); onBack(); }} className="tls-link-btn mt-4">
+              <ArrowLeft className="w-4 h-4" /> Go back
+            </button>
+          </div>
+        )}
+
+        {/* Shimmer transition */}
+        {phase === "shimmer" && (
+          <div className="tls-waiting-container tls-fade-in">
+            <div className="tls-shimmer-ring">
+              <div className="tls-shimmer-glow" />
+            </div>
+            <div className="tls-shimmer-bar mt-8" style={{ width: 180 }} />
+            <div className="tls-shimmer-bar mt-3" style={{ width: 240 }} />
+          </div>
+        )}
+
+        {/* Celebration */}
         {phase === "celebrating" && (
           <div className="tls-celebrate-container tls-scale-in">
-            <div className="tls-success-ring">
+            <div className="tls-success-ring tls-glass-glow">
               <CheckCircle2 className="w-14 h-14 tls-success-check" />
             </div>
 
-            {/* Particles */}
             {[...Array(8)].map((_, i) => (
               <div
                 key={i}
@@ -181,6 +261,16 @@ const tslStyles = `
     display: flex; align-items: center; justify-content: center;
   }
 
+  /* Error ring colors */
+  .tls-ring-error {
+    background: oklch(0.65 0.08 30 / 0.06);
+    border-color: oklch(0.65 0.08 30 / 0.15);
+  }
+  .tls-ring-error-inner {
+    background: oklch(0.65 0.08 30 / 0.1);
+    border-color: oklch(0.65 0.08 30 / 0.25);
+  }
+
   .tls-pulse-ring {
     width: 130px; height: 130px; border-radius: 999px;
     border: 2px solid oklch(0.82 0.06 85 / 0.1);
@@ -216,6 +306,50 @@ const tslStyles = `
     cursor: pointer;
   }
 
+  /* Retry button with shimmer */
+  .tls-retry-btn {
+    position: relative; overflow: hidden;
+    display: flex; align-items: center; gap: 8px;
+    padding: 12px 28px; border-radius: 14px;
+    background: oklch(0.15 0.005 250);
+    border: 1px solid oklch(0.22 0.005 250);
+    color: oklch(0.82 0.06 85);
+    font-size: 14px; font-weight: 600;
+    cursor: pointer;
+  }
+  .tls-retry-shimmer {
+    position: absolute; inset: 0;
+    background: linear-gradient(90deg, transparent 0%, oklch(0.82 0.06 85 / 0.08) 50%, transparent 100%);
+    animation: tls-shimmer-sweep 2s ease-in-out infinite;
+  }
+
+  /* Shimmer transition */
+  .tls-shimmer-ring {
+    width: 110px; height: 110px; border-radius: 999px;
+    background: oklch(0.15 0.005 250);
+    position: relative; overflow: hidden;
+  }
+  .tls-shimmer-glow {
+    position: absolute; inset: 0; border-radius: 999px;
+    background: linear-gradient(135deg, oklch(0.82 0.06 85 / 0.1), oklch(0.82 0.06 85 / 0.25), oklch(0.82 0.06 85 / 0.1));
+    animation: tls-shimmer-sweep 1.2s ease-in-out infinite;
+  }
+  .tls-shimmer-bar {
+    height: 14px; border-radius: 8px;
+    background: oklch(0.15 0.005 250);
+    position: relative; overflow: hidden;
+  }
+  .tls-shimmer-bar::after {
+    content: '';
+    position: absolute; inset: 0;
+    background: linear-gradient(90deg, transparent 0%, oklch(0.82 0.06 85 / 0.12) 50%, transparent 100%);
+    animation: tls-shimmer-sweep 1.2s ease-in-out infinite;
+  }
+  @keyframes tls-shimmer-sweep {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+  }
+
   /* Celebration */
   .tls-celebrate-container {
     display: flex; flex-direction: column; align-items: center;
@@ -229,6 +363,9 @@ const tslStyles = `
     display: flex; align-items: center; justify-content: center;
     animation: tls-ring-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
     box-shadow: 0 0 40px -8px oklch(0.82 0.06 85 / 0.3);
+  }
+  .tls-glass-glow {
+    box-shadow: 0 0 60px -10px oklch(0.82 0.06 85 / 0.35), inset 0 0 20px oklch(0.82 0.06 85 / 0.05);
   }
   .tls-success-check { color: oklch(0.82 0.06 85); }
 
@@ -286,6 +423,7 @@ const tslStyles = `
 
   @media (prefers-reduced-motion: reduce) {
     .tls-pulse-ring, .tls-particle { animation: none; display: none; }
-    .tls-success-ring, .tls-fade-in, .tls-scale-in, .tls-slide-up { animation: none; }
+    .tls-success-ring, .tls-fade-in, .tls-scale-in, .tls-slide-up,
+    .tls-shimmer-glow, .tls-shimmer-bar::after, .tls-retry-shimmer { animation: none; }
   }
 `;
