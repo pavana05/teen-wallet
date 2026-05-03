@@ -44,6 +44,27 @@ interface FamilyLink {
 
 type SubScreen = "savings" | "screentime" | "spending" | "rewards" | "txhistory" | "scanpay" | "notifications" | "linking" | "linkstatus" | "haptics" | "profile" | null;
 
+/* ── Transition fallback — avoids blank screen while lazy chunks load ── */
+function TransitionFallback() {
+  return (
+    <div className="flex-1 flex flex-col gap-4 px-5 pt-8 pb-6" style={{ background: "var(--background)" }}>
+      <div className="flex items-center gap-3">
+        <div className="boot-skel" style={{ width: 40, height: 40, borderRadius: 999 }} />
+        <div className="flex flex-col gap-2">
+          <div className="boot-skel" style={{ width: 96, height: 10, borderRadius: 6 }} />
+          <div className="boot-skel" style={{ width: 64, height: 8, borderRadius: 6 }} />
+        </div>
+      </div>
+      <div className="boot-skel boot-skel-card" style={{ height: 120, borderRadius: 22, marginTop: 6 }} />
+      <div className="flex flex-col gap-3">
+        <div className="boot-skel boot-skel-row" />
+        <div className="boot-skel boot-skel-row" />
+        <div className="boot-skel boot-skel-row" />
+      </div>
+    </div>
+  );
+}
+
 /* ── Reusable tile components (same as Home) ── */
 
 function QuickAction({ icon: Icon, label, onClick, locked, lockLabel }: {
