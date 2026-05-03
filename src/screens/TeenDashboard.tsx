@@ -4,7 +4,7 @@ import {
   Bell, Shield, Wallet, BarChart3, Clock, Target, Award,
   ChevronRight, Sparkles, LogOut, Link2, Eye, ScanLine, History,
   RefreshCw, ArrowUpRight, Building2, Smartphone, CreditCard,
-  Zap, MoreHorizontal, Home as HomeIcon, User, Send, Vibrate
+  Zap, MoreHorizontal, Home as HomeIcon, User, Send, Vibrate, EyeOff
 } from "lucide-react";
 import React from "react";
 import { useApp } from "@/lib/store";
@@ -23,6 +23,7 @@ const Transactions = lazyWithRetry(() => import("@/screens/Transactions").then(m
 const NotificationsPanel = lazyWithRetry(() => import("@/components/NotificationsPanel").then(m => ({ default: m.NotificationsPanel })));
 const ProfilePanel = lazyWithRetry(() => import("@/components/ProfilePanel").then(m => ({ default: m.ProfilePanel })));
 const HapticsSettingsLazy = lazyWithRetry(() => import("@/screens/HapticsSettings").then(m => ({ default: m.HapticsSettings })));
+const WalletBalanceLazy = lazyWithRetry(() => import("@/screens/TeenWalletBalance").then(m => ({ default: m.TeenWalletBalance })));
 
 function HapticsSettingsInline({ onBack }: { onBack: () => void }) {
   return <Suspense fallback={null}><HapticsSettingsLazy onBack={onBack} /></Suspense>;
@@ -42,9 +43,9 @@ interface FamilyLink {
   status: string;
 }
 
-type SubScreen = "savings" | "screentime" | "spending" | "rewards" | "txhistory" | "scanpay" | "notifications" | "linking" | "linkstatus" | "haptics" | "profile" | null;
+type SubScreen = "savings" | "screentime" | "spending" | "rewards" | "txhistory" | "scanpay" | "notifications" | "linking" | "linkstatus" | "haptics" | "profile" | "wallet" | null;
 
-/* ── Transition fallback — avoids blank screen while lazy chunks load ── */
+/* ── Transition fallback ── */
 function TransitionFallback() {
   return (
     <div className="flex-1 flex flex-col gap-4 px-5 pt-8 pb-6" style={{ background: "var(--background)" }}>
@@ -65,7 +66,7 @@ function TransitionFallback() {
   );
 }
 
-/* ── Reusable tile components (same as Home) ── */
+/* ── Reusable tile components ── */
 
 function QuickAction({ icon: Icon, label, onClick, locked, lockLabel }: {
   icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
@@ -132,6 +133,58 @@ function NavItem({ icon: Icon, label, active, onClick }: {
   );
 }
 
+/* ── Premium Blur Gradient Animation ── */
+function HeroGradientOrbs() {
+  return (
+    <div className="td-gradient-orbs" aria-hidden="true">
+      <div className="td-orb td-orb-1" />
+      <div className="td-orb td-orb-2" />
+      <div className="td-orb td-orb-3" />
+    </div>
+  );
+}
+
+/* ── Balance Preview Card (inline on home) ── */
+const BalancePreview = memo(function BalancePreview({
+  balance,
+  loading,
+  hideBalance,
+  onToggleHide,
+  onViewWallet,
+}: {
+  balance: number;
+  loading: boolean;
+  hideBalance: boolean;
+  onToggleHide: () => void;
+  onViewWallet: () => void;
+}) {
+  const formatAmt = (n: number) => "₹" + n.toLocaleString("en-IN", { maximumFractionDigits: 2 });
+  return (
+    <button type="button" onClick={onViewWallet} className="td-balance-card group">
+      <div className="td-balance-orb td-bal-orb-1" />
+      <div className="td-balance-orb td-bal-orb-2" />
+      <div className="relative z-10 flex items-center justify-between">
+        <div>
+          <p className="text-[10px] font-medium uppercase tracking-wider td-bal-label">Wallet Balance</p>
+          <p className="td-bal-amount">
+            {loading ? "..." : hideBalance ? "₹ ••••" : formatAmt(balance)}
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <span
+            role="button"
+            onClick={(e) => { e.stopPropagation(); haptics.tap(); onToggleHide(); }}
+            className="td-eye-btn"
+          >
+            {hideBalance ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+          </span>
+          <ChevronRight className="w-5 h-5 td-chevron group-active:translate-x-0.5 transition-transform" />
+        </div>
+      </div>
+    </button>
+  );
+});
+
 export function TeenDashboard() {
   const { fullName, balance, userId } = useApp();
   const persona = useGenderPersona();
@@ -140,6 +193,7 @@ export function TeenDashboard() {
   const [linkLoading, setLinkLoading] = useState(true);
   const [unreadCount, setUnreadCount] = useState(0);
   const [liveBalance, setLiveBalance] = useState<number>(balance);
+  const [hideBalance, setHideBalance] = useState(false);
   const [view, setView] = useState<"home" | "scan" | "transactions">("home");
   const [activeScreen, setActiveScreen] = useState<SubScreen>(null);
   const [kycStatus, setKycStatus] = useState<string | null>(null);
@@ -153,7 +207,7 @@ export function TeenDashboard() {
   const scrollerRef = useRef<HTMLDivElement | null>(null);
   const touchStartY = useRef<number | null>(null);
 
-  // Prefetch common sub-screens on idle so transitions are instant
+  // Prefetch common sub-screens on idle
   useEffect(() => {
     if (typeof window === "undefined") return;
     const idle = (cb: () => void) => {
@@ -166,6 +220,7 @@ export function TeenDashboard() {
       void import("@/screens/Transactions");
       void import("@/components/ProfilePanel");
       void import("@/components/NotificationsPanel");
+      void import("@/screens/TeenWalletBalance");
     });
   }, []);
 
@@ -239,7 +294,7 @@ export function TeenDashboard() {
           supabase.from("profiles").update({ family_link_status: "accepted" as any }).eq("id", userId);
         }
         haptics.press();
-        toast.success("Parent linked! 🎉", { description: "All wallet features are now unlocked." });
+        toast.success("Parent linked! 🎉", { description: "Parental controls are now active." });
       }
     }, 4000);
     return () => clearInterval(poll);
@@ -389,6 +444,13 @@ export function TeenDashboard() {
       </Suspense>
     );
   }
+  if (activeScreen === "wallet") {
+    return (
+      <Suspense fallback={<TransitionFallback />}>
+        <WalletBalanceLazy onBack={() => { setActiveScreen(null); loadData(); }} onSendMoney={() => { setActiveScreen(null); setView("scan"); }} />
+      </Suspense>
+    );
+  }
   if (activeScreen === "linking") {
     return (
       <div className="fixed inset-0 z-50" style={{ background: "var(--background)" }}>
@@ -435,11 +497,14 @@ export function TeenDashboard() {
         </div>
       )}
 
-      {/* ===== HERO (orange grid bg + scan card) ===== */}
+      {/* ===== HERO with blur gradient orbs ===== */}
       <div className="hp-hero hp-shimmer-reveal relative">
         <div className="hp-hero-bg" />
         <div className="hp-hero-pattern" />
         <div className="hp-hero-spot" />
+
+        {/* Premium blur gradient orbs */}
+        <HeroGradientOrbs />
 
         {/* Header */}
         <div className="relative z-10 flex items-center justify-between px-6 pt-8">
@@ -465,6 +530,17 @@ export function TeenDashboard() {
               <span className="hp-bell-badge" aria-hidden="true">{unreadCount > 9 ? "9+" : unreadCount}</span>
             )}
           </button>
+        </div>
+
+        {/* Balance Preview Card */}
+        <div className="relative z-10 px-5 mt-4">
+          <BalancePreview
+            balance={liveBalance}
+            loading={loading}
+            hideBalance={hideBalance}
+            onToggleHide={() => setHideBalance(!hideBalance)}
+            onViewWallet={() => { haptics.bloom(); setActiveScreen("wallet"); }}
+          />
         </div>
 
         {/* Scan hero card */}
@@ -515,6 +591,46 @@ export function TeenDashboard() {
           </div>
         )}
       </section>
+
+      {/* ===== TEEN FEATURES GRID ===== */}
+      <div className="px-5 mt-8">
+        <div className="hp-section-head">
+          <div>
+            <span className="hp-section-eyebrow">Your tools</span>
+            <h3 className="hp-section-title">Smart Features</h3>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <FeatureCard
+            icon={Target}
+            title="Savings Goals"
+            subtitle="Track your targets"
+            accent="oklch(0.7 0.14 145)"
+            onClick={() => setActiveScreen("savings")}
+          />
+          <FeatureCard
+            icon={BarChart3}
+            title="Spending Insights"
+            subtitle="Know where you spend"
+            accent="oklch(0.7 0.1 280)"
+            onClick={() => setActiveScreen("spending")}
+          />
+          <FeatureCard
+            icon={Award}
+            title="Rewards"
+            subtitle="Earn cashback & badges"
+            accent="oklch(0.82 0.06 85)"
+            onClick={() => setActiveScreen("rewards")}
+          />
+          <FeatureCard
+            icon={Clock}
+            title="Screen Time"
+            subtitle="Usage analytics"
+            accent="oklch(0.7 0.1 25)"
+            onClick={() => setActiveScreen("screentime")}
+          />
+        </div>
+      </div>
 
       {/* ===== PARENTAL CONTROL (optional) ===== */}
       {!isLinked && !linkLoading && (
@@ -574,7 +690,7 @@ export function TeenDashboard() {
         <div className="grid grid-cols-4 gap-3 mt-4">
           <QuickAction icon={ArrowUpRight} label={"Pay\nfriends"} locked={isGated} lockLabel={getLockLabel()} onClick={() => handleGatedAction(() => setView("scan"))} />
           <QuickAction icon={Building2} label={"To bank &\nself a/c"} locked={isGated} lockLabel={getLockLabel()} onClick={() => handleGatedAction(() => setView("scan"))} />
-          <QuickAction icon={Wallet} label={"Check\nbalance"} onClick={() => toast.info(`Balance: ₹${liveBalance.toLocaleString("en-IN")}`)} />
+          <QuickAction icon={Wallet} label={"Check\nbalance"} onClick={() => { haptics.tap(); setActiveScreen("wallet"); }} />
           <QuickAction icon={History} label={"Transaction\nhistory"} locked={isGated} lockLabel={getLockLabel()} onClick={() => handleGatedAction(() => setView("transactions"))} />
         </div>
       </div>
@@ -657,7 +773,120 @@ export function TeenDashboard() {
   );
 }
 
+/* ── Feature Card Component ── */
+function FeatureCard({ icon: Icon, title, subtitle, accent, onClick }: {
+  icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
+  title: string;
+  subtitle: string;
+  accent: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => { haptics.tap(); onClick(); }}
+      className="td-feature-card group"
+    >
+      <div className="td-feature-icon" style={{ background: `color-mix(in oklch, ${accent} 15%, transparent)`, color: accent }}>
+        <Icon className="w-5 h-5" strokeWidth={1.8} />
+      </div>
+      <p className="text-[13px] font-semibold text-white mt-2.5">{title}</p>
+      <p className="text-[10px] text-white/50 mt-0.5">{subtitle}</p>
+      <ChevronRight className="w-4 h-4 td-feature-chevron group-active:translate-x-0.5 transition-transform" />
+    </button>
+  );
+}
+
 const teenExtraStyles = `
+  /* ── Blur Gradient Orbs ── */
+  .td-gradient-orbs {
+    position: absolute; inset: 0; z-index: 1; pointer-events: none; overflow: hidden;
+  }
+  .td-orb {
+    position: absolute; border-radius: 50%;
+    filter: blur(60px); opacity: 0.6;
+    animation: td-orb-drift 8s ease-in-out infinite alternate;
+  }
+  .td-orb-1 {
+    width: 160px; height: 160px; top: -40px; left: -30px;
+    background: oklch(0.65 0.08 85 / 0.4);
+  }
+  .td-orb-2 {
+    width: 120px; height: 120px; top: 20px; right: -20px;
+    background: oklch(0.55 0.06 280 / 0.3);
+    animation-delay: -3s; animation-duration: 10s;
+  }
+  .td-orb-3 {
+    width: 100px; height: 100px; bottom: 20px; left: 40%;
+    background: oklch(0.7 0.06 60 / 0.25);
+    animation-delay: -5s; animation-duration: 12s;
+  }
+  @keyframes td-orb-drift {
+    0% { transform: translate(0, 0) scale(1); }
+    50% { transform: translate(12px, -10px) scale(1.08); }
+    100% { transform: translate(-8px, 6px) scale(0.95); }
+  }
+
+  /* ── Balance Preview Card ── */
+  .td-balance-card {
+    display: flex; flex-direction: column; width: 100%;
+    padding: 18px 20px; border-radius: 20px;
+    background: linear-gradient(145deg, oklch(0.14 0.015 85 / 0.9), oklch(0.1 0.005 250 / 0.9));
+    border: 1px solid oklch(0.82 0.06 85 / 0.12);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    position: relative; overflow: hidden;
+    text-align: left; cursor: pointer;
+    transition: transform 150ms ease;
+  }
+  .td-balance-card:active { transform: scale(0.98); }
+  .td-balance-orb {
+    position: absolute; border-radius: 50%; filter: blur(40px);
+    animation: twb-float 6s ease-in-out infinite alternate;
+  }
+  .td-bal-orb-1 { width: 80px; height: 80px; top: -20px; right: -10px; background: oklch(0.75 0.08 85 / 0.12); }
+  .td-bal-orb-2 { width: 60px; height: 60px; bottom: -15px; left: 20px; background: oklch(0.7 0.06 60 / 0.08); animation-delay: -3s; }
+  @keyframes twb-float {
+    0% { transform: translate(0, 0) scale(1); }
+    100% { transform: translate(6px, -6px) scale(1.08); }
+  }
+  .td-bal-label { color: oklch(0.6 0.03 85); font-size: 10px; }
+  .td-bal-amount {
+    font-size: 26px; font-weight: 800; letter-spacing: -0.5px; margin-top: 4px;
+    background: linear-gradient(135deg, oklch(0.95 0.02 85), oklch(0.82 0.06 85));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .td-eye-btn {
+    width: 32px; height: 32px; border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    background: oklch(0.2 0.01 250); color: oklch(0.7 0.03 85);
+    cursor: pointer;
+  }
+  .td-eye-btn:active { transform: scale(0.9); }
+  .td-chevron { color: oklch(0.6 0.03 85); }
+
+  /* ── Feature Cards ── */
+  .td-feature-card {
+    position: relative; display: flex; flex-direction: column;
+    padding: 18px 16px; border-radius: 20px;
+    background: oklch(0.12 0.005 250);
+    border: 1px solid oklch(0.18 0.008 250);
+    text-align: left; cursor: pointer;
+    transition: transform 150ms ease, border-color 200ms ease;
+  }
+  .td-feature-card:active { transform: scale(0.97); }
+  .td-feature-card:hover { border-color: oklch(0.25 0.01 250); }
+  .td-feature-icon {
+    width: 42px; height: 42px; border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .td-feature-chevron {
+    position: absolute; top: 18px; right: 14px;
+    color: oklch(0.4 0.01 250);
+  }
+
+  /* ── Link Banner ── */
   .td-link-banner {
     display: flex; align-items: center; gap: 14px;
     padding: 16px 18px; border-radius: 18px;
@@ -674,6 +903,11 @@ const teenExtraStyles = `
     cursor: pointer; white-space: nowrap;
   }
   .td-link-cta:active { transform: scale(0.96); }
+
+  @media (prefers-reduced-motion: reduce) {
+    .td-orb { animation: none; }
+    .td-balance-orb { animation: none; }
+  }
 `;
 
 /* ----- Lazy Inline Wrappers ----- */
