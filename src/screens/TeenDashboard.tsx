@@ -29,32 +29,50 @@ export function TeenDashboard() {
   const [txns, setTxns] = useState<Transaction[]>([]);
   const [familyLink, setFamilyLink] = useState<FamilyLink | null>(null);
   const [showLinking, setShowLinking] = useState(false);
-  const [inviteCode, setInviteCode] = useState("");
-  const [linkBusy, setLinkBusy] = useState(false);
-  const [linkError, setLinkError] = useState("");
   const [notifications, setNotifications] = useState(0);
   const [activePanel, setActivePanel] = useState<"scan" | "history" | "profile" | null>(null);
+  const [liveBalance, setLiveBalance] = useState<number>(balance);
 
   const firstName = fullName?.split(" ")[0] || "there";
 
   const loadData = useCallback(async () => {
-    const cached = offlineCache.get<Transaction[]>("teen_txns");
-    if (cached) setTxns(cached);
+    // Hydrate from cache first
+    const cachedTxns = offlineCache.get<Transaction[]>("teen_txns");
+    if (cachedTxns) setTxns(cachedTxns);
+    const cachedBal = offlineCache.get<number>("teen_balance");
+    if (cachedBal !== null && cachedBal !== undefined) setLiveBalance(cachedBal);
 
+    // Fetch fresh balance from profile
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("balance")
+      .single();
+    if (profile) {
+      const b = Number(profile.balance);
+      setLiveBalance(b);
+      offlineCache.set("teen_balance", b);
+    }
+
+    // Fetch real transactions for this user
     const { data: t } = await supabase
       .from("transactions")
-      .select("*")
+      .select("id, merchant_name, amount, created_at, status")
       .order("created_at", { ascending: false })
-      .limit(5);
-    if (t) { setTxns(t as Transaction[]); offlineCache.set("teen_txns", t); }
+      .limit(10);
+    if (t) {
+      setTxns(t as Transaction[]);
+      offlineCache.set("teen_txns", t);
+    }
 
+    // Check family link
     const { data: fl } = await supabase
       .from("family_links")
-      .select("*")
+      .select("id, parent_user_id, status")
       .eq("status", "active")
       .limit(1);
     if (fl && fl.length > 0) setFamilyLink(fl[0] as FamilyLink);
 
+    // Unread notifications count
     const { count } = await supabase
       .from("notifications")
       .select("*", { count: "exact", head: true })
@@ -64,25 +82,25 @@ export function TeenDashboard() {
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  const handleAcceptInvite = async () => {
-    if (!inviteCode.trim() || linkBusy) return;
-    haptics.tap();
-    setLinkBusy(true);
-    setLinkError("");
-    try {
-      const { data, error } = await supabase.rpc("accept_family_invite", { _code: inviteCode.trim() });
-      if (error) throw error;
-      const row = Array.isArray(data) ? data[0] : data;
-      if (row && !row.ok) { setLinkError(row.message); setLinkBusy(false); return; }
-      toast.success("Parent linked successfully!");
-      setShowLinking(false);
-      setInviteCode("");
-      loadData();
-    } catch (e) {
-      setLinkError(e instanceof Error ? e.message : "Failed to link");
-    }
-    setLinkBusy(false);
-  };
+  // Subscribe to realtime transaction inserts for live updates
+  useEffect(() => {
+    const channel = supabase
+      .channel("teen_txns_realtime")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "transactions" }, (payload) => {
+        const newTx = payload.new as Transaction;
+        setTxns((prev) => [newTx, ...prev].slice(0, 10));
+        // Refresh balance
+        supabase.from("profiles").select("balance").single().then(({ data }) => {
+          if (data) {
+            const b = Number(data.balance);
+            setLiveBalance(b);
+            offlineCache.set("teen_balance", b);
+          }
+        });
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, []);
 
   const handleLogout = async () => {
     haptics.tap();
@@ -127,7 +145,7 @@ export function TeenDashboard() {
       {/* Balance Card */}
       <div className="mx-5 mt-2 td-balance-card">
         <p className="text-[11px] font-medium tracking-wider uppercase td-balance-label">Available Balance</p>
-        <p className="text-3xl font-bold mt-1 td-balance-amt">{formatAmt(balance)}</p>
+        <p className="text-3xl font-bold mt-1 td-balance-amt">{formatAmt(liveBalance)}</p>
         <div className="flex gap-2 mt-4">
           <button onClick={() => { haptics.tap(); setActivePanel("scan"); }} className="td-action-chip">
             <ScanLine className="w-4 h-4" /> Scan & Pay
@@ -208,29 +226,10 @@ export function TeenDashboard() {
         )}
       </div>
 
-      {/* Invite Code Modal */}
+      {/* Linking Screen */}
       {showLinking && (
-        <div className="td-overlay" onClick={() => setShowLinking(false)}>
-          <div className="td-modal" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-lg font-bold td-heading">Link with Parent</h3>
-            <p className="text-sm td-sub mt-1">Enter the invite code your parent shared with you.</p>
-            <input
-              type="text"
-              value={inviteCode}
-              onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
-              placeholder="Enter 8-digit code"
-              maxLength={8}
-              className="td-input mt-4"
-              autoFocus
-            />
-            {linkError && <p className="text-xs text-red-400 mt-2">{linkError}</p>}
-            <div className="flex gap-3 mt-4">
-              <button onClick={() => setShowLinking(false)} className="td-btn-secondary flex-1">Cancel</button>
-              <button onClick={handleAcceptInvite} disabled={inviteCode.length < 6 || linkBusy} className="td-btn-primary flex-1">
-                {linkBusy ? "Linking…" : "Link"}
-              </button>
-            </div>
-          </div>
+        <div className="fixed inset-0 z-50" style={{ background: "var(--background)" }}>
+          <FamilyLinkingInline onBack={() => { setShowLinking(false); loadData(); }} />
         </div>
       )}
 
@@ -317,43 +316,20 @@ export function TeenDashboard() {
           border: 1px dashed oklch(0.22 0.005 250);
         }
 
-        .td-overlay {
-          position: fixed; inset: 0; z-index: 100;
-          background: oklch(0.05 0 0 / 0.8);
-          display: flex; align-items: center; justify-content: center;
-          padding: 24px;
-        }
-        .td-modal {
-          width: 100%; max-width: 360px;
-          padding: 24px; border-radius: 20px;
-          background: oklch(0.14 0.005 250);
-          border: 1px solid oklch(0.25 0.005 250);
-        }
-        .td-input {
-          width: 100%; padding: 14px 16px; border-radius: 14px;
-          background: oklch(0.1 0.005 250);
-          border: 1.5px solid oklch(0.25 0.005 250);
-          color: var(--foreground); font-size: 16px;
-          text-align: center; letter-spacing: 0.2em; font-weight: 700;
-        }
-        .td-input::placeholder { color: oklch(0.4 0.01 250); letter-spacing: 0.1em; font-weight: 400; }
-        .td-input:focus { outline: none; border-color: oklch(0.82 0.06 85 / 0.5); }
-        .td-btn-primary {
-          padding: 12px; border-radius: 14px; font-weight: 600; font-size: 14px;
-          background: linear-gradient(135deg, oklch(0.75 0.08 85), oklch(0.65 0.06 60));
-          color: oklch(0.12 0.005 250); border: none; cursor: pointer;
-        }
-        .td-btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
-        .td-btn-secondary {
-          padding: 12px; border-radius: 14px; font-weight: 600; font-size: 14px;
-          background: oklch(0.2 0.005 250);
-          color: oklch(0.7 0.01 250); border: none; cursor: pointer;
-        }
-
         @media (prefers-reduced-motion: reduce) {
           .td-balance-card, .td-status-card, .td-quick-action, .td-txn-row { transition: none; }
         }
       `}</style>
     </div>
   );
+}
+
+// Inline wrapper that lazy-loads the full FamilyLinking screen
+function FamilyLinkingInline({ onBack }: { onBack: () => void }) {
+  const [Comp, setComp] = useState<React.ComponentType<{ onBack: () => void }> | null>(null);
+  useEffect(() => {
+    import("@/screens/FamilyLinking").then((m) => setComp(() => m.FamilyLinking));
+  }, []);
+  if (!Comp) return <div className="flex-1 flex items-center justify-center" style={{ background: "var(--background)" }}><p style={{ color: "oklch(0.55 0.01 250)" }}>Loading…</p></div>;
+  return <Comp onBack={onBack} />;
 }
