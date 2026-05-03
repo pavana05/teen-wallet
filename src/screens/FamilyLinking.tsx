@@ -300,7 +300,7 @@ const flStyles = `
   }
 
   .fl-qr-container {
-    padding: 4px; border-radius: 22px;
+    padding: 6px; border-radius: 22px;
     background: oklch(0.1 0.005 250);
     border: 1.5px solid oklch(0.82 0.06 85 / 0.2);
     display: flex; align-items: center; justify-content: center;
@@ -310,7 +310,7 @@ const flStyles = `
   .fl-qr-inner {
     border-radius: 16px; overflow: hidden;
     background: #ffffff;
-    padding: 12px;
+    padding: 20px;
     display: flex; align-items: center; justify-content: center;
   }
 
