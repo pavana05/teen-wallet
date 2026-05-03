@@ -324,7 +324,8 @@ export function TeenDashboard() {
               </div>
               <ChevronRight className="w-4 h-4 td-chevron" />
             </button>
-          ))}
+            );
+          })}
         </div>
       </div>
 
