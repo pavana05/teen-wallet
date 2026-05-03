@@ -279,14 +279,14 @@ export function TeenDashboard() {
         </div>
         <div className="flex gap-2 mt-4">
           <button
-            onClick={() => handleKycGatedAction("scanpay")}
+            onClick={() => handleGatedAction("scanpay")}
             className={`td-invite-btn flex-1 ${!kycApproved ? "td-btn-locked" : ""}`}
           >
             <ScanLine className="w-4 h-4" /> Scan & Pay
             {!kycApproved && <span className="td-lock-badge">KYC</span>}
           </button>
           <button
-            onClick={() => handleKycGatedAction("txhistory")}
+            onClick={() => handleGatedAction("txhistory")}
             className={`td-invite-btn flex-1 ${!kycApproved ? "td-btn-locked" : ""}`}
           >
             <History className="w-4 h-4" /> History
@@ -336,7 +336,7 @@ export function TeenDashboard() {
           {CONTROLS.map(({ icon: Icon, label, desc, color, screen }) => {
             const isGated = (screen === "txhistory" || screen === "scanpay") && !kycApproved;
             return (
-            <button key={label} onClick={() => { isGated ? handleKycGatedAction(screen) : (() => { haptics.tap(); setActiveScreen(screen); })(); }} className={`td-control-row ${isGated ? "td-row-locked" : ""}`}>
+            <button key={label} onClick={() => { isGated ? handleGatedAction(screen) : (() => { haptics.tap(); setActiveScreen(screen); })(); }} className={`td-control-row ${isGated ? "td-row-locked" : ""}`}>
               <div className="td-control-icon" style={{ background: `${color}15`, color }}>
                 <Icon className="w-5 h-5" />
               </div>
@@ -355,7 +355,7 @@ export function TeenDashboard() {
       <div className="mx-5 mt-5 mb-6">
         <div className="flex items-center justify-between mb-3">
           <p className="text-[11px] font-medium tracking-widest uppercase td-label">Recent Activity</p>
-          <button onClick={() => handleKycGatedAction("txhistory")} className="text-[11px] td-accent-text font-medium">See All</button>
+          <button onClick={() => handleGatedAction("txhistory")} className="text-[11px] td-accent-text font-medium">See All</button>
         </div>
         {txns.length === 0 ? (
           <div className="td-empty-state">
