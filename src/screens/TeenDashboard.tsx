@@ -459,18 +459,29 @@ export function TeenDashboard() {
         )}
       </section>
 
-      {/* ===== FAMILY LINK STATUS (teen-specific) ===== */}
+      {/* ===== PARENTAL CONTROL (optional) ===== */}
       {!isLinked && !linkLoading && (
         <div className="px-5 mt-6">
           <div className="td-link-banner">
             <Shield className="w-8 h-8" style={{ color: "oklch(0.82 0.06 85)" }} />
             <div className="flex-1 min-w-0">
-              <p className="text-[13px] font-semibold text-white">Link your parent</p>
-              <p className="text-[11px] text-white/50 mt-0.5">Connect to unlock wallet features</p>
+              <p className="text-[13px] font-semibold text-white">Parental Controls</p>
+              <p className="text-[11px] text-white/50 mt-0.5">Optionally link a parent for spending oversight</p>
             </div>
             <button onClick={() => { haptics.tap(); setActiveScreen("linking"); }} className="td-link-cta">
               <Link2 className="w-3.5 h-3.5" /> Link
             </button>
+          </div>
+        </div>
+      )}
+      {isLinked && (
+        <div className="px-5 mt-6">
+          <div className="td-link-banner">
+            <Shield className="w-8 h-8" style={{ color: "oklch(0.65 0.12 145)" }} />
+            <div className="flex-1 min-w-0">
+              <p className="text-[13px] font-semibold text-white">Parent Linked ✓</p>
+              <p className="text-[11px] text-white/50 mt-0.5">Parental controls are active</p>
+            </div>
           </div>
         </div>
       )}
