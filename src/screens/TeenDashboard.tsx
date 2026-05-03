@@ -4,7 +4,7 @@ import {
   Bell, Shield, Wallet, BarChart3, Clock, Target, Award,
   ChevronRight, Sparkles, LogOut, Link2, Eye, ScanLine, History,
   RefreshCw, ArrowUpRight, Building2, Smartphone, CreditCard,
-  Zap, MoreHorizontal, Home as HomeIcon, User, Send
+  Zap, MoreHorizontal, Home as HomeIcon, User, Send, Vibrate
 } from "lucide-react";
 import React from "react";
 import { useApp } from "@/lib/store";
