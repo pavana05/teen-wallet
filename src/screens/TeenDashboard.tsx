@@ -140,6 +140,62 @@ export function TeenDashboard() {
     }
   }, [familyLink]);
 
+  // Realtime: transactions + notifications
+  useEffect(() => {
+    const txnChannel = supabase
+      .channel("teen_txns_realtime")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "transactions" }, (payload) => {
+        const newTx = payload.new as Transaction;
+        setTxns((prev) => [newTx, ...prev].slice(0, 10));
+        supabase.from("profiles").select("balance").single().then(({ data }) => {
+          if (data) {
+            const b = Number(data.balance);
+            setLiveBalance(b);
+            offlineCache.set("teen_balance", b);
+          }
+        });
+      })
+      .subscribe();
+
+    const notifChannel = supabase
+      .channel("teen_notifs_realtime")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "notifications" }, () => {
+        setNotifications((prev) => prev + 1);
+      })
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "notifications" }, () => {
+        supabase.from("notifications").select("*", { count: "exact", head: true }).eq("read", false)
+          .then(({ count }) => setNotifications(count ?? 0));
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(txnChannel);
+      supabase.removeChannel(notifChannel);
+    };
+  }, []);
+
+  const handleLogout = async () => {
+    haptics.tap();
+    await logout();
+    useApp.getState().reset();
+  };
+
+  const formatAmt = (n: number) =>
+    "₹" + n.toLocaleString("en-IN", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+
+  const timeAgo = (d: string) => {
+    const diff = Date.now() - new Date(d).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return "Just now";
+    if (mins < 60) return `${mins}m ago`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs}h ago`;
+    return `${Math.floor(hrs / 24)}d ago`;
+  };
+
+  const kycApproved = kycStatus === "approved";
+  const isLinked = !!familyLink;
+
   const handleGatedAction = (screen: SubScreen) => {
     if (!kycApproved) {
       haptics.tap();
