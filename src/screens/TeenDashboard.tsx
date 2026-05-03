@@ -140,15 +140,37 @@ export function TeenDashboard() {
     return `${Math.floor(hrs / 24)}d ago`;
   };
 
+  const kycApproved = kycStatus === "approved";
   const isLinked = !!familyLink;
 
-  const kycApproved = kycStatus === "approved";
+  // Cache linking state for instant resume after refresh
+  useEffect(() => {
+    if (familyLink) {
+      offlineCache.set("teen_family_linked", true);
+    }
+  }, [familyLink]);
 
-  const handleKycGatedAction = (screen: SubScreen) => {
+  // Hydrate cached link status on mount for instant UI
+  useEffect(() => {
+    const cached = offlineCache.get<boolean>("teen_family_linked");
+    if (cached && !familyLink && linkLoading) {
+      // We have a cached positive — don't block UI while loading
+    }
+  }, [familyLink, linkLoading]);
+
+  const handleGatedAction = (screen: SubScreen) => {
     if (!kycApproved) {
       haptics.tap();
       toast.error("Complete Aadhaar KYC to unlock this feature", {
         description: "Your identity must be verified before using Scan & Pay or viewing transactions.",
+        duration: 4000,
+      });
+      return;
+    }
+    if (!isLinked && !linkLoading) {
+      haptics.tap();
+      toast.error("Link a parent account first", {
+        description: "Your parent must be connected before you can use wallet features.",
         duration: 4000,
       });
       return;
@@ -256,20 +278,28 @@ export function TeenDashboard() {
           </div>
         </div>
         <div className="flex gap-2 mt-4">
-          <button
-            onClick={() => handleKycGatedAction("scanpay")}
-            className={`td-invite-btn flex-1 ${!kycApproved ? "td-btn-locked" : ""}`}
-          >
-            <ScanLine className="w-4 h-4" /> Scan & Pay
-            {!kycApproved && <span className="td-lock-badge">KYC</span>}
-          </button>
-          <button
-            onClick={() => handleKycGatedAction("txhistory")}
-            className={`td-invite-btn flex-1 ${!kycApproved ? "td-btn-locked" : ""}`}
-          >
-            <History className="w-4 h-4" /> History
-            {!kycApproved && <span className="td-lock-badge">KYC</span>}
-          </button>
+          {(() => {
+            const locked = !kycApproved || (!isLinked && !linkLoading);
+            const lockLabel = !kycApproved ? "KYC" : !isLinked ? "LINK" : "";
+            return (
+              <>
+                <button
+                  onClick={() => handleGatedAction("scanpay")}
+                  className={`td-invite-btn flex-1 ${locked ? "td-btn-locked" : ""}`}
+                >
+                  <ScanLine className="w-4 h-4" /> Scan & Pay
+                  {locked && <span className="td-lock-badge">{lockLabel}</span>}
+                </button>
+                <button
+                  onClick={() => handleGatedAction("txhistory")}
+                  className={`td-invite-btn flex-1 ${locked ? "td-btn-locked" : ""}`}
+                >
+                  <History className="w-4 h-4" /> History
+                  {locked && <span className="td-lock-badge">{lockLabel}</span>}
+                </button>
+              </>
+            );
+          })()}
         </div>
       </div>
 
@@ -312,9 +342,9 @@ export function TeenDashboard() {
         <p className="text-[11px] font-medium tracking-widest uppercase td-label mb-3">Quick Actions</p>
         <div className="flex flex-col gap-2">
           {CONTROLS.map(({ icon: Icon, label, desc, color, screen }) => {
-            const isGated = (screen === "txhistory" || screen === "scanpay") && !kycApproved;
+            const isGated = (screen === "txhistory" || screen === "scanpay") && (!kycApproved || (!isLinked && !linkLoading));
             return (
-            <button key={label} onClick={() => { isGated ? handleKycGatedAction(screen) : (() => { haptics.tap(); setActiveScreen(screen); })(); }} className={`td-control-row ${isGated ? "td-row-locked" : ""}`}>
+            <button key={label} onClick={() => { isGated ? handleGatedAction(screen) : (() => { haptics.tap(); setActiveScreen(screen); })(); }} className={`td-control-row ${isGated ? "td-row-locked" : ""}`}>
               <div className="td-control-icon" style={{ background: `${color}15`, color }}>
                 <Icon className="w-5 h-5" />
               </div>
@@ -333,7 +363,7 @@ export function TeenDashboard() {
       <div className="mx-5 mt-5 mb-6">
         <div className="flex items-center justify-between mb-3">
           <p className="text-[11px] font-medium tracking-widest uppercase td-label">Recent Activity</p>
-          <button onClick={() => handleKycGatedAction("txhistory")} className="text-[11px] td-accent-text font-medium">See All</button>
+          <button onClick={() => handleGatedAction("txhistory")} className="text-[11px] td-accent-text font-medium">See All</button>
         </div>
         {txns.length === 0 ? (
           <div className="td-empty-state">

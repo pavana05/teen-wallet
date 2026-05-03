@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import {
-  ArrowLeft, QrCode, Copy, Check, Link2, Sparkles, Shield, PartyPopper
+  ArrowLeft, QrCode, Copy, Check, Link2, Sparkles, Shield, PartyPopper, RefreshCw, Loader2
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { useApp } from "@/lib/store";
@@ -13,12 +13,12 @@ interface Props {
 }
 
 export function FamilyLinking({ onBack }: Props) {
-  const { accountType, userId } = useApp();
+  const { accountType } = useApp();
   const isParent = accountType === "parent";
 
-  // Parent generates code; Teen enters code
   const [inviteCode, setInviteCode] = useState<string | null>(null);
   const [genBusy, setGenBusy] = useState(false);
+  const [genError, setGenError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
   // Teen input
@@ -28,6 +28,40 @@ export function FamilyLinking({ onBack }: Props) {
 
   // Success state
   const [success, setSuccess] = useState(false);
+
+  // Auto-generate on mount for parent
+  const generateCode = useCallback(async () => {
+    setGenBusy(true);
+    setGenError(null);
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData?.session) {
+        setGenError("Session expired. Please log in again.");
+        setGenBusy(false);
+        return;
+      }
+      const { data, error } = await supabase.rpc("generate_family_invite_code");
+      if (error) throw error;
+      if (!data) {
+        setGenError("No code was generated. Please try again.");
+        setGenBusy(false);
+        return;
+      }
+      setInviteCode(data as string);
+      haptics.tap();
+    } catch (e: unknown) {
+      console.error("[FamilyLinking] generateCode error:", e);
+      setGenError(e instanceof Error ? e.message : "Failed to generate code");
+    }
+    setGenBusy(false);
+  }, []);
+
+  // Auto-generate for parent on mount
+  useEffect(() => {
+    if (isParent && !inviteCode) {
+      generateCode();
+    }
+  }, [isParent, inviteCode, generateCode]);
 
   // Poll for acceptance (parent side)
   useEffect(() => {
@@ -46,33 +80,6 @@ export function FamilyLinking({ onBack }: Props) {
     }, 3000);
     return () => clearInterval(interval);
   }, [isParent, inviteCode]);
-
-  const generateCode = async () => {
-    haptics.tap();
-    setGenBusy(true);
-    try {
-      // Ensure we have a valid session first
-      const { data: sessionData } = await supabase.auth.getSession();
-      if (!sessionData?.session) {
-        toast.error("Please log in again to generate a code");
-        setGenBusy(false);
-        return;
-      }
-      const { data, error } = await supabase.rpc("generate_family_invite_code");
-      console.log("[FamilyLinking] generateCode result:", { data, error });
-      if (error) throw error;
-      if (!data) {
-        toast.error("No code was generated. Please try again.");
-        setGenBusy(false);
-        return;
-      }
-      setInviteCode(data as string);
-    } catch (e: unknown) {
-      console.error("[FamilyLinking] generateCode error:", e);
-      toast.error(e instanceof Error ? e.message : "Failed to generate code");
-    }
-    setGenBusy(false);
-  };
 
   const copyCode = async () => {
     if (!inviteCode) return;
@@ -124,7 +131,7 @@ export function FamilyLinking({ onBack }: Props) {
     );
   }
 
-  // Parent: Generate & show code/QR
+  // Parent: Auto-generated code/QR with skeleton loading
   if (isParent) {
     return (
       <div className="flex-1 flex flex-col fl-root overflow-y-auto">
@@ -136,35 +143,57 @@ export function FamilyLinking({ onBack }: Props) {
         </div>
 
         <div className="flex-1 flex flex-col items-center px-6 pt-4">
-          {!inviteCode ? (
-            <div className="flex-1 flex flex-col items-center justify-center">
-              <div className="fl-big-icon">
-                <Link2 className="w-10 h-10" style={{ color: "oklch(0.82 0.06 85)" }} />
-              </div>
-              <h2 className="text-lg font-bold fl-heading mt-5">Generate Invite Code</h2>
-              <p className="text-sm fl-sub mt-2 text-center max-w-[280px]">
-                Create a unique code that your child can enter in their Teen Wallet app to link accounts.
+          {/* Loading skeleton */}
+          {genBusy && !inviteCode && (
+            <div className="flex-1 flex flex-col items-center justify-center w-full">
+              <p className="text-[11px] font-medium tracking-widest uppercase fl-label mb-4">
+                <Sparkles className="w-3.5 h-3.5 inline mr-1" />Generating Invite
               </p>
-              <button onClick={generateCode} disabled={genBusy} className="fl-btn-primary mt-6 w-full max-w-[280px]">
-                <QrCode className="w-4.5 h-4.5" />
-                {genBusy ? "Generating…" : "Generate Code"}
+              {/* QR Skeleton */}
+              <div className="fl-qr-container fl-skeleton-qr">
+                <div className="fl-skel-block" style={{ width: 180, height: 180, borderRadius: 12 }} />
+              </div>
+              {/* Code skeleton */}
+              <div className="fl-code-display mt-5">
+                <div className="fl-skel-block" style={{ width: 200, height: 30, borderRadius: 8 }} />
+              </div>
+              <div className="fl-skel-block mt-4" style={{ width: 120, height: 36, borderRadius: 10 }} />
+            </div>
+          )}
+
+          {/* Error state with retry */}
+          {genError && !inviteCode && !genBusy && (
+            <div className="flex-1 flex flex-col items-center justify-center">
+              <div className="fl-big-icon" style={{ borderColor: "oklch(0.65 0.08 25 / 0.3)", background: "oklch(0.65 0.08 25 / 0.08)" }}>
+                <RefreshCw className="w-10 h-10" style={{ color: "oklch(0.7 0.06 25)" }} />
+              </div>
+              <h2 className="text-lg font-bold fl-heading mt-5">Couldn't Generate Code</h2>
+              <p className="text-sm fl-sub mt-2 text-center max-w-[280px]">{genError}</p>
+              <button onClick={generateCode} className="fl-btn-primary mt-6 w-full max-w-[280px]">
+                <RefreshCw className="w-4.5 h-4.5" /> Try Again
               </button>
             </div>
-          ) : (
-            <div className="flex flex-col items-center w-full">
+          )}
+
+          {/* Code ready — show QR + code */}
+          {inviteCode && (
+            <div className="flex flex-col items-center w-full fl-fade-in">
               <p className="text-[11px] font-medium tracking-widest uppercase fl-label mb-4">
                 <Sparkles className="w-3.5 h-3.5 inline mr-1" />Scan or Enter Code
               </p>
 
-              {/* QR Code */}
+              {/* QR Code — white foreground on dark bg for scannability */}
               <div className="fl-qr-container">
-                <QRCodeSVG
-                  value={inviteCode}
-                  size={180}
-                  bgColor="transparent"
-                  fgColor="oklch(0.85 0.05 85)"
-                  level="M"
-                />
+                <div className="fl-qr-inner">
+                  <QRCodeSVG
+                    value={inviteCode}
+                    size={180}
+                    bgColor="#ffffff"
+                    fgColor="#1a1a1a"
+                    level="H"
+                    includeMargin
+                  />
+                </div>
               </div>
 
               {/* Code Display */}
@@ -172,10 +201,16 @@ export function FamilyLinking({ onBack }: Props) {
                 <span className="fl-code-text">{inviteCode}</span>
               </div>
 
-              <button onClick={copyCode} className="fl-copy-btn mt-3">
-                {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                {copied ? "Copied!" : "Copy Code"}
-              </button>
+              <div className="flex items-center gap-3 mt-3">
+                <button onClick={copyCode} className="fl-copy-btn">
+                  {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                  {copied ? "Copied!" : "Copy Code"}
+                </button>
+                <button onClick={generateCode} disabled={genBusy} className="fl-copy-btn" title="Generate new code">
+                  {genBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                  New Code
+                </button>
+              </div>
 
               <div className="fl-info-card mt-6">
                 <Shield className="w-4 h-4 flex-shrink-0" style={{ color: "oklch(0.65 0.03 85)" }} />
@@ -264,9 +299,17 @@ const flStyles = `
   }
 
   .fl-qr-container {
-    padding: 24px; border-radius: 22px;
+    padding: 4px; border-radius: 22px;
     background: oklch(0.1 0.005 250);
     border: 1.5px solid oklch(0.82 0.06 85 / 0.2);
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 8px 32px -8px oklch(0.82 0.06 85 / 0.1);
+  }
+
+  .fl-qr-inner {
+    border-radius: 16px; overflow: hidden;
+    background: #ffffff;
+    padding: 12px;
     display: flex; align-items: center; justify-content: center;
   }
 
@@ -288,6 +331,7 @@ const flStyles = `
     font-size: 13px; font-weight: 600;
     border: none; cursor: pointer;
   }
+  .fl-copy-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
   .fl-info-card {
     display: flex; align-items: flex-start; gap: 10px;
@@ -305,12 +349,42 @@ const flStyles = `
   }
   .fl-waiting-dot {
     width: 8px; height: 8px; border-radius: 999px;
-    background: oklch(0.65 0.1 145);
+    background: oklch(0.82 0.06 85);
     animation: fl-pulse 1.5s ease-in-out infinite;
   }
   @keyframes fl-pulse {
     0%, 100% { opacity: 0.4; transform: scale(0.9); }
     50% { opacity: 1; transform: scale(1.1); }
+  }
+
+  /* Skeleton shimmer */
+  .fl-skel-block {
+    background: linear-gradient(
+      110deg,
+      oklch(0.15 0.005 250) 0%,
+      oklch(0.2 0.01 85) 40%,
+      oklch(0.25 0.015 85) 50%,
+      oklch(0.2 0.01 85) 60%,
+      oklch(0.15 0.005 250) 100%
+    );
+    background-size: 200% 100%;
+    animation: fl-shimmer 1.8s ease-in-out infinite;
+  }
+  .fl-skeleton-qr {
+    padding: 24px;
+  }
+  @keyframes fl-shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+
+  /* Fade in for content reveal */
+  .fl-fade-in {
+    animation: fl-fade-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  @keyframes fl-fade-in {
+    0% { opacity: 0; transform: translateY(12px) scale(0.97); }
+    100% { opacity: 1; transform: translateY(0) scale(1); }
   }
 
   .fl-input {
@@ -346,5 +420,7 @@ const flStyles = `
   @media (prefers-reduced-motion: reduce) {
     .fl-waiting-dot { animation: none; opacity: 1; }
     .fl-success-ring { animation: none; }
+    .fl-skel-block { animation: none; }
+    .fl-fade-in { animation: none; }
   }
 `;
