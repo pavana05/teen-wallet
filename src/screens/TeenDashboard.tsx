@@ -4,7 +4,7 @@ import {
   Bell, Shield, Wallet, BarChart3, Clock, Target, Award,
   ChevronRight, Sparkles, LogOut, Link2, Eye, ScanLine, History,
   RefreshCw, ArrowUpRight, Building2, Smartphone, CreditCard,
-  Zap, MoreHorizontal, Home as HomeIcon, User, Send
+  Zap, MoreHorizontal, Home as HomeIcon, User, Send, Vibrate
 } from "lucide-react";
 import React from "react";
 import { useApp } from "@/lib/store";
@@ -21,6 +21,11 @@ import { lazyWithRetry } from "@/lib/lazyWithRetry";
 const ScanPay = lazyWithRetry(() => import("@/screens/ScanPay").then(m => ({ default: m.ScanPay })));
 const Transactions = lazyWithRetry(() => import("@/screens/Transactions").then(m => ({ default: m.Transactions })));
 const NotificationsPanel = lazyWithRetry(() => import("@/components/NotificationsPanel").then(m => ({ default: m.NotificationsPanel })));
+const HapticsSettingsLazy = lazyWithRetry(() => import("@/screens/HapticsSettings").then(m => ({ default: m.HapticsSettings })));
+
+function HapticsSettingsInline({ onBack }: { onBack: () => void }) {
+  return <Suspense fallback={null}><HapticsSettingsLazy onBack={onBack} /></Suspense>;
+}
 
 interface Transaction {
   id: string;
@@ -36,7 +41,7 @@ interface FamilyLink {
   status: string;
 }
 
-type SubScreen = "savings" | "screentime" | "spending" | "rewards" | "txhistory" | "scanpay" | "notifications" | "linking" | "linkstatus" | null;
+type SubScreen = "savings" | "screentime" | "spending" | "rewards" | "txhistory" | "scanpay" | "notifications" | "linking" | "linkstatus" | "haptics" | null;
 
 /* ── Reusable tile components (same as Home) ── */
 
@@ -360,6 +365,13 @@ export function TeenDashboard() {
       </div>
     );
   }
+  if (activeScreen === "haptics") {
+    return (
+      <div className="fixed inset-0 z-50" style={{ background: "var(--background)" }}>
+        <HapticsSettingsInline onBack={() => setActiveScreen(null)} />
+      </div>
+    );
+  }
 
   return (
     <div
@@ -538,6 +550,19 @@ export function TeenDashboard() {
           <RechargeTile icon={CreditCard} label="Credit card bill" tint="from-emerald-500/40 to-teal-500/20" />
           <RechargeTile icon={Zap} label="Utilities" tint="from-violet-500/40 to-purple-600/30" />
           <RechargeTile icon={MoreHorizontal} label="More" tint="from-white/10 to-white/5" />
+        </div>
+      </div>
+
+      {/* ===== SETTINGS ===== */}
+      <div className="px-5 mt-10">
+        <div className="hp-section-head">
+          <div>
+            <span className="hp-section-eyebrow">Preferences</span>
+            <h3 className="hp-section-title">Settings</h3>
+          </div>
+        </div>
+        <div className="grid grid-cols-4 gap-3">
+          <QuickAction icon={Vibrate} label={"Haptics"} onClick={() => setActiveScreen("haptics")} />
         </div>
       </div>
 

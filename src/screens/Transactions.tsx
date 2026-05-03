@@ -20,6 +20,7 @@ interface Txn {
 }
 
 type FilterKind = "all" | "pending" | "complete" | "failed";
+type PaymentTypeFilter = "all" | "upi" | "refunds";
 
 interface Props {
   onBack: () => void;
@@ -63,6 +64,7 @@ export function Transactions({ onBack }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<FilterKind>("all");
   const [query, setQuery] = useState("");
+  const [paymentType, setPaymentType] = useState<PaymentTypeFilter>("all");
   const [openTxn, setOpenTxn] = useState<{ txn: Txn; credit: boolean; balanceAfter: number } | null>(null);
 
   const fetchAll = useCallback(async () => {
@@ -132,10 +134,13 @@ export function Transactions({ onBack }: Props) {
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return enriched.filter(({ txn }) => {
+    return enriched.filter(({ txn, credit }) => {
       if (filter === "pending" && txn.status !== "pending") return false;
       if (filter === "complete" && txn.status !== "success") return false;
       if (filter === "failed" && txn.status !== "failed") return false;
+      // Payment type filter
+      if (paymentType === "upi" && credit) return false; // UPI payments = debits
+      if (paymentType === "refunds" && !credit) return false; // refunds/cashback = credits
       if (!q) return true;
       return (
         txn.merchant_name.toLowerCase().includes(q) ||
@@ -143,7 +148,7 @@ export function Transactions({ onBack }: Props) {
         (txn.note ?? "").toLowerCase().includes(q)
       );
     });
-  }, [enriched, filter, query]);
+  }, [enriched, filter, query, paymentType]);
 
   const groups = useMemo(() => {
     const map = new Map<string, typeof filtered>();
@@ -289,6 +294,13 @@ export function Transactions({ onBack }: Props) {
           <SegBtn active={filter === "failed"} onClick={() => { setFilter("failed"); void haptics.select(); }} count={totals.failed}>Failed</SegBtn>
         </div>
 
+        {/* === Payment type pills === */}
+        <div className="flex gap-2 mt-3 td-cascade" style={{ ["--td-i" as string]: 3.5 }} role="tablist" aria-label="Payment type">
+          <TypePill active={paymentType === "all"} onClick={() => { setPaymentType("all"); void haptics.select(); }}>All types</TypePill>
+          <TypePill active={paymentType === "upi"} onClick={() => { setPaymentType("upi"); void haptics.select(); }}>UPI Payments</TypePill>
+          <TypePill active={paymentType === "refunds"} onClick={() => { setPaymentType("refunds"); void haptics.select(); }}>Refunds</TypePill>
+        </div>
+
         {/* === List === */}
         <div className="mt-5 td-cascade" style={{ ["--td-i" as string]: 4 }}>
           {loading ? (
@@ -402,6 +414,24 @@ function SegBtn({
     >
       <span>{children}</span>
       <span className="tx-seg-count num-mono">{count}</span>
+    </button>
+  );
+}
+
+function TypePill({
+  children, active, onClick,
+}: {
+  children: React.ReactNode; active: boolean; onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      role="tab"
+      aria-selected={active}
+      onClick={onClick}
+      className={`tx-type-pill ${active ? "tx-type-on" : ""}`}
+    >
+      {children}
     </button>
   );
 }
