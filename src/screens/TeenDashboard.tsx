@@ -140,8 +140,6 @@ export function TeenDashboard() {
     return `${Math.floor(hrs / 24)}d ago`;
   };
 
-  const isLinked = !!familyLink;
-
   const kycApproved = kycStatus === "approved";
   const isLinked = !!familyLink;
 
