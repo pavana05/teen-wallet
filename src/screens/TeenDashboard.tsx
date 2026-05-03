@@ -375,9 +375,14 @@ export function TeenDashboard() {
             <Shield className="w-10 h-10 td-sub" />
             <p className="text-sm td-heading mt-3 font-semibold">No parent linked yet</p>
             <p className="text-[12px] td-sub mt-1">Ask your parent to share their invite code</p>
-            <button onClick={() => { haptics.tap(); setActiveScreen("linking"); }} className="td-cta-btn mt-4">
-              <Link2 className="w-4 h-4" /> Link Parent Account
-            </button>
+            <div className="flex gap-2 mt-4">
+              <button onClick={() => { haptics.tap(); setActiveScreen("linking"); }} className="td-cta-btn">
+                <Link2 className="w-4 h-4" /> Enter Code
+              </button>
+              <button onClick={() => { haptics.tap(); setActiveScreen("linkstatus"); }} className="td-cta-btn" style={{ background: "oklch(0.82 0.06 85 / 0.12)", color: "oklch(0.82 0.06 85)" }}>
+                <Eye className="w-4 h-4" /> Check Status
+              </button>
+            </div>
           </div>
         )}
       </div>
