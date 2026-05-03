@@ -153,7 +153,23 @@ export function TeenDashboard() {
   const scrollerRef = useRef<HTMLDivElement | null>(null);
   const touchStartY = useRef<number | null>(null);
 
-  useEffect(() => { setMounted(true); }, []);
+  // Prefetch common sub-screens on idle so transitions are instant
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const idle = (cb: () => void) => {
+      const w = window as unknown as { requestIdleCallback?: (cb: () => void) => number };
+      if (typeof w.requestIdleCallback === "function") w.requestIdleCallback(cb);
+      else setTimeout(cb, 400);
+    };
+    idle(() => {
+      void import("@/screens/ScanPay");
+      void import("@/screens/Transactions");
+      void import("@/components/ProfilePanel");
+      void import("@/components/NotificationsPanel");
+    });
+  }, []);
+
+
 
   const firstName = fullName?.split(" ")[0] || "there";
   const scanHero = useAppImage("home.scan_hero", heroScan, "Scan and pay");
