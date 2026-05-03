@@ -148,7 +148,7 @@ export function Transactions({ onBack }: Props) {
         (txn.note ?? "").toLowerCase().includes(q)
       );
     });
-  }, [enriched, filter, query]);
+  }, [enriched, filter, query, paymentType]);
 
   const groups = useMemo(() => {
     const map = new Map<string, typeof filtered>();
