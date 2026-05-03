@@ -232,6 +232,13 @@ export function TeenDashboard() {
       </div>
     );
   }
+  if (activeScreen === "linkstatus") {
+    return (
+      <div className="fixed inset-0 z-50" style={{ background: "var(--background)" }}>
+        <TeenLinkStatusInline onBack={() => setActiveScreen(null)} onLinked={() => { setActiveScreen(null); loadData(); }} />
+      </div>
+    );
+  }
   if (activeScreen === "scanpay") {
     return (
       <div className="fixed inset-0 z-50" style={{ background: "var(--background)" }}>
