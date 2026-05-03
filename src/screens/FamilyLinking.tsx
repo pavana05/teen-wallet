@@ -51,10 +51,24 @@ export function FamilyLinking({ onBack }: Props) {
     haptics.tap();
     setGenBusy(true);
     try {
+      // Ensure we have a valid session first
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData?.session) {
+        toast.error("Please log in again to generate a code");
+        setGenBusy(false);
+        return;
+      }
       const { data, error } = await supabase.rpc("generate_family_invite_code");
+      console.log("[FamilyLinking] generateCode result:", { data, error });
       if (error) throw error;
+      if (!data) {
+        toast.error("No code was generated. Please try again.");
+        setGenBusy(false);
+        return;
+      }
       setInviteCode(data as string);
-    } catch (e) {
+    } catch (e: unknown) {
+      console.error("[FamilyLinking] generateCode error:", e);
       toast.error(e instanceof Error ? e.message : "Failed to generate code");
     }
     setGenBusy(false);
