@@ -592,7 +592,7 @@ export function TeenDashboard() {
                   <NavItem icon={History} label="Transactions" onClick={() => handleGatedAction(() => setView("transactions"))} />
                 </span>
                 <span className="hp-nav-tab" data-hidden="false">
-                  <NavItem icon={User} label="Profile" onClick={handleLogout} />
+                  <NavItem icon={User} label="Profile" onClick={() => setActiveScreen("profile")} />
                 </span>
               </div>
               <button
