@@ -142,10 +142,20 @@ export function TeenDashboard() {
 
   const isLinked = !!familyLink;
 
-  // KYC not approved — block dashboard
-  if (kycStatus && kycStatus !== "approved" && kycStatus !== "not_started") {
-    // Let the main router handle KYC flow — this is just a safety net
-  }
+  const kycApproved = kycStatus === "approved";
+
+  const handleKycGatedAction = (screen: SubScreen) => {
+    if (!kycApproved) {
+      haptics.tap();
+      toast.error("Complete Aadhaar KYC to unlock this feature", {
+        description: "Your identity must be verified before using Scan & Pay or viewing transactions.",
+        duration: 4000,
+      });
+      return;
+    }
+    haptics.tap();
+    setActiveScreen(screen);
+  };
 
   // Sub-screen overlays
   if (activeScreen === "notifications") {
