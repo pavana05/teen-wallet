@@ -1,8 +1,10 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef, memo, Suspense } from "react";
+import { createPortal } from "react-dom";
 import {
   Bell, Shield, Wallet, BarChart3, Clock, Target, Award,
   ChevronRight, Sparkles, LogOut, Link2, Eye, ScanLine, History,
-  RefreshCw, AlertCircle
+  RefreshCw, ArrowUpRight, Building2, Smartphone, CreditCard,
+  Zap, MoreHorizontal, Home as HomeIcon, User, Send
 } from "lucide-react";
 import React from "react";
 import { useApp } from "@/lib/store";
@@ -11,6 +13,14 @@ import { haptics } from "@/lib/haptics";
 import { offlineCache } from "@/lib/offlineCache";
 import { logout } from "@/lib/auth";
 import { toast } from "sonner";
+import { useAppImage } from "@/lib/useAppImage";
+import { useGenderPersona } from "@/lib/genderPersona";
+import heroScan from "@/assets/home-hero-scan.jpg";
+import { lazyWithRetry } from "@/lib/lazyWithRetry";
+
+const ScanPay = lazyWithRetry(() => import("@/screens/ScanPay").then(m => ({ default: m.ScanPay })));
+const Transactions = lazyWithRetry(() => import("@/screens/Transactions").then(m => ({ default: m.Transactions })));
+const NotificationsPanel = lazyWithRetry(() => import("@/components/NotificationsPanel").then(m => ({ default: m.NotificationsPanel })));
 
 interface Transaction {
   id: string;
@@ -28,20 +38,100 @@ interface FamilyLink {
 
 type SubScreen = "savings" | "screentime" | "spending" | "rewards" | "txhistory" | "scanpay" | "notifications" | "linking" | "linkstatus" | null;
 
+/* ── Reusable tile components (same as Home) ── */
+
+function QuickAction({ icon: Icon, label, onClick, locked, lockLabel }: {
+  icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
+  label: string;
+  onClick?: () => void;
+  locked?: boolean;
+  lockLabel?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => { void haptics.tap(); onClick?.(); }}
+      aria-label={label.replace(/\n/g, " ")}
+      className={`flex flex-col items-center gap-2 group rounded-2xl focus:outline-none relative ${locked ? "opacity-50" : ""}`}
+    >
+      <div className="hp-tile" aria-hidden="true">
+        <Icon className="w-6 h-6 text-white/90" strokeWidth={1.6} />
+      </div>
+      <span className="text-[11px] text-white/70 leading-tight text-center whitespace-pre-line">{label}</span>
+      {locked && lockLabel && (
+        <span className="absolute -top-1 -right-1 text-[7px] font-extrabold px-1.5 py-0.5 rounded bg-red-500/20 text-red-400 uppercase tracking-wider">{lockLabel}</span>
+      )}
+    </button>
+  );
+}
+
+function RechargeTile({ icon: Icon, label, tint }: {
+  icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
+  label: string;
+  tint: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => { void haptics.tap(); }}
+      aria-label={label}
+      className="flex flex-col items-center gap-2 rounded-2xl focus:outline-none"
+    >
+      <div className={`hp-tile bg-gradient-to-br ${tint}`} aria-hidden="true">
+        <Icon className="w-6 h-6 text-white" strokeWidth={1.7} />
+      </div>
+      <span className="text-[11px] text-white/70 leading-tight text-center">{label}</span>
+    </button>
+  );
+}
+
+function NavItem({ icon: Icon, label, active, onClick }: {
+  icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
+  label: string;
+  active?: boolean;
+  onClick?: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => { void haptics.select(); onClick?.(); }}
+      aria-label={label}
+      aria-current={active ? "page" : undefined}
+      className={`flex-1 flex flex-col items-center py-2 rounded-full transition-colors focus:outline-none ${active ? "hp-nav-active text-white" : "text-white/55 hover:text-white/80"}`}
+    >
+      <Icon className="w-5 h-5" strokeWidth={active ? 2 : 1.6} aria-hidden="true" />
+      <span className={`text-[11px] mt-0.5 ${active ? "font-semibold" : ""}`}>{label}</span>
+    </button>
+  );
+}
+
 export function TeenDashboard() {
   const { fullName, balance, userId } = useApp();
+  const persona = useGenderPersona();
   const [txns, setTxns] = useState<Transaction[]>([]);
   const [familyLink, setFamilyLink] = useState<FamilyLink | null>(null);
   const [linkLoading, setLinkLoading] = useState(true);
-  const [notifications, setNotifications] = useState(0);
+  const [unreadCount, setUnreadCount] = useState(0);
   const [liveBalance, setLiveBalance] = useState<number>(balance);
+  const [view, setView] = useState<"home" | "scan" | "transactions">("home");
   const [activeScreen, setActiveScreen] = useState<SubScreen>(null);
   const [kycStatus, setKycStatus] = useState<string | null>(null);
+  const [showNotifs, setShowNotifs] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [pullY, setPullY] = useState(0);
+  const [navCollapsed, setNavCollapsed] = useState(false);
+  const [scanLaunching, setScanLaunching] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const scrollerRef = useRef<HTMLDivElement | null>(null);
+  const touchStartY = useRef<number | null>(null);
+
+  useEffect(() => { setMounted(true); }, []);
 
   const firstName = fullName?.split(" ")[0] || "there";
+  const scanHero = useAppImage("home.scan_hero", heroScan, "Scan and pay");
 
   const loadData = useCallback(async () => {
-    // Cached data first
     const cachedTxns = offlineCache.get<Transaction[]>("teen_txns");
     if (cachedTxns) setTxns(cachedTxns);
     const cachedBal = offlineCache.get<number>("teen_balance");
@@ -77,47 +167,46 @@ export function TeenDashboard() {
         .from("notifications")
         .select("*", { count: "exact", head: true })
         .eq("read", false);
-      setNotifications(count ?? 0);
+      setUnreadCount(count ?? 0);
     } catch (e) {
       console.error("[teen-dash] load error", e);
       setLinkLoading(false);
     }
+    setLoading(false);
   }, []);
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  // Poll for family link acceptance — stop immediately when found
+  // Poll for family link
   useEffect(() => {
-    if (familyLink) return; // already linked, no polling needed
+    if (familyLink) return;
     const poll = setInterval(async () => {
+      if (!userId) return;
       const { data: fl } = await supabase
         .from("family_links")
         .select("id, parent_user_id, status")
+        .eq("teen_user_id", userId)
         .eq("status", "active")
         .limit(1);
       if (fl && fl.length > 0) {
         setFamilyLink(fl[0] as FamilyLink);
         setLinkLoading(false);
         offlineCache.set("teen_family_linked", true);
-        // Persist to profile
-        supabase.auth.getUser().then(({ data }) => {
-          if (data?.user?.id) {
-            supabase.from("profiles").update({ family_link_status: "accepted" as any }).eq("id", data.user.id);
-          }
-        });
+        if (userId) {
+          supabase.from("profiles").update({ family_link_status: "accepted" as any }).eq("id", userId);
+        }
         haptics.press();
         toast.success("Parent linked! 🎉", { description: "All wallet features are now unlocked." });
       }
     }, 4000);
     return () => clearInterval(poll);
-  }, [familyLink]);
+  }, [familyLink, userId]);
 
-  // Hydrate family_link_status from profile for instant gating on refresh
+  // Hydrate family_link_status
   useEffect(() => {
     const hydrate = async () => {
       const { data } = await supabase.from("profiles").select("family_link_status").single();
       if (data && (data as any).family_link_status === "accepted" && !familyLink) {
-        // Profile says accepted — load the actual link
         const { data: fl } = await supabase
           .from("family_links")
           .select("id, parent_user_id, status")
@@ -133,14 +222,7 @@ export function TeenDashboard() {
     hydrate();
   }, []);
 
-  // Cache linking state for instant resume after refresh
-  useEffect(() => {
-    if (familyLink) {
-      offlineCache.set("teen_family_linked", true);
-    }
-  }, [familyLink]);
-
-  // Realtime: transactions + notifications
+  // Realtime
   useEffect(() => {
     const txnChannel = supabase
       .channel("teen_txns_realtime")
@@ -160,11 +242,11 @@ export function TeenDashboard() {
     const notifChannel = supabase
       .channel("teen_notifs_realtime")
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "notifications" }, () => {
-        setNotifications((prev) => prev + 1);
+        setUnreadCount((prev) => prev + 1);
       })
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "notifications" }, () => {
         supabase.from("notifications").select("*", { count: "exact", head: true }).eq("read", false)
-          .then(({ count }) => setNotifications(count ?? 0));
+          .then(({ count }) => setUnreadCount(count ?? 0));
       })
       .subscribe();
 
@@ -174,33 +256,29 @@ export function TeenDashboard() {
     };
   }, []);
 
+  // Scroll collapse nav
+  useEffect(() => {
+    const el = scrollerRef.current;
+    if (!el) return;
+    const onScroll = () => setNavCollapsed(el.scrollTop > 60);
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => el.removeEventListener("scroll", onScroll);
+  }, []);
+
   const handleLogout = async () => {
     haptics.tap();
     await logout();
     useApp.getState().reset();
   };
 
-  const formatAmt = (n: number) =>
-    "₹" + n.toLocaleString("en-IN", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
-
-  const timeAgo = (d: string) => {
-    const diff = Date.now() - new Date(d).getTime();
-    const mins = Math.floor(diff / 60000);
-    if (mins < 1) return "Just now";
-    if (mins < 60) return `${mins}m ago`;
-    const hrs = Math.floor(mins / 60);
-    if (hrs < 24) return `${hrs}h ago`;
-    return `${Math.floor(hrs / 24)}d ago`;
-  };
-
   const kycApproved = kycStatus === "approved";
   const isLinked = !!familyLink;
 
-  const handleGatedAction = (screen: SubScreen) => {
+  const handleGatedAction = (action: () => void) => {
     if (!kycApproved) {
       haptics.tap();
       toast.error("Complete Aadhaar KYC to unlock this feature", {
-        description: "Your identity must be verified before using Scan & Pay or viewing transactions.",
+        description: "Your identity must be verified first.",
         duration: 4000,
       });
       return;
@@ -213,16 +291,61 @@ export function TeenDashboard() {
       });
       return;
     }
-    haptics.tap();
-    setActiveScreen(screen);
+    action();
   };
 
+  const getLockLabel = () => {
+    if (!kycApproved) return "KYC";
+    if (!isLinked && !linkLoading) return "LINK";
+    return undefined;
+  };
+
+  const isGated = !kycApproved || (!isLinked && !linkLoading);
+
+  // Pull to refresh
+  const onTouchStart = (e: React.TouchEvent) => {
+    if ((scrollerRef.current?.scrollTop ?? 0) <= 0) {
+      touchStartY.current = e.touches[0].clientY;
+    }
+  };
+  const onTouchMove = (e: React.TouchEvent) => {
+    if (touchStartY.current == null) return;
+    const dy = e.touches[0].clientY - touchStartY.current;
+    if (dy > 0) setPullY(Math.min(dy * 0.5, 80));
+  };
+  const onTouchEnd = () => {
+    if (pullY > 60) { void haptics.swipe(); setRefreshing(true); loadData().then(() => setTimeout(() => setRefreshing(false), 400)); }
+    setPullY(0);
+    touchStartY.current = null;
+  };
+
+  const launchScan = useCallback(() => {
+    handleGatedAction(() => {
+      void haptics.bloom();
+      setScanLaunching(true);
+      window.setTimeout(() => {
+        setView("scan");
+        window.setTimeout(() => setScanLaunching(false), 50);
+      }, 420);
+    });
+  }, [kycApproved, isLinked, linkLoading]);
+
   // Sub-screen overlays
-  if (activeScreen === "notifications") {
+  if (view === "scan") return (
+    <Suspense fallback={null}>
+      <ScanPay onBack={() => { setView("home"); void loadData(); }} />
+    </Suspense>
+  );
+  if (view === "transactions") return (
+    <Suspense fallback={null}>
+      <Transactions onBack={() => { setView("home"); void loadData(); }} />
+    </Suspense>
+  );
+  if (activeScreen === "notifications" || showNotifs) {
     return (
-      <div className="fixed inset-0 z-50" style={{ background: "var(--background)" }}>
-        <NotificationsPanelInline onClose={() => { setActiveScreen(null); loadData(); }} />
-      </div>
+      <Suspense fallback={null}>
+        <NotificationsPanel onClose={() => { setActiveScreen(null); setShowNotifs(false); loadData(); }} />
+      </Suspense>
     );
   }
   if (activeScreen === "linking") {
@@ -239,310 +362,247 @@ export function TeenDashboard() {
       </div>
     );
   }
-  if (activeScreen === "scanpay") {
+  if (activeScreen === "savings" || activeScreen === "screentime" || activeScreen === "spending" || activeScreen === "rewards") {
     return (
       <div className="fixed inset-0 z-50" style={{ background: "var(--background)" }}>
-        <ScanPayInline onBack={() => { setActiveScreen(null); loadData(); }} />
+        <SubScreenInline screen={activeScreen} onBack={() => setActiveScreen(null)} />
       </div>
     );
   }
-  if (activeScreen === "savings") {
-    return (
-      <div className="fixed inset-0 z-50" style={{ background: "var(--background)" }}>
-        <SubScreenInline screen="savings" onBack={() => setActiveScreen(null)} />
-      </div>
-    );
-  }
-  if (activeScreen === "screentime") {
-    return (
-      <div className="fixed inset-0 z-50" style={{ background: "var(--background)" }}>
-        <SubScreenInline screen="screentime" onBack={() => setActiveScreen(null)} />
-      </div>
-    );
-  }
-  if (activeScreen === "spending") {
-    return (
-      <div className="fixed inset-0 z-50" style={{ background: "var(--background)" }}>
-        <SubScreenInline screen="spending" onBack={() => setActiveScreen(null)} />
-      </div>
-    );
-  }
-  if (activeScreen === "rewards") {
-    return (
-      <div className="fixed inset-0 z-50" style={{ background: "var(--background)" }}>
-        <SubScreenInline screen="rewards" onBack={() => setActiveScreen(null)} />
-      </div>
-    );
-  }
-  if (activeScreen === "txhistory") {
-    return (
-      <div className="fixed inset-0 z-50" style={{ background: "var(--background)" }}>
-        <TxHistoryInline onBack={() => { setActiveScreen(null); loadData(); }} />
-      </div>
-    );
-  }
-
-  const CONTROLS: { icon: React.ComponentType<{ className?: string }>; label: string; desc: string; color: string; screen: SubScreen }[] = [
-    { icon: Target, label: "Savings Goals", desc: "Set & track your targets", color: "#6366f1", screen: "savings" },
-    { icon: Clock, label: "Screen Time", desc: "View your daily usage", color: "#f59e0b", screen: "screentime" },
-    { icon: BarChart3, label: "Spending Insights", desc: "Weekly breakdowns", color: "#10b981", screen: "spending" },
-    { icon: Award, label: "Rewards & Cashback", desc: "Earn while you spend", color: "#ef4444", screen: "rewards" },
-    { icon: Eye, label: "Transaction History", desc: "Full activity log", color: "#8b5cf6", screen: "txhistory" },
-  ];
 
   return (
-    <div className="flex-1 flex flex-col td-root overflow-y-auto">
-      {/* Header */}
-      <div className="flex items-center justify-between px-5 pt-6 pb-3">
-        <div>
-          <p className="text-[11px] font-medium tracking-widest uppercase td-label">
-            <Sparkles className="w-3.5 h-3.5 inline mr-1" />Teen Wallet
-          </p>
-          <h1 className="text-xl font-bold td-heading mt-0.5">Hey, {firstName}! 👋</h1>
+    <div
+      ref={scrollerRef}
+      onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
+      onTouchEnd={onTouchEnd}
+      className={`hp-root ${persona.accentClass} flex-1 min-h-0 flex flex-col tw-slide-up pb-32 overflow-y-auto relative`}
+      style={{ transform: pullY ? `translateY(${pullY}px)` : undefined, transition: pullY ? "none" : "transform 220ms ease" }}
+    >
+      {/* Pull-to-refresh indicator */}
+      {(pullY > 0 || refreshing) && (
+        <div className="absolute top-2 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/60 backdrop-blur-md border border-white/10">
+          <RefreshCw className={`w-3.5 h-3.5 text-white ${refreshing ? "animate-spin" : ""}`} style={{ transform: !refreshing ? `rotate(${pullY * 4}deg)` : undefined }} aria-hidden="true" />
+          <span className="text-[11px] text-white/80">{refreshing ? "Refreshing…" : pullY > 60 ? "Release to refresh" : "Pull to refresh"}</span>
         </div>
-        <div className="flex gap-2">
-          <button onClick={() => { haptics.tap(); setActiveScreen("notifications"); }} className="td-icon-btn relative">
-            <Bell className="w-5 h-5" />
-            {notifications > 0 && (
-              <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 text-[9px] text-white flex items-center justify-center font-bold">{notifications > 9 ? "9+" : notifications}</span>
+      )}
+
+      {/* ===== HERO (orange grid bg + scan card) ===== */}
+      <div className="hp-hero hp-shimmer-reveal relative">
+        <div className="hp-hero-bg" />
+        <div className="hp-hero-pattern" />
+        <div className="hp-hero-spot" />
+
+        {/* Header */}
+        <div className="relative z-10 flex items-center justify-between px-6 pt-8">
+          <button type="button" className="hp-greeting-tap text-left hp-greeting-enter">
+            <p className="hp-greeting">
+              <span className="hp-greeting-text">Hey, {firstName}</span>
+              <span className="hp-greeting-emoji-stage">
+                <span className="hp-greeting-emoji hp-greeting-emoji-in" role="img" aria-label="waving hand">
+                  {persona.emoji}
+                </span>
+              </span>
+            </p>
+            <p className="hp-greeting-sub">{persona.subtitle}</p>
+          </button>
+          <button
+            type="button"
+            onClick={() => { void haptics.tap(); setShowNotifs(true); }}
+            aria-label={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : "Notifications"}
+            className="hp-bell"
+          >
+            <Bell className="w-[18px] h-[18px] text-white/90" strokeWidth={1.6} aria-hidden="true" />
+            {unreadCount > 0 && (
+              <span className="hp-bell-badge" aria-hidden="true">{unreadCount > 9 ? "9+" : unreadCount}</span>
             )}
           </button>
-          <button onClick={handleLogout} className="td-icon-btn"><LogOut className="w-4.5 h-4.5" /></button>
         </div>
+
+        {/* Scan hero card */}
+        <button
+          type="button"
+          onClick={() => handleGatedAction(() => setView("scan"))}
+          className="hp-scan-card group"
+          aria-label="Open scanner to scan and pay"
+        >
+          <img src={scanHero.url} alt={scanHero.alt} className="hp-scan-img" />
+        </button>
+
+        <div className="hp-hero-fade" aria-hidden="true" />
       </div>
 
-      {/* Balance Overview Card */}
-      <div className="mx-5 mt-2 td-family-card">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-[11px] font-medium tracking-wider uppercase td-family-label">Available Balance</p>
-            <p className="text-2xl font-bold mt-1 td-family-count">{formatAmt(liveBalance)}</p>
-          </div>
-          <div className="td-family-icon">
-            <Wallet className="w-7 h-7" />
-          </div>
-        </div>
-        <div className="flex gap-2 mt-4">
-          {(() => {
-            const locked = !kycApproved || (!isLinked && !linkLoading);
-            const lockLabel = !kycApproved ? "KYC" : !isLinked ? "LINK" : "";
-            return (
-              <>
-                <button
-                  onClick={() => handleGatedAction("scanpay")}
-                  className={`td-invite-btn flex-1 ${locked ? "td-btn-locked" : ""}`}
-                >
-                  <ScanLine className="w-4 h-4" /> Scan & Pay
-                  {locked && <span className="td-lock-badge">{lockLabel}</span>}
-                </button>
-                <button
-                  onClick={() => handleGatedAction("txhistory")}
-                  className={`td-invite-btn flex-1 ${locked ? "td-btn-locked" : ""}`}
-                >
-                  <History className="w-4 h-4" /> History
-                  {locked && <span className="td-lock-badge">{lockLabel}</span>}
-                </button>
-              </>
-            );
-          })()}
-        </div>
-      </div>
-
-      {/* Parent Link Status */}
-      <div className="mx-5 mt-5">
-        <p className="text-[11px] font-medium tracking-widest uppercase td-label mb-3">Family Connection</p>
-        {linkLoading ? (
-          <div className="td-empty-state">
-            <RefreshCw className="w-6 h-6 td-sub animate-spin" />
-            <p className="text-sm td-sub mt-2">Checking link status…</p>
-          </div>
-        ) : familyLink ? (
-          <div className="td-child-card">
-            <div className="td-child-avatar">
-              <Shield className="w-5 h-5" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold td-heading">Parent Connected</p>
-              <p className="text-[11px] td-sub">Your account is supervised</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="td-active-badge">Active</span>
-              <ChevronRight className="w-4 h-4 td-chevron" />
-            </div>
-          </div>
-        ) : (
-          <div className="td-empty-state">
-            <Shield className="w-10 h-10 td-sub" />
-            <p className="text-sm td-heading mt-3 font-semibold">No parent linked yet</p>
-            <p className="text-[12px] td-sub mt-1">Ask your parent to share their invite code</p>
-            <div className="flex gap-2 mt-4">
-              <button onClick={() => { haptics.tap(); setActiveScreen("linking"); }} className="td-cta-btn">
-                <Link2 className="w-4 h-4" /> Enter Code
-              </button>
-              <button onClick={() => { haptics.tap(); setActiveScreen("linkstatus"); }} className="td-cta-btn" style={{ background: "oklch(0.82 0.06 85 / 0.12)", color: "oklch(0.82 0.06 85)" }}>
-                <Eye className="w-4 h-4" /> Check Status
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Quick Actions */}
-      <div className="mx-5 mt-5">
-        <p className="text-[11px] font-medium tracking-widest uppercase td-label mb-3">Quick Actions</p>
-        <div className="flex flex-col gap-2">
-          {CONTROLS.map(({ icon: Icon, label, desc, color, screen }) => {
-            const isGated = (screen === "txhistory" || screen === "scanpay") && (!kycApproved || (!isLinked && !linkLoading));
-            return (
-            <button key={label} onClick={() => { isGated ? handleGatedAction(screen) : (() => { haptics.tap(); setActiveScreen(screen); })(); }} className={`td-control-row ${isGated ? "td-row-locked" : ""}`}>
-              <div className="td-control-icon" style={{ background: `${color}15`, color }}>
-                <Icon className="w-5 h-5" />
-              </div>
-              <div className="flex-1 text-left">
-                <p className="text-sm font-medium td-heading">{label}</p>
-                <p className="text-[11px] td-sub">{desc}</p>
-              </div>
-              <ChevronRight className="w-4 h-4 td-chevron" />
-            </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Recent Activity */}
-      <div className="mx-5 mt-5 mb-6">
-        <div className="flex items-center justify-between mb-3">
-          <p className="text-[11px] font-medium tracking-widest uppercase td-label">Recent Activity</p>
-          <button onClick={() => handleGatedAction("txhistory")} className="text-[11px] td-accent-text font-medium">See All</button>
-        </div>
-        {txns.length === 0 ? (
-          <div className="td-empty-state">
-            <History className="w-8 h-8 td-sub" />
-            <p className="text-sm td-sub mt-2">No transactions yet</p>
-          </div>
-        ) : (
-          <div className="flex flex-col gap-2">
-            {txns.map((tx) => (
-              <div key={tx.id} className="td-child-card">
-                <div className="td-child-avatar" style={{ background: "oklch(0.2 0.005 250)" }}>
-                  <Wallet className="w-4 h-4" style={{ color: "oklch(0.6 0.01 250)" }} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold td-heading truncate">{tx.merchant_name}</p>
-                  <p className="text-[11px] td-sub">{timeAgo(tx.created_at)}</p>
-                </div>
-                <p className="text-sm font-semibold td-amt-debit">-{formatAmt(tx.amount)}</p>
-              </div>
+      {/* ===== OFFERS CAROUSEL ===== */}
+      <section aria-label="Offers" className="px-5 mt-6">
+        {loading ? (
+          <div className="flex gap-3 overflow-hidden pb-1" aria-hidden="true">
+            {[0, 1].map((i) => (
+              <div key={i} className="hp-skeleton snap-start shrink-0" style={{ width: "84%", minHeight: 140 }} />
             ))}
           </div>
+        ) : (
+          <div className="flex gap-3 overflow-x-auto hp-scroll snap-x snap-mandatory pb-1 hp-fade-in" role="list" aria-label="Available offers">
+            <div className="hp-offer hp-offer-1 snap-start shrink-0" role="listitem">
+              <div className="relative z-10">
+                <p className="hp-offer-eyebrow">P2P UPI · Limited</p>
+                <p className="hp-offer-headline">20%<em>flat off</em></p>
+                <p className="hp-offer-sub">On every peer transfer this month</p>
+                <button type="button" onClick={() => void haptics.success()} className="hp-offer-cta" aria-label="Apply 20% flat off offer">
+                  <span>Apply offer</span>
+                  <ArrowUpRight className="w-3.5 h-3.5 hp-offer-cta-icon" strokeWidth={2.2} aria-hidden="true" />
+                </button>
+              </div>
+            </div>
+            <div className="hp-offer hp-offer-2 snap-start shrink-0" role="listitem">
+              <div className="relative z-10">
+                <p className="hp-offer-eyebrow">First recharge</p>
+                <p className="hp-offer-headline">40%<em>cashback</em></p>
+                <p className="hp-offer-sub">Credited instantly to your wallet</p>
+                <button type="button" onClick={() => void haptics.success()} className="hp-offer-cta" aria-label="Claim 40% cashback offer">
+                  <span>Claim now</span>
+                  <Sparkles className="w-3.5 h-3.5 hp-offer-cta-icon" strokeWidth={2.2} aria-hidden="true" />
+                </button>
+              </div>
+            </div>
+          </div>
         )}
+      </section>
+
+      {/* ===== FAMILY LINK STATUS (teen-specific) ===== */}
+      {!isLinked && !linkLoading && (
+        <div className="px-5 mt-6">
+          <div className="td-link-banner">
+            <Shield className="w-8 h-8" style={{ color: "oklch(0.82 0.06 85)" }} />
+            <div className="flex-1 min-w-0">
+              <p className="text-[13px] font-semibold text-white">Link your parent</p>
+              <p className="text-[11px] text-white/50 mt-0.5">Connect to unlock wallet features</p>
+            </div>
+            <button onClick={() => { haptics.tap(); setActiveScreen("linking"); }} className="td-link-cta">
+              <Link2 className="w-3.5 h-3.5" /> Link
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ===== EVERYTHING UPI ===== */}
+      <div className="px-5 mt-10">
+        <div className="hp-section-head">
+          <div>
+            <span className="hp-section-eyebrow">Quick actions</span>
+            <h3 className="hp-section-title">Everything UPI</h3>
+          </div>
+          <button className="hp-section-link" onClick={() => handleGatedAction(() => setView("transactions"))}>View all</button>
+        </div>
+
+        {/* Send money CTA */}
+        <button
+          type="button"
+          onClick={() => handleGatedAction(() => setView("scan"))}
+          aria-label="Send money instantly"
+          className={`hp-send-cta group ${isGated ? "opacity-50" : ""}`}
+        >
+          <span className="hp-send-cta-glow" aria-hidden="true" />
+          <span className="hp-send-cta-icon" aria-hidden="true">
+            <Send className="w-5 h-5 text-black" strokeWidth={2.4} />
+          </span>
+          <span className="flex-1 text-left min-w-0">
+            <span className="block text-[14px] font-semibold text-white leading-tight">Send money instantly</span>
+            <span className="block text-[11px] text-white/65 mt-0.5 truncate">Phone number or UPI ID · End-to-end secure</span>
+          </span>
+          <ArrowUpRight className="w-4 h-4 text-white/70 group-hover:text-white shrink-0" strokeWidth={2} aria-hidden="true" />
+        </button>
+
+        <div className="grid grid-cols-4 gap-3 mt-4">
+          <QuickAction icon={ArrowUpRight} label={"Pay\nfriends"} locked={isGated} lockLabel={getLockLabel()} onClick={() => handleGatedAction(() => setView("scan"))} />
+          <QuickAction icon={Building2} label={"To bank &\nself a/c"} locked={isGated} lockLabel={getLockLabel()} onClick={() => handleGatedAction(() => setView("scan"))} />
+          <QuickAction icon={Wallet} label={"Check\nbalance"} onClick={() => toast.info(`Balance: ₹${liveBalance.toLocaleString("en-IN")}`)} />
+          <QuickAction icon={History} label={"Transaction\nhistory"} locked={isGated} lockLabel={getLockLabel()} onClick={() => handleGatedAction(() => setView("transactions"))} />
+        </div>
       </div>
 
-      <style>{`
-        .td-root { background: var(--background); }
-        .td-label { color: oklch(0.82 0.06 85); }
-        .td-heading { color: var(--foreground); }
-        .td-sub { color: oklch(0.55 0.01 250); }
-        .td-accent-text { color: oklch(0.82 0.06 85); }
-        .td-chevron { color: oklch(0.35 0.01 250); }
+      <div className="hp-divider mt-14" aria-hidden="true" />
 
-        .td-icon-btn {
-          width: 40px; height: 40px; border-radius: 14px;
-          background: oklch(0.15 0.005 250);
-          border: 1px solid oklch(0.22 0.005 250);
-          display: flex; align-items: center; justify-content: center;
-          color: oklch(0.7 0.01 250);
-        }
+      {/* ===== RECHARGES AND BILLS ===== */}
+      <div className="px-5 mt-10">
+        <div className="hp-section-head">
+          <div>
+            <span className="hp-section-eyebrow">Pay bills</span>
+            <h3 className="hp-section-title">Recharges & utilities</h3>
+          </div>
+          <button className="hp-section-link">View all</button>
+        </div>
+        <div className="grid grid-cols-4 gap-3">
+          <RechargeTile icon={Smartphone} label="Recharge" tint="from-indigo-500/40 to-fuchsia-500/30" />
+          <RechargeTile icon={CreditCard} label="Credit card bill" tint="from-emerald-500/40 to-teal-500/20" />
+          <RechargeTile icon={Zap} label="Utilities" tint="from-violet-500/40 to-purple-600/30" />
+          <RechargeTile icon={MoreHorizontal} label="More" tint="from-white/10 to-white/5" />
+        </div>
+      </div>
 
-        .td-family-card {
-          padding: 20px; border-radius: 22px;
-          background: linear-gradient(135deg, oklch(0.16 0.015 85), oklch(0.12 0.005 250));
-          border: 1px solid oklch(0.82 0.06 85 / 0.2);
-          box-shadow: 0 8px 32px -8px oklch(0.82 0.06 85 / 0.08);
-        }
-        .td-family-label { color: oklch(0.65 0.03 85); }
-        .td-family-count { color: oklch(0.92 0.04 85); }
-        .td-family-icon {
-          width: 52px; height: 52px; border-radius: 16px;
-          background: oklch(0.82 0.06 85 / 0.12); color: oklch(0.82 0.06 85);
-          display: flex; align-items: center; justify-content: center;
-        }
-        .td-invite-btn {
-          display: flex; align-items: center; justify-content: center; gap: 8px;
-          padding: 11px; border-radius: 14px;
-          background: oklch(0.82 0.06 85 / 0.12); color: oklch(0.82 0.06 85);
-          font-size: 13px; font-weight: 600;
-          border: 1px solid oklch(0.82 0.06 85 / 0.25); cursor: pointer;
-        }
+      <div className="h-6" />
 
-        .td-empty-state {
-          display: flex; flex-direction: column; align-items: center;
-          padding: 32px 24px; border-radius: 18px;
-          background: oklch(0.12 0.005 250);
-          border: 1.5px dashed oklch(0.25 0.005 250);
-        }
-        .td-cta-btn {
-          display: flex; align-items: center; gap: 8px;
-          padding: 10px 20px; border-radius: 12px;
-          background: linear-gradient(135deg, oklch(0.75 0.08 85), oklch(0.65 0.06 60));
-          color: oklch(0.12 0.005 250);
-          font-size: 13px; font-weight: 600; border: none; cursor: pointer;
-        }
+      {/* ===== FLOATING BOTTOM NAV ===== */}
+      {mounted && typeof document !== "undefined" && createPortal(
+        <>
+          <nav
+            aria-label="Primary"
+            data-mode="full"
+            data-collapsed={navCollapsed ? "true" : "false"}
+            className="hp-nav-shell hp-nav-fixed z-[60]"
+          >
+            <div className="flex items-center gap-3">
+              <div className="hp-nav hp-nav-pill flex-1" role="tablist" aria-label="Sections">
+                <NavItem icon={HomeIcon} label="Home" active />
+                <span className="hp-nav-tab" data-hidden={navCollapsed ? "true" : "false"}>
+                  <NavItem icon={History} label="Transactions" onClick={() => handleGatedAction(() => setView("transactions"))} />
+                </span>
+                <span className="hp-nav-tab" data-hidden="false">
+                  <NavItem icon={User} label="Profile" onClick={handleLogout} />
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={launchScan}
+                className="hp-scan-fab"
+                aria-label="Scan to pay"
+                data-launching={scanLaunching ? "true" : "false"}
+              >
+                <ScanLine className="w-6 h-6 text-black" strokeWidth={2.4} aria-hidden="true" />
+              </button>
+            </div>
+          </nav>
+          {scanLaunching && (
+            <div className="hp-scan-launch" aria-hidden="true">
+              <span className="hp-scan-launch-bubble" />
+            </div>
+          )}
+        </>,
+        document.body,
+      )}
 
-        .td-child-card {
-          display: flex; align-items: center; gap: 12px;
-          padding: 14px 16px; border-radius: 16px;
-          background: oklch(0.13 0.005 250);
-          border: 1px solid oklch(0.22 0.005 250);
-        }
-        .td-child-avatar {
-          width: 42px; height: 42px; border-radius: 14px;
-          background: linear-gradient(135deg, oklch(0.45 0.1 250), oklch(0.35 0.08 280));
-          color: oklch(0.9 0.04 250);
-          display: flex; align-items: center; justify-content: center;
-          font-weight: 700; font-size: 16px;
-        }
-        .td-active-badge {
-          font-size: 10px; font-weight: 700; padding: 3px 10px;
-          border-radius: 999px; background: oklch(0.5 0.1 145 / 0.15);
-          color: oklch(0.7 0.1 145); text-transform: uppercase; letter-spacing: 0.05em;
-        }
-
-        .td-control-row {
-          display: flex; align-items: center; gap: 12px;
-          padding: 14px 16px; border-radius: 16px;
-          background: oklch(0.13 0.005 250);
-          border: 1px solid oklch(0.2 0.005 250);
-          cursor: pointer; width: 100%;
-        }
-        .td-control-icon {
-          width: 42px; height: 42px; border-radius: 12px;
-          display: flex; align-items: center; justify-content: center;
-          flex-shrink: 0;
-        }
-
-        .td-amt-debit { color: oklch(0.65 0.08 25); }
-
-        .td-btn-locked {
-          opacity: 0.5; position: relative;
-          border-color: oklch(0.3 0.01 250);
-          color: oklch(0.5 0.01 250);
-        }
-        .td-lock-badge {
-          font-size: 8px; font-weight: 800; padding: 2px 6px;
-          border-radius: 4px; background: oklch(0.65 0.08 25 / 0.2);
-          color: oklch(0.7 0.06 25); text-transform: uppercase;
-          letter-spacing: 0.1em;
-        }
-        .td-row-locked { opacity: 0.5; }
-
-        @media (prefers-reduced-motion: reduce) {
-          .td-family-card, .td-child-card, .td-control-row { transition: none; }
-        }
-      `}</style>
+      <style>{teenExtraStyles}</style>
     </div>
   );
 }
+
+const teenExtraStyles = `
+  .td-link-banner {
+    display: flex; align-items: center; gap: 14px;
+    padding: 16px 18px; border-radius: 18px;
+    background: linear-gradient(135deg, oklch(0.16 0.015 85), oklch(0.12 0.005 250));
+    border: 1px solid oklch(0.82 0.06 85 / 0.2);
+  }
+  .td-link-cta {
+    display: flex; align-items: center; gap: 6px;
+    padding: 8px 16px; border-radius: 12px;
+    background: oklch(0.82 0.06 85 / 0.15);
+    color: oklch(0.82 0.06 85);
+    font-size: 12px; font-weight: 700;
+    border: 1px solid oklch(0.82 0.06 85 / 0.3);
+    cursor: pointer; white-space: nowrap;
+  }
+  .td-link-cta:active { transform: scale(0.96); }
+`;
 
 /* ----- Lazy Inline Wrappers ----- */
 
@@ -555,31 +615,13 @@ function FamilyLinkingInline({ onBack }: { onBack: () => void }) {
   return <Comp onBack={onBack} />;
 }
 
-function NotificationsPanelInline({ onClose }: { onClose: () => void }) {
-  const [Comp, setComp] = useState<React.ComponentType<{ onClose: () => void }> | null>(null);
+function TeenLinkStatusInline({ onBack, onLinked }: { onBack: () => void; onLinked: () => void }) {
+  const [Comp, setComp] = useState<React.ComponentType<{ onBack: () => void; onLinked: () => void }> | null>(null);
   useEffect(() => {
-    import("@/components/NotificationsPanel").then((m) => setComp(() => m.NotificationsPanel));
+    import("@/screens/TeenLinkStatus").then((m) => setComp(() => m.TeenLinkStatus));
   }, []);
   if (!Comp) return <LoadingPlaceholder />;
-  return <Comp onClose={onClose} />;
-}
-
-function ScanPayInline({ onBack }: { onBack: () => void }) {
-  const [Comp, setComp] = useState<React.ComponentType<{ onBack: () => void }> | null>(null);
-  useEffect(() => {
-    import("@/screens/ScanPay").then((m) => setComp(() => m.ScanPay));
-  }, []);
-  if (!Comp) return <LoadingPlaceholder />;
-  return <Comp onBack={onBack} />;
-}
-
-function TxHistoryInline({ onBack }: { onBack: () => void }) {
-  const [Comp, setComp] = useState<React.ComponentType<{ onBack: () => void }> | null>(null);
-  useEffect(() => {
-    import("@/screens/Transactions").then((m) => setComp(() => m.Transactions));
-  }, []);
-  if (!Comp) return <LoadingPlaceholder />;
-  return <Comp onBack={onBack} />;
+  return <Comp onBack={onBack} onLinked={onLinked} />;
 }
 
 function SubScreenInline({ screen, onBack }: { screen: "savings" | "screentime" | "spending" | "rewards"; onBack: () => void }) {
@@ -595,15 +637,6 @@ function SubScreenInline({ screen, onBack }: { screen: "savings" | "screentime" 
   }, [screen]);
   if (!Comp) return <LoadingPlaceholder />;
   return <Comp onBack={onBack} />;
-}
-
-function TeenLinkStatusInline({ onBack, onLinked }: { onBack: () => void; onLinked: () => void }) {
-  const [Comp, setComp] = useState<React.ComponentType<{ onBack: () => void; onLinked: () => void }> | null>(null);
-  useEffect(() => {
-    import("@/screens/TeenLinkStatus").then((m) => setComp(() => m.TeenLinkStatus));
-  }, []);
-  if (!Comp) return <LoadingPlaceholder />;
-  return <Comp onBack={onBack} onLinked={onLinked} />;
 }
 
 function LoadingPlaceholder() {
