@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from "react";
 import {
   Bell, Shield, Users, BarChart3, Clock, Lock, AlertTriangle,
-  ChevronRight, Sparkles, LogOut, QrCode, Copy, Check, Link2, Eye
+  ChevronRight, Sparkles, LogOut, Link2, Eye
 } from "lucide-react";
+import React from "react";
 import { useApp } from "@/lib/store";
 import { supabase } from "@/integrations/supabase/client";
 import { haptics } from "@/lib/haptics";
@@ -18,20 +19,15 @@ interface LinkedChild {
 }
 
 export function ParentDashboard() {
-  const { fullName, userId } = useApp();
+  const { fullName } = useApp();
   const [children, setChildren] = useState<LinkedChild[]>([]);
-  const [inviteCode, setInviteCode] = useState<string | null>(null);
-  const [showInvite, setShowInvite] = useState(false);
-  const [genBusy, setGenBusy] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const [showLinking, setShowLinking] = useState(false);
   const [notifications, setNotifications] = useState(0);
 
   const firstName = fullName?.split(" ")[0] || "there";
 
   const loadData = useCallback(async () => {
-    // Use RPC to safely read linked children (bypasses profile RLS)
     const { data: links } = await supabase.rpc("get_linked_children");
-
     if (links && Array.isArray(links) && links.length > 0) {
       const mapped: LinkedChild[] = links.map((l: Record<string, unknown>) => ({
         id: l.link_id as string,
@@ -42,7 +38,6 @@ export function ParentDashboard() {
       }));
       setChildren(mapped);
     }
-
     const { count } = await supabase
       .from("notifications")
       .select("*", { count: "exact", head: true })
@@ -51,33 +46,6 @@ export function ParentDashboard() {
   }, []);
 
   useEffect(() => { loadData(); }, [loadData]);
-
-  const generateInvite = async () => {
-    haptics.tap();
-    setGenBusy(true);
-    try {
-      const { data, error } = await supabase.rpc("generate_family_invite_code");
-      if (error) throw error;
-      setInviteCode(data as string);
-      setShowInvite(true);
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed to generate code");
-    }
-    setGenBusy(false);
-  };
-
-  const copyCode = async () => {
-    if (!inviteCode) return;
-    haptics.tap();
-    try {
-      await navigator.clipboard.writeText(inviteCode);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-      toast.success("Code copied!");
-    } catch {
-      toast.error("Couldn't copy code");
-    }
-  };
 
   const handleLogout = async () => {
     haptics.tap();
@@ -120,9 +88,8 @@ export function ParentDashboard() {
             <Users className="w-7 h-7" />
           </div>
         </div>
-        <button onClick={generateInvite} disabled={genBusy} className="pd-invite-btn mt-4">
-          <Link2 className="w-4 h-4" />
-          {genBusy ? "Generating…" : "Invite Child"}
+        <button onClick={() => { haptics.tap(); setShowLinking(true); }} className="pd-invite-btn mt-4">
+          <Link2 className="w-4 h-4" /> Invite Child
         </button>
       </div>
 
@@ -134,8 +101,8 @@ export function ParentDashboard() {
             <Users className="w-10 h-10 pd-sub" />
             <p className="text-sm pd-heading mt-3 font-semibold">No children linked yet</p>
             <p className="text-[12px] pd-sub mt-1">Generate an invite code and share it with your child</p>
-            <button onClick={generateInvite} disabled={genBusy} className="pd-cta-btn mt-4">
-              <QrCode className="w-4 h-4" /> Generate Invite Code
+            <button onClick={() => { haptics.tap(); setShowLinking(true); }} className="pd-cta-btn mt-4">
+              <Link2 className="w-4 h-4" /> Link Child Account
             </button>
           </div>
         ) : (
@@ -184,27 +151,10 @@ export function ParentDashboard() {
         </div>
       </div>
 
-      {/* Invite Code Modal */}
-      {showInvite && inviteCode && (
-        <div className="pd-overlay" onClick={() => setShowInvite(false)}>
-          <div className="pd-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="text-center">
-              <div className="pd-qr-placeholder">
-                <QrCode className="w-12 h-12 pd-accent" />
-              </div>
-              <h3 className="text-lg font-bold pd-heading mt-4">Share This Code</h3>
-              <p className="text-sm pd-sub mt-1">Ask your child to enter this code in their Teen Wallet app</p>
-              <div className="pd-code-display mt-4">
-                <span className="pd-code-text">{inviteCode}</span>
-              </div>
-              <button onClick={copyCode} className="pd-copy-btn mt-3">
-                {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                {copied ? "Copied!" : "Copy Code"}
-              </button>
-              <p className="text-[11px] pd-sub mt-3">Code expires in 24 hours</p>
-            </div>
-            <button onClick={() => setShowInvite(false)} className="pd-btn-secondary mt-4 w-full">Done</button>
-          </div>
+      {/* Family Linking Full Screen */}
+      {showLinking && (
+        <div className="fixed inset-0 z-50" style={{ background: "var(--background)" }}>
+          <FamilyLinkingInline onBack={() => { setShowLinking(false); loadData(); }} />
         </div>
       )}
 
@@ -249,7 +199,6 @@ export function ParentDashboard() {
           border: 1px solid oklch(0.82 0.06 85 / 0.25);
           cursor: pointer;
         }
-        .pd-invite-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
         .pd-empty-state {
           display: flex; flex-direction: column; align-items: center;
@@ -265,7 +214,6 @@ export function ParentDashboard() {
           font-size: 13px; font-weight: 600;
           border: none; cursor: pointer;
         }
-        .pd-cta-btn:disabled { opacity: 0.5; }
 
         .pd-child-card {
           display: flex; align-items: center; gap: 12px;
@@ -299,53 +247,19 @@ export function ParentDashboard() {
           flex-shrink: 0;
         }
 
-        .pd-overlay {
-          position: fixed; inset: 0; z-index: 100;
-          background: oklch(0.05 0 0 / 0.85);
-          display: flex; align-items: center; justify-content: center;
-          padding: 24px;
-        }
-        .pd-modal {
-          width: 100%; max-width: 360px;
-          padding: 28px; border-radius: 22px;
-          background: oklch(0.14 0.005 250);
-          border: 1px solid oklch(0.25 0.005 250);
-        }
-        .pd-qr-placeholder {
-          width: 100px; height: 100px; border-radius: 20px;
-          background: oklch(0.1 0.005 250);
-          border: 2px dashed oklch(0.82 0.06 85 / 0.3);
-          display: flex; align-items: center; justify-content: center;
-          margin: 0 auto;
-        }
-        .pd-code-display {
-          padding: 16px; border-radius: 16px;
-          background: oklch(0.1 0.005 250);
-          border: 2px solid oklch(0.82 0.06 85 / 0.3);
-        }
-        .pd-code-text {
-          font-size: 28px; font-weight: 800; letter-spacing: 0.2em;
-          color: oklch(0.92 0.04 85);
-          font-family: monospace;
-        }
-        .pd-copy-btn {
-          display: inline-flex; align-items: center; gap: 6px;
-          padding: 8px 16px; border-radius: 10px;
-          background: oklch(0.82 0.06 85 / 0.12);
-          color: oklch(0.82 0.06 85);
-          font-size: 13px; font-weight: 600;
-          border: none; cursor: pointer;
-        }
-        .pd-btn-secondary {
-          padding: 12px; border-radius: 14px; font-weight: 600; font-size: 14px;
-          background: oklch(0.2 0.005 250);
-          color: oklch(0.7 0.01 250); border: none; cursor: pointer;
-        }
-
         @media (prefers-reduced-motion: reduce) {
           .pd-family-card, .pd-child-card, .pd-control-row { transition: none; }
         }
       `}</style>
     </div>
   );
+}
+
+function FamilyLinkingInline({ onBack }: { onBack: () => void }) {
+  const [Comp, setComp] = useState<React.ComponentType<{ onBack: () => void }> | null>(null);
+  useEffect(() => {
+    import("@/screens/FamilyLinking").then((m) => setComp(() => m.FamilyLinking));
+  }, []);
+  if (!Comp) return <div className="flex-1 flex items-center justify-center" style={{ background: "var(--background)" }}><p style={{ color: "oklch(0.55 0.01 250)" }}>Loading…</p></div>;
+  return <Comp onBack={onBack} />;
 }
