@@ -21,10 +21,8 @@ interface LinkedChild {
 export function ParentDashboard() {
   const { fullName, userId } = useApp();
   const [children, setChildren] = useState<LinkedChild[]>([]);
-  const [inviteCode, setInviteCode] = useState<string | null>(null);
-  const [showInvite, setShowInvite] = useState(false);
-  const [genBusy, setGenBusy] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const [showLinking, setShowLinking] = useState(false);
+  const [notifications, setNotifications] = useState(0);
   const [notifications, setNotifications] = useState(0);
 
   const firstName = fullName?.split(" ")[0] || "there";
