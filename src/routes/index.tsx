@@ -274,7 +274,12 @@ function Index() {
         ) : stage === "STAGE_3" ? (
           <KycFlow onDone={() => setStage("STAGE_4")} />
         ) : stage === "STAGE_4" ? (
-          <KycPending onApproved={() => setStage("STAGE_5")} />
+          <KycPending onApproved={() => {
+            setStage("STAGE_5");
+            if (accountType === "teen") setShowKycCelebration(true);
+          }} />
+        ) : showKycCelebration && accountType === "teen" ? (
+          <KycVerified onContinue={() => setShowKycCelebration(false)} />
         ) : accountType === "teen" ? (
           <TeenDashboard />
         ) : (
