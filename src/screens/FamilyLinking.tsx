@@ -189,9 +189,10 @@ export function FamilyLinking({ onBack }: Props) {
                     value={inviteCode}
                     size={180}
                     bgColor="#ffffff"
-                    fgColor="#1a1a1a"
+                    fgColor="#000000"
                     level="H"
-                    includeMargin
+                    includeMargin={false}
+                    marginSize={4}
                   />
                 </div>
               </div>
