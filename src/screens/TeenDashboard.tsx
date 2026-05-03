@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from "react";
 import {
-  Bell, ScanLine, Wallet, History, Target, Clock, Award, Shield,
-  ChevronRight, Sparkles, User, LogOut, Link2
+  Bell, Shield, Wallet, BarChart3, Clock, Target, Award,
+  ChevronRight, Sparkles, LogOut, Link2, Eye, ScanLine, History
 } from "lucide-react";
+import React from "react";
 import { useApp } from "@/lib/store";
 import { supabase } from "@/integrations/supabase/client";
 import { haptics } from "@/lib/haptics";
@@ -30,41 +31,30 @@ export function TeenDashboard() {
   const [familyLink, setFamilyLink] = useState<FamilyLink | null>(null);
   const [showLinking, setShowLinking] = useState(false);
   const [notifications, setNotifications] = useState(0);
-  const [activePanel, setActivePanel] = useState<"scan" | "history" | "profile" | null>(null);
   const [liveBalance, setLiveBalance] = useState<number>(balance);
 
   const firstName = fullName?.split(" ")[0] || "there";
 
   const loadData = useCallback(async () => {
-    // Hydrate from cache first
     const cachedTxns = offlineCache.get<Transaction[]>("teen_txns");
     if (cachedTxns) setTxns(cachedTxns);
     const cachedBal = offlineCache.get<number>("teen_balance");
     if (cachedBal !== null && cachedBal !== undefined) setLiveBalance(cachedBal);
 
-    // Fetch fresh balance from profile
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("balance")
-      .single();
+    const { data: profile } = await supabase.from("profiles").select("balance").single();
     if (profile) {
       const b = Number(profile.balance);
       setLiveBalance(b);
       offlineCache.set("teen_balance", b);
     }
 
-    // Fetch real transactions for this user
     const { data: t } = await supabase
       .from("transactions")
       .select("id, merchant_name, amount, created_at, status")
       .order("created_at", { ascending: false })
       .limit(10);
-    if (t) {
-      setTxns(t as Transaction[]);
-      offlineCache.set("teen_txns", t);
-    }
+    if (t) { setTxns(t as Transaction[]); offlineCache.set("teen_txns", t); }
 
-    // Check family link
     const { data: fl } = await supabase
       .from("family_links")
       .select("id, parent_user_id, status")
@@ -72,7 +62,6 @@ export function TeenDashboard() {
       .limit(1);
     if (fl && fl.length > 0) setFamilyLink(fl[0] as FamilyLink);
 
-    // Unread notifications count
     const { count } = await supabase
       .from("notifications")
       .select("*", { count: "exact", head: true })
@@ -82,14 +71,12 @@ export function TeenDashboard() {
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  // Subscribe to realtime transaction inserts for live updates
   useEffect(() => {
     const channel = supabase
       .channel("teen_txns_realtime")
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "transactions" }, (payload) => {
         const newTx = payload.new as Transaction;
         setTxns((prev) => [newTx, ...prev].slice(0, 10));
-        // Refresh balance
         supabase.from("profiles").select("balance").single().then(({ data }) => {
           if (data) {
             const b = Number(data.balance);
@@ -123,7 +110,7 @@ export function TeenDashboard() {
 
   return (
     <div className="flex-1 flex flex-col td-root overflow-y-auto">
-      {/* Header */}
+      {/* Header — matches Parent Dashboard */}
       <div className="flex items-center justify-between px-5 pt-6 pb-3">
         <div>
           <p className="text-[11px] font-medium tracking-widest uppercase td-label">
@@ -132,7 +119,7 @@ export function TeenDashboard() {
           <h1 className="text-xl font-bold td-heading mt-0.5">Hey, {firstName}! 👋</h1>
         </div>
         <div className="flex gap-2">
-          <button onClick={() => { haptics.tap(); }} className="td-icon-btn relative">
+          <button onClick={() => haptics.tap()} className="td-icon-btn relative">
             <Bell className="w-5 h-5" />
             {notifications > 0 && (
               <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 text-[9px] text-white flex items-center justify-center font-bold">{notifications > 9 ? "9+" : notifications}</span>
@@ -142,68 +129,86 @@ export function TeenDashboard() {
         </div>
       </div>
 
-      {/* Balance Card */}
-      <div className="mx-5 mt-2 td-balance-card">
-        <p className="text-[11px] font-medium tracking-wider uppercase td-balance-label">Available Balance</p>
-        <p className="text-3xl font-bold mt-1 td-balance-amt">{formatAmt(liveBalance)}</p>
+      {/* Balance Overview Card — same layout as Parent's Family Overview Card */}
+      <div className="mx-5 mt-2 td-family-card">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-[11px] font-medium tracking-wider uppercase td-family-label">Available Balance</p>
+            <p className="text-2xl font-bold mt-1 td-family-count">{formatAmt(liveBalance)}</p>
+          </div>
+          <div className="td-family-icon">
+            <Wallet className="w-7 h-7" />
+          </div>
+        </div>
         <div className="flex gap-2 mt-4">
-          <button onClick={() => { haptics.tap(); setActivePanel("scan"); }} className="td-action-chip">
+          <button onClick={() => haptics.tap()} className="td-invite-btn flex-1">
             <ScanLine className="w-4 h-4" /> Scan & Pay
           </button>
-          <button onClick={() => { haptics.tap(); setActivePanel("history"); }} className="td-action-chip">
+          <button onClick={() => haptics.tap()} className="td-invite-btn flex-1">
             <History className="w-4 h-4" /> History
           </button>
         </div>
       </div>
 
-      {/* Family Status */}
-      <div className="mx-5 mt-4">
+      {/* Parent Link Status — mirrors Parent's "Linked Children" section */}
+      <div className="mx-5 mt-5">
+        <p className="text-[11px] font-medium tracking-widest uppercase td-label mb-3">Family Connection</p>
         {familyLink ? (
-          <div className="td-status-card td-status-linked">
-            <Shield className="w-5 h-5 td-accent" />
-            <div className="flex-1">
+          <div className="td-child-card">
+            <div className="td-child-avatar">
+              <Shield className="w-5 h-5" />
+            </div>
+            <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold td-heading">Parent Connected</p>
               <p className="text-[11px] td-sub">Your account is supervised</p>
             </div>
-            <span className="td-status-badge">Active</span>
+            <div className="flex items-center gap-2">
+              <span className="td-active-badge">Active</span>
+              <ChevronRight className="w-4 h-4 td-chevron" />
+            </div>
           </div>
         ) : (
-          <button onClick={() => { haptics.tap(); setShowLinking(true); }} className="td-status-card td-status-unlinked w-full text-left">
-            <Link2 className="w-5 h-5 td-accent" />
-            <div className="flex-1">
-              <p className="text-sm font-semibold td-heading">Link with Parent</p>
-              <p className="text-[11px] td-sub">Enter your parent's invite code</p>
-            </div>
-            <ChevronRight className="w-4 h-4 td-chevron" />
-          </button>
+          <div className="td-empty-state">
+            <Shield className="w-10 h-10 td-sub" />
+            <p className="text-sm td-heading mt-3 font-semibold">No parent linked yet</p>
+            <p className="text-[12px] td-sub mt-1">Ask your parent to share their invite code</p>
+            <button onClick={() => { haptics.tap(); setShowLinking(true); }} className="td-cta-btn mt-4">
+              <Link2 className="w-4 h-4" /> Link Parent Account
+            </button>
+          </div>
         )}
       </div>
 
-      {/* Quick Actions Grid */}
+      {/* Controls — same structure as Parent Dashboard controls */}
       <div className="mx-5 mt-5">
         <p className="text-[11px] font-medium tracking-widest uppercase td-label mb-3">Quick Actions</p>
-        <div className="grid grid-cols-4 gap-3">
+        <div className="flex flex-col gap-2">
           {[
-            { icon: Target, label: "Goals", color: "#6366f1" },
-            { icon: Clock, label: "Timer", color: "#f59e0b" },
-            { icon: Award, label: "Rewards", color: "#10b981" },
-            { icon: Wallet, label: "Savings", color: "#8b5cf6" },
-          ].map(({ icon: Icon, label, color }) => (
-            <button key={label} onClick={() => haptics.tap()} className="td-quick-action">
-              <div className="td-qa-icon" style={{ background: `${color}20`, color }}>
+            { icon: Target, label: "Savings Goals", desc: "Set & track your targets", color: "#6366f1" },
+            { icon: Clock, label: "Screen Time", desc: "View your daily usage", color: "#f59e0b" },
+            { icon: BarChart3, label: "Spending Insights", desc: "Weekly breakdowns", color: "#10b981" },
+            { icon: Award, label: "Rewards & Cashback", desc: "Earn while you spend", color: "#ef4444" },
+            { icon: Eye, label: "Transaction History", desc: "Full activity log", color: "#8b5cf6" },
+          ].map(({ icon: Icon, label, desc, color }) => (
+            <button key={label} onClick={() => haptics.tap()} className="td-control-row">
+              <div className="td-control-icon" style={{ background: `${color}15`, color }}>
                 <Icon className="w-5 h-5" />
               </div>
-              <span className="text-[11px] mt-1.5 td-qa-label">{label}</span>
+              <div className="flex-1 text-left">
+                <p className="text-sm font-medium td-heading">{label}</p>
+                <p className="text-[11px] td-sub">{desc}</p>
+              </div>
+              <ChevronRight className="w-4 h-4 td-chevron" />
             </button>
           ))}
         </div>
       </div>
 
-      {/* Recent Transactions */}
+      {/* Recent Activity — same card-row style */}
       <div className="mx-5 mt-5 mb-6">
         <div className="flex items-center justify-between mb-3">
           <p className="text-[11px] font-medium tracking-widest uppercase td-label">Recent Activity</p>
-          <button onClick={() => { haptics.tap(); setActivePanel("history"); }} className="text-[11px] td-accent font-medium">See All</button>
+          <button onClick={() => haptics.tap()} className="text-[11px] td-accent-text font-medium">See All</button>
         </div>
         {txns.length === 0 ? (
           <div className="td-empty-state">
@@ -213,10 +218,12 @@ export function TeenDashboard() {
         ) : (
           <div className="flex flex-col gap-2">
             {txns.map((tx) => (
-              <div key={tx.id} className="td-txn-row">
-                <div className="td-txn-icon"><Wallet className="w-4 h-4" /></div>
+              <div key={tx.id} className="td-child-card">
+                <div className="td-child-avatar" style={{ background: "oklch(0.2 0.005 250)" }}>
+                  <Wallet className="w-4 h-4" style={{ color: "oklch(0.6 0.01 250)" }} />
+                </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium td-heading truncate">{tx.merchant_name}</p>
+                  <p className="text-sm font-semibold td-heading truncate">{tx.merchant_name}</p>
                   <p className="text-[11px] td-sub">{timeAgo(tx.created_at)}</p>
                 </div>
                 <p className="text-sm font-semibold td-amt-debit">-{formatAmt(tx.amount)}</p>
@@ -226,7 +233,7 @@ export function TeenDashboard() {
         )}
       </div>
 
-      {/* Linking Screen */}
+      {/* Family Linking Full Screen */}
       {showLinking && (
         <div className="fixed inset-0 z-50" style={{ background: "var(--background)" }}>
           <FamilyLinkingInline onBack={() => { setShowLinking(false); loadData(); }} />
@@ -238,8 +245,8 @@ export function TeenDashboard() {
         .td-label { color: oklch(0.82 0.06 85); }
         .td-heading { color: var(--foreground); }
         .td-sub { color: oklch(0.55 0.01 250); }
-        .td-accent { color: oklch(0.82 0.06 85); }
-        .td-chevron { color: oklch(0.4 0.01 250); }
+        .td-accent-text { color: oklch(0.82 0.06 85); }
+        .td-chevron { color: oklch(0.35 0.01 250); }
 
         .td-icon-btn {
           width: 40px; height: 40px; border-radius: 14px;
@@ -249,82 +256,88 @@ export function TeenDashboard() {
           color: oklch(0.7 0.01 250);
         }
 
-        .td-balance-card {
+        .td-family-card {
           padding: 20px;
           border-radius: 22px;
-          background: linear-gradient(135deg, oklch(0.18 0.02 85 / 0.8), oklch(0.14 0.01 250));
+          background: linear-gradient(135deg, oklch(0.16 0.015 85), oklch(0.12 0.005 250));
           border: 1px solid oklch(0.82 0.06 85 / 0.2);
-          box-shadow: 0 8px 32px -8px oklch(0.82 0.06 85 / 0.1);
+          box-shadow: 0 8px 32px -8px oklch(0.82 0.06 85 / 0.08);
         }
-        .td-balance-label { color: oklch(0.65 0.03 85); }
-        .td-balance-amt { color: oklch(0.92 0.04 85); }
-
-        .td-action-chip {
-          display: flex; align-items: center; gap: 6px;
-          padding: 8px 14px; border-radius: 12px;
+        .td-family-label { color: oklch(0.65 0.03 85); }
+        .td-family-count { color: oklch(0.92 0.04 85); }
+        .td-family-icon {
+          width: 52px; height: 52px; border-radius: 16px;
           background: oklch(0.82 0.06 85 / 0.12);
           color: oklch(0.82 0.06 85);
+          display: flex; align-items: center; justify-content: center;
+        }
+        .td-invite-btn {
+          display: flex; align-items: center; justify-content: center; gap: 8px;
+          padding: 11px; border-radius: 14px;
+          background: oklch(0.82 0.06 85 / 0.12);
+          color: oklch(0.82 0.06 85);
+          font-size: 13px; font-weight: 600;
+          border: 1px solid oklch(0.82 0.06 85 / 0.25);
+          cursor: pointer;
+        }
+
+        .td-empty-state {
+          display: flex; flex-direction: column; align-items: center;
+          padding: 32px 24px; border-radius: 18px;
+          background: oklch(0.12 0.005 250);
+          border: 1.5px dashed oklch(0.25 0.005 250);
+        }
+        .td-cta-btn {
+          display: flex; align-items: center; gap: 8px;
+          padding: 10px 20px; border-radius: 12px;
+          background: linear-gradient(135deg, oklch(0.75 0.08 85), oklch(0.65 0.06 60));
+          color: oklch(0.12 0.005 250);
           font-size: 13px; font-weight: 600;
           border: none; cursor: pointer;
         }
 
-        .td-status-card {
+        .td-child-card {
           display: flex; align-items: center; gap: 12px;
           padding: 14px 16px; border-radius: 16px;
-          border: 1px solid oklch(0.22 0.005 250);
           background: oklch(0.13 0.005 250);
+          border: 1px solid oklch(0.22 0.005 250);
         }
-        .td-status-linked { border-color: oklch(0.5 0.1 145 / 0.3); }
-        .td-status-unlinked { cursor: pointer; }
-        .td-status-badge {
+        .td-child-avatar {
+          width: 42px; height: 42px; border-radius: 14px;
+          background: linear-gradient(135deg, oklch(0.45 0.1 250), oklch(0.35 0.08 280));
+          color: oklch(0.9 0.04 250);
+          display: flex; align-items: center; justify-content: center;
+          font-weight: 700; font-size: 16px;
+        }
+        .td-active-badge {
           font-size: 10px; font-weight: 700; padding: 3px 10px;
           border-radius: 999px; background: oklch(0.5 0.1 145 / 0.15);
           color: oklch(0.7 0.1 145); text-transform: uppercase; letter-spacing: 0.05em;
         }
 
-        .td-quick-action {
-          display: flex; flex-direction: column; align-items: center;
-          padding: 12px 4px; border-radius: 16px;
-          background: oklch(0.13 0.005 250);
-          border: 1px solid oklch(0.2 0.005 250);
-          cursor: pointer;
-        }
-        .td-qa-icon {
-          width: 44px; height: 44px; border-radius: 14px;
-          display: flex; align-items: center; justify-content: center;
-        }
-        .td-qa-label { color: oklch(0.65 0.01 250); font-weight: 500; }
-
-        .td-txn-row {
+        .td-control-row {
           display: flex; align-items: center; gap: 12px;
-          padding: 12px 14px; border-radius: 14px;
+          padding: 14px 16px; border-radius: 16px;
           background: oklch(0.13 0.005 250);
           border: 1px solid oklch(0.2 0.005 250);
+          cursor: pointer; width: 100%;
         }
-        .td-txn-icon {
-          width: 36px; height: 36px; border-radius: 10px;
-          background: oklch(0.2 0.005 250);
+        .td-control-icon {
+          width: 42px; height: 42px; border-radius: 12px;
           display: flex; align-items: center; justify-content: center;
-          color: oklch(0.6 0.01 250);
+          flex-shrink: 0;
         }
+
         .td-amt-debit { color: oklch(0.65 0.08 25); }
 
-        .td-empty-state {
-          display: flex; flex-direction: column; align-items: center;
-          padding: 28px; border-radius: 16px;
-          background: oklch(0.12 0.005 250);
-          border: 1px dashed oklch(0.22 0.005 250);
-        }
-
         @media (prefers-reduced-motion: reduce) {
-          .td-balance-card, .td-status-card, .td-quick-action, .td-txn-row { transition: none; }
+          .td-family-card, .td-child-card, .td-control-row { transition: none; }
         }
       `}</style>
     </div>
   );
 }
 
-// Inline wrapper that lazy-loads the full FamilyLinking screen
 function FamilyLinkingInline({ onBack }: { onBack: () => void }) {
   const [Comp, setComp] = useState<React.ComponentType<{ onBack: () => void }> | null>(null);
   useEffect(() => {
