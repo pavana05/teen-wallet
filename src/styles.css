@@ -9988,7 +9988,28 @@ html.motion-off    .otp-resend-ring svg circle { transition: none !important; }
   color: rgba(255,255,255,.85);
 }
 
-/* Day group + rows */
+/* Payment type pills */
+.tx-type-pill {
+  padding: 6px 14px; border-radius: 999px;
+  font-size: 12px; font-weight: 600;
+  color: rgba(255,255,255,.55);
+  background: rgba(255,255,255,.06);
+  border: 1px solid rgba(255,255,255,.08);
+  cursor: pointer;
+  transition: transform 120ms ease, background 150ms ease, color 150ms ease;
+}
+.tx-type-pill:hover { color: rgba(255,255,255,.8); }
+.tx-type-pill:active { transform: scale(0.96); }
+.tx-type-on {
+  background: linear-gradient(135deg, oklch(0.75 0.08 85), oklch(0.65 0.06 60));
+  color: oklch(0.12 0.005 250);
+  border-color: transparent;
+}
+.tx-type-pill:focus-visible {
+  outline: 2px solid oklch(0.82 0.06 85);
+  outline-offset: 2px;
+}
+
 .tx-day {
   font-size: 10.5px; letter-spacing: .22em; text-transform: uppercase;
   color: rgba(255,255,255,.5); font-weight: 700;
