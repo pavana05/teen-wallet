@@ -20,6 +20,7 @@ interface Txn {
 }
 
 type FilterKind = "all" | "pending" | "complete" | "failed";
+type PaymentTypeFilter = "all" | "upi" | "refunds";
 
 interface Props {
   onBack: () => void;
