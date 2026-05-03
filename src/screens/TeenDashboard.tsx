@@ -278,20 +278,28 @@ export function TeenDashboard() {
           </div>
         </div>
         <div className="flex gap-2 mt-4">
-          <button
-            onClick={() => handleGatedAction("scanpay")}
-            className={`td-invite-btn flex-1 ${!kycApproved ? "td-btn-locked" : ""}`}
-          >
-            <ScanLine className="w-4 h-4" /> Scan & Pay
-            {!kycApproved && <span className="td-lock-badge">KYC</span>}
-          </button>
-          <button
-            onClick={() => handleGatedAction("txhistory")}
-            className={`td-invite-btn flex-1 ${!kycApproved ? "td-btn-locked" : ""}`}
-          >
-            <History className="w-4 h-4" /> History
-            {!kycApproved && <span className="td-lock-badge">KYC</span>}
-          </button>
+          {(() => {
+            const locked = !kycApproved || (!isLinked && !linkLoading);
+            const lockLabel = !kycApproved ? "KYC" : !isLinked ? "LINK" : "";
+            return (
+              <>
+                <button
+                  onClick={() => handleGatedAction("scanpay")}
+                  className={`td-invite-btn flex-1 ${locked ? "td-btn-locked" : ""}`}
+                >
+                  <ScanLine className="w-4 h-4" /> Scan & Pay
+                  {locked && <span className="td-lock-badge">{lockLabel}</span>}
+                </button>
+                <button
+                  onClick={() => handleGatedAction("txhistory")}
+                  className={`td-invite-btn flex-1 ${locked ? "td-btn-locked" : ""}`}
+                >
+                  <History className="w-4 h-4" /> History
+                  {locked && <span className="td-lock-badge">{lockLabel}</span>}
+                </button>
+              </>
+            );
+          })()}
         </div>
       </div>
 
