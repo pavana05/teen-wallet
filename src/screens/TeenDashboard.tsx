@@ -26,7 +26,7 @@ interface FamilyLink {
   status: string;
 }
 
-type SubScreen = "savings" | "screentime" | "spending" | "rewards" | "txhistory" | "scanpay" | "notifications" | "linking" | null;
+type SubScreen = "savings" | "screentime" | "spending" | "rewards" | "txhistory" | "scanpay" | "notifications" | "linking" | "linkstatus" | null;
 
 export function TeenDashboard() {
   const { fullName, balance, userId } = useApp();
@@ -86,6 +86,60 @@ export function TeenDashboard() {
 
   useEffect(() => { loadData(); }, [loadData]);
 
+  // Poll for family link acceptance — stop immediately when found
+  useEffect(() => {
+    if (familyLink) return; // already linked, no polling needed
+    const poll = setInterval(async () => {
+      const { data: fl } = await supabase
+        .from("family_links")
+        .select("id, parent_user_id, status")
+        .eq("status", "active")
+        .limit(1);
+      if (fl && fl.length > 0) {
+        setFamilyLink(fl[0] as FamilyLink);
+        setLinkLoading(false);
+        offlineCache.set("teen_family_linked", true);
+        // Persist to profile
+        supabase.auth.getUser().then(({ data }) => {
+          if (data?.user?.id) {
+            supabase.from("profiles").update({ family_link_status: "accepted" as any }).eq("id", data.user.id);
+          }
+        });
+        haptics.press();
+        toast.success("Parent linked! 🎉", { description: "All wallet features are now unlocked." });
+      }
+    }, 4000);
+    return () => clearInterval(poll);
+  }, [familyLink]);
+
+  // Hydrate family_link_status from profile for instant gating on refresh
+  useEffect(() => {
+    const hydrate = async () => {
+      const { data } = await supabase.from("profiles").select("family_link_status").single();
+      if (data && (data as any).family_link_status === "accepted" && !familyLink) {
+        // Profile says accepted — load the actual link
+        const { data: fl } = await supabase
+          .from("family_links")
+          .select("id, parent_user_id, status")
+          .eq("status", "active")
+          .limit(1);
+        if (fl && fl.length > 0) {
+          setFamilyLink(fl[0] as FamilyLink);
+          offlineCache.set("teen_family_linked", true);
+        }
+        setLinkLoading(false);
+      }
+    };
+    hydrate();
+  }, []);
+
+  // Cache linking state for instant resume after refresh
+  useEffect(() => {
+    if (familyLink) {
+      offlineCache.set("teen_family_linked", true);
+    }
+  }, [familyLink]);
+
   // Realtime: transactions + notifications
   useEffect(() => {
     const txnChannel = supabase
@@ -109,7 +163,6 @@ export function TeenDashboard() {
         setNotifications((prev) => prev + 1);
       })
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "notifications" }, () => {
-        // Re-count unread on any update
         supabase.from("notifications").select("*", { count: "exact", head: true }).eq("read", false)
           .then(({ count }) => setNotifications(count ?? 0));
       })
@@ -142,21 +195,6 @@ export function TeenDashboard() {
 
   const kycApproved = kycStatus === "approved";
   const isLinked = !!familyLink;
-
-  // Cache linking state for instant resume after refresh
-  useEffect(() => {
-    if (familyLink) {
-      offlineCache.set("teen_family_linked", true);
-    }
-  }, [familyLink]);
-
-  // Hydrate cached link status on mount for instant UI
-  useEffect(() => {
-    const cached = offlineCache.get<boolean>("teen_family_linked");
-    if (cached && !familyLink && linkLoading) {
-      // We have a cached positive — don't block UI while loading
-    }
-  }, [familyLink, linkLoading]);
 
   const handleGatedAction = (screen: SubScreen) => {
     if (!kycApproved) {
@@ -191,6 +229,13 @@ export function TeenDashboard() {
     return (
       <div className="fixed inset-0 z-50" style={{ background: "var(--background)" }}>
         <FamilyLinkingInline onBack={() => { setActiveScreen(null); loadData(); }} />
+      </div>
+    );
+  }
+  if (activeScreen === "linkstatus") {
+    return (
+      <div className="fixed inset-0 z-50" style={{ background: "var(--background)" }}>
+        <TeenLinkStatusInline onBack={() => setActiveScreen(null)} onLinked={() => { setActiveScreen(null); loadData(); }} />
       </div>
     );
   }
@@ -330,9 +375,14 @@ export function TeenDashboard() {
             <Shield className="w-10 h-10 td-sub" />
             <p className="text-sm td-heading mt-3 font-semibold">No parent linked yet</p>
             <p className="text-[12px] td-sub mt-1">Ask your parent to share their invite code</p>
-            <button onClick={() => { haptics.tap(); setActiveScreen("linking"); }} className="td-cta-btn mt-4">
-              <Link2 className="w-4 h-4" /> Link Parent Account
-            </button>
+            <div className="flex gap-2 mt-4">
+              <button onClick={() => { haptics.tap(); setActiveScreen("linking"); }} className="td-cta-btn">
+                <Link2 className="w-4 h-4" /> Enter Code
+              </button>
+              <button onClick={() => { haptics.tap(); setActiveScreen("linkstatus"); }} className="td-cta-btn" style={{ background: "oklch(0.82 0.06 85 / 0.12)", color: "oklch(0.82 0.06 85)" }}>
+                <Eye className="w-4 h-4" /> Check Status
+              </button>
+            </div>
           </div>
         )}
       </div>
@@ -545,6 +595,15 @@ function SubScreenInline({ screen, onBack }: { screen: "savings" | "screentime" 
   }, [screen]);
   if (!Comp) return <LoadingPlaceholder />;
   return <Comp onBack={onBack} />;
+}
+
+function TeenLinkStatusInline({ onBack, onLinked }: { onBack: () => void; onLinked: () => void }) {
+  const [Comp, setComp] = useState<React.ComponentType<{ onBack: () => void; onLinked: () => void }> | null>(null);
+  useEffect(() => {
+    import("@/screens/TeenLinkStatus").then((m) => setComp(() => m.TeenLinkStatus));
+  }, []);
+  if (!Comp) return <LoadingPlaceholder />;
+  return <Comp onBack={onBack} onLinked={onLinked} />;
 }
 
 function LoadingPlaceholder() {

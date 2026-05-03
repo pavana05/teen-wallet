@@ -973,6 +973,7 @@ export type Database = {
           created_at: string
           dob: string | null
           email: string | null
+          family_link_status: Database["public"]["Enums"]["family_link_stage"]
           full_name: string | null
           gender: string | null
           google_email: string | null
@@ -1000,6 +1001,7 @@ export type Database = {
           created_at?: string
           dob?: string | null
           email?: string | null
+          family_link_status?: Database["public"]["Enums"]["family_link_stage"]
           full_name?: string | null
           gender?: string | null
           google_email?: string | null
@@ -1027,6 +1029,7 @@ export type Database = {
           created_at?: string
           dob?: string | null
           email?: string | null
+          family_link_status?: Database["public"]["Enums"]["family_link_stage"]
           full_name?: string | null
           gender?: string | null
           google_email?: string | null
@@ -1320,6 +1323,7 @@ export type Database = {
         | "customer_support"
         | "fraud_analyst"
         | "finance_manager"
+      family_link_stage: "none" | "waiting" | "accepted"
       issue_priority: "low" | "normal" | "high" | "urgent"
       kyc_status: "not_started" | "pending" | "approved" | "rejected"
       onboarding_stage:
@@ -1474,6 +1478,7 @@ export const Constants = {
         "fraud_analyst",
         "finance_manager",
       ],
+      family_link_stage: ["none", "waiting", "accepted"],
       issue_priority: ["low", "normal", "high", "urgent"],
       kyc_status: ["not_started", "pending", "approved", "rejected"],
       onboarding_stage: [
