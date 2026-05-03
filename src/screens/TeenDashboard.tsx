@@ -169,7 +169,7 @@ export function TeenDashboard() {
     });
   }, []);
 
-
+  useEffect(() => { setMounted(true); }, []);
 
   const firstName = fullName?.split(" ")[0] || "there";
   const scanHero = useAppImage("home.scan_hero", heroScan, "Scan and pay");
