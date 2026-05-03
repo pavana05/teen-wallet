@@ -418,6 +418,24 @@ function SegBtn({
   );
 }
 
+function TypePill({
+  children, active, onClick,
+}: {
+  children: React.ReactNode; active: boolean; onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      role="tab"
+      aria-selected={active}
+      onClick={onClick}
+      className={`tx-type-pill ${active ? "tx-type-on" : ""}`}
+    >
+      {children}
+    </button>
+  );
+}
+
 function TxnRowPremium({
   txn, credit, balanceAfter, first, last, onOpen,
 }: {
