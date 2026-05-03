@@ -3,6 +3,7 @@ import {
   Bell, Shield, Users, BarChart3, Clock, Lock, AlertTriangle,
   ChevronRight, Sparkles, LogOut, QrCode, Copy, Check, Link2, Eye
 } from "lucide-react";
+import React from "react";
 import { useApp } from "@/lib/store";
 import { supabase } from "@/integrations/supabase/client";
 import { haptics } from "@/lib/haptics";
