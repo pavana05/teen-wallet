@@ -283,24 +283,15 @@ export function TeenDashboard() {
       });
       return;
     }
-    if (!isLinked && !linkLoading) {
-      haptics.tap();
-      toast.error("Link a parent account first", {
-        description: "Your parent must be connected before you can use wallet features.",
-        duration: 4000,
-      });
-      return;
-    }
     action();
   };
 
   const getLockLabel = () => {
     if (!kycApproved) return "KYC";
-    if (!isLinked && !linkLoading) return "LINK";
     return undefined;
   };
 
-  const isGated = !kycApproved || (!isLinked && !linkLoading);
+  const isGated = !kycApproved;
 
   // Pull to refresh
   const onTouchStart = (e: React.TouchEvent) => {
