@@ -360,8 +360,14 @@ export function TeenDashboard() {
       </div>
     );
   }
+  if (activeScreen === "haptics") {
+    return (
+      <div className="fixed inset-0 z-50" style={{ background: "var(--background)" }}>
+        <HapticsSettingsInline onBack={() => setActiveScreen(null)} />
+      </div>
+    );
+  }
 
-  return (
     <div
       ref={scrollerRef}
       onTouchStart={onTouchStart}
