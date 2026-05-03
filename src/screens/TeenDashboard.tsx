@@ -368,6 +368,7 @@ export function TeenDashboard() {
     );
   }
 
+  return (
     <div
       ref={scrollerRef}
       onTouchStart={onTouchStart}
