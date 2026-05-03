@@ -256,11 +256,19 @@ export function TeenDashboard() {
           </div>
         </div>
         <div className="flex gap-2 mt-4">
-          <button onClick={() => { haptics.tap(); setActiveScreen("scanpay"); }} className="td-invite-btn flex-1">
+          <button
+            onClick={() => handleKycGatedAction("scanpay")}
+            className={`td-invite-btn flex-1 ${!kycApproved ? "td-btn-locked" : ""}`}
+          >
             <ScanLine className="w-4 h-4" /> Scan & Pay
+            {!kycApproved && <span className="td-lock-badge">KYC</span>}
           </button>
-          <button onClick={() => { haptics.tap(); setActiveScreen("txhistory"); }} className="td-invite-btn flex-1">
+          <button
+            onClick={() => handleKycGatedAction("txhistory")}
+            className={`td-invite-btn flex-1 ${!kycApproved ? "td-btn-locked" : ""}`}
+          >
             <History className="w-4 h-4" /> History
+            {!kycApproved && <span className="td-lock-badge">KYC</span>}
           </button>
         </div>
       </div>
