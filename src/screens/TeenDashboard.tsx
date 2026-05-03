@@ -592,6 +592,15 @@ function SubScreenInline({ screen, onBack }: { screen: "savings" | "screentime" 
   return <Comp onBack={onBack} />;
 }
 
+function TeenLinkStatusInline({ onBack, onLinked }: { onBack: () => void; onLinked: () => void }) {
+  const [Comp, setComp] = useState<React.ComponentType<{ onBack: () => void; onLinked: () => void }> | null>(null);
+  useEffect(() => {
+    import("@/screens/TeenLinkStatus").then((m) => setComp(() => m.TeenLinkStatus));
+  }, []);
+  if (!Comp) return <LoadingPlaceholder />;
+  return <Comp onBack={onBack} onLinked={onLinked} />;
+}
+
 function LoadingPlaceholder() {
   return (
     <div className="flex-1 flex items-center justify-center" style={{ background: "var(--background)" }}>
