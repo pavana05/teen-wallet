@@ -311,8 +311,10 @@ export function TeenDashboard() {
       <div className="mx-5 mt-5">
         <p className="text-[11px] font-medium tracking-widest uppercase td-label mb-3">Quick Actions</p>
         <div className="flex flex-col gap-2">
-          {CONTROLS.map(({ icon: Icon, label, desc, color, screen }) => (
-            <button key={label} onClick={() => { haptics.tap(); setActiveScreen(screen); }} className="td-control-row">
+          {CONTROLS.map(({ icon: Icon, label, desc, color, screen }) => {
+            const isGated = (screen === "txhistory" || screen === "scanpay") && !kycApproved;
+            return (
+            <button key={label} onClick={() => { isGated ? handleKycGatedAction(screen) : (() => { haptics.tap(); setActiveScreen(screen); })(); }} className={`td-control-row ${isGated ? "td-row-locked" : ""}`}>
               <div className="td-control-icon" style={{ background: `${color}15`, color }}>
                 <Icon className="w-5 h-5" />
               </div>
