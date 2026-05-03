@@ -143,12 +143,36 @@ export function TeenDashboard() {
   const isLinked = !!familyLink;
 
   const kycApproved = kycStatus === "approved";
+  const isLinked = !!familyLink;
 
-  const handleKycGatedAction = (screen: SubScreen) => {
+  // Cache linking state for instant resume after refresh
+  useEffect(() => {
+    if (familyLink) {
+      offlineCache.set("teen_family_linked", true);
+    }
+  }, [familyLink]);
+
+  // Hydrate cached link status on mount for instant UI
+  useEffect(() => {
+    const cached = offlineCache.get<boolean>("teen_family_linked");
+    if (cached && !familyLink && linkLoading) {
+      // We have a cached positive — don't block UI while loading
+    }
+  }, [familyLink, linkLoading]);
+
+  const handleGatedAction = (screen: SubScreen) => {
     if (!kycApproved) {
       haptics.tap();
       toast.error("Complete Aadhaar KYC to unlock this feature", {
         description: "Your identity must be verified before using Scan & Pay or viewing transactions.",
+        duration: 4000,
+      });
+      return;
+    }
+    if (!isLinked && !linkLoading) {
+      haptics.tap();
+      toast.error("Link a parent account first", {
+        description: "Your parent must be connected before you can use wallet features.",
         duration: 4000,
       });
       return;
