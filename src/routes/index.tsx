@@ -125,6 +125,9 @@ function Index() {
   const [referralPending, setReferralPending] = useState<boolean>(() => shouldShowReferralPrompt());
   const markReferralDone = () => setReferralPending(false);
 
+  // KYC celebration screen shown once when teen transitions STAGE_4 → STAGE_5
+  const [showKycCelebration, setShowKycCelebration] = useState(false);
+
   // Mandatory Google-link step for fresh signups. Set by lib/auth.ts on
   // signUp() success; cleared once the user completes linking.
   const [needsGoogleLink, setNeedsGoogleLink] = useState<boolean>(() => {
