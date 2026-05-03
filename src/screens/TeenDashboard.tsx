@@ -443,6 +443,19 @@ export function TeenDashboard() {
 
         .td-amt-debit { color: oklch(0.65 0.08 25); }
 
+        .td-btn-locked {
+          opacity: 0.5; position: relative;
+          border-color: oklch(0.3 0.01 250);
+          color: oklch(0.5 0.01 250);
+        }
+        .td-lock-badge {
+          font-size: 8px; font-weight: 800; padding: 2px 6px;
+          border-radius: 4px; background: oklch(0.65 0.08 25 / 0.2);
+          color: oklch(0.7 0.06 25); text-transform: uppercase;
+          letter-spacing: 0.1em;
+        }
+        .td-row-locked { opacity: 0.5; }
+
         @media (prefers-reduced-motion: reduce) {
           .td-family-card, .td-child-card, .td-control-row { transition: none; }
         }
