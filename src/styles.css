@@ -5718,15 +5718,16 @@ button:focus-visible .hp-tile{
 .pp-bigstat:hover .pp-bigstat-shine { transform: translateX(120%); }
 
 .pp-bigstat-icon {
-  width: 30px; height: 30px;
-  border-radius: 10px;
+  width: 34px; height: 34px;
+  border-radius: 11px;
   display: inline-flex; align-items: center; justify-content: center;
   flex-shrink: 0;
-  border: 1px solid rgba(255,255,255,.20);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.18);
+  border: 1px solid rgba(255,255,255,.22);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.20), 0 2px 6px rgba(0,0,0,.25);
 }
-.pp-bigstat-icon-orange { background: rgba(0,0,0,.25); }
-.pp-bigstat-icon-green { background: rgba(0,0,0,.25); }
+.pp-bigstat-icon svg { display: block; }
+.pp-bigstat-icon-orange { background: rgba(0,0,0,.28); }
+.pp-bigstat-icon-green { background: rgba(0,0,0,.28); }
 
 /* ============================================================
  * Group labels (UPI / Shop / Recharges & Bills / Others)
