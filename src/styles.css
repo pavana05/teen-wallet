@@ -5573,51 +5573,7 @@ button:focus-visible .hp-tile{
   text-shadow: 0 1px 0 rgba(255,255,255,.25);
 }
 
-/* ============================================================
- * Profile Panel — Hero v3 (phone-centric premium card)
- * ============================================================ */
-
-.pp-hero-v3 {
-  position: relative;
-  padding: 18px 18px 18px;
-  border-radius: 26px;
-  background:
-    radial-gradient(120% 70% at 50% -10%, rgba(255,255,255,.10), transparent 55%),
-    radial-gradient(80% 60% at 100% 100%, rgba(168,85,247,.10), transparent 60%),
-    linear-gradient(180deg, rgba(28,28,32,.92), rgba(14,14,16,.92));
-  border: 1px solid rgba(255,255,255,.10);
-  box-shadow:
-    0 24px 60px -28px rgba(0,0,0,.85),
-    inset 0 1px 0 rgba(255,255,255,.07);
-  overflow: hidden;
-}
-
-.pp-hero-topglow {
-  position: absolute;
-  top: -40px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 70%;
-  height: 110px;
-  background: radial-gradient(ellipse at center, rgba(255,255,255,.18), transparent 70%);
-  pointer-events: none;
-  filter: blur(8px);
-}
-
-.pp-hero-phone {
-  font-size: 18px;
-  font-weight: 700;
-  color: white;
-  letter-spacing: -0.01em;
-  text-shadow: 0 1px 0 rgba(0,0,0,.4);
-}
-
-.pp-hero-since {
-  font-size: 10.5px;
-  color: rgba(255,255,255,.5);
-  font-weight: 500;
-  letter-spacing: 0.02em;
-}
+/* (Hero v3 removed — using v4) */
 
 /* XL avatar */
 .pp-avatar-xl-wrap {
