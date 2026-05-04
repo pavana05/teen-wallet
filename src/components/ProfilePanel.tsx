@@ -333,14 +333,34 @@ export function ProfilePanel({ onClose, onTransactions }: Props) {
 
             {/* Avatar + Name + KYC — centered stack */}
             <div className="relative z-10 flex flex-col items-center pp-v4-entry" style={{ animationDelay: "0ms" }}>
+              <input
+                ref={avatarInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleAvatarUpload}
+              />
               <button
-                onClick={() => setTab("account")}
+                onClick={() => avatarInputRef.current?.click()}
                 className="pp-avatar-xl-wrap pp-v4-avatar-ring"
-                aria-label="Edit profile photo"
+                aria-label="Upload profile photo"
+                disabled={avatarUploading}
               >
-                <div className="pp-avatar pp-avatar-xl pp-v4-avatar">{initials}</div>
-                <span className="pp-avatar-xl-cam" aria-hidden="true">
-                  <Camera className="w-3.5 h-3.5 text-zinc-900" strokeWidth={2.4} />
+                {profile?.avatar_url ? (
+                  <img
+                    src={profile.avatar_url}
+                    alt="Profile"
+                    className="pp-avatar-xl pp-v4-avatar object-cover"
+                  />
+                ) : (
+                  <div className="pp-avatar pp-avatar-xl pp-v4-avatar">{initials}</div>
+                )}
+                <span className={`pp-avatar-xl-cam ${avatarUploading ? "animate-pulse" : ""}`} aria-hidden="true">
+                  {avatarUploading ? (
+                    <Loader2 className="w-3.5 h-3.5 text-zinc-900 animate-spin" strokeWidth={2.4} />
+                  ) : (
+                    <Camera className="w-3.5 h-3.5 text-zinc-900" strokeWidth={2.4} />
+                  )}
                 </span>
               </button>
               <p className="mt-3 text-white text-[17px] font-bold tracking-tight truncate max-w-[240px]">
