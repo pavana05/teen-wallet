@@ -1325,31 +1325,31 @@ body > div:first-child,
   max-width: 100%;
 }
 
-.hp-hero { position:relative; padding-bottom: 8px; }
+.hp-hero { position:relative; padding-bottom: 6px; }
 .hp-hero-bg{
   position:absolute; inset:0;
   background:
-    radial-gradient(120% 80% at 50% -20%, rgba(255,150,80,0.22) 0%, rgba(120,55,20,0.10) 36%, rgba(15,12,10,0.4) 70%, #08090B 100%),
+    radial-gradient(120% 70% at 50% -15%, oklch(0.35 0.06 85 / 0.18) 0%, oklch(0.2 0.04 85 / 0.08) 30%, rgba(15,12,10,0.35) 65%, #08090B 100%),
     linear-gradient(180deg, #0b0a09 0%, #08090B 100%);
 }
 .hp-hero-pattern{
-  position:absolute; inset:0; opacity:.06; mix-blend-mode: overlay;
+  position:absolute; inset:0; opacity:.035; mix-blend-mode: overlay;
   background-image:
-    linear-gradient(rgba(255,255,255,.5) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255,255,255,.5) 1px, transparent 1px);
+    linear-gradient(rgba(232,220,192,.4) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(232,220,192,.4) 1px, transparent 1px);
   background-size: 64px 72px, 64px 72px;
-  -webkit-mask-image: radial-gradient(120% 70% at 50% 18%, #000 18%, transparent 72%);
-          mask-image: radial-gradient(120% 70% at 50% 18%, #000 18%, transparent 72%);
+  -webkit-mask-image: radial-gradient(120% 65% at 50% 15%, #000 15%, transparent 68%);
+          mask-image: radial-gradient(120% 65% at 50% 15%, #000 15%, transparent 68%);
 }
 .hp-hero-spot{
-  position:absolute; left:50%; top:-160px; transform:translateX(-50%);
-  width:560px; height:380px; border-radius:50%;
-  background: radial-gradient(closest-side, rgba(255,210,160,.22), transparent 70%);
-  filter: blur(28px); pointer-events:none;
+  position:absolute; left:50%; top:-180px; transform:translateX(-50%);
+  width:500px; height:350px; border-radius:50%;
+  background: radial-gradient(closest-side, oklch(0.7 0.06 85 / 0.14), transparent 70%);
+  filter: blur(32px); pointer-events:none;
 }
 .hp-hero-fade{
-  position:absolute; left:0; right:0; bottom:-1px; height:140px;
-  background: linear-gradient(180deg, transparent, #08090B 92%);
+  position:absolute; left:0; right:0; bottom:-1px; height:120px;
+  background: linear-gradient(180deg, transparent, #08090B 90%);
   pointer-events:none;
 }
 
