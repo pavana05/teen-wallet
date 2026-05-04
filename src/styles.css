@@ -3438,17 +3438,30 @@ button:focus-visible .hp-tile{
     0 12px 30px -22px rgba(0,0,0,.7);
 }
 
-/* Row icons — hairline gradient frame */
+/* Row icons — premium luxury glass with champagne glow */
 .pp-row-icon {
   width: 36px; height: 36px; border-radius: 12px;
+  display: inline-flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
   background:
+    radial-gradient(100% 100% at 30% 10%, rgba(232,220,192,.12), transparent 60%),
     linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.02));
-  border: 1px solid rgba(255,255,255,.08);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.06);
-  transition: transform .18s ease;
+  border: 1px solid rgba(232,220,192,.12);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.08),
+    0 2px 8px -2px rgba(0,0,0,.3);
+  transition: transform .2s cubic-bezier(.2,.8,.2,1), box-shadow .2s ease;
+}
+.pp-row-icon svg {
+  display: block;
 }
 .pp-card button:hover .pp-row-icon,
-.pp-card > div:hover .pp-row-icon { transform: scale(1.05); }
+.pp-card > div:hover .pp-row-icon {
+  transform: scale(1.08);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.10),
+    0 4px 12px -3px rgba(232,220,192,.2);
+}
 
 /* Switch — premium gradient + glow when on */
 .pp-switch {
