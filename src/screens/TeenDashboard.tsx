@@ -166,22 +166,28 @@ const BalancePreview = memo(function BalancePreview({
     <button type="button" onClick={onViewWallet} className="td-balance-card group">
       <div className="td-balance-orb td-bal-orb-1" />
       <div className="td-balance-orb td-bal-orb-2" />
+      <div className="td-bal-shimmer" aria-hidden="true" />
       <div className="relative z-10 flex items-center justify-between">
         <div>
-          <p className="text-[10px] font-medium uppercase tracking-wider td-bal-label">Wallet Balance</p>
+          <div className="flex items-center gap-2">
+            <div className="td-bal-icon-wrap">
+              <Wallet className="w-3.5 h-3.5" strokeWidth={1.8} />
+            </div>
+            <p className="text-[9px] font-semibold uppercase tracking-[0.18em] td-bal-label">Wallet Balance</p>
+          </div>
           <p className="td-bal-amount">
             {loading ? "..." : hideBalance ? "₹ ••••" : formatAmt(balance)}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2.5">
           <span
             role="button"
             onClick={(e) => { e.stopPropagation(); haptics.tap(); onToggleHide(); }}
             className="td-eye-btn"
           >
-            {hideBalance ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            {hideBalance ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
           </span>
-          <ChevronRight className="w-5 h-5 td-chevron group-active:translate-x-0.5 transition-transform" />
+          <ChevronRight className="w-4 h-4 td-chevron group-active:translate-x-0.5 transition-transform" />
         </div>
       </div>
     </button>
