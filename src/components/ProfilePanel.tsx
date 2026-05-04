@@ -65,10 +65,13 @@ export function ProfilePanel({ onClose, onTransactions }: Props) {
     email: string | null;
     aadhaar_last4: string | null;
     school_name: string | null;
+    avatar_url: string | null;
     kyc_status: "not_started" | "pending" | "approved" | "rejected";
     notif_prefs: NotifPrefs;
     created_at: string;
   } | null>(null);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+  const [avatarUploading, setAvatarUploading] = useState(false);
   const [stats, setStats] = useState<Stats>({ totalSpent: 0, txnCount: 0, monthSpent: 0, successRate: 100 });
   const [profileLoading, setProfileLoading] = useState(true);
   const [statsLoading, setStatsLoading] = useState(true);
