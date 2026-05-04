@@ -1,14 +1,16 @@
-import { useEffect } from "react";
+import { useEffect, lazy, Suspense } from "react";
 import { Outlet, Link, createRootRoute, HeadContent, Scripts, useRouterState } from "@tanstack/react-router";
 import { isNative } from "@/lib/native";
 import { Toaster } from "@/components/ui/sonner";
-import { ShakeToReport } from "@/components/ShakeToReport";
-import { AppLockGate } from "@/components/app-lock/AppLockGate";
-import { AppLockSetupPrompt } from "@/components/app-lock/AppLockSetupPrompt";
 import { initNative, installNativeCrashGuard } from "@/lib/native";
 import { breadcrumb, captureError } from "@/lib/breadcrumbs";
 import { installConsoleCapture } from "@/lib/consoleCapture";
 import { installAppLockListeners } from "@/lib/appLock";
+
+// Lazy-load non-critical root components to reduce initial bundle
+const ShakeToReport = lazy(() => import("@/components/ShakeToReport").then(m => ({ default: m.ShakeToReport })));
+const AppLockGate = lazy(() => import("@/components/app-lock/AppLockGate").then(m => ({ default: m.AppLockGate })));
+const AppLockSetupPrompt = lazy(() => import("@/components/app-lock/AppLockSetupPrompt").then(m => ({ default: m.AppLockSetupPrompt })));
 
 import appCss from "../styles.css?url";
 
@@ -151,9 +153,11 @@ function RootComponent() {
     <>
       <Outlet />
       <Toaster />
-      <ShakeToReport />
-      {showAppLock && <AppLockSetupPrompt />}
-      {showAppLock && <AppLockGate />}
+      <Suspense fallback={null}>
+        <ShakeToReport />
+        {showAppLock && <AppLockSetupPrompt />}
+        {showAppLock && <AppLockGate />}
+      </Suspense>
     </>
   );
 }
