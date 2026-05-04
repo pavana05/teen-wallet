@@ -452,6 +452,13 @@ export function TeenDashboard() {
       </Suspense>
     );
   }
+  if (activeScreen === "addmoney") {
+    return (
+      <Suspense fallback={<TransitionFallback />}>
+        <AddMoneyLazy onBack={() => { setActiveScreen(null); loadData(); }} />
+      </Suspense>
+    );
+  }
   if (activeScreen === "linking") {
     return (
       <div className="fixed inset-0 z-50" style={{ background: "var(--background)" }}>
