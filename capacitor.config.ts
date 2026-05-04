@@ -11,7 +11,7 @@ const config: CapacitorConfig = {
   // bootstrap folder for Capacitor's sanity check.
   webDir: "capacitor-shell",
   server: {
-    url: "https://teenwallet.app",
+    url: "https://teen-wallet.lovable.app",
     appStartPath: "/",
     cleartext: false,
     androidScheme: "https",
