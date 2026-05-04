@@ -448,7 +448,7 @@ export function TeenDashboard() {
   if (activeScreen === "wallet") {
     return (
       <Suspense fallback={<TransitionFallback />}>
-        <WalletBalanceLazy onBack={() => { setActiveScreen(null); loadData(); }} onSendMoney={() => { setActiveScreen(null); setView("scan"); }} />
+        <WalletBalanceLazy onBack={() => { setActiveScreen(null); loadData(); }} onSendMoney={() => { setActiveScreen(null); setView("scan"); }} onAddMoney={() => setActiveScreen("addmoney")} />
       </Suspense>
     );
   }
