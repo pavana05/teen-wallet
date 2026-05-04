@@ -1103,6 +1103,42 @@ export type Database = {
         }
         Relationships: []
       }
+      savings_goals: {
+        Row: {
+          completed: boolean
+          created_at: string
+          icon: string
+          id: string
+          name: string
+          saved_amount: number
+          target_amount: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          completed?: boolean
+          created_at?: string
+          icon?: string
+          id?: string
+          name: string
+          saved_amount?: number
+          target_amount?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          completed?: boolean
+          created_at?: string
+          icon?: string
+          id?: string
+          name?: string
+          saved_amount?: number
+          target_amount?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       transactions: {
         Row: {
           amount: number
