@@ -222,6 +222,7 @@ export function TeenDashboard() {
       void import("@/components/ProfilePanel");
       void import("@/components/NotificationsPanel");
       void import("@/screens/TeenWalletBalance");
+      void import("@/screens/TeenAddMoney");
     });
   }, []);
 
