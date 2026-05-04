@@ -225,21 +225,25 @@ function Index() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Idle-time prefetch — warm the most likely next screens so navigation
-  // feels instant. Runs after first paint, never blocks rendering.
+  // Idle-time prefetch — warm the most likely next screen after initial paint.
+  // Defer aggressively to avoid competing with critical rendering.
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const idle = (cb: () => void) => {
-      const w = window as unknown as { requestIdleCallback?: (cb: () => void) => number };
-      if (typeof w.requestIdleCallback === "function") w.requestIdleCallback(cb);
-      else setTimeout(cb, 600);
-    };
-    idle(() => {
-      void import("@/screens/Home");
-      void import("@/screens/Onboarding");
-      void import("@/screens/AuthPhone");
-    });
-  }, []);
+    const timer = setTimeout(() => {
+      const idle = (cb: () => void) => {
+        const w = window as unknown as { requestIdleCallback?: (cb: () => void) => number };
+        if (typeof w.requestIdleCallback === "function") w.requestIdleCallback(cb);
+        else setTimeout(cb, 200);
+      };
+      // Only prefetch the screen the user is most likely to need next
+      if (stage === "STAGE_0" || stage === "STAGE_1") {
+        idle(() => void import("@/screens/AuthPhone"));
+      } else if (stage === "STAGE_5") {
+        idle(() => void import("@/screens/Home"));
+      }
+    }, 2000); // wait 2s after mount before prefetching
+    return () => clearTimeout(timer);
+  }, [stage]);
 
   return (
     <PhoneShell>
