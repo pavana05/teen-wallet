@@ -893,6 +893,61 @@ export function ProfilePanel({ onClose, onTransactions }: Props) {
   );
 }
 
+/* ───────── Animated Balance ───────── */
+function AnimatedBalance({ value, hidden }: { value: number; hidden: boolean }) {
+  const [display, setDisplay] = useState(0);
+  const prevRef = useRef(0);
+  useEffect(() => {
+    if (hidden) return;
+    const from = prevRef.current;
+    const to = Number(value);
+    if (from === to) { setDisplay(to); return; }
+    const dur = 800;
+    const start = performance.now();
+    let raf: number;
+    const tick = (now: number) => {
+      const t = Math.min((now - start) / dur, 1);
+      const ease = 1 - Math.pow(1 - t, 3);
+      setDisplay(from + (to - from) * ease);
+      if (t < 1) raf = requestAnimationFrame(tick);
+      else prevRef.current = to;
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [value, hidden]);
+  const formatted = hidden
+    ? "₹ ••••••"
+    : `₹${display.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  return (
+    <p className={`pp-v4-balance-amt num-mono ${hidden ? "" : "pp-v4-balance-reveal"}`}>
+      {formatted}
+    </p>
+  );
+}
+
+/* ───────── CopyRow (info row with animated copy) ───────── */
+function CopyRow({ label, value, disabled, copied, onCopy }: {
+  label: string; value: string; disabled?: boolean; copied: boolean; onCopy: () => void;
+}) {
+  return (
+    <button
+      onClick={onCopy}
+      disabled={disabled}
+      className="pp-info-row pp-v4-copy-row w-full text-left disabled:opacity-60"
+      aria-label={`Copy ${label}`}
+    >
+      <span className="pp-info-label">{label}</span>
+      <span className="pp-info-value num-mono truncate">{value}</span>
+      <span className={`pp-v4-copy-btn ${copied ? "pp-v4-copy-done" : ""}`}>
+        {copied
+          ? <Check className="w-3.5 h-3.5" strokeWidth={2.5} />
+          : <Copy className="w-3.5 h-3.5" strokeWidth={2} />
+        }
+      </span>
+    </button>
+  );
+}
+
 /* ───────── Virtual Card "Under Construction" modal ───────── */
 
 function VirtualCardModal({ onClose }: { onClose: () => void }) {
