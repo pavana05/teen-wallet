@@ -24,6 +24,7 @@ const NotificationsPanel = lazyWithRetry(() => import("@/components/Notification
 const ProfilePanel = lazyWithRetry(() => import("@/components/ProfilePanel").then(m => ({ default: m.ProfilePanel })));
 const HapticsSettingsLazy = lazyWithRetry(() => import("@/screens/HapticsSettings").then(m => ({ default: m.HapticsSettings })));
 const WalletBalanceLazy = lazyWithRetry(() => import("@/screens/TeenWalletBalance").then(m => ({ default: m.TeenWalletBalance })));
+const AddMoneyLazy = lazyWithRetry(() => import("@/screens/TeenAddMoney").then(m => ({ default: m.TeenAddMoney })));
 
 function HapticsSettingsInline({ onBack }: { onBack: () => void }) {
   return <Suspense fallback={null}><HapticsSettingsLazy onBack={onBack} /></Suspense>;
@@ -43,7 +44,7 @@ interface FamilyLink {
   status: string;
 }
 
-type SubScreen = "savings" | "screentime" | "spending" | "rewards" | "txhistory" | "scanpay" | "notifications" | "linking" | "linkstatus" | "haptics" | "profile" | "wallet" | null;
+type SubScreen = "savings" | "screentime" | "spending" | "rewards" | "txhistory" | "scanpay" | "notifications" | "linking" | "linkstatus" | "haptics" | "profile" | "wallet" | "addmoney" | null;
 
 /* ── Transition fallback ── */
 function TransitionFallback() {
@@ -221,6 +222,7 @@ export function TeenDashboard() {
       void import("@/components/ProfilePanel");
       void import("@/components/NotificationsPanel");
       void import("@/screens/TeenWalletBalance");
+      void import("@/screens/TeenAddMoney");
     });
   }, []);
 
@@ -447,7 +449,14 @@ export function TeenDashboard() {
   if (activeScreen === "wallet") {
     return (
       <Suspense fallback={<TransitionFallback />}>
-        <WalletBalanceLazy onBack={() => { setActiveScreen(null); loadData(); }} onSendMoney={() => { setActiveScreen(null); setView("scan"); }} />
+        <WalletBalanceLazy onBack={() => { setActiveScreen(null); loadData(); }} onSendMoney={() => { setActiveScreen(null); setView("scan"); }} onAddMoney={() => setActiveScreen("addmoney")} />
+      </Suspense>
+    );
+  }
+  if (activeScreen === "addmoney") {
+    return (
+      <Suspense fallback={<TransitionFallback />}>
+        <AddMoneyLazy onBack={() => { setActiveScreen(null); loadData(); }} />
       </Suspense>
     );
   }
@@ -798,33 +807,44 @@ function FeatureCard({ icon: Icon, title, subtitle, accent, onClick }: {
 }
 
 const teenExtraStyles = `
-  /* ── Blur Gradient Orbs ── */
+  /* ── Blur Gradient Orbs — seamless infinite loop ── */
   .td-gradient-orbs {
-    position: absolute; inset: 0; z-index: 1; pointer-events: none; overflow: hidden;
+    position: absolute; inset: 0; z-index: 2; pointer-events: none; overflow: hidden;
   }
   .td-orb {
     position: absolute; border-radius: 50%;
-    filter: blur(60px); opacity: 0.6;
-    animation: td-orb-drift 8s ease-in-out infinite alternate;
+    filter: blur(60px); opacity: 0.55;
+    will-change: transform;
   }
   .td-orb-1 {
     width: 160px; height: 160px; top: -40px; left: -30px;
     background: oklch(0.65 0.08 85 / 0.4);
+    animation: td-orb-1-loop 10s ease-in-out infinite;
   }
   .td-orb-2 {
     width: 120px; height: 120px; top: 20px; right: -20px;
     background: oklch(0.55 0.06 280 / 0.3);
-    animation-delay: -3s; animation-duration: 10s;
+    animation: td-orb-2-loop 13s ease-in-out infinite;
   }
   .td-orb-3 {
     width: 100px; height: 100px; bottom: 20px; left: 40%;
     background: oklch(0.7 0.06 60 / 0.25);
-    animation-delay: -5s; animation-duration: 12s;
+    animation: td-orb-3-loop 16s ease-in-out infinite;
   }
-  @keyframes td-orb-drift {
-    0% { transform: translate(0, 0) scale(1); }
-    50% { transform: translate(12px, -10px) scale(1.08); }
-    100% { transform: translate(-8px, 6px) scale(0.95); }
+  @keyframes td-orb-1-loop {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    33% { transform: translate(14px, -12px) scale(1.1); }
+    66% { transform: translate(-8px, 8px) scale(0.95); }
+  }
+  @keyframes td-orb-2-loop {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    33% { transform: translate(-10px, 10px) scale(1.06); }
+    66% { transform: translate(12px, -6px) scale(0.92); }
+  }
+  @keyframes td-orb-3-loop {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    33% { transform: translate(8px, -14px) scale(1.12); }
+    66% { transform: translate(-12px, 4px) scale(0.9); }
   }
 
   /* ── Balance Preview Card ── */
@@ -838,6 +858,7 @@ const teenExtraStyles = `
     position: relative; overflow: hidden;
     text-align: left; cursor: pointer;
     transition: transform 150ms ease;
+    z-index: 3;
   }
   .td-balance-card:active { transform: scale(0.98); }
   .td-balance-orb {
@@ -905,8 +926,8 @@ const teenExtraStyles = `
   .td-link-cta:active { transform: scale(0.96); }
 
   @media (prefers-reduced-motion: reduce) {
-    .td-orb { animation: none; }
-    .td-balance-orb { animation: none; }
+    .td-orb { animation: none !important; opacity: 0.3; }
+    .td-balance-orb { animation: none !important; }
   }
 `;
 

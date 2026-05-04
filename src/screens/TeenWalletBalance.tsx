@@ -13,7 +13,7 @@ import { haptics } from "@/lib/haptics";
 import { offlineCache } from "@/lib/offlineCache";
 import { toast } from "sonner";
 
-interface Props { onBack: () => void; onSendMoney?: () => void }
+interface Props { onBack: () => void; onSendMoney?: () => void; onAddMoney?: () => void }
 
 interface MiniTxn {
   id: string;
@@ -23,7 +23,7 @@ interface MiniTxn {
   status: string;
 }
 
-export function TeenWalletBalance({ onBack, onSendMoney }: Props) {
+export function TeenWalletBalance({ onBack, onSendMoney, onAddMoney }: Props) {
   const { userId, balance } = useApp();
   const [liveBalance, setLiveBalance] = useState<number>(balance);
   const [hideBalance, setHideBalance] = useState(false);
@@ -94,7 +94,7 @@ export function TeenWalletBalance({ onBack, onSendMoney }: Props) {
             <button onClick={() => { haptics.bloom(); onSendMoney?.(); }} className="twb-action-btn twb-send">
               <Send className="w-4 h-4" /> Send
             </button>
-            <button onClick={() => { haptics.tap(); toast.info("Add money coming soon"); }} className="twb-action-btn twb-add">
+            <button onClick={() => { haptics.tap(); onAddMoney ? onAddMoney() : toast.info("Add money coming soon"); }} className="twb-action-btn twb-add">
               <Plus className="w-4 h-4" /> Add Money
             </button>
           </div>
