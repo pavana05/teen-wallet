@@ -5652,24 +5652,7 @@ button:focus-visible .hp-tile{
   background: linear-gradient(90deg, transparent, rgba(255,255,255,.06), transparent);
 }
 
-/* My QR centered button — dark glossy pill */
-.pp-myqr-btn {
-  display: inline-flex; align-items: center; gap: 8px;
-  padding: 9px 18px;
-  border-radius: 999px;
-  background: linear-gradient(180deg, #2a2a2e, #161618);
-  border: 1px solid rgba(255,255,255,.10);
-  color: white;
-  font-size: 12.5px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,.10),
-    0 6px 16px -8px rgba(0,0,0,.7);
-  transition: transform .15s ease, border-color .2s ease;
-}
-.pp-myqr-btn:not(:disabled):hover { border-color: rgba(255,255,255,.18); }
-.pp-myqr-btn:not(:disabled):active { transform: scale(.97); }
+/* (pp-myqr-btn removed — using v4 QR button) */
 
 /* ============================================================
  * Big stat tiles (Points / Cashback)
