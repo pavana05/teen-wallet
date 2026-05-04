@@ -303,101 +303,87 @@ export function ProfilePanel({ onClose, onTransactions }: Props) {
             not after an error — the error banner above already conveys the state. */}
         <div className="px-5 mt-3">
           {profileLoading && !profileError ? <HeroSkeleton /> : (
-          <div className="pp-hero pp-hero-v3">
-            <div className="pp-hero-shine" />
-            <div className="pp-hero-topglow" aria-hidden="true" />
+          <div className="pp-hero pp-hero-v4">
+            <div className="pp-v4-orb pp-v4-orb-1" aria-hidden="true" />
+            <div className="pp-v4-orb pp-v4-orb-2" aria-hidden="true" />
+            <div className="pp-v4-orb pp-v4-orb-3" aria-hidden="true" />
+            <div className="pp-v4-shimmer" aria-hidden="true" />
 
-            {/* Top: phone number + member since */}
-            <div className="relative text-center pt-1">
-              <p className="pp-hero-phone num-mono">{phone}</p>
-              <p className="pp-hero-since mt-0.5">Member since {memberSince}</p>
-            </div>
-
-            {/* Centered avatar with edit camera */}
-            <div className="relative mt-4 flex justify-center">
+            {/* Avatar + Name + KYC — centered stack */}
+            <div className="relative z-10 flex flex-col items-center pp-v4-entry" style={{ animationDelay: "0ms" }}>
               <button
                 onClick={() => setTab("account")}
-                className="pp-avatar-xl-wrap"
+                className="pp-avatar-xl-wrap pp-v4-avatar-ring"
                 aria-label="Edit profile photo"
               >
-                <div className="pp-avatar pp-avatar-xl">{initials}</div>
+                <div className="pp-avatar pp-avatar-xl pp-v4-avatar">{initials}</div>
                 <span className="pp-avatar-xl-cam" aria-hidden="true">
                   <Camera className="w-3.5 h-3.5 text-zinc-900" strokeWidth={2.4} />
                 </span>
               </button>
-            </div>
-
-            {/* Name + KYC badge */}
-            <div className="relative mt-3 text-center">
-              <div className="inline-flex items-center gap-1.5">
-                <p className="text-white text-[15px] font-semibold tracking-tight truncate max-w-[220px]">
-                  {profile?.full_name ?? fullName ?? "Add your name"}
-                </p>
-                <button onClick={() => setTab("account")} className="text-white/55 hover:text-white transition-colors" aria-label="Edit name">
-                  <Pencil className="w-3 h-3" />
-                </button>
-              </div>
-              <div className={`mt-1.5 inline-flex items-center gap-1 px-2 py-[3px] rounded-full border ${kycMeta.border} ${kycMeta.bg}`}>
+              <p className="mt-3 text-white text-[17px] font-bold tracking-tight truncate max-w-[240px]">
+                {profile?.full_name ?? fullName ?? "Add your name"}
+              </p>
+              <p className="pp-v4-member mt-0.5">{phone} · Since {memberSince}</p>
+              <div className={`mt-2 pp-v4-kyc-badge ${kycMeta.border} ${kycMeta.bg}`}>
                 <kycMeta.icon className={`w-3 h-3 ${kycMeta.color}`} strokeWidth={2.2} />
                 <span className={`text-[9.5px] font-semibold ${kycMeta.color} tracking-wide`}>{kycMeta.label}</span>
               </div>
             </div>
 
-            {/* Info rows: UPI ID + Phone No */}
-            <div className="relative mt-4 pp-info-block">
-              <button
-                onClick={() => copy(upiId, "upi")}
-                disabled={upiId === "—"}
-                className="pp-info-row w-full text-left disabled:opacity-60"
-                aria-label="Copy UPI ID"
-              >
-                <span className="pp-info-label">UPI ID</span>
-                <span className="pp-info-value num-mono truncate">{upiId}</span>
-                <span className="pp-info-action">
-                  {copied === "upi" ? <Check className="w-3.5 h-3.5 text-emerald-300" /> : <Copy className="w-3.5 h-3.5 text-white/55" />}
-                </span>
-              </button>
-              <div className="pp-info-divider" />
-              <button
-                onClick={() => copy(phone, "phone")}
-                className="pp-info-row w-full text-left"
-                aria-label="Copy phone number"
-              >
-                <span className="pp-info-label">Phone No.</span>
-                <span className="pp-info-value num-mono truncate">{phone}</span>
-                <span className="pp-info-action">
-                  {copied === "phone" ? <Check className="w-3.5 h-3.5 text-emerald-300" /> : <Copy className="w-3.5 h-3.5 text-white/55" />}
-                </span>
-              </button>
-            </div>
-
-            {/* Wallet balance pill row (compact) */}
-            <div className="relative mt-3 flex items-center justify-between px-1">
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] uppercase tracking-wider text-white/45">Balance</span>
-                <button
-                  onClick={() => setHideBalance((v) => !v)}
-                  className="text-white/55 hover:text-white transition-colors"
-                  aria-label="Toggle balance visibility"
-                >
-                  {hideBalance ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
-                </button>
+            {/* Balance — prominent center */}
+            <div className="relative z-10 mt-5 pp-v4-entry" style={{ animationDelay: "80ms" }}>
+              <div className="pp-v4-balance-card">
+                <div className="pp-v4-balance-glow" aria-hidden="true" />
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="pp-v4-wallet-icon">
+                      <Wallet className="w-4 h-4" strokeWidth={2.2} />
+                    </div>
+                    <span className="text-[10.5px] uppercase tracking-widest pp-v4-balance-label">Wallet Balance</span>
+                  </div>
+                  <button
+                    onClick={() => { setHideBalance((v) => !v); }}
+                    className="pp-v4-eye-btn"
+                    aria-label="Toggle balance visibility"
+                  >
+                    {hideBalance ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                  </button>
+                </div>
+                <AnimatedBalance value={balance} hidden={hideBalance} />
               </div>
-              <p className="text-white text-[13.5px] font-semibold num-mono">
-                {hideBalance ? "₹ ••••" : `₹${Number(balance).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`}
-              </p>
             </div>
 
-            {/* My QR centered button */}
-            <div className="relative mt-4 flex justify-center">
+            {/* Info rows: UPI ID + Phone No */}
+            <div className="relative z-10 mt-3 pp-v4-entry" style={{ animationDelay: "140ms" }}>
+              <div className="pp-v4-info-block">
+                <CopyRow
+                  label="UPI ID"
+                  value={upiId}
+                  disabled={upiId === "—"}
+                  copied={copied === "upi"}
+                  onCopy={() => copy(upiId, "upi")}
+                />
+                <div className="pp-info-divider" />
+                <CopyRow
+                  label="Phone"
+                  value={phone}
+                  copied={copied === "phone"}
+                  onCopy={() => copy(phone, "phone")}
+                />
+              </div>
+            </div>
+
+            {/* QR Button */}
+            <div className="relative z-10 mt-4 flex justify-center pp-v4-entry" style={{ animationDelay: "200ms" }}>
               <button
                 onClick={() => setQrOpen(true)}
                 disabled={upiId === "—"}
-                className="pp-myqr-btn disabled:opacity-50"
+                className="pp-v4-qr-btn disabled:opacity-50"
                 aria-label="Show my QR code"
               >
-                <span>My QR</span>
-                <QrCode className="w-3.5 h-3.5" strokeWidth={2.2} />
+                <QrCode className="w-4 h-4" strokeWidth={2.2} />
+                <span>My QR Code</span>
               </button>
             </div>
           </div>
@@ -904,6 +890,61 @@ export function ProfilePanel({ onClose, onTransactions }: Props) {
         hidden={editPhoneOpen || qrOpen || confirmLogout || confirmDelete || vcardOpen || referralOpen || igOpen || schoolOpen || appLockOpen}
       />
     </div>
+  );
+}
+
+/* ───────── Animated Balance ───────── */
+function AnimatedBalance({ value, hidden }: { value: number; hidden: boolean }) {
+  const [display, setDisplay] = useState(0);
+  const prevRef = useRef(0);
+  useEffect(() => {
+    if (hidden) return;
+    const from = prevRef.current;
+    const to = Number(value);
+    if (from === to) { setDisplay(to); return; }
+    const dur = 800;
+    const start = performance.now();
+    let raf: number;
+    const tick = (now: number) => {
+      const t = Math.min((now - start) / dur, 1);
+      const ease = 1 - Math.pow(1 - t, 3);
+      setDisplay(from + (to - from) * ease);
+      if (t < 1) raf = requestAnimationFrame(tick);
+      else prevRef.current = to;
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [value, hidden]);
+  const formatted = hidden
+    ? "₹ ••••••"
+    : `₹${display.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  return (
+    <p className={`pp-v4-balance-amt num-mono ${hidden ? "" : "pp-v4-balance-reveal"}`}>
+      {formatted}
+    </p>
+  );
+}
+
+/* ───────── CopyRow (info row with animated copy) ───────── */
+function CopyRow({ label, value, disabled, copied, onCopy }: {
+  label: string; value: string; disabled?: boolean; copied: boolean; onCopy: () => void;
+}) {
+  return (
+    <button
+      onClick={onCopy}
+      disabled={disabled}
+      className="pp-info-row pp-v4-copy-row w-full text-left disabled:opacity-60"
+      aria-label={`Copy ${label}`}
+    >
+      <span className="pp-info-label">{label}</span>
+      <span className="pp-info-value num-mono truncate">{value}</span>
+      <span className={`pp-v4-copy-btn ${copied ? "pp-v4-copy-done" : ""}`}>
+        {copied
+          ? <Check className="w-3.5 h-3.5" strokeWidth={2.5} />
+          : <Copy className="w-3.5 h-3.5" strokeWidth={2} />
+        }
+      </span>
+    </button>
   );
 }
 
