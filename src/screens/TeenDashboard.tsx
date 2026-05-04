@@ -542,7 +542,7 @@ export function TeenDashboard() {
             aria-label={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : "Notifications"}
             className="hp-bell"
           >
-            <Bell className="w-[18px] h-[18px] text-white/90" strokeWidth={1.6} aria-hidden="true" />
+            <Bell className="w-[17px] h-[17px] text-white/85" strokeWidth={1.5} aria-hidden="true" />
             {unreadCount > 0 && (
               <span className="hp-bell-badge" aria-hidden="true">{unreadCount > 9 ? "9+" : unreadCount}</span>
             )}
@@ -550,7 +550,7 @@ export function TeenDashboard() {
         </div>
 
         {/* Balance Preview Card */}
-        <div className="relative z-10 px-5 mt-4">
+        <div className="relative z-10 px-5 mt-5">
           <BalancePreview
             balance={liveBalance}
             loading={loading}
