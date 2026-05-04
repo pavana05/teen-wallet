@@ -105,12 +105,13 @@ function RechargeTile({ icon: Icon, label, tint }: {
       type="button"
       onClick={() => { void haptics.tap(); }}
       aria-label={label}
-      className="flex flex-col items-center gap-2 rounded-2xl focus:outline-none"
+      className="flex flex-col items-center gap-2.5 rounded-2xl focus:outline-none"
     >
       <div className={`hp-tile bg-gradient-to-br ${tint}`} aria-hidden="true">
-        <Icon className="w-6 h-6 text-white" strokeWidth={1.7} />
+        <div className="hp-tile-glow" />
+        <Icon className="w-5 h-5 text-white relative z-10" strokeWidth={1.5} />
       </div>
-      <span className="text-[11px] text-white/70 leading-tight text-center">{label}</span>
+      <span className="text-[10.5px] text-white/60 leading-tight text-center font-medium tracking-wide">{label}</span>
     </button>
   );
 }
