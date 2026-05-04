@@ -822,23 +822,23 @@ const teenExtraStyles = `
   }
   .td-orb {
     position: absolute; border-radius: 50%;
-    filter: blur(60px); opacity: 0.55;
+    filter: blur(65px); opacity: 0.4;
     will-change: transform;
   }
   .td-orb-1 {
-    width: 160px; height: 160px; top: -40px; left: -30px;
-    background: oklch(0.65 0.08 85 / 0.4);
-    animation: td-orb-1-loop 10s ease-in-out infinite;
+    width: 140px; height: 140px; top: -40px; left: -30px;
+    background: oklch(0.65 0.06 85 / 0.35);
+    animation: td-orb-1-loop 12s ease-in-out infinite;
   }
   .td-orb-2 {
-    width: 120px; height: 120px; top: 20px; right: -20px;
-    background: oklch(0.55 0.06 280 / 0.3);
-    animation: td-orb-2-loop 13s ease-in-out infinite;
+    width: 100px; height: 100px; top: 20px; right: -20px;
+    background: oklch(0.5 0.04 60 / 0.25);
+    animation: td-orb-2-loop 15s ease-in-out infinite;
   }
   .td-orb-3 {
-    width: 100px; height: 100px; bottom: 20px; left: 40%;
-    background: oklch(0.7 0.06 60 / 0.25);
-    animation: td-orb-3-loop 16s ease-in-out infinite;
+    width: 80px; height: 80px; bottom: 20px; left: 40%;
+    background: oklch(0.6 0.04 85 / 0.2);
+    animation: td-orb-3-loop 18s ease-in-out infinite;
   }
   @keyframes td-orb-1-loop {
     0%, 100% { transform: translate(0, 0) scale(1); }
