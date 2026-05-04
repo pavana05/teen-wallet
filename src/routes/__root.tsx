@@ -153,9 +153,11 @@ function RootComponent() {
     <>
       <Outlet />
       <Toaster />
-      <ShakeToReport />
-      {showAppLock && <AppLockSetupPrompt />}
-      {showAppLock && <AppLockGate />}
+      <Suspense fallback={null}>
+        <ShakeToReport />
+        {showAppLock && <AppLockSetupPrompt />}
+        {showAppLock && <AppLockGate />}
+      </Suspense>
     </>
   );
 }
