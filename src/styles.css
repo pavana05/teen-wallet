@@ -144,10 +144,13 @@
   h1, h2, h3 { letter-spacing: -0.025em; }
 }
 
+/* ── Performance: reduce style recalculation cost ── */
 html,
 body {
   overflow: hidden !important;
   overscroll-behavior: none;
+  /* Hint the browser about potential compositing layers for animations */
+  -webkit-transform: translateZ(0);
 }
 
 body > div:first-child,
@@ -156,9 +159,16 @@ body > div:first-child,
   max-width: 100%;
   height: 100svh;
   overflow: hidden;
+  contain: layout style;
 }
 
 .tw-page-shell { min-height: 100svh !important; }
+
+/* Off-screen sections: skip layout/paint until scrolled into view */
+.pp-scroll > *:nth-child(n+4) {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 300px;
+}
 
 @layer components {
   /* The phone frame on desktop */
