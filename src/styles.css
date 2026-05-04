@@ -1575,18 +1575,18 @@ body > div:first-child,
   margin: 0 24px;
   background: linear-gradient(90deg,
     transparent 0%,
-    rgba(255,255,255,0.10) 30%,
-    rgba(255,255,255,0.18) 50%,
-    rgba(255,255,255,0.10) 70%,
+    rgba(232,220,192,0.06) 30%,
+    rgba(232,220,192,0.12) 50%,
+    rgba(232,220,192,0.06) 70%,
     transparent 100%);
 }
 .hp-divider::after{
   content:"";
   position:absolute; left:50%; top:50%;
-  width: 55%; height: 8px;
+  width: 55%; height: 6px;
   transform: translate(-50%, -50%);
-  background: radial-gradient(closest-side, rgba(200,241,53,0.18), transparent 75%);
-  filter: blur(4px);
+  background: radial-gradient(closest-side, oklch(0.7 0.06 85 / 0.10), transparent 75%);
+  filter: blur(3px);
   pointer-events: none;
 }
 
