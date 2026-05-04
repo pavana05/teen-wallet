@@ -157,6 +157,25 @@ export function ProfilePanel({ onClose, onTransactions }: Props) {
 
   useEffect(() => { void refetch(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [userId]);
 
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !userId) return;
+    if (!file.type.startsWith("image/")) { toast.error("Please select an image file"); return; }
+    if (file.size > 5 * 1024 * 1024) { toast.error("Image must be under 5 MB"); return; }
+    setAvatarUploading(true);
+    const ext = file.name.split(".").pop() || "jpg";
+    const path = `${userId}/avatar.${ext}`;
+    const { error: uploadErr } = await supabase.storage.from("avatars").upload(path, file, { upsert: true });
+    if (uploadErr) { toast.error("Upload failed", { description: uploadErr.message }); setAvatarUploading(false); return; }
+    const { data: urlData } = supabase.storage.from("avatars").getPublicUrl(path);
+    const publicUrl = `${urlData.publicUrl}?t=${Date.now()}`;
+    const { error: dbErr } = await supabase.from("profiles").update({ avatar_url: publicUrl }).eq("id", userId);
+    if (dbErr) { toast.error("Couldn't save photo", { description: dbErr.message }); }
+    else { setProfile((prev) => prev ? { ...prev, avatar_url: publicUrl } : prev); toast.success("Photo updated!"); }
+    setAvatarUploading(false);
+    e.target.value = "";
+  };
+
   // Reset scroll to the top of the panel whenever the user switches tabs so
   // each section opens at its header instead of preserving the prior position.
   const scrollRef = useRef<HTMLDivElement | null>(null);
