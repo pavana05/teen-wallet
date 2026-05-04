@@ -969,6 +969,7 @@ export type Database = {
           address_line1: string | null
           address_pincode: string | null
           address_state: string | null
+          avatar_url: string | null
           balance: number
           created_at: string
           dob: string | null
@@ -997,6 +998,7 @@ export type Database = {
           address_line1?: string | null
           address_pincode?: string | null
           address_state?: string | null
+          avatar_url?: string | null
           balance?: number
           created_at?: string
           dob?: string | null
@@ -1025,6 +1027,7 @@ export type Database = {
           address_line1?: string | null
           address_pincode?: string | null
           address_state?: string | null
+          avatar_url?: string | null
           balance?: number
           created_at?: string
           dob?: string | null

@@ -65,10 +65,13 @@ export function ProfilePanel({ onClose, onTransactions }: Props) {
     email: string | null;
     aadhaar_last4: string | null;
     school_name: string | null;
+    avatar_url: string | null;
     kyc_status: "not_started" | "pending" | "approved" | "rejected";
     notif_prefs: NotifPrefs;
     created_at: string;
   } | null>(null);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+  const [avatarUploading, setAvatarUploading] = useState(false);
   const [stats, setStats] = useState<Stats>({ totalSpent: 0, txnCount: 0, monthSpent: 0, successRate: 100 });
   const [profileLoading, setProfileLoading] = useState(true);
   const [statsLoading, setStatsLoading] = useState(true);
@@ -114,7 +117,7 @@ export function ProfilePanel({ onClose, onTransactions }: Props) {
     const [{ data: p, error: pErr }, { data: txns, error: tErr }] = await Promise.all([
       supabase
         .from("profiles")
-        .select("full_name,phone,dob,gender,email,aadhaar_last4,school_name,kyc_status,notif_prefs,created_at")
+        .select("full_name,phone,dob,gender,email,aadhaar_last4,school_name,avatar_url,kyc_status,notif_prefs,created_at")
         .eq("id", userId)
         .maybeSingle(),
       supabase
@@ -153,6 +156,25 @@ export function ProfilePanel({ onClose, onTransactions }: Props) {
   };
 
   useEffect(() => { void refetch(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [userId]);
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !userId) return;
+    if (!file.type.startsWith("image/")) { toast.error("Please select an image file"); return; }
+    if (file.size > 5 * 1024 * 1024) { toast.error("Image must be under 5 MB"); return; }
+    setAvatarUploading(true);
+    const ext = file.name.split(".").pop() || "jpg";
+    const path = `${userId}/avatar.${ext}`;
+    const { error: uploadErr } = await supabase.storage.from("avatars").upload(path, file, { upsert: true });
+    if (uploadErr) { toast.error("Upload failed", { description: uploadErr.message }); setAvatarUploading(false); return; }
+    const { data: urlData } = supabase.storage.from("avatars").getPublicUrl(path);
+    const publicUrl = `${urlData.publicUrl}?t=${Date.now()}`;
+    const { error: dbErr } = await supabase.from("profiles").update({ avatar_url: publicUrl }).eq("id", userId);
+    if (dbErr) { toast.error("Couldn't save photo", { description: dbErr.message }); }
+    else { setProfile((prev) => prev ? { ...prev, avatar_url: publicUrl } : prev); toast.success("Photo updated!"); }
+    setAvatarUploading(false);
+    e.target.value = "";
+  };
 
   // Reset scroll to the top of the panel whenever the user switches tabs so
   // each section opens at its header instead of preserving the prior position.
@@ -311,14 +333,34 @@ export function ProfilePanel({ onClose, onTransactions }: Props) {
 
             {/* Avatar + Name + KYC — centered stack */}
             <div className="relative z-10 flex flex-col items-center pp-v4-entry" style={{ animationDelay: "0ms" }}>
+              <input
+                ref={avatarInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleAvatarUpload}
+              />
               <button
-                onClick={() => setTab("account")}
+                onClick={() => avatarInputRef.current?.click()}
                 className="pp-avatar-xl-wrap pp-v4-avatar-ring"
-                aria-label="Edit profile photo"
+                aria-label="Upload profile photo"
+                disabled={avatarUploading}
               >
-                <div className="pp-avatar pp-avatar-xl pp-v4-avatar">{initials}</div>
-                <span className="pp-avatar-xl-cam" aria-hidden="true">
-                  <Camera className="w-3.5 h-3.5 text-zinc-900" strokeWidth={2.4} />
+                {profile?.avatar_url ? (
+                  <img
+                    src={profile.avatar_url}
+                    alt="Profile"
+                    className="pp-avatar-xl pp-v4-avatar object-cover"
+                  />
+                ) : (
+                  <div className="pp-avatar pp-avatar-xl pp-v4-avatar">{initials}</div>
+                )}
+                <span className={`pp-avatar-xl-cam ${avatarUploading ? "animate-pulse" : ""}`} aria-hidden="true">
+                  {avatarUploading ? (
+                    <Loader2 className="w-3.5 h-3.5 text-zinc-900 animate-spin" strokeWidth={2.4} />
+                  ) : (
+                    <Camera className="w-3.5 h-3.5 text-zinc-900" strokeWidth={2.4} />
+                  )}
                 </span>
               </button>
               <p className="mt-3 text-white text-[17px] font-bold tracking-tight truncate max-w-[240px]">
