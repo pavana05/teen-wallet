@@ -1801,33 +1801,43 @@ body > div:first-child,
 
 /* Quick action tiles */
 .hp-tile{
-  width: 60px; height: 60px; border-radius: var(--hp-radius-md);
+  width: 56px; height: 56px; border-radius: 16px;
+  position: relative;
   background:
-    linear-gradient(180deg, rgba(255,255,255,.05) 0%, rgba(255,255,255,.015) 100%);
-  border: 1px solid var(--hp-glass-border);
+    radial-gradient(100% 100% at 30% 10%, rgba(232,220,192,.06), transparent 55%),
+    linear-gradient(180deg, rgba(255,255,255,.05) 0%, rgba(255,255,255,.012) 100%);
+  border: 1px solid rgba(232,220,192,.08);
   display:flex; align-items:center; justify-content:center;
-  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
   box-shadow:
     inset 0 1px 0 rgba(255,255,255,.06),
-    0 10px 24px -14px rgba(0,0,0,.7);
-  transition: transform var(--hp-dur) var(--hp-ease),
-              border-color var(--hp-dur) var(--hp-ease),
-              background var(--hp-dur) var(--hp-ease),
-              box-shadow var(--hp-dur) var(--hp-ease);
+    0 8px 20px -12px rgba(0,0,0,.6);
+  transition: transform 200ms cubic-bezier(.2,.8,.2,1),
+              border-color 200ms ease,
+              box-shadow 200ms ease;
+  overflow: hidden;
 }
+.hp-tile-glow {
+  position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(60% 60% at 50% 40%, rgba(232,220,192,.06), transparent 70%);
+  opacity: 0;
+  transition: opacity 300ms ease;
+}
+.hp-tile:hover .hp-tile-glow { opacity: 1; }
 .hp-tile:hover{
-  border-color: var(--hp-glass-border-strong);
-  transform: translateY(-2px);
-  background: linear-gradient(180deg, rgba(255,255,255,.07) 0%, rgba(255,255,255,.025) 100%);
+  border-color: rgba(232,220,192,.18);
+  transform: translateY(-1px);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.08),
+    0 12px 28px -14px rgba(0,0,0,.7);
 }
 button:active .hp-tile,
 .hp-tile:active{ transform: scale(.96); }
 button:active .hp-tile svg,
 .hp-tile:active svg{ animation: hp-icon-pulse 420ms ease-out; }
 button:focus-visible .hp-tile{
-  /* Champagne focus glow — premium, no neon. */
-  border-color: rgba(212,197,160,.55);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.06), 0 6px 24px -10px rgba(212,197,160,.55);
+  border-color: rgba(212,197,160,.45);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.06), 0 6px 20px -8px rgba(212,197,160,.4);
 }
 
 /* Bottom nav — glass spec: 0.08 border, frosted blur, dark-only shadows */
