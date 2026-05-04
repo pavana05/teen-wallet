@@ -1540,25 +1540,24 @@ body > div:first-child,
 }
 
 .hp-scan-card{
-  position:relative; display:block; width: calc(100% - 40px); margin: 24px auto 4px;
-  border-radius: var(--hp-radius-lg); overflow:hidden;
-  border: 1px solid var(--hp-glass-border);
+  position:relative; display:block; width: calc(100% - 40px); margin: 20px auto 4px;
+  border-radius: 20px; overflow:hidden;
+  border: 1px solid rgba(232,220,192,.08);
   box-shadow:
-    0 40px 90px -36px rgba(0,0,0,.95),
-    0 0 0 1px rgba(255,255,255,.02),
-    inset 0 1px 0 rgba(255,255,255,.07);
-  transition: transform var(--hp-dur) var(--hp-ease),
-              box-shadow var(--hp-dur) var(--hp-ease),
-              border-color var(--hp-dur) var(--hp-ease);
+    0 32px 70px -28px rgba(0,0,0,.85),
+    inset 0 1px 0 rgba(255,255,255,.06);
+  transition: transform 200ms cubic-bezier(.2,.8,.2,1),
+              box-shadow 200ms ease,
+              border-color 200ms ease;
 }
 .hp-scan-card::after{
   content:""; position:absolute; inset:0; border-radius:inherit; padding:1px;
-  background: linear-gradient(135deg, rgba(255,255,255,.18), rgba(255,255,255,0) 40%, rgba(255,255,255,.06));
+  background: linear-gradient(135deg, rgba(232,220,192,.15), transparent 40%, rgba(232,220,192,.05));
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   -webkit-mask-composite: xor; mask-composite: exclude;
   pointer-events: none;
 }
-.hp-scan-card:hover{ transform: translateY(-2px); border-color: var(--hp-glass-border-strong); box-shadow: 0 48px 100px -32px rgba(0,0,0,.95), inset 0 1px 0 rgba(255,255,255,.09); }
+.hp-scan-card:hover{ transform: translateY(-1px); border-color: rgba(232,220,192,.15); }
 .hp-scan-card:active{ transform: scale(.985); }
 .hp-scan-img{ width:100%; height:auto; display:block; }
 
