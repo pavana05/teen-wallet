@@ -81,12 +81,13 @@ function QuickAction({ icon: Icon, label, onClick, locked, lockLabel }: {
       type="button"
       onClick={() => { void haptics.tap(); onClick?.(); }}
       aria-label={label.replace(/\n/g, " ")}
-      className={`flex flex-col items-center gap-2 group rounded-2xl focus:outline-none relative ${locked ? "opacity-50" : ""}`}
+      className={`flex flex-col items-center gap-2.5 group rounded-2xl focus:outline-none relative ${locked ? "opacity-50" : ""}`}
     >
       <div className="hp-tile" aria-hidden="true">
-        <Icon className="w-6 h-6 text-white/90" strokeWidth={1.6} />
+        <div className="hp-tile-glow" />
+        <Icon className="w-5 h-5 text-white/90 relative z-10" strokeWidth={1.5} />
       </div>
-      <span className="text-[11px] text-white/70 leading-tight text-center whitespace-pre-line">{label}</span>
+      <span className="text-[10.5px] text-white/60 leading-tight text-center whitespace-pre-line font-medium tracking-wide">{label}</span>
       {locked && lockLabel && (
         <span className="absolute -top-1 -right-1 text-[7px] font-extrabold px-1.5 py-0.5 rounded bg-red-500/20 text-red-400 uppercase tracking-wider">{lockLabel}</span>
       )}
