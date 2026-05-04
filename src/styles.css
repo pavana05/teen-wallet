@@ -9543,27 +9543,29 @@ html.motion-off    .otp-resend-ring svg circle { transition: none !important; }
   color: var(--hp-accent);
 }
 
-/* ---------- Quick action tiles: refined glass + icon weight ---------- */
+/* ---------- Quick action tiles: ultra-premium glass ---------- */
 .hp-root .hp-tile {
-  width: 62px; height: 62px;
-  border-radius: 18px;
-  background: linear-gradient(180deg, rgba(255,255,255,0.045) 0%, rgba(255,255,255,0.012) 100%);
-  border: 1px solid rgba(255,255,255,0.07);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.06), 0 12px 28px -18px rgba(0,0,0,0.85);
+  width: 56px; height: 56px;
+  border-radius: 16px;
+  background:
+    radial-gradient(100% 100% at 30% 10%, rgba(232,220,192,.06), transparent 55%),
+    linear-gradient(180deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%);
+  border: 1px solid rgba(232,220,192,.08);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.05), 0 8px 20px -12px rgba(0,0,0,0.7);
 }
 .hp-root .hp-tile:hover {
-  border-color: rgba(232,217,181,0.30);
-  background: linear-gradient(180deg, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.02) 100%);
+  border-color: rgba(232,217,181,0.22);
 }
 .hp-root button:focus-visible .hp-tile {
-  border-color: rgba(232,217,181,0.55);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.06), 0 6px 22px -10px rgba(232,217,181,0.45);
+  border-color: rgba(232,217,181,0.45);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.06), 0 6px 20px -8px rgba(232,217,181,0.35);
 }
 .hp-root .grid + * span,
 .hp-root .grid > button > span:last-child {
-  color: rgba(255,255,255,0.7);
+  color: rgba(255,255,255,0.55);
   font-weight: 500;
-  letter-spacing: 0.01em;
+  letter-spacing: 0.02em;
+  font-size: 10.5px;
 }
 
 /* ---------- Send-money CTA: hero pill with champagne edge ---------- */
