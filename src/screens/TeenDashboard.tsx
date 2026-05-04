@@ -804,12 +804,13 @@ function FeatureCard({ icon: Icon, title, subtitle, accent, onClick }: {
       onClick={() => { haptics.tap(); onClick(); }}
       className="td-feature-card group"
     >
-      <div className="td-feature-icon" style={{ background: `color-mix(in oklch, ${accent} 15%, transparent)`, color: accent }}>
-        <Icon className="w-5 h-5" strokeWidth={1.8} />
+      <div className="td-feature-shimmer" aria-hidden="true" />
+      <div className="td-feature-icon" style={{ background: `color-mix(in oklch, ${accent} 12%, transparent)`, color: accent }}>
+        <Icon className="w-[18px] h-[18px]" strokeWidth={1.6} />
       </div>
-      <p className="text-[13px] font-semibold text-white mt-2.5">{title}</p>
-      <p className="text-[10px] text-white/50 mt-0.5">{subtitle}</p>
-      <ChevronRight className="w-4 h-4 td-feature-chevron group-active:translate-x-0.5 transition-transform" />
+      <p className="text-[12.5px] font-semibold text-white/95 mt-2.5 tracking-tight">{title}</p>
+      <p className="text-[10px] text-white/40 mt-0.5 font-medium">{subtitle}</p>
+      <ChevronRight className="w-3.5 h-3.5 td-feature-chevron group-active:translate-x-0.5 transition-transform" />
     </button>
   );
 }
