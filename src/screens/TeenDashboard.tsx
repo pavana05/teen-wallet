@@ -24,6 +24,7 @@ const NotificationsPanel = lazyWithRetry(() => import("@/components/Notification
 const ProfilePanel = lazyWithRetry(() => import("@/components/ProfilePanel").then(m => ({ default: m.ProfilePanel })));
 const HapticsSettingsLazy = lazyWithRetry(() => import("@/screens/HapticsSettings").then(m => ({ default: m.HapticsSettings })));
 const WalletBalanceLazy = lazyWithRetry(() => import("@/screens/TeenWalletBalance").then(m => ({ default: m.TeenWalletBalance })));
+const AddMoneyLazy = lazyWithRetry(() => import("@/screens/TeenAddMoney").then(m => ({ default: m.TeenAddMoney })));
 
 function HapticsSettingsInline({ onBack }: { onBack: () => void }) {
   return <Suspense fallback={null}><HapticsSettingsLazy onBack={onBack} /></Suspense>;
@@ -43,7 +44,7 @@ interface FamilyLink {
   status: string;
 }
 
-type SubScreen = "savings" | "screentime" | "spending" | "rewards" | "txhistory" | "scanpay" | "notifications" | "linking" | "linkstatus" | "haptics" | "profile" | "wallet" | null;
+type SubScreen = "savings" | "screentime" | "spending" | "rewards" | "txhistory" | "scanpay" | "notifications" | "linking" | "linkstatus" | "haptics" | "profile" | "wallet" | "addmoney" | null;
 
 /* ── Transition fallback ── */
 function TransitionFallback() {
